@@ -49,35 +49,30 @@ spec:
           runAsUser: 0
       nodeSelector:
         kubernetes.io/hostname: ghost
-      outputs:
-        artifacts:
-          - name: behave-html-report
-            path: /tmp/results/report.html
-            optional: true
-          - name: behave-json-results
-            path: /tmp/results/results.json
-            optional: true
-          - name: atspi-tree
-            path: /tmp/results/atspi_tree.txt
-            optional: true
-          - name: runner-log
-            path: /tmp/results/runner.log
-            optional: true
+      # outputs.artifacts removed: Argo wait sidecar fails with exit 64 when no
+      # artifact repository is configured, even for optional artifacts.
+      # Results are captured via outputs.result (stdout) + kubectl logs.
       initContainers:
         - name: git-sync
-          image: registry.k8s.io/git-sync/git-sync:v4.4.0
+          image: quay.io/fedora/fedora:latest
+          command: [bash, -c]
           args:
-            - --repo=https://github.com/castrojo/bluefin-test-suite
-            - --ref=main
-            - --root=/workspace
-            - --one-time
-            - --depth=1
-            - --link=bluefin-test-suite
+            - |
+              for attempt in 1 2 3; do
+                dnf install -y --quiet git 2>&1 | tail -2
+                if git clone --depth 1 --branch main \
+                    https://github.com/castrojo/bluefin-test-suite \
+                    /workspace/bluefin-test-suite 2>&1; then
+                  echo "Synced bluefin-test-suite (attempt ${attempt})"
+                  exit 0
+                fi
+                echo "Attempt ${attempt} failed, retrying in 15s..."
+                sleep 15
+              done
+              exit 1
           volumeMounts:
             - name: workspace
               mountPath: /workspace
-          securityContext:
-            runAsUser: 65533
       container:
         # Fedora: has dnf, python3, pip3 — matches Bluefin (Fedora-based) package names
         image: quay.io/fedora/fedora:latest
