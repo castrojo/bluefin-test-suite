@@ -1,0 +1,76 @@
+# Nightly scheduled test run — submits matrix workflow to Argo on ghost.
+#
+# Prerequisites:
+#   1. Register a self-hosted runner on ghost:
+#        curl -L https://github.com/actions/runner/releases/latest/download/actions-runner-linux-x64-*.tar.gz | tar xz
+#        ./config.sh --url https://github.com/projectbluefin/testsuite --token <TOKEN> --labels ghost
+#        sudo ./svc.sh install && sudo ./svc.sh start
+#   2. Ensure `argo` CLI is in PATH on the runner host.
+#
+# The runner runs directly on ghost so it has access to:
+#   - kubectl (k3s kubeconfig at /etc/rancher/k3s/k3s.yaml)
+#   - argo CLI (Argo Workflows)
+#   - BLUEFIN_TEST_PUBKEY stored as a repository secret
+
+name: Nightly Test Matrix
+
+on:
+  schedule:
+    # Run at 03:00 UTC every day
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag to test (latest | lts | both)"
+        required: false
+        default: "both"
+
+jobs:
+  submit-matrix:
+    name: Submit test matrix to Argo
+    runs-on: [self-hosted, ghost]
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve tags to test
+        id: tags
+        run: |
+          INPUT="${{ github.event.inputs.image_tag || 'both' }}"
+          if [[ "${INPUT}" == "both" ]]; then
+            echo "tags=latest lts" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=${INPUT}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Submit Argo workflow (latest)
+        if: contains(steps.tags.outputs.tags, 'latest')
+        env:
+          BLUEFIN_TEST_PUBKEY: ${{ secrets.BLUEFIN_TEST_PUBKEY }}
+        run: |
+          argo submit argo/bluefin-smoke-test.yaml \
+            -p image="ghcr.io/ublue-os/bluefin:latest" \
+            -p image-tag="latest" \
+            -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+            -p pr-title="nightly" \
+            -p pr-number="" \
+            -n argo \
+            --wait \
+            --log
+
+      - name: Submit Argo workflow (lts)
+        if: contains(steps.tags.outputs.tags, 'lts')
+        env:
+          BLUEFIN_TEST_PUBKEY: ${{ secrets.BLUEFIN_TEST_PUBKEY }}
+        run: |
+          argo submit argo/bluefin-smoke-test.yaml \
+            -p image="ghcr.io/ublue-os/bluefin:lts" \
+            -p image-tag="lts" \
+            -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+            -p pr-title="nightly" \
+            -p pr-number="" \
+            -n argo \
+            --wait \
+            --log

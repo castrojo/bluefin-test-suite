@@ -52,9 +52,11 @@ spec:
           runAsUser: 0
       nodeSelector:
         kubernetes.io/hostname: ghost
-      # outputs.artifacts removed: Argo wait sidecar fails with exit 64 when no
-      # artifact repository is configured, even for optional artifacts.
-      # Results are captured via outputs.result (stdout) + kubectl logs.
+      # Results written to hostPath /var/tmp/bluefin-results/<workflow-uid>/<suite>/
+      # on ghost for persistence beyond workflow lifetime.
+      # outputs.artifacts omitted: no Argo artifact repository configured.
+      outputs:
+        result: "{{pod.name}}"
       initContainers:
         - name: git-sync
           image: quay.io/fedora/fedora:latest
@@ -102,6 +104,8 @@ spec:
           - name: workspace
             mountPath: /workspace
             readOnly: true
+          - name: results-store
+            mountPath: /var/tmp/bluefin-results
         command: [bash, -c]
         args:
           - |
@@ -198,7 +202,15 @@ spec:
             ${SCP} ${VM_USER}@${VM_IP}:/tmp/results/. /tmp/results/ || true
 
             echo "Done. Results in /tmp/results/" >&2
-            # Only the final result summary goes to stdout (Argo outputs.result)
+
+            # ── Persist results to hostPath on ghost ─────────────────────────
+            # /var/tmp/bluefin-results/<workflow-uid>/<suite>/ survives pod deletion.
+            RESULT_DIR="/var/tmp/bluefin-results/{{workflow.uid}}/${SUITE}"
+            mkdir -p "${RESULT_DIR}"
+            cp -a /tmp/results/. "${RESULT_DIR}/" 2>/dev/null || true
+            echo "Results persisted to ${RESULT_DIR}" >&2
+
+            # ── Summary to stdout (Argo outputs.result) ──────────────────────
             python3 -c "
             import json, sys
             try:
@@ -218,3 +230,7 @@ spec:
             defaultMode: 0400
         - name: workspace
           emptyDir: {}
+        - name: results-store
+          hostPath:
+            path: /var/tmp/bluefin-results
+            type: DirectoryOrCreate

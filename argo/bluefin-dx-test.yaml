@@ -1,0 +1,114 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: bluefin-dx-test-
+  namespace: argo
+spec:
+  entrypoint: dx-test-pipeline
+  serviceAccountName: argo
+  podMetadata:
+    labels:
+      app.kubernetes.io/part-of: bluefin-test-suite
+      bluefin.io/suite: dx
+      bluefin.io/variant: "{{workflow.parameters.image-tag}}"
+    annotations:
+      bluefin.io/image-tag: "{{workflow.parameters.image-tag}}"
+      bluefin.io/pr-title: "{{workflow.parameters.pr-title}}"
+  onExit: cleanup
+
+  arguments:
+    parameters:
+      - name: image
+        value: "ghcr.io/ublue-os/bluefin-dx:latest"
+      - name: image-tag
+        value: "dx-latest"
+      - name: ssh-pubkey
+        value: ""
+      - name: namespace
+        value: "bluefin-test"
+      - name: pr-title
+        value: ""
+      - name: pr-number
+        value: ""
+
+  templates:
+    - name: dx-test-pipeline
+      dag:
+        tasks:
+          # Ensure DX golden disk exists
+          - name: ensure-disk
+            templateRef:
+              name: bib-build-and-push
+              template: ensure-disk
+            arguments:
+              parameters:
+                - name: image
+                  value: "{{workflow.parameters.image}}"
+                - name: image-tag
+                  value: "{{workflow.parameters.image-tag}}"
+                - name: ssh-pubkey
+                  value: "{{workflow.parameters.ssh-pubkey}}"
+
+          # Boot DX VM from golden disk
+          - name: provision
+            dependencies: [ensure-disk]
+            templateRef:
+              name: provision-variant-vm
+              template: provision-variant-vm
+            arguments:
+              parameters:
+                - name: image
+                  value: "{{workflow.parameters.image}}"
+                - name: image-tag
+                  value: "{{workflow.parameters.image-tag}}"
+                - name: vm-name
+                  value: "bluefin-dx-{{workflow.uid}}"
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"
+
+          # Run smoke first: baseline desktop checks pass before DX-specific tests
+          - name: run-smoke
+            dependencies: [provision]
+            templateRef:
+              name: run-variant-tests
+              template: run-variant-tests
+            arguments:
+              parameters:
+                - name: vm-ip
+                  value: "{{tasks.provision.outputs.parameters.vm-ip}}"
+                - name: suite
+                  value: "smoke"
+                - name: runner-type
+                  value: "qecore"
+                - name: variant
+                  value: "{{workflow.parameters.image-tag}}"
+
+          # Run DX-specific tests (VS Code, devcontainers, distrobox)
+          - name: run-dx
+            dependencies: [run-smoke]
+            templateRef:
+              name: run-variant-tests
+              template: run-variant-tests
+            arguments:
+              parameters:
+                - name: vm-ip
+                  value: "{{tasks.provision.outputs.parameters.vm-ip}}"
+                - name: suite
+                  value: "dx"
+                - name: runner-type
+                  value: "plain-ssh"
+                - name: variant
+                  value: "{{workflow.parameters.image-tag}}"
+
+    - name: cleanup
+      steps:
+        - - name: delete-vm
+            templateRef:
+              name: teardown-bluefin-vm
+              template: teardown-vm
+            arguments:
+              parameters:
+                - name: vm-name
+                  value: "bluefin-dx-{{workflow.uid}}"
+                - name: namespace
+                  value: "{{workflow.parameters.namespace}}"

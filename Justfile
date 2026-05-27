@@ -141,28 +141,29 @@ run-flatcar-smoke:
         -n {{ argo_ns }} \
         --watch
 
-# Run DX variant smoke tests (requires DX golden disk)
+# Run DX variant tests (smoke + dx suite). Requires DX golden disk.
+# Builds DX golden disk if not present (~100s cold BIB).
 run-dx-smoke:
     #!/usr/bin/env bash
     set -euo pipefail
     : "${BLUEFIN_TEST_PUBKEY:?Run 'just setup-ssh-secret' then 'source .env.test-pubkey'}"
-    argo submit argo/bluefin-smoke-test.yaml \
+    argo submit argo/bluefin-dx-test.yaml \
         -p image="ghcr.io/ublue-os/bluefin-dx:latest" \
         -p image-tag="dx-latest" \
         -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
         -n {{ argo_ns }} \
         --watch
 
-# Run lifecycle tests (bootc upgrade/rollback) — requires upgrade target image
+# Run lifecycle tests (bootc upgrade/rollback/switch).
+# runner-type=plain-ssh; step defs handle SSH reconnect after reboot.
 run-lifecycle:
     #!/usr/bin/env bash
     set -euo pipefail
     : "${BLUEFIN_TEST_PUBKEY:?Run 'just setup-ssh-secret' then 'source .env.test-pubkey'}"
-    argo submit argo/bluefin-smoke-test.yaml \
+    argo submit argo/bluefin-lifecycle-test.yaml \
         -p image="{{ image }}" \
         -p image-tag="{{ image_tag }}" \
         -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
-        -p suite="lifecycle" \
         -n {{ argo_ns }} \
         --watch
 
@@ -176,6 +177,7 @@ run-security:
         -p image-tag="{{ image_tag }}" \
         -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
         -p suite="security" \
+        -p runner-type="plain-ssh" \
         -n {{ argo_ns }} \
         --watch
 
@@ -189,8 +191,75 @@ run-vanilla-gnome:
         -p image-tag="vanilla-gnome" \
         -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
         -p suite="vanilla-gnome" \
+        -p runner-type="qecore" \
         -n {{ argo_ns }} \
         --watch
+
+# ── Results ──────────────────────────────────────────────────────────────────
+
+# List recent test results stored on ghost (most recent first)
+# Usage: just results            → last 10 runs
+# Usage: just results 20         → last 20 runs
+results n="10":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BASE="/var/tmp/bluefin-results"
+    if [[ ! -d "${BASE}" ]]; then
+        echo "(no results yet — run a test first)"
+        exit 0
+    fi
+    echo "=== Recent test results (last {{ n }}) ==="
+    COUNT=0
+    for dir in $(ls -1t "${BASE}"); do
+        [[ ${COUNT} -ge {{ n }} ]] && break
+        RUN="${BASE}/${dir}"
+        echo ""
+        echo "Run: ${dir}"
+        for suite_dir in "${RUN}"/*/; do
+            SUITE=$(basename "${suite_dir}")
+            JSON="${suite_dir}results.json"
+            if [[ -f "${JSON}" ]]; then
+                python3 -c "
+    import json
+    try:
+        data = json.load(open('${JSON}'))
+        failed = sum(1 for f in data for s in f.get('elements',[]) if s.get('status') == 'failed')
+        total  = sum(len(f.get('elements',[])) for f in data)
+        icon = '✓' if failed == 0 else '✗'
+        print(f'  {icon} ${SUITE}: {total - failed}/{total} passed')
+    except Exception as e:
+        print(f'  ? ${SUITE}: (error reading results.json: {e})')
+    " 2>/dev/null
+            else
+                echo "  ? ${SUITE}: (no results.json)"
+            fi
+        done
+        COUNT=$((COUNT + 1))
+    done
+
+# Remove old test results from ghost hostPath (keeps last N runs)
+# Usage: just clean-results      → keep last 20 runs
+# Usage: just clean-results 5    → keep last 5 runs
+clean-results keep="20":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BASE="/var/tmp/bluefin-results"
+    if [[ ! -d "${BASE}" ]]; then
+        echo "(no results directory)"
+        exit 0
+    fi
+    TOTAL=$(ls -1 "${BASE}" | wc -l)
+    TO_DELETE=$((TOTAL - {{ keep }}))
+    if [[ ${TO_DELETE} -le 0 ]]; then
+        echo "✓ ${TOTAL} runs present, nothing to remove (keeping {{ keep }})"
+        exit 0
+    fi
+    echo "Removing ${TO_DELETE} oldest run(s) (keeping {{ keep }} of ${TOTAL})..."
+    ls -1t "${BASE}" | tail -${TO_DELETE} | while read dir; do
+        echo "  removing ${BASE}/${dir}"
+        rm -rf "${BASE:?}/${dir}"
+    done
+    echo "✓ Done"
 
 # ── Observation ─────────────────────────────────────────────────────────────
 
@@ -245,12 +314,35 @@ teardown:
 # ── Validation ───────────────────────────────────────────────────────────────
 
 # Lint all Argo YAML manifests
+# "template reference not found" errors are expected for Workflow files that
+# reference cluster-deployed WorkflowTemplates — argo lint can't resolve them
+# without a live cluster connection.  We only fail on real YAML/schema errors.
 lint:
-    @for f in argo/*.yaml argo/workflow-templates/*.yaml; do \
-        echo "Linting $$f..."; \
-        argo lint $$f || exit 1; \
+    #!/usr/bin/env bash
+    set -uo pipefail
+    ERRORS=0
+    for f in argo/*.yaml argo/workflow-templates/*.yaml; do
+        echo "Linting ${f}..."
+        OUTPUT=$(argo lint "${f}" 2>&1) || true
+        if echo "${OUTPUT}" | grep -q '✖'; then
+            # Ignore expected "template reference not found" and count-summary lines.
+            # Real errors: ✖ lines that aren't cross-template ref warnings or summaries.
+            REAL_ERRORS=$(echo "${OUTPUT}" | grep '✖' \
+                | grep -v 'template reference.*not found' \
+                | grep -v 'linting errors found' || true)
+            if [[ -n "${REAL_ERRORS}" ]]; then
+                echo "${OUTPUT}"
+                ERRORS=$((ERRORS + 1))
+            else
+                echo "  (ok — only expected external templateRef warnings)"
+            fi
+        fi
     done
-    @echo "✓ All manifests valid"
+    if [[ ${ERRORS} -gt 0 ]]; then
+        echo "✖ ${ERRORS} real linting error(s) found"
+        exit 1
+    fi
+    echo "✓ All manifests valid"
 
 # Validate tmt plans and tests
 validate-tmt:
@@ -264,8 +356,8 @@ verify-images:
     IMAGES=(
         "ghcr.io/ublue-os/bluefin:latest"
         "ghcr.io/ublue-os/bluefin:lts"
+        "ghcr.io/ublue-os/bluefin-dx:latest"
         # Uncomment as variants are added to the matrix:
-        # "ghcr.io/ublue-os/bluefin-dx:latest"
         # "ghcr.io/ublue-os/bluefin-nvidia:latest"
     )
     ISSUER="https://token.actions.githubusercontent.com"
@@ -288,6 +380,52 @@ verify-images:
         exit 1
     fi
     echo "✓ All images verified"
+
+# ── CI/CD ────────────────────────────────────────────────────────────────────
+
+# Manually re-trigger a test run from the CLI (mirrors GitHub Actions manual.yml).
+# Usage: just trigger-pr latest smoke
+# Usage: just trigger-pr dx-latest dx ghcr.io/ublue-os/bluefin-dx:latest
+trigger-pr tag="latest" suite="smoke" img="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${BLUEFIN_TEST_PUBKEY:?Run 'just setup-ssh-secret' then 'source .env.test-pubkey'}"
+    IMAGE="{{ img }}"
+    if [[ -z "${IMAGE}" ]]; then
+        case "{{ tag }}" in
+            lts)          IMAGE="ghcr.io/ublue-os/bluefin:lts" ;;
+            dx-latest)    IMAGE="ghcr.io/ublue-os/bluefin-dx:latest" ;;
+            vanilla-gnome) IMAGE="quay.io/fedora/fedora-bootc:latest" ;;
+            *)            IMAGE="ghcr.io/ublue-os/bluefin:{{ tag }}" ;;
+        esac
+    fi
+    echo "Submitting: image=${IMAGE} tag={{ tag }} suite={{ suite }}"
+    argo submit argo/bluefin-smoke-test.yaml \
+        -p image="${IMAGE}" \
+        -p image-tag="{{ tag }}" \
+        -p suite="{{ suite }}" \
+        -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+        -p pr-title="manual:$(whoami)" \
+        -n {{ argo_ns }} \
+        --watch
+
+# Print instructions for registering a GitHub Actions self-hosted runner on ghost
+setup-runner:
+    @echo "=== Register GitHub Actions self-hosted runner on ghost ==="
+    @echo ""
+    @echo "1. Go to: https://github.com/projectbluefin/testsuite/settings/actions/runners/new"
+    @echo "   Select: Linux / x64"
+    @echo "   Copy the registration token shown on that page."
+    @echo ""
+    @echo "2. On ghost, run:"
+    @echo "   mkdir -p ~/actions-runner && cd ~/actions-runner"
+    @echo "   curl -L https://github.com/actions/runner/releases/latest/download/actions-runner-linux-x64-2.316.1.tar.gz | tar xz"
+    @echo "   ./config.sh --url https://github.com/projectbluefin/testsuite --token <TOKEN> --labels ghost --unattended"
+    @echo "   sudo ./svc.sh install && sudo ./svc.sh start"
+    @echo ""
+    @echo "3. Add repository secret BLUEFIN_TEST_PUBKEY:"
+    @echo "   gh secret set BLUEFIN_TEST_PUBKEY -R projectbluefin/testsuite"
+    @echo "   (paste contents of .env.test-pubkey when prompted)"
 
 # List all stub/future test scenarios not yet implemented
 list-stubs:
