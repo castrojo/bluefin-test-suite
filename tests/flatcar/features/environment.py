@@ -9,13 +9,31 @@ import os
 
 
 def before_all(context) -> None:
-    context.vm_ip = os.environ["FLATCAR_VM_IP"]
-    context.ssh_key = os.environ.get("SSH_KEY_PATH", "/etc/ssh/test-key/id_ed25519")
-    context.ssh_user = os.environ.get("SSH_USER", "core")
+    context.vm_ip = (
+        os.environ.get("FLATCAR_VM_IP")
+        or os.environ.get("VM_IP")
+        or os.environ.get("TMT_SSH_HOST")
+        or ""
+    )
+    context.ssh_key = (
+        os.environ.get("SSH_KEY")
+        or os.environ.get("SSH_KEY_PATH")
+        or os.environ.get("TMT_SSH_KEY", "/etc/ssh/test-key/id_ed25519")
+    )
+    context.ssh_user = (
+        os.environ.get("VM_USER")
+        or os.environ.get("SSH_USER")
+        or os.environ.get("TMT_SSH_USER", "core")
+    )
+    context.command_stdout = ""
+    context.ssh_rc = 0
+    context.last_ssh_result = None
 
 
 def before_scenario(context, scenario) -> None:
-    pass
+    context.command_stdout = ""
+    context.ssh_rc = 0
+    context.last_ssh_result = None
 
 
 def after_scenario(context, scenario) -> None:

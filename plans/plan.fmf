@@ -122,6 +122,15 @@
         how: fmf
         test: /tests/smoke
 
+/vanilla-gnome:
+    summary: Vanilla GNOME upstream baseline (nightly comparison)
+    inherit: /main
+    discover:
+        how: fmf
+        test: /tests/vanilla-gnome
+    # Golden disk: quay.io/fedora/fedora-bootc:latest
+    # Namespace: gnome-baseline-test
+
 /developer-tools:
     summary: Phase 2 — Core Developer Tooling
     inherit: /main
@@ -135,3 +144,35 @@
     discover:
         how: fmf
         test: /tests/software
+
+/dx:
+    summary: Phase 4 — Bluefin DX variant tools (VS Code, devcontainers, distrobox)
+    inherit: /main
+    discover:
+        how: fmf
+        test: /tests/dx
+    # NOTE: @future — requires DX golden disk (ghcr.io/ublue-os/bluefin-dx:latest)
+
+/hardware:
+    summary: Emulated hardware peripheral validation (audio, TPM, watchdog)
+    inherit: /main
+    discover:
+        how: fmf
+        test: /tests/hardware
+    # NOTE: @future — requires VM spec changes (ich9-hda, swtpm, i6300esb)
+
+/lifecycle:
+    summary: bootc upgrade, rollback, and switch lifecycle tests
+    inherit: /main
+    discover:
+        how: fmf
+        test: /tests/lifecycle
+    # NOTE: @future tag — not run by default until golden disks for upgrade targets exist
+
+/security:
+    summary: Container image signature verification and SELinux enforcing
+    inherit: /main
+    discover:
+        how: fmf
+        test: /tests/security
+    # NOTE: @future tag — cosign requires network; SELinux requires removing selinux=0 from disks
