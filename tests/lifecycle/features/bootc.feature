@@ -1,4 +1,4 @@
-@future @lifecycle @bluefin
+@lifecycle @bluefin
 Feature: bootc upgrade and rollback lifecycle
   Validates that atomic updates via bootc work correctly on Bluefin.
   Tests the most critical user journey: upgrade, verify, rollback.

@@ -152,6 +152,13 @@ spec:
             ${SSH} "sudo modprobe uinput 2>/dev/null || true"
             ${SSH} "sudo chmod 0666 /dev/uinput 2>/dev/null || true"
             ${SSH} "sudo chcon -t uinput_device_t /dev/uinput 2>/dev/null || true"
+            # cosign: required for security/image_provenance suite signature checks.
+            # Try dnf first (Fedora 38+ ships cosign); fall back to GitHub release binary.
+            if [[ "${SUITE}" == "security" ]]; then
+              ${SSH} "which cosign &>/dev/null || sudo dnf install -y --quiet cosign 2>&1 | tail -3 || \
+                (curl -sLo /tmp/cosign https://github.com/sigstore/cosign/releases/latest/download/cosign-linux-amd64 && \
+                 sudo install -m 0755 /tmp/cosign /usr/local/bin/cosign)"
+            fi
             echo "Dependencies installed." >&2
 
             # ── Copy test suite to VM ────────────────────────────────────────

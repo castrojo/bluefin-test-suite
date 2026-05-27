@@ -1,4 +1,4 @@
-@future @security @cosign @preflight
+@security @cosign @preflight
 Feature: Container image signature verification
   Validates that Bluefin images consumed by the pipeline are correctly
   signed by the upstream build systems (ublue-os GitHub Actions).

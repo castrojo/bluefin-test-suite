@@ -181,6 +181,21 @@ run-security:
         -n {{ argo_ns }} \
         --watch
 
+# Run hardware device emulation tests (TPM, audio, watchdog) — uses full-hw VM profile
+run-hardware-tests:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${BLUEFIN_TEST_PUBKEY:?Run 'just setup-ssh-secret' then 'source .env.test-pubkey'}"
+    argo submit argo/bluefin-smoke-test.yaml \
+        -p image="{{ image }}" \
+        -p image-tag="{{ image_tag }}" \
+        -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+        -p suite="hardware" \
+        -p runner-type="plain-ssh" \
+        -p hw-profile="full-hw" \
+        -n {{ argo_ns }} \
+        --watch
+
 # Run vanilla GNOME baseline tests (nightly comparison)
 run-vanilla-gnome:
     #!/usr/bin/env bash
