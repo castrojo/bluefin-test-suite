@@ -1,11 +1,12 @@
-@future @nvidia_only @requires_gpu
+@future @nvidia_only @requires_gpu @hardware_blocked
 Feature: NVIDIA GPU passthrough validation
   Validates the NVIDIA driver stack, Vulkan, and CUDA on Bluefin NVIDIA variant.
   Runner: plain SSH behave (CLI validation, no GUI needed for most).
 
-  # Requires: GPU passthrough configured in KubeVirt (VFIO-PCI or vGPU).
-  # If no NVIDIA GPU on host, all scenarios gracefully skip via @requires_gpu tag.
-  # See QA-REVIEW.md Epic E08 for full design.
+  # DEFERRED: Requires VFIO-PCI or vGPU passthrough configured in KubeVirt.
+  # ghost has AMD Ryzen AI MAX+ — confirm if discrete NVIDIA GPU is present
+  # before activating this suite. All scenarios are stubbed-only.
+  # See QA-REVIEW.md Epic E08.
 
   Background:
     * Bluefin NVIDIA VM is booted and reachable over SSH
