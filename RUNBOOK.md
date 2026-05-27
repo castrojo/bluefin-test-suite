@@ -1,6 +1,6 @@
 # Bluefin QA Pipeline — Runbook
 
-> For future agents and human operators. Last updated: 2026-05-25.
+> For future agents and human operators. Last updated: 2026-05-27.
 
 ## Cluster Topology
 
