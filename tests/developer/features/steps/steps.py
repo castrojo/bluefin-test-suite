@@ -37,10 +37,11 @@ def terminal_output_contains(context, text) -> None:
 @step('Ptyxis has "{number}" tabs')
 def ptyxis_has_n_tabs(context, number) -> None:
     # Tab bar uses roleName "page tab list"
-    tab_list = context.ptyxis.instance.findChild(
-        lambda n: n.roleName == "page tab list" and n.showing,
-        requireResult=True,
+    results = context.ptyxis.instance.findChildren(
+        lambda n: n.roleName == "page tab list" and n.showing
     )
+    assert results, "Ptyxis tab list (page tab list) not found"
+    tab_list = results[0]
     tabs = tab_list.findChildren(lambda n: n.roleName == "page tab")
     assert len(tabs) == int(number), (
         f"Expected {number} tabs, found {len(tabs)}"

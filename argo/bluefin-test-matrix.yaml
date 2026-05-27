@@ -102,36 +102,110 @@ spec:
                 - name: namespace
                   value: "bluefin-lts-test"
 
-        # Phase 2: run smoke tests against both VMs in parallel
-        - - name: test-latest
+        # Phase 2: smoke — both variants in parallel
+        - - name: smoke-latest
             templateRef:
-              name: run-gnome-tests
-              template: run-gnome-tests
+              name: run-variant-tests
+              template: run-variant-tests
             arguments:
               parameters:
                 - name: vm-ip
                   value: "{{steps.bluefin-latest.outputs.parameters.vm-ip}}"
                 - name: suite
                   value: "smoke"
+                - name: runner-type
+                  value: "qecore"
                 - name: variant
                   value: "latest"
                 - name: issue-title
                   value: "matrix smoke - latest - PR{{workflow.parameters.pr-number}}"
 
-          - name: test-lts
+          - name: smoke-lts
             templateRef:
-              name: run-gnome-tests
-              template: run-gnome-tests
+              name: run-variant-tests
+              template: run-variant-tests
             arguments:
               parameters:
                 - name: vm-ip
                   value: "{{steps.bluefin-lts.outputs.parameters.vm-ip}}"
                 - name: suite
                   value: "smoke"
+                - name: runner-type
+                  value: "qecore"
                 - name: variant
                   value: "lts"
                 - name: issue-title
                   value: "matrix smoke - lts - PR{{workflow.parameters.pr-number}}"
+
+        # Phase 3: developer suite — both variants in parallel (sequential after smoke)
+        - - name: developer-latest
+            templateRef:
+              name: run-variant-tests
+              template: run-variant-tests
+            arguments:
+              parameters:
+                - name: vm-ip
+                  value: "{{steps.bluefin-latest.outputs.parameters.vm-ip}}"
+                - name: suite
+                  value: "developer"
+                - name: runner-type
+                  value: "qecore"
+                - name: variant
+                  value: "latest"
+                - name: issue-title
+                  value: "matrix developer - latest - PR{{workflow.parameters.pr-number}}"
+
+          - name: developer-lts
+            templateRef:
+              name: run-variant-tests
+              template: run-variant-tests
+            arguments:
+              parameters:
+                - name: vm-ip
+                  value: "{{steps.bluefin-lts.outputs.parameters.vm-ip}}"
+                - name: suite
+                  value: "developer"
+                - name: runner-type
+                  value: "qecore"
+                - name: variant
+                  value: "lts"
+                - name: issue-title
+                  value: "matrix developer - lts - PR{{workflow.parameters.pr-number}}"
+
+        # Phase 4: software suite — both variants in parallel (sequential after developer)
+        - - name: software-latest
+            templateRef:
+              name: run-variant-tests
+              template: run-variant-tests
+            arguments:
+              parameters:
+                - name: vm-ip
+                  value: "{{steps.bluefin-latest.outputs.parameters.vm-ip}}"
+                - name: suite
+                  value: "software"
+                - name: runner-type
+                  value: "qecore"
+                - name: variant
+                  value: "latest"
+                - name: issue-title
+                  value: "matrix software - latest - PR{{workflow.parameters.pr-number}}"
+
+          - name: software-lts
+            templateRef:
+              name: run-variant-tests
+              template: run-variant-tests
+            arguments:
+              parameters:
+                - name: vm-ip
+                  value: "{{steps.bluefin-lts.outputs.parameters.vm-ip}}"
+                - name: suite
+                  value: "software"
+                - name: runner-type
+                  value: "qecore"
+                - name: variant
+                  value: "lts"
+                - name: issue-title
+                  value: "matrix software - lts - PR{{workflow.parameters.pr-number}}"
 
     # onExit: always teardown both VMs regardless of outcome
     - name: cleanup
