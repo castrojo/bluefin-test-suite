@@ -274,39 +274,35 @@ E13 (Security Hardening) ─── depends on E03, E04 ────────�
 
 ---
 
-## E03: Container Image Cosign Verification Gate
+## E03: Cosign Signature Verification Tests
 
-**Objective:** Ensure all container images consumed by the test pipeline are cryptographically verified before use, establishing a chain of trust from image build to test execution.
+**Objective:** Validate that Bluefin images are correctly signed by upstream build systems. The signing infrastructure lives in the Bluefin CI — this epic only verifies the signatures are present, valid, and match expected identity constraints.
 
-**Targets:** All Bluefin images (`ghcr.io/ublue-os/bluefin:*`), base runner images, BIB builder image
+**Targets:** All Bluefin images (`ghcr.io/ublue-os/bluefin:*`, DX, NVIDIA variants)
 
 **Acceptance Criteria:**
-- [ ] New `verify-image` WorkflowTemplate that runs `cosign verify` against the target image before BIB build
-- [ ] Verification uses ublue-os public key (or Sigstore keyless with OIDC issuer constraint)
-- [ ] Pipeline fails fast with clear error if signature verification fails
-- [ ] Runner images (Fedora, chainguard) verified against their respective Sigstore roots
-- [ ] ClusterImagePolicy (via Kyverno or Sigstore policy-controller) enforces signing at admission
-- [ ] Test step validates that the booted VM's `bootc status` shows the expected signed image digest
-- [ ] Cosign binary pinned to specific version; updated via Renovate
-- [ ] `just verify-images` command validates all images offline
+- [ ] Test scenario: `cosign verify` succeeds against every image tag in the matrix
+- [ ] Test scenario: Verification uses correct OIDC issuer + identity regexp for ublue-os
+- [ ] Test scenario: `bootc status` inside booted VM shows a signed image digest
+- [ ] Test scenario: Signature verification fails gracefully with clear error on tampered/unsigned image
+- [ ] `just verify-images` command runs cosign verify against all active image tags
+- [ ] Verification runs as a pre-flight check in the pipeline (before BIB build)
 
 **Implementation Notes:**
-- Install `cosign` in runner pods (or use `cgr.dev/chainguard/cosign:latest`)
 - ublue-os uses Sigstore keyless signing via GitHub Actions OIDC — verify with:
   ```bash
   cosign verify --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
     --certificate-identity-regexp='https://github.com/ublue-os/.*' \
     ghcr.io/ublue-os/bluefin:latest
   ```
-- For runner images: Chainguard signs with their root; Fedora signs with Sigstore
-- Policy-controller: `sigstore/policy-controller` Helm chart with `ClusterImagePolicy` CRD
-- Record verified digest in workflow annotations for provenance chain
+- This is a validation-only epic — do NOT replicate signing infra or admission controllers
+- Cosign binary: install in a lightweight verification step or use `cgr.dev/chainguard/cosign`
 
 **Performance SLA:** Verification step must complete in <30s per image
 
 **Dependencies:** None (can be implemented immediately)
 
-**Estimated effort:** 1 sprint
+**Estimated effort:** 0.5 sprint
 
 ---
 

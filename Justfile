@@ -205,3 +205,44 @@ lint:
 validate-tmt:
     tmt plans show
     tmt tests show
+
+# Verify cosign signatures on all active Bluefin image tags
+verify-images:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    IMAGES=(
+        "ghcr.io/ublue-os/bluefin:latest"
+        "ghcr.io/ublue-os/bluefin:lts"
+        # Uncomment as variants are added to the matrix:
+        # "ghcr.io/ublue-os/bluefin-dx:latest"
+        # "ghcr.io/ublue-os/bluefin-nvidia:latest"
+    )
+    ISSUER="https://token.actions.githubusercontent.com"
+    IDENTITY="https://github.com/ublue-os/.*"
+    FAILED=0
+    for img in "${IMAGES[@]}"; do
+        echo "Verifying: ${img}..."
+        if cosign verify \
+            --certificate-oidc-issuer="${ISSUER}" \
+            --certificate-identity-regexp="${IDENTITY}" \
+            "${img}" >/dev/null 2>&1; then
+            echo "  ✓ ${img}"
+        else
+            echo "  ✗ ${img} — signature verification FAILED"
+            FAILED=$((FAILED + 1))
+        fi
+    done
+    if [[ ${FAILED} -gt 0 ]]; then
+        echo "ERROR: ${FAILED} image(s) failed verification"
+        exit 1
+    fi
+    echo "✓ All images verified"
+
+# List all stub/future test scenarios not yet implemented
+list-stubs:
+    #!/usr/bin/env bash
+    echo "=== Stubbed scenarios (@future tag) ==="
+    grep -r '@future' tests/*/features/*.feature 2>/dev/null | sed 's/.*tests/  tests/' || echo "  (none)"
+    echo ""
+    echo "=== NotImplementedError stubs ==="
+    grep -rn 'raise NotImplementedError' tests/*/features/steps/*.py 2>/dev/null | sed 's/.*tests/  tests/' || echo "  (none)"

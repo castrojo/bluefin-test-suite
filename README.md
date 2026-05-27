@@ -40,12 +40,17 @@ GitHub webhook / just run-tests / just run-titan-smoke
 
 ## Test phases
 
-| Phase | Plan | Runs on |
-|---|---|---|
-| 1 — Golden Path smoke | `/smoke` | Every PR |
-| 2 — Developer tooling | `/developer-tools` | Every merge |
-| 3 — Software management | `/software-management` | Nightly |
-| Flatcar | `/flatcar` | On demand |
+| Phase | Plan | Runs on | Status |
+|---|---|---|---|
+| 1 — Golden Path smoke | `/smoke` | Every PR | ✅ Implemented |
+| 2 — Developer tooling | `/developer-tools` | Every merge | ✅ Implemented |
+| 3 — Software management | `/software-management` | Nightly | ✅ Implemented |
+| Flatcar | `/flatcar` | On demand | ✅ Implemented |
+| Lifecycle (bootc) | `/lifecycle` | — | 🔲 Stubbed (`@future`) |
+| Security (cosign + SELinux) | `/security` | — | 🔲 Stubbed (`@future`) |
+| DX variant | `/dx` | — | 🔲 Stubbed (`@future`) |
+| NVIDIA variant | `/nvidia` | — | 🔲 Stubbed (`@future`) |
+| Hardware emulation | `/hardware` | — | 🔲 Stubbed (`@future`) |
 
 ## Quick start
 
@@ -113,10 +118,20 @@ testsuite/
 │   │   └── test_podman_desktop.py        # Podman Desktop tests
 │   ├── software/                         # Phase 3: GNOME Software, Flatpak
 │   │   └── features/                     # behave BDD tests
-│   └── flatcar/                          # Flatcar OS: systemd, containerd, networking
-│       ├── features/                     # behave BDD tests
-│       ├── test_flatcar_boot.py          # pytest boot tests
-│       └── test_flatcar_knuckle.py       # knuckle installer tests
+│   ├── flatcar/                          # Flatcar OS: systemd, containerd, networking
+│   │   ├── features/                     # behave BDD tests (boot + lifecycle stubs)
+│   │   ├── test_flatcar_boot.py          # pytest boot tests
+│   │   └── test_flatcar_knuckle.py       # knuckle installer tests
+│   ├── lifecycle/                        # 🔲 STUB: bootc upgrade, rollback, switch
+│   │   └── features/                     # @future — not wired into pipeline yet
+│   ├── security/                         # 🔲 STUB: cosign verification, SELinux
+│   │   └── features/                     # @future — not wired into pipeline yet
+│   ├── dx/                               # 🔲 STUB: DX variant (VS Code, distrobox)
+│   │   └── features/                     # @future — not wired into pipeline yet
+│   ├── nvidia/                           # 🔲 STUB: GPU passthrough, nvidia-smi
+│   │   └── features/                     # @future — requires GPU hardware
+│   └── hardware/                         # 🔲 STUB: USB, audio, TPM, watchdog
+│       └── features/                     # @future — requires VM spec changes
 └── argo/
     ├── bluefin-smoke-test.yaml           # single-image smoke workflow
     ├── bluefin-test-matrix.yaml          # multi-channel matrix (latest + lts)
