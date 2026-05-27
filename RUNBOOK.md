@@ -368,4 +368,7 @@ reject `kubectl exec`. Use probe pod + SSH to titan instead.
 | `qemu-img: command not found` | Wrong container image for Flatcar prep | Use `quay.io/fedora/fedora:latest` |
 | VM stuck Terminating | KubeVirt controller race | `kubectl delete pod virt-launcher-... -n ns --force` |
 | tmt-run pod Error immediately | `volumes:` inside `container:` block | Move `volumes:` to template level |
+| Lifecycle test silently skips digest check | `original_digest` / `expected_upgrade_digest` not captured | Add "Capture booted/staged image digest" steps before reboot |
+| `AmbiguousStep` at runtime in DX suite | `qecore.common_steps` + explicit re-def of same `@step` pattern | Give suite-local step a unique name (e.g. `Run DX SSH command:`) |
+| `ostree status shows two deployments` always fails | Counting `* ` only finds the active deployment | Use regex `r'^(?:\* |\s{2}(?!\s))(?=[a-zA-Z0-9])'` to count all headers |
 
