@@ -1,0 +1,50 @@
+@smoke_suite
+Feature: GNOME Calculator smoke tests
+  Validates GNOME Calculator launches, performs simple arithmetic, resets
+  state cleanly, and exits without crashes on a fresh Bluefin session.
+
+  Background:
+    * Start application "gnome-calculator" via "command"
+
+  @calculator @launch
+  Scenario: Calculator launches and window is accessible
+    * Application "gnome-calculator" is running
+    * Calculator window is accessible
+
+  @calculator @addition
+  Scenario: Basic addition
+    * Calculator window is accessible
+    * Click calculator button "1"
+    * Click calculator button "+"
+    * Click calculator button "2"
+    * Click calculator button "="
+    * Calculator display shows "3"
+
+  @calculator @subtraction
+  Scenario: Basic subtraction
+    * Calculator window is accessible
+    * Click calculator button "9"
+    * Click calculator button "-"
+    * Click calculator button "4"
+    * Click calculator button "="
+    * Calculator display shows "5"
+
+  @calculator @clear
+  Scenario: Clear button resets display
+    * Calculator window is accessible
+    * Click calculator button "8"
+    * Click calculator button "+"
+    * Click calculator button "1"
+    * Clear calculator display
+    * Calculator display shows "0"
+
+  @calculator @close
+  Scenario: Calculator closes cleanly via Ctrl+Q
+    * Calculator window is accessible
+    * Key combo: "<Ctrl><Q>" with uinput
+    * Application "gnome-calculator" is no longer running
+
+  @calculator @coredump @regression @bluefin
+  Scenario: No gnome-calculator coredump after session start
+    * Run and save command output: "sh -c 'coredumpctl list gnome-calculator --no-pager --lines=10 2>/dev/null | grep -c gnome-calculator; true'"
+    * Last command output stripped "is" "0"

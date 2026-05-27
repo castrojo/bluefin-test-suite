@@ -1,0 +1,128 @@
+"""Custom step definitions for GNOME Calculator smoke tests."""
+from time import sleep
+
+from behave import step
+from dogtail import tree
+from qecore.common_steps import *  # noqa: F401,F403
+
+
+CALCULATOR_APP_NAMES = ("gnome-calculator", "Calculator")
+BUTTON_ROLES = {"push button", "button"}
+DISPLAY_ROLES = {"text", "entry", "label", "static"}
+BUTTON_ALIASES = {
+    "+": {"+", "plus", "＋"},
+    "-": {"-", "−", "minus", "subtract", "–"},
+    "=": {"=", "equals"},
+    "clear": {"c", "clear", "ac", "all clear"},
+}
+
+
+def _calculator_app():
+    last_error = None
+    for name in CALCULATOR_APP_NAMES:
+        try:
+            return tree.root.application(name)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+    raise AssertionError(
+        f"GNOME Calculator application was not found via AT-SPI: {last_error}"
+    )
+
+
+def _calculator_window():
+    app = _calculator_app()
+    frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+    assert frames, "Visible GNOME Calculator window not found"
+    return frames[0]
+
+
+def _normalize(text: str) -> str:
+    return (text or "").strip().casefold().replace("−", "-").replace("–", "-")
+
+
+def _button_targets(name: str) -> set[str]:
+    normalized = _normalize(name)
+    aliases = BUTTON_ALIASES.get(normalized, {normalized})
+    return {_normalize(alias) for alias in aliases}
+
+
+def _display_candidates():
+    window = _calculator_window()
+    candidates = []
+    for node in window.findChildren(
+        lambda n: n.showing and n.roleName in DISPLAY_ROLES
+    ):
+        name = (getattr(node, "name", "") or "").strip()
+        try:
+            text = (getattr(node, "text", "") or "").strip()
+        except Exception:  # noqa: BLE001
+            text = ""
+        value = text or name
+        if value:
+            candidates.append(value)
+    return candidates
+
+
+def _calculator_button(name: str):
+    targets = _button_targets(name)
+    window = _calculator_window()
+    buttons = window.findChildren(
+        lambda n: n.showing and n.roleName in BUTTON_ROLES and bool((n.name or "").strip())
+    )
+    for button in buttons:
+        if _normalize(button.name) in targets:
+            return button
+    raise AssertionError(
+        f"Calculator button {name!r} not found. Visible buttons: {[button.name for button in buttons]}"
+    )
+
+
+@step("Calculator window is accessible")
+def calculator_window_is_accessible(context) -> None:
+    for _ in range(20):
+        try:
+            context.calculator_window = _calculator_window()
+            if _calculator_button("1"):
+                return
+        except Exception:  # noqa: BLE001
+            sleep(0.5)
+    raise AssertionError("GNOME Calculator window was not accessible")
+
+
+@step('Click calculator button "{name}"')
+def click_calculator_button(context, name: str) -> None:
+    button = _calculator_button(name)
+    button.click()
+    context.last_calculator_button = name
+    sleep(0.2)
+
+
+@step('Calculator display shows "{expected}"')
+def calculator_display_shows(context, expected: str) -> None:
+    normalized_expected = _normalize(expected)
+    last_candidates = []
+    for _ in range(20):
+        last_candidates = _display_candidates()
+        normalized_candidates = [_normalize(candidate) for candidate in last_candidates]
+        if any(
+            candidate == normalized_expected or candidate.endswith(normalized_expected)
+            for candidate in normalized_candidates
+        ):
+            context.calculator_display = last_candidates
+            return
+        sleep(0.5)
+    raise AssertionError(
+        f"Expected calculator display to show {expected!r}, found {last_candidates!r}"
+    )
+
+
+@step("Clear calculator display")
+def clear_calculator_display(context) -> None:
+    for candidate in ("clear", "C", "AC"):
+        try:
+            _calculator_button(candidate).click()
+            sleep(0.2)
+            return
+        except Exception:  # noqa: BLE001
+            continue
+    raise AssertionError("Calculator clear button was not found")

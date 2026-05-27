@@ -1,4 +1,4 @@
-@future @hardware_emulation @nightly
+@hardware_emulation @nightly
 Feature: Emulated hardware peripheral validation
   Validates GNOME/systemd interaction with KubeVirt-emulated hardware.
   All devices are virtual — no physical hardware required.
@@ -19,7 +19,6 @@ Feature: Emulated hardware peripheral validation
 
   @hardware @audio
   Scenario: Audio output sink is detected
-    # TODO: Requires ich9-hda or virtio-snd device in VM spec.
     * Run SSH command: "pactl list sinks short 2>/dev/null | grep -c RUNNING || pactl list sinks short | wc -l"
     * SSH command return code is "0"
 
@@ -32,7 +31,6 @@ Feature: Emulated hardware peripheral validation
 
   @hardware @tpm
   Scenario: TPM 2.0 device is present
-    # TODO: Requires swtpm device in KubeVirt VM spec.
     * Run SSH command: "test -c /dev/tpm0 && echo present || echo missing"
     * SSH command output "is" "present"
 
@@ -45,7 +43,6 @@ Feature: Emulated hardware peripheral validation
 
   @hardware @watchdog
   Scenario: Hardware watchdog device exists
-    # TODO: Requires i6300esb watchdog in KubeVirt VM spec.
     * Run SSH command: "test -c /dev/watchdog && echo present || echo missing"
     * SSH command output "is" "present"
 

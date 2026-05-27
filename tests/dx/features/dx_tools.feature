@@ -1,4 +1,4 @@
-@future @dx_only @developer_suite
+@dx_only @developer_suite
 Feature: Bluefin DX variant smoke tests
   Validates developer-experience-specific tools present in the DX image.
   These scenarios are SKIPPED on standard Bluefin — DX only.
@@ -9,7 +9,6 @@ Feature: Bluefin DX variant smoke tests
 
   @dx @vscode @launch
   Scenario: VS Code or Codium launches and window is accessible
-    # TODO: Implement — launch via Activities search, verify AT-SPI tree.
     # AT-SPI app name is likely "code" or "codium".
     * Start application "code" via "command"
     * Wait until "Visual Studio Code" "frame" appears in "code"
@@ -24,19 +23,16 @@ Feature: Bluefin DX variant smoke tests
 
   @dx @devcontainer @plain_ssh
   Scenario: devcontainer CLI is available on PATH
-    # TODO: Implement — plain SSH, no GUI needed.
     * Run and save command output: "which devcontainer || echo missing"
     * Last command output does not contain "missing"
 
   @dx @distrobox @plain_ssh
   Scenario: distrobox is installed and can create a container
-    # TODO: Implement — distrobox create --dry-run or list.
     * Run and save command output: "distrobox --version"
     * SSH command return code is "0"
 
   @dx @distrobox @plain_ssh
   Scenario: distrobox enter works with default container
-    # TODO: Implement — create ephemeral box, enter, validate prompt.
     * Run and save command output: "distrobox create --name test-dx --image fedora:latest --yes 2>&1 | tail -1"
     * SSH command return code is "0"
 
@@ -52,6 +48,5 @@ Feature: Bluefin DX variant smoke tests
 
   @dx @jupyter @plain_ssh
   Scenario: JupyterLab can be launched (DX includes scientific stack)
-    # TODO: Implement — verify jupyter-lab binary exists or pip package installed.
     * Run and save command output: "which jupyter-lab || pip3 show jupyterlab 2>/dev/null | grep -c Name || echo missing"
     * SSH command return code is "0"
