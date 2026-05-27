@@ -6,11 +6,12 @@ Or register with behave via environment.py importing this module.
 """
 
 import subprocess
+from time import sleep
 
 from behave import step
 
 
-def run_ssh(context, cmd):
+def run_ssh(context, cmd, timeout=60):
     """Run a command over SSH and store stdout/return code on context."""
     ssh_opts = [
         "ssh",
@@ -27,12 +28,31 @@ def run_ssh(context, cmd):
         f"{context.ssh_user}@{context.vm_ip}",
         cmd,
     ]
-    result = subprocess.run(ssh_opts, capture_output=True, text=True, timeout=30)
+    result = subprocess.run(ssh_opts, capture_output=True, text=True, timeout=timeout)
     stdout = result.stdout.strip()
     context.command_stdout = stdout
     context.ssh_rc = result.returncode
     context.last_ssh_result = result
     return stdout, result.returncode
+
+
+@step("Bluefin VM is booted and reachable over SSH")
+def vm_reachable_over_ssh(context):
+    """Verify SSH connectivity to the test VM with retries (5 attempts, 10s apart)."""
+    last_error = ""
+    for attempt in range(1, 6):
+        try:
+            stdout, returncode = run_ssh(context, "echo ok", timeout=20)
+            if returncode == 0 and stdout == "ok":
+                return
+            last_error = f"rc={returncode}, stdout={stdout!r}"
+        except subprocess.TimeoutExpired as exc:
+            last_error = f"timeout after {exc.timeout}s"
+        if attempt < 5:
+            sleep(10)
+    raise AssertionError(
+        f"Cannot reach VM at {context.vm_ip} over SSH after 5 attempts: {last_error}"
+    )
 
 
 @step('Run SSH command: "{cmd}"')

@@ -3,6 +3,8 @@ Hardware emulation test environment — plain SSH, no qecore.
 """
 import os
 
+from tests.shared.ssh_steps import *  # noqa: F401,F403
+
 
 def before_all(context):
     context.vm_ip = os.environ.get("VM_IP") or os.environ.get("TMT_SSH_HOST", "")

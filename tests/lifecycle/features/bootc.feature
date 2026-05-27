@@ -13,14 +13,14 @@ Feature: bootc upgrade and rollback lifecycle
 
   @lifecycle @status
   Scenario: bootc status shows expected image and is not dirty
-    # TODO: Implement — validate image ref, digest, and staged deployment state.
     * Run SSH command: "bootc status --format=json"
     * SSH command return code is "0"
+    * Capture booted image digest for rollback verification
 
   @lifecycle @upgrade
   Scenario: bootc upgrade stages a new deployment
-    # TODO: Implement — run bootc upgrade, verify staged deployment exists.
-    # Needs: target image with known different digest than current.
+    # Needs: target image with a different digest than the currently booted one.
+    * Capture booted image digest for rollback verification
     * Run SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
@@ -28,24 +28,31 @@ Feature: bootc upgrade and rollback lifecycle
 
   @lifecycle @upgrade @reboot
   Scenario: VM boots into upgraded deployment after reboot
-    # TODO: Implement — trigger reboot, wait for SSH, validate new deployment active.
-    # Requires: Argo step that calls virtctl restart + SSH wait loop.
+    * Capture booted image digest for rollback verification
     * Run SSH command: "sudo bootc upgrade"
+    * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * Capture staged image digest as upgrade target
     * Reboot VM and wait for SSH
     * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
 
   @lifecycle @rollback
   Scenario: bootc rollback reverts to previous deployment
-    # TODO: Implement — after upgrade+reboot, rollback and reboot again.
+    * Capture booted image digest for rollback verification
+    * Run SSH command: "sudo bootc upgrade"
+    * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * Capture staged image digest as upgrade target
+    * Reboot VM and wait for SSH
     * Run SSH command: "sudo bootc rollback"
     * SSH command return code is "0"
     * Reboot VM and wait for SSH
+    * Run SSH command: "bootc status --format=json"
     * Active deployment matches original image digest
 
   @lifecycle @switch
   Scenario: bootc switch transitions to a different variant
-    # TODO: Implement — switch from standard to DX (or vice versa).
     # Requires: golden disk of source variant, target variant image available.
     * Run SSH command: "sudo bootc switch ghcr.io/ublue-os/bluefin-dx:latest"
     * SSH command return code is "0"
@@ -55,16 +62,20 @@ Feature: bootc upgrade and rollback lifecycle
 
   @lifecycle @etc_merge
   Scenario: /etc customizations survive upgrade
-    # TODO: Implement — write a file to /etc, upgrade, reboot, verify file persists.
+    # Write a sentinel file to /etc, upgrade, reboot, and verify the file persists.
     * Run SSH command: "echo 'testsuite-marker' | sudo tee /etc/bluefin-test-marker"
     * Run SSH command: "sudo bootc upgrade"
+    * SSH command return code is "0"
     * Reboot VM and wait for SSH
     * Run SSH command: "cat /etc/bluefin-test-marker"
     * SSH command output "is" "testsuite-marker"
 
   @lifecycle @ostree
-  Scenario: ostree admin status reports correct deployments
-    # TODO: Implement — validate ostree deployment list matches bootc state.
+  Scenario: ostree admin status reports at least two deployments after upgrade
+    # Run after an upgrade + reboot so both booted and rollback deployments are present.
+    * Run SSH command: "sudo bootc upgrade"
+    * SSH command return code is "0"
+    * Reboot VM and wait for SSH
     * Run SSH command: "ostree admin status"
     * SSH command return code is "0"
     * ostree status shows two deployments

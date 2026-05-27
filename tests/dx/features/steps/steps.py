@@ -3,6 +3,11 @@ DX variant step definitions.
 
 Most steps reuse qecore common_steps (GUI) or plain SSH steps.
 Only DX-specific custom steps defined here.
+
+NOTE: 'Run and save command output' is provided by qecore.common_steps and must
+NOT be redefined here — that would create an AmbiguousStep error.  The @plain_ssh
+DX scenarios use 'Run DX SSH command' instead, which explicitly sets context.ssh_rc
+so 'SSH command return code is' works reliably.
 """
 import subprocess
 
@@ -11,32 +16,22 @@ from qecore.common_steps import *  # noqa: F401,F403
 
 
 def _ssh(context, cmd, timeout=60):
-    """Run a DX command over SSH when a VM is configured, else locally."""
-    if getattr(context, "vm_ip", ""):
-        result = subprocess.run(
-            [
-                "ssh",
-                "-i", context.ssh_key,
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "ConnectTimeout=10",
-                "-o", "LogLevel=ERROR",
-                f"{context.ssh_user}@{context.vm_ip}",
-                cmd,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-    else:
-        result = subprocess.run(
+    """Run a command on the DX VM over SSH and record stdout + return code."""
+    result = subprocess.run(
+        [
+            "ssh",
+            "-i", context.ssh_key,
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "ConnectTimeout=10",
+            "-o", "LogLevel=ERROR",
+            f"{context.ssh_user}@{context.vm_ip}",
             cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
-
+        ],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )
     context.command_stdout = result.stdout.strip()
     context.last_command_output = context.command_stdout
     context.last_ssh_result = result
@@ -44,8 +39,13 @@ def _ssh(context, cmd, timeout=60):
     return context.command_stdout, result.returncode
 
 
-@step('Run and save command output: "{cmd}"')
-def run_and_save_command_output(context, cmd):
+@step('Run DX SSH command: "{cmd}"')
+def run_dx_ssh_command(context, cmd):
+    """Run a command inside the DX VM over SSH.
+
+    Used by @plain_ssh DX scenarios. Distinct from qecore's 'Run and save command
+    output' to avoid AmbiguousStep; also guarantees context.ssh_rc is populated.
+    """
     _ssh(context, cmd)
 
 

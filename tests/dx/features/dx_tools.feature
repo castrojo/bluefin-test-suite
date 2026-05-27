@@ -23,30 +23,30 @@ Feature: Bluefin DX variant smoke tests
 
   @dx @devcontainer @plain_ssh
   Scenario: devcontainer CLI is available on PATH
-    * Run and save command output: "which devcontainer || echo missing"
+    * Run DX SSH command: "which devcontainer || echo missing"
     * Last command output does not contain "missing"
 
   @dx @distrobox @plain_ssh
   Scenario: distrobox is installed and can create a container
-    * Run and save command output: "distrobox --version"
+    * Run DX SSH command: "distrobox --version"
     * SSH command return code is "0"
 
   @dx @distrobox @plain_ssh
   Scenario: distrobox enter works with default container
-    * Run and save command output: "distrobox create --name test-dx --image fedora:latest --yes 2>&1 | tail -1"
+    * Run DX SSH command: "distrobox create --name test-dx --image fedora:latest --yes 2>&1 | tail -1"
     * SSH command return code is "0"
 
   @dx @toolbox @plain_ssh
   Scenario: toolbox is available as alternative to distrobox
-    * Run and save command output: "which toolbox || echo missing"
+    * Run DX SSH command: "which toolbox || echo missing"
     * Last command output does not contain "missing"
 
   @dx @podman_compose @plain_ssh
   Scenario: podman-compose is available for container orchestration
-    * Run and save command output: "podman-compose --version 2>&1 | head -1"
+    * Run DX SSH command: "podman-compose --version 2>&1 | head -1"
     * Last command output contains "podman-compose"
 
   @dx @jupyter @plain_ssh
   Scenario: JupyterLab can be launched (DX includes scientific stack)
-    * Run and save command output: "which jupyter-lab || pip3 show jupyterlab 2>/dev/null | grep -c Name || echo missing"
+    * Run DX SSH command: "which jupyter-lab || pip3 show jupyterlab 2>/dev/null | grep -c Name || echo missing"
     * SSH command return code is "0"
