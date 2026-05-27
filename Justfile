@@ -141,6 +141,57 @@ run-flatcar-smoke:
         -n {{ argo_ns }} \
         --watch
 
+# Run DX variant smoke tests (requires DX golden disk)
+run-dx-smoke:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${BLUEFIN_TEST_PUBKEY:?Run 'just setup-ssh-secret' then 'source .env.test-pubkey'}"
+    argo submit argo/bluefin-smoke-test.yaml \
+        -p image="ghcr.io/ublue-os/bluefin-dx:latest" \
+        -p image-tag="dx-latest" \
+        -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+        -n {{ argo_ns }} \
+        --watch
+
+# Run lifecycle tests (bootc upgrade/rollback) — requires upgrade target image
+run-lifecycle:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${BLUEFIN_TEST_PUBKEY:?Run 'just setup-ssh-secret' then 'source .env.test-pubkey'}"
+    argo submit argo/bluefin-smoke-test.yaml \
+        -p image="{{ image }}" \
+        -p image-tag="{{ image_tag }}" \
+        -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+        -p suite="lifecycle" \
+        -n {{ argo_ns }} \
+        --watch
+
+# Run security tests (cosign + SELinux) — requires selinux=0 removed from golden disks
+run-security:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${BLUEFIN_TEST_PUBKEY:?Run 'just setup-ssh-secret' then 'source .env.test-pubkey'}"
+    argo submit argo/bluefin-smoke-test.yaml \
+        -p image="{{ image }}" \
+        -p image-tag="{{ image_tag }}" \
+        -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+        -p suite="security" \
+        -n {{ argo_ns }} \
+        --watch
+
+# Run vanilla GNOME baseline tests (nightly comparison)
+run-vanilla-gnome:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    : "${BLUEFIN_TEST_PUBKEY:?Run 'just setup-ssh-secret' then 'source .env.test-pubkey'}"
+    argo submit argo/bluefin-smoke-test.yaml \
+        -p image="quay.io/fedora/fedora-bootc:latest" \
+        -p image-tag="vanilla-gnome" \
+        -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+        -p suite="vanilla-gnome" \
+        -n {{ argo_ns }} \
+        --watch
+
 # ── Observation ─────────────────────────────────────────────────────────────
 
 # List all test workflows

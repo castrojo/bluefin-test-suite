@@ -9,24 +9,24 @@ spec:
   podMetadata:
     labels:
       app.kubernetes.io/part-of: bluefin-test-suite
-      bluefin.io/suite: smoke
+      bluefin.io/suite: "{{workflow.parameters.suite}}"
       bluefin.io/image-tag: "{{workflow.parameters.image-tag}}"
-      bluefin.io/variant: bluefin
+      bluefin.io/variant: "{{workflow.parameters.image-tag}}"
     annotations:
       bluefin.io/image-tag: "{{workflow.parameters.image-tag}}"
-      bluefin.io/variant: "bluefin"
+      bluefin.io/variant: "{{workflow.parameters.image-tag}}"
       bluefin.io/pr-title: "{{workflow.parameters.pr-title}}"
       bluefin.io/pr-number: "{{workflow.parameters.pr-number}}"
       bluefin.io/workflow: "{{workflow.name}}"
   workflowMetadata:
     labels:
       app.kubernetes.io/part-of: bluefin-test-suite
-      bluefin.io/suite: smoke
+      bluefin.io/suite: "{{workflow.parameters.suite}}"
       bluefin.io/image-tag: "{{workflow.parameters.image-tag}}"
-      bluefin.io/variant: bluefin
+      bluefin.io/variant: "{{workflow.parameters.image-tag}}"
     annotations:
       bluefin.io/image-tag: "{{workflow.parameters.image-tag}}"
-      bluefin.io/variant: "bluefin"
+      bluefin.io/variant: "{{workflow.parameters.image-tag}}"
       bluefin.io/pr-title: "{{workflow.parameters.pr-title}}"
       bluefin.io/pr-number: "{{workflow.parameters.pr-number}}"
   onExit: cleanup
@@ -39,6 +39,12 @@ spec:
         value: "latest"
       - name: ssh-pubkey
         value: ""
+      - name: suite
+        value: "smoke"
+      - name: runner-type
+        value: "qecore"
+      - name: namespace
+        value: "bluefin-test"
       - name: pr-title
         value: ""
       - name: pr-number
@@ -66,29 +72,33 @@ spec:
           - name: provision
             dependencies: [ensure-disk]
             templateRef:
-              name: provision-bluefin-vm
-              template: provision-vm
+              name: provision-variant-vm
+              template: provision-variant-vm
             arguments:
               parameters:
+                - name: image
+                  value: "{{workflow.parameters.image}}"
                 - name: image-tag
                   value: "{{workflow.parameters.image-tag}}"
                 - name: vm-name
                   value: "bluefin-test-{{workflow.uid}}"
                 - name: namespace
-                  value: "bluefin-test"
+                  value: "{{workflow.parameters.namespace}}"
 
           # behave + qecore GNOME smoke tests
           - name: run-tests
             dependencies: [provision]
             templateRef:
-              name: run-gnome-tests
-              template: run-gnome-tests
+              name: run-variant-tests
+              template: run-variant-tests
             arguments:
               parameters:
                 - name: vm-ip
                   value: "{{tasks.provision.outputs.parameters.vm-ip}}"
                 - name: suite
-                  value: "smoke"
+                  value: "{{workflow.parameters.suite}}"
+                - name: runner-type
+                  value: "{{workflow.parameters.runner-type}}"
                 - name: variant
                   value: "{{workflow.parameters.image-tag}}"
 
@@ -104,4 +114,4 @@ spec:
                 - name: vm-name
                   value: "bluefin-test-{{workflow.uid}}"
                 - name: namespace
-                  value: "bluefin-test"
+                  value: "{{workflow.parameters.namespace}}"
