@@ -16,6 +16,7 @@ Instead we use a distinct step name: 'GNOME Shell is accessible via AT-SPI'.
 Step patterns sourced from: modehnal/GNOMETerminalAutomation steps.py
 dogtail API: root.application(), Node.findChild(), Node.child(roleName=)
 """
+import subprocess
 from time import sleep
 
 from behave import step
@@ -335,6 +336,114 @@ def set_overview_search_eval(context, text) -> None:
     # propagates to the search controller — works across GNOME 45–50.
     _shell_eval(f'Main.overview.searchEntry.clutter_text.set_text("{safe_text}")')
     sleep(0.5)
+
+
+@step("Lock screen via Shell.Eval")
+def lock_screen_via_shell_eval(context) -> None:
+    """Lock the GNOME session via gdbus ScreenSaver D-Bus call."""
+    result = subprocess.run(
+        [
+            "gdbus", "call", "--session",
+            "--dest", "org.gnome.ScreenSaver",
+            "--object-path", "/org/gnome/ScreenSaver",
+            "--method", "org.gnome.ScreenSaver.Lock",
+        ],
+        capture_output=True, text=True, timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"gdbus ScreenSaver.Lock failed: {result.stderr.strip()}"
+    )
+
+
+@step("Session is locked")
+def session_is_locked(context) -> None:
+    """Assert the current session is in a locked state via loginctl."""
+    import os
+
+    session_id = os.environ.get("XDG_SESSION_ID", "")
+    if not session_id:
+        result = subprocess.run(
+            ["loginctl", "list-sessions", "--no-legend"],
+            capture_output=True, text=True, timeout=10,
+        )
+        lines = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        assert lines, "No active loginctl sessions found"
+        session_id = lines[0].split()[0]
+
+    for _ in range(10):
+        result = subprocess.run(
+            ["loginctl", "show-session", session_id, "--property=LockedHint"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if "LockedHint=yes" in result.stdout:
+            return
+        sleep(1)
+    raise AssertionError(
+        f"Session {session_id} is not locked after 10s: {result.stdout.strip()}"
+    )
+
+
+@step("Unlock screen via Shell.Eval")
+def unlock_screen_via_shell_eval(context) -> None:
+    """Unlock the GNOME session via gdbus ScreenSaver SetActive(false)."""
+    result = subprocess.run(
+        [
+            "gdbus", "call", "--session",
+            "--dest", "org.gnome.ScreenSaver",
+            "--object-path", "/org/gnome/ScreenSaver",
+            "--method", "org.gnome.ScreenSaver.SetActive",
+            "false",
+        ],
+        capture_output=True, text=True, timeout=10,
+    )
+    print(
+        f"unlock result: rc={result.returncode}, stderr={result.stderr.strip()}",
+        flush=True,
+    )
+
+
+@step("Active workspace index is noted")
+def note_active_workspace_index(context) -> None:
+    """Store the current workspace index for later comparison."""
+    out = context.sandbox.shell.eval_js(
+        "global.workspace_manager.get_active_workspace_index();"
+    )
+    try:
+        context.initial_workspace_index = int(out.strip())
+    except (ValueError, AttributeError):
+        context.initial_workspace_index = 0
+    print(f"Initial workspace index: {context.initial_workspace_index}", flush=True)
+
+
+@step("Switch to next workspace via Shell.Eval")
+def switch_to_next_workspace_via_shell_eval(context) -> None:
+    """Switch to the next workspace using workspace_manager."""
+    context.sandbox.shell.eval_js(
+        "global.workspace_manager.get_active_workspace().get_neighbor("
+        "Meta.MotionDirection.RIGHT).activate(global.get_current_time());"
+    )
+    sleep(0.5)
+
+
+@step("Active workspace has changed")
+def active_workspace_has_changed(context) -> None:
+    """Assert the active workspace index changed from the noted value."""
+    initial = getattr(context, 'initial_workspace_index', 0)
+    for _ in range(10):
+        out = context.sandbox.shell.eval_js(
+            "global.workspace_manager.get_active_workspace_index();"
+        )
+        try:
+            current = int(out.strip())
+        except (ValueError, AttributeError):
+            sleep(0.5)
+            continue
+        if current != initial:
+            return
+        sleep(0.5)
+    raise AssertionError(
+        f"Workspace index did not change from {initial}"
+    )
 
 
 @step("Overview is open")

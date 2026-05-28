@@ -95,6 +95,25 @@ Feature: GNOME Shell smoke tests
     * Close date menu via Shell.Eval
     * Date menu panel is closed via Shell.Eval
 
+  # ── Lock screen ──────────────────────────────────────────────────────────
+  # Lock screen is highest-priority: extensions can silently break it.
+
+  @lock_screen
+  Scenario: Screen lock engages without crashing GNOME Shell
+    * GNOME Shell is accessible via AT-SPI
+    * Lock screen via Shell.Eval
+    * Session is locked
+    * Unlock screen via Shell.Eval
+
+  # ── Workspaces ────────────────────────────────────────────────────────────
+
+  @workspaces
+  Scenario: Switching workspace changes the active workspace index
+    * GNOME Shell is accessible via AT-SPI
+    * Active workspace index is noted
+    * Switch to next workspace via Shell.Eval
+    * Active workspace has changed
+
   # ── Regressions ───────────────────────────────────────────────────────────
 
   @regression @bluefin_4612
