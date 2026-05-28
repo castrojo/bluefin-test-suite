@@ -177,3 +177,44 @@ def text_editor_save_dialog_is_open(context) -> None:
     for dialog in dialogs:
         dialog_debug.append(_visible_dialog_text(dialog))
     raise AssertionError(f"Text Editor save dialog was not found. Visible dialogs: {dialog_debug}")
+
+
+@step("Text Editor discard dialog is open")
+def text_editor_discard_dialog_is_open(context) -> None:
+    """Assert that the 'unsaved changes' dialog is shown with a Discard button."""
+    app = _text_editor_app()
+    for _ in range(20):
+        dialogs = app.findChildren(lambda n: n.roleName == "dialog" and n.showing)
+        for dialog in dialogs:
+            buttons = dialog.findChildren(
+                lambda n: n.showing and n.roleName in BUTTON_ROLES
+            )
+            if any("discard" in (b.name or "").casefold() for b in buttons):
+                context.text_editor_discard_dialog = dialog
+                return
+        sleep(0.5)
+    dialog_debug = [_visible_dialog_text(d) for d in
+                    app.findChildren(lambda n: n.roleName == "dialog" and n.showing)]
+    raise AssertionError(
+        f"Text Editor discard dialog (with Discard button) not found. "
+        f"Visible dialogs: {dialog_debug}"
+    )
+    app = _text_editor_app()
+    for _ in range(20):
+        dialogs = app.findChildren(lambda n: n.roleName == "dialog" and n.showing)
+        for dialog in dialogs:
+            entries = dialog.findChildren(
+                lambda n: n.showing and n.roleName in DIALOG_ENTRY_ROLES
+            )
+            buttons = dialog.findChildren(
+                lambda n: n.showing and n.roleName in BUTTON_ROLES
+            )
+            if entries or any("save" in (button.name or "").casefold() for button in buttons):
+                context.text_editor_save_dialog = dialog
+                return
+        sleep(0.5)
+    dialog_debug = []
+    dialogs = app.findChildren(lambda n: n.roleName == "dialog" and n.showing)
+    for dialog in dialogs:
+        dialog_debug.append(_visible_dialog_text(dialog))
+    raise AssertionError(f"Text Editor save dialog was not found. Visible dialogs: {dialog_debug}")

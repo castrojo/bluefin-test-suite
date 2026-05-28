@@ -55,6 +55,28 @@ Feature: GNOME Calculator smoke tests
     * Click calculator button "="
     * Calculator display shows "3"
 
+  @calculator @decimal
+  Scenario: Decimal arithmetic
+    * Calculator window is accessible
+    * Click calculator button "1"
+    * Click calculator button "."
+    * Click calculator button "5"
+    * Click calculator button "+"
+    * Click calculator button "1"
+    * Click calculator button "."
+    * Click calculator button "5"
+    * Click calculator button "="
+    * Calculator display shows "3"
+
+  @calculator @negative
+  Scenario: Subtracting to a negative result
+    * Calculator window is accessible
+    * Click calculator button "3"
+    * Click calculator button "-"
+    * Click calculator button "8"
+    * Click calculator button "="
+    * Calculator display shows "-5"
+
   @calculator @close
   Scenario: Calculator closes cleanly via Ctrl+Q
     * Calculator window is accessible

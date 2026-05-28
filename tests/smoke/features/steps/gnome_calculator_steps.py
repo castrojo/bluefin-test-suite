@@ -19,6 +19,7 @@ BUTTON_ALIASES = {
     "-": {"-", "−", "minus", "subtract", "–"},
     "×": {"×", "*", "multiply", "⊗"},
     "÷": {"÷", "/", "divide"},
+    ".": {".", "decimal point", "decimal", "point"},
     "=": {"=", "equals"},
     "clear": {"c", "clear", "ac", "all clear"},
 }

@@ -32,6 +32,14 @@ Feature: GNOME Text Editor smoke tests
     * Key combo: "<Ctrl><S>" with uinput
     * Text Editor save dialog is open
 
+  @text_editor @discard
+  Scenario: Closing with unsaved changes shows discard dialog
+    * Text Editor window has an editable text area
+    * Type text: "Unsaved content for discard test" with uinput
+    * Text Editor buffer contains "Unsaved content for discard test"
+    * Key combo: "<Ctrl><Q>" with uinput
+    * Text Editor discard dialog is open
+
   @text_editor @close
   Scenario: Text Editor closes cleanly via Ctrl+Q
     * Text Editor window has an editable text area

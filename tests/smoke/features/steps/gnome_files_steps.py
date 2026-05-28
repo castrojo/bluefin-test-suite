@@ -132,3 +132,21 @@ def new_folder_dialog_is_open(context) -> None:
         sleep(0.5)
 
     raise AssertionError("New folder dialog entry was not found in Nautilus")
+
+
+@step("File search bar is open in Files")
+def file_search_bar_is_open_in_files(context) -> None:
+    """Assert the Ctrl+F search bar is visible in Nautilus."""
+    app = _nautilus_app()
+    for _ in range(20):
+        # Nautilus search bar: a visible text/entry widget in the header area
+        search_entries = app.findChildren(
+            lambda n: n.showing
+            and n.roleName in {"text", "entry"}
+            and getattr(n, "focusable", True)
+        )
+        if search_entries:
+            context.search_bar = search_entries[0]
+            return
+        sleep(0.5)
+    raise AssertionError("File search bar was not found in Nautilus after Ctrl+F")

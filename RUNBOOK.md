@@ -39,6 +39,33 @@ If a change touches both, split it into two PRs (one per repo) and keep the cont
 
 ## Suite layout
 
+### Variant matrix
+
+| Suite | `bluefin` (latest/lts) | `bluefin-dx` | `bluefin-nvidia` | `flatcar` | Notes |
+|-------|:---:|:---:|:---:|:---:|-------|
+| `smoke` | ✅ | ✅ | ✅ | — | Core GNOME smoke; runs on all Bluefin variants |
+| `vanilla-gnome` | ✅ | — | — | — | Baseline comparison; latest only |
+| `developer` | ✅ | ✅ | — | — | Homebrew/Ptyxis; DX adds extra tools |
+| `software` | ✅ | — | — | — | Bazaar/Flatpak; standard variant only |
+| `lifecycle` | ✅ | ✅ | ✅ | — | bootc upgrade/rollback; all Bluefin variants |
+| `security` | ✅ | ✅ | ✅ | — | cosign + SELinux; all Bluefin variants |
+| `hardware` | ✅ | — | — | — | Emulated peripherals; standard VM spec |
+| `dx` | — | ✅ | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
+| `nvidia` | — | — | ✅ | — | GPU driver validation; NVIDIA variant only |
+| `flatcar` | — | — | — | ✅ | Flatcar OS boot and lifecycle |
+
+**Variant tags** used in feature files:
+
+| Tag | Meaning |
+|-----|---------|
+| `@smoke_suite` | Runs as part of the standard Bluefin smoke suite |
+| `@dx_only` / `@developer_suite` | DX variant only |
+| `@nvidia_only` | NVIDIA variant only |
+| `@flatcar_suite` | Flatcar OS only |
+| `@hardware_emulation` | Requires full-hw VM spec (TPM, audio, watchdog) |
+| `@nightly` | Runs nightly; may be slow or destructive |
+| `@future` | Not yet implemented or blocked |
+
 Current test suites:
 
 - `smoke`

@@ -33,6 +33,11 @@ Feature: GNOME Files smoke tests
     * Key combo: "<Control><Shift>n" with uinput
     * New folder dialog is open
 
+  @files @search
+  Scenario: Search bar opens via Ctrl+F
+    * Key combo: "<Control>f" with uinput
+    * File search bar is open in Files
+
   @files @close
   Scenario: Files closes cleanly via Ctrl+W
     * Key combo: "<Ctrl><W>" with uinput
