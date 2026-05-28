@@ -47,6 +47,19 @@ def _skip_current_scenario(context, reason):
         scenario.skip()
 
 
+@step("bootc status shows deployment is pinned")
+def bootc_status_pinned(context):
+    booted = _parse_bootc_status(context).get("booted") or {}
+    assert booted.get("pinned") is True, f"Expected booted.pinned=true, got: {booted}"
+
+
+@step("bootc status shows deployment is not pinned")
+def bootc_status_not_pinned(context):
+    booted = _parse_bootc_status(context).get("booted") or {}
+    pinned = booted.get("pinned")
+    assert pinned is not True, f"Expected booted.pinned to be absent/false, got: {booted}"
+
+
 @step("Capture booted image digest for rollback verification")
 def capture_original_digest(context):
     """Store the currently booted image digest so rollback can be verified later."""

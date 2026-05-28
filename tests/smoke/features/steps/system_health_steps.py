@@ -109,3 +109,19 @@ def writable_system_storage_has_at_least_percent_free_space(context, percent: st
     assert free_percent >= required_free_percent, (
         f"Root filesystem free space {free_percent}% is below required {required_free_percent}%"
     )
+
+
+@step("ujust is on PATH and returns exit 0")
+def ujust_on_path(context) -> None:
+    import shutil
+    assert shutil.which("ujust"), "ujust is not on PATH"
+    _, returncode, stderr = _run("ujust --version 2>/dev/null || ujust --help 2>/dev/null")
+    assert returncode == 0, f"ujust exited non-zero: {stderr}"
+
+
+@step("ujust --list prints at least one task")
+def ujust_list_has_tasks(context) -> None:
+    output, returncode, stderr = _run("ujust --list 2>/dev/null")
+    assert returncode == 0, f"ujust --list failed (rc={returncode}): {stderr}"
+    tasks = [line for line in output.splitlines() if line.strip()]
+    assert tasks, "ujust --list returned no tasks"

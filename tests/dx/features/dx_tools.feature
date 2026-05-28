@@ -51,3 +51,9 @@ Feature: Bluefin DX variant smoke tests
     * Run DX SSH command: "which jupyter-lab || pip3 show jupyterlab 2>/dev/null | grep -c Name || echo missing"
     * SSH command return code is "0"
     * Last command output does not contain "missing"
+
+  @dx @brew @plain_ssh
+  Scenario: Homebrew is available on the DX variant
+    * Run DX SSH command: "brew --version 2>&1 | head -1"
+    * SSH command return code is "0"
+    * Last command output contains "Homebrew"

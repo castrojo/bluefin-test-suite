@@ -26,3 +26,8 @@ Feature: System health smoke checks
   @health @network
   Scenario: External DNS resolves external hosts
     * External DNS resolves external hosts
+
+  @system_health @ujust
+  Scenario: ujust is available and lists at least one task
+    * ujust is on PATH and returns exit 0
+    * ujust --list prints at least one task

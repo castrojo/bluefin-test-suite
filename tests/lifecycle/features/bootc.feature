@@ -17,6 +17,18 @@ Feature: bootc upgrade and rollback lifecycle
     * SSH command return code is "0"
     * Capture booted image digest for rollback verification
 
+  @lifecycle @pin
+  Scenario: bootc can pin and unpin the current deployment
+    * Bluefin VM is booted and reachable over SSH
+    * Run SSH command: "sudo bootc pin"
+    * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * bootc status shows deployment is pinned
+    * Run SSH command: "sudo bootc pin --unpin"
+    * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * bootc status shows deployment is not pinned
+
   @lifecycle @upgrade
   Scenario: bootc upgrade stages a new deployment
     # Needs: target image with a different digest than the currently booted one.
@@ -85,3 +97,9 @@ Feature: bootc upgrade and rollback lifecycle
     * Run SSH command: "ostree admin status"
     * SSH command return code is "0"
     * ostree status shows two deployments
+
+  @lifecycle @autoupdate
+  Scenario: Auto-update timer is present and not masked
+    * Bluefin VM is booted and reachable over SSH
+    * Run SSH command: "systemctl list-timers --all --no-pager 2>/dev/null | grep -c 'bootc\\|ostree' || echo 0"
+    * SSH command output is not "0"
