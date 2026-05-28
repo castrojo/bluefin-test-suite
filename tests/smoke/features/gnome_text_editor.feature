@@ -4,11 +4,10 @@ Feature: GNOME Text Editor smoke tests
   and exits cleanly on a fresh Bluefin session.
 
   Background:
-    * Start application "gnome-text-editor" via "command"
+    * Launch Text Editor via command
 
   @text_editor @launch
   Scenario: Text Editor launches and window is accessible
-    * Application "gnome-text-editor" is running
     * Text Editor window has an editable text area
 
   @text_editor @input
@@ -37,7 +36,7 @@ Feature: GNOME Text Editor smoke tests
   Scenario: Text Editor closes cleanly via Ctrl+Q
     * Text Editor window has an editable text area
     * Key combo: "<Ctrl><Q>" with uinput
-    * Application "gnome-text-editor" is no longer running
+    * Text Editor is no longer running
 
   @text_editor @coredump @regression @bluefin
   Scenario: No gnome-text-editor coredump after session start

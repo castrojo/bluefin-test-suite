@@ -7,6 +7,9 @@ from behave import step
 from qecore.common_steps import *  # noqa: F401,F403
 
 
+IGNORED_FAILED_UNITS_IN_VM = {"mcelog.service"}
+
+
 def _run(cmd: str):
     result = subprocess.run(
         cmd,
@@ -16,6 +19,11 @@ def _run(cmd: str):
         timeout=30,
     )
     return result.stdout.strip(), result.returncode, result.stderr.strip()
+
+
+def _running_in_vm() -> bool:
+    _, returncode, _ = _run("systemd-detect-virt --quiet")
+    return returncode == 0
 
 
 def _has_image_reference(value) -> bool:
@@ -41,6 +49,9 @@ def no_failed_systemd_units_at_boot(context) -> None:
         if stripped.endswith("loaded units listed.") or stripped.startswith("To show all installed unit files"):
             continue
         if re.match(r"^\S+\s+loaded\s+failed\s+failed\s+", stripped):
+            unit = stripped.split()[0]
+            if _running_in_vm() and unit in IGNORED_FAILED_UNITS_IN_VM:
+                continue
             failed_units.append(stripped)
 
     assert not failed_units, f"Failed systemd units detected: {failed_units}"
@@ -62,7 +73,7 @@ def bluefin_image_identity_is_present_in_os_release(context) -> None:
 
 @step("bootc status shows a valid image reference")
 def bootc_status_shows_a_valid_image_reference(context) -> None:
-    output, returncode, stderr = _run("bootc status --format=json")
+    output, returncode, stderr = _run("sudo bootc status --format=json")
     assert returncode == 0, f"bootc status failed: {stderr or output}"
 
     try:
@@ -73,9 +84,9 @@ def bootc_status_shows_a_valid_image_reference(context) -> None:
     assert _has_image_reference(status), "bootc status JSON does not contain an image or imageDigest field"
 
 
-@step('Root filesystem has at least "{percent}" percent free space')
-def root_filesystem_has_at_least_percent_free_space(context, percent: str) -> None:
-    output, returncode, stderr = _run("df -h /")
+@step('Writable system storage has at least "{percent}" percent free space')
+def writable_system_storage_has_at_least_percent_free_space(context, percent: str) -> None:
+    output, returncode, stderr = _run("df -P /var")
     assert returncode == 0, f"df failed: {stderr or output}"
 
     lines = [line for line in output.splitlines() if line.strip()]

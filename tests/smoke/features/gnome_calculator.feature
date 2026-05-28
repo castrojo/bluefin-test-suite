@@ -4,11 +4,10 @@ Feature: GNOME Calculator smoke tests
   state cleanly, and exits without crashes on a fresh Bluefin session.
 
   Background:
-    * Start application "gnome-calculator" via "command"
+    * Launch Calculator via command
 
   @calculator @launch
   Scenario: Calculator launches and window is accessible
-    * Application "gnome-calculator" is running
     * Calculator window is accessible
 
   @calculator @addition
@@ -42,7 +41,7 @@ Feature: GNOME Calculator smoke tests
   Scenario: Calculator closes cleanly via Ctrl+Q
     * Calculator window is accessible
     * Key combo: "<Ctrl><Q>" with uinput
-    * Application "gnome-calculator" is no longer running
+    * Calculator is no longer running
 
   @calculator @coredump @regression @bluefin
   Scenario: No gnome-calculator coredump after session start

@@ -4,13 +4,12 @@ Feature: GNOME Settings smoke tests
   Bluefin system information without crashing.
 
   Background:
-    * Start application "gnome-control-center" via "command"
-    * Wait until "Settings" "frame" appears in "gnome-control-center"
+    * Launch Settings via command
+    * Settings window is accessible
 
   @settings @launch
   Scenario: GNOME Settings launches and window is accessible
-    * Application "gnome-control-center" is running
-    * Item "Settings" "frame" is "showing" in "gnome-control-center"
+    * Settings window is accessible
 
   @settings @navigation
   Scenario: Settings sidebar is present with navigation items
@@ -35,7 +34,7 @@ Feature: GNOME Settings smoke tests
   @settings @close
   Scenario: Settings closes cleanly via Ctrl+Q
     * Key combo: "<Ctrl><Q>" with uinput
-    * Application "gnome-control-center" is no longer running
+    * Settings is no longer running
 
   @regression @bluefin
   Scenario: No gnome-control-center coredump after session start

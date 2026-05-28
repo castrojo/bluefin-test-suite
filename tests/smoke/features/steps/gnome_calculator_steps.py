@@ -4,9 +4,14 @@ from time import sleep
 from behave import step
 from dogtail import tree
 from qecore.common_steps import *  # noqa: F401,F403
+from app_support import launch_background
 
 
 CALCULATOR_APP_NAMES = ("gnome-calculator", "Calculator")
+CALCULATOR_LAUNCH_TARGETS = (
+    ("command", "gnome-calculator"),
+    ("desktop", "org.gnome.Calculator.desktop"),
+)
 BUTTON_ROLES = {"push button", "button"}
 DISPLAY_ROLES = {"text", "entry", "label", "static"}
 BUTTON_ALIASES = {
@@ -27,6 +32,12 @@ def _calculator_app():
     raise AssertionError(
         f"GNOME Calculator application was not found via AT-SPI: {last_error}"
     )
+
+
+@step("Launch Calculator via command")
+def launch_calculator_via_command(context) -> None:
+    context.calculator_launch_target = launch_background(CALCULATOR_LAUNCH_TARGETS)
+    sleep(1)
 
 
 def _calculator_window():
@@ -87,6 +98,23 @@ def calculator_window_is_accessible(context) -> None:
         except Exception:  # noqa: BLE001
             sleep(0.5)
     raise AssertionError("GNOME Calculator window was not accessible")
+
+
+@step("Calculator is no longer running")
+def calculator_is_no_longer_running(context) -> None:
+    for _ in range(20):
+        for name in CALCULATOR_APP_NAMES:
+            try:
+                app = tree.root.application(name)
+                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                if frames:
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+        else:
+            return
+        sleep(0.5)
+    raise AssertionError("GNOME Calculator is still visible in the AT-SPI tree")
 
 
 @step('Click calculator button "{name}"')

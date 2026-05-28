@@ -5,13 +5,12 @@ Feature: GNOME Files smoke tests
   gnome_files_steps.py.
 
   Background:
-    * Start application "nautilus" via "command"
-    * Wait until "Files" "frame" appears in "nautilus"
+    * Launch Files via command
+    * Files window is accessible
 
   @files @launch
   Scenario: Files launches and window is accessible
-    * Application "nautilus" is running
-    * Item "Files" "frame" is "showing" in "nautilus"
+    * Files window is accessible
 
   @files @sidebar
   Scenario: Home folder is in the sidebar
@@ -36,8 +35,8 @@ Feature: GNOME Files smoke tests
 
   @files @close
   Scenario: Files closes cleanly via Ctrl+W
-    * Close application "nautilus" via "shortcut"
-    * Application "nautilus" is no longer running
+    * Key combo: "<Ctrl><W>" with uinput
+    * Files is no longer running
 
   @regression @bluefin
   Scenario: No Nautilus coredump after session start

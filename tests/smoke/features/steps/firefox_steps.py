@@ -3,10 +3,35 @@ from time import sleep
 from behave import step
 from dogtail import tree
 from qecore.common_steps import *  # noqa: F401,F403
+from app_support import launch_background
+
+
+FIREFOX_APP_NAMES = ("firefox", "Firefox", "Mozilla Firefox")
+FIREFOX_LAUNCH_TARGETS = (
+    ("command", "firefox"),
+    ("desktop", "firefox.desktop"),
+    ("desktop", "org.mozilla.firefox.desktop"),
+    ("flatpak", "org.mozilla.firefox"),
+)
 
 
 def _firefox_app(context):
-    return getattr(getattr(context, "firefox", None), "instance", None) or tree.root.application("firefox")
+    instance = getattr(getattr(context, "firefox", None), "instance", None)
+    if instance is not None:
+        return instance
+    last_error = None
+    for name in FIREFOX_APP_NAMES:
+        try:
+            return tree.root.application(name)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+    raise AssertionError(f"Firefox application was not found via AT-SPI: {last_error}")
+
+
+@step("Launch Firefox via command")
+def launch_firefox_via_command(context) -> None:
+    context.firefox_launch_target = launch_background(FIREFOX_LAUNCH_TARGETS)
+    sleep(1)
 
 
 def _firefox_window(context):
@@ -37,6 +62,23 @@ def firefox_main_window_is_accessible(context) -> None:
         except Exception:  # noqa: BLE001
             sleep(0.5)
     raise AssertionError("Firefox main window not accessible after 15 seconds")
+
+
+@step("Firefox is no longer running")
+def firefox_is_no_longer_running(context) -> None:
+    for _ in range(20):
+        for name in FIREFOX_APP_NAMES:
+            try:
+                app = tree.root.application(name)
+                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                if frames:
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+        else:
+            return
+        sleep(0.5)
+    raise AssertionError("Firefox is still visible in the AT-SPI tree")
 
 
 @step("Address bar is present in Firefox")

@@ -4,12 +4,11 @@ Feature: Firefox smoke tests
   Covers startup, navigation, tab management, and coredump regressions.
 
   Background:
-    * Start application "firefox" via "command"
+    * Launch Firefox via command
     * Firefox main window is accessible
 
   @firefox @launch
   Scenario: Firefox launches and main window is accessible
-    * Application "firefox" is running
     * Firefox main window is accessible
 
   @firefox @address_bar
@@ -33,9 +32,9 @@ Feature: Firefox smoke tests
   @firefox @close
   Scenario: Firefox closes cleanly via Ctrl+Q
     * Key combo: "<Ctrl><Q>" with uinput
-    * Application "firefox" is no longer running
+    * Firefox is no longer running
 
-  @regression @bluefin
+  @firefox @regression @bluefin
   Scenario: No Firefox coredump after session start
     * Run and save command output: "sh -c 'coredumpctl list firefox --no-pager --lines=10 2>/dev/null | grep -c firefox; true'"
     * Last command output stripped "is" "0"

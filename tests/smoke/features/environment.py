@@ -18,6 +18,26 @@ import traceback
 
 from qecore.sandbox import TestSandbox
 from qecore.common_steps import *  # noqa: F401,F403 — registers all common @step definitions
+from steps.app_support import launch_target_available
+
+
+OPTIONAL_SCENARIO_TARGETS = {
+    "firefox": (
+        ("command", "firefox"),
+        ("desktop", "firefox.desktop"),
+        ("desktop", "org.mozilla.firefox.desktop"),
+        ("flatpak", "org.mozilla.firefox"),
+    ),
+    "calculator": (
+        ("command", "gnome-calculator"),
+        ("desktop", "org.gnome.Calculator.desktop"),
+    ),
+    "text_editor": (
+        ("command", "gnome-text-editor"),
+        ("desktop", "org.gnome.TextEditor.desktop"),
+        ("desktop", "org.gnome.TextEditor.Devel.desktop"),
+    ),
+}
 
 
 def _take_screenshot(scenario_name: str) -> None:
@@ -92,6 +112,14 @@ def before_all(context) -> None:
 
     # Initialize sandbox
     try:
+        context.optional_scenario_availability = {
+            tag: launch_target_available(targets)
+            for tag, targets in OPTIONAL_SCENARIO_TARGETS.items()
+        }
+        print(
+            f"Optional app availability: {context.optional_scenario_availability}",
+            flush=True,
+        )
         context.sandbox = TestSandbox("gnome-shell", context=context)
         context.sandbox.attach_faf = False
         context.sandbox.production = False
@@ -102,10 +130,25 @@ def before_all(context) -> None:
 
 
 def before_scenario(context, scenario) -> None:
+    context.scenario = scenario
+    context.html_formatter = None
     # Initialize qecore command output attributes (attribute name varies by version)
     # qecore 4.16: command_stdout; older: last_command_output
     context.command_stdout = ""
     context.last_command_output = ""
+    availability = getattr(context, "optional_scenario_availability", {})
+    for tag, present in availability.items():
+        scenario_tags = set(getattr(scenario, "effective_tags", scenario.tags))
+        feature_name = os.path.basename(getattr(getattr(scenario, "feature", None), "filename", ""))
+        if feature_name == "firefox.feature":
+            scenario_tags.add("firefox")
+        if tag in scenario_tags and not present:
+            try:
+                scenario.skip(f"{tag} app is not installed in this image")
+            except TypeError:
+                scenario.skip()
+            print(f"Skipping {scenario.name}: {tag} app is not installed in this image", flush=True)
+            return
     try:
         context.sandbox.before_scenario(context, scenario)
     except Exception:

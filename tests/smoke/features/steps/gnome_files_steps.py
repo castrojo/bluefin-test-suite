@@ -4,15 +4,41 @@ from time import sleep
 from behave import step
 from dogtail import tree
 from qecore.common_steps import *  # noqa: F401,F403
+from app_support import launch_background
+
+
+FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
+FILES_LAUNCH_TARGETS = (
+    ("command", "nautilus"),
+    ("desktop", "org.gnome.Nautilus.desktop"),
+)
+
+
+def _nautilus_app():
+    last_error = None
+    for name in FILES_APP_NAMES:
+        try:
+            return tree.root.application(name)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+    raise AssertionError(f"GNOME Files application was not found via AT-SPI: {last_error}")
+
+
+@step("Launch Files via command")
+def launch_files_via_command(context) -> None:
+    context.files_launch_target = launch_background(FILES_LAUNCH_TARGETS)
+    sleep(1)
 
 
 def _nautilus_window(timeout: int = 10):
     """Return the visible Files frame, retrying briefly while Nautilus settles."""
-    app = tree.root.application("nautilus")
+    app = _nautilus_app()
     last_children = []
     for _ in range(timeout * 2):
         frames = app.findChildren(
-            lambda n: n.roleName == "frame" and n.name == "Files" and n.showing
+            lambda n: n.roleName == "frame"
+            and n.showing
+            and (n.name or "").strip() in {"Files", "Home"}
         )
         if frames:
             return frames[0]
@@ -23,10 +49,36 @@ def _nautilus_window(timeout: int = 10):
     )
 
 
+@step("Files window is accessible")
+def files_window_is_accessible(context) -> None:
+    context.files_window = _nautilus_window()
+
+
+@step("Files is no longer running")
+def files_is_no_longer_running(context) -> None:
+    for _ in range(20):
+        for name in FILES_APP_NAMES:
+            try:
+                app = tree.root.application(name)
+                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                if frames:
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+        else:
+            return
+        sleep(0.5)
+    raise AssertionError("GNOME Files is still visible in the AT-SPI tree")
+
+
 @step("Home folder is in the sidebar")
 def home_folder_is_in_the_sidebar(context) -> None:
     window = _nautilus_window()
-    trees = window.findChildren(lambda n: n.roleName == "tree" and n.showing)
+    trees = window.findChildren(
+        lambda n: n.roleName in {"tree", "list"}
+        and n.showing
+        and ((n.name or "").strip() in {"Sidebar", ""})
+    )
     assert trees, "Sidebar tree not found in Files window"
 
     home_items = []
@@ -36,7 +88,7 @@ def home_folder_is_in_the_sidebar(context) -> None:
                 lambda n: n.roleName == "list item"
                 and n.showing
                 and bool(n.name)
-                and "Home" in n.name
+                and ("Home" in n.name or "Personal Folder" in n.name)
             )
         )
 

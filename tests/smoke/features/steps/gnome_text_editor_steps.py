@@ -4,9 +4,15 @@ from time import sleep
 from behave import step
 from dogtail import tree
 from qecore.common_steps import *  # noqa: F401,F403
+from app_support import launch_background
 
 
 TEXT_EDITOR_APP_NAMES = ("gnome-text-editor", "Text Editor")
+TEXT_EDITOR_LAUNCH_TARGETS = (
+    ("command", "gnome-text-editor"),
+    ("desktop", "org.gnome.TextEditor.desktop"),
+    ("desktop", "org.gnome.TextEditor.Devel.desktop"),
+)
 TEXT_WIDGET_ROLES = {"text", "entry", "paragraph", "document text"}
 DIALOG_ENTRY_ROLES = {"text", "entry", "document text"}
 BUTTON_ROLES = {"push button", "button"}
@@ -22,6 +28,12 @@ def _text_editor_app():
     raise AssertionError(
         f"GNOME Text Editor application was not found via AT-SPI: {last_error}"
     )
+
+
+@step("Launch Text Editor via command")
+def launch_text_editor_via_command(context) -> None:
+    context.text_editor_launch_target = launch_background(TEXT_EDITOR_LAUNCH_TARGETS)
+    sleep(1)
 
 
 def _text_editor_window():
@@ -97,6 +109,23 @@ def text_editor_window_has_editable_text_area(context) -> None:
         except Exception:  # noqa: BLE001
             sleep(0.5)
     raise AssertionError("Editable text area was not accessible in GNOME Text Editor")
+
+
+@step("Text Editor is no longer running")
+def text_editor_is_no_longer_running(context) -> None:
+    for _ in range(20):
+        for name in TEXT_EDITOR_APP_NAMES:
+            try:
+                app = tree.root.application(name)
+                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                if frames:
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+        else:
+            return
+        sleep(0.5)
+    raise AssertionError("GNOME Text Editor is still visible in the AT-SPI tree")
 
 
 @step('Text Editor buffer contains "{expected}"')

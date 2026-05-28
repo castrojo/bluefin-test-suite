@@ -20,5 +20,5 @@ Feature: System health smoke checks
     * bootc status shows a valid image reference
 
   @health @storage
-  Scenario: Root filesystem has more than 20 percent free space
-    * Root filesystem has at least "20" percent free space
+  Scenario: Writable system storage has more than 20 percent free space
+    * Writable system storage has at least "20" percent free space

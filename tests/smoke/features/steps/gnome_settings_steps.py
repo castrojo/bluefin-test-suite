@@ -4,14 +4,65 @@ from time import sleep
 from behave import step
 from dogtail import tree
 from qecore.common_steps import *  # noqa: F401,F403
+from app_support import launch_background
 
 
+SETTINGS_APP_NAMES = ("gnome-control-center", "Settings")
+SETTINGS_LAUNCH_TARGETS = (
+    ("command", "gnome-control-center"),
+    ("desktop", "org.gnome.Settings.desktop"),
+)
 TEXT_ROLES = {"heading", "label", "static", "text"}
 INFO_TOKENS = ("bluefin", "fedora", "linux", "version", "os")
+SETTINGS_PANEL_ALIASES = {
+    "About": ("About", "System"),
+    "Displays": ("Displays",),
+}
 
 
 def _settings_app():
-    return tree.root.application("gnome-control-center")
+    last_error = None
+    for name in SETTINGS_APP_NAMES:
+        try:
+            return tree.root.application(name)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+    raise AssertionError(f"GNOME Settings application was not found via AT-SPI: {last_error}")
+
+
+def _settings_window():
+    app = _settings_app()
+    frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+    assert frames, "Visible GNOME Settings window not found"
+    return frames[0]
+
+
+@step("Launch Settings via command")
+def launch_settings_via_command(context) -> None:
+    context.settings_launch_target = launch_background(SETTINGS_LAUNCH_TARGETS)
+    sleep(1)
+
+
+@step("Settings window is accessible")
+def settings_window_is_accessible(context) -> None:
+    context.settings_window = _settings_window()
+
+
+@step("Settings is no longer running")
+def settings_is_no_longer_running(context) -> None:
+    for _ in range(20):
+        for name in SETTINGS_APP_NAMES:
+            try:
+                app = tree.root.application(name)
+                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                if frames:
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+        else:
+            return
+        sleep(0.5)
+    raise AssertionError("GNOME Settings is still visible in the AT-SPI tree")
 
 
 def _visible_text(node) -> str:
@@ -33,12 +84,19 @@ def _looks_like_system_info(text: str) -> bool:
 @step("Settings sidebar is present")
 def settings_sidebar_is_present(context) -> None:
     app = _settings_app()
-    list_boxes = app.findChildren(lambda n: n.roleName == "list box" and n.showing)
+    list_boxes = app.findChildren(
+        lambda n: n.roleName in {"list box", "list"}
+        and n.showing
+        and (
+            (n.name or "").strip().casefold() == "settings categories"
+            or n.findChildren(lambda c: c.roleName in {"button", "list item"})
+        )
+    )
     sidebar = next(
         (
             list_box
             for list_box in list_boxes
-            if list_box.findChildren(lambda n: n.roleName == "list item")
+            if list_box.findChildren(lambda n: n.roleName in {"button", "list item"})
         ),
         None,
     )
@@ -53,21 +111,35 @@ def navigate_to_settings_panel(context, name: str) -> None:
         settings_sidebar_is_present(context)
         sidebar = context.settings_sidebar
 
+    aliases = SETTINGS_PANEL_ALIASES.get(name, (name,))
     candidates = sidebar.findChildren(
-        lambda n: n.roleName == "list item" and (n.name or "").strip().casefold() == name.casefold()
+        lambda n: n.roleName in {"button", "list item"}
+        and (n.name or "").strip().casefold() in {alias.casefold() for alias in aliases}
     )
     assert candidates, f"Settings sidebar item {name!r} not found"
     candidates[0].click()
-    context.last_settings_panel = name
+    context.last_settings_panel = candidates[0].name or name
+    sleep(1)
+    if name == "About" and (context.last_settings_panel or "").casefold() == "system":
+        about_buttons = _settings_app().findChildren(
+            lambda n: n.showing
+            and n.roleName in {"button", "list item"}
+            and (n.name or "").strip().casefold() == "about"
+        )
+        if about_buttons:
+            about_buttons[0].click()
+            context.last_settings_panel = about_buttons[0].name or name
+            sleep(1)
 
 
 @step('Settings panel "{name}" is visible')
 def settings_panel_is_visible(context, name: str) -> None:
     app = _settings_app()
+    aliases = SETTINGS_PANEL_ALIASES.get(name, (name,))
     for _ in range(10):
         matches = app.findChildren(
             lambda n: n.showing
-            and (n.name or "").strip() == name
+            and (n.name or "").strip() in aliases
             and n.roleName in TEXT_ROLES
         )
         if matches:
