@@ -66,7 +66,7 @@ spec:
               for attempt in 1 2 3; do
                 dnf install -y --quiet git 2>&1 | tail -2
                 if git clone --depth 1 --branch main \
-                    https://github.com/castrojo/bluefin-test-suite \
+                    https://github.com/projectbluefin/testsuite \
                     /workspace/bluefin-test-suite 2>&1; then
                   echo "Synced bluefin-test-suite (attempt ${attempt})"
                   exit 0
@@ -141,6 +141,44 @@ spec:
             ${SSH} "pip3 --version &>/dev/null || python3 -m ensurepip --user 2>&1 | tail -2"
             # User install to ~/.local/bin — works regardless of read-only rootfs
             ${SSH} "python3 -m pip install --quiet --user qecore behave dogtail python-uinput 2>&1 | tail -3"
+            # qecore needs the user session bus and Wayland env over SSH, and
+            # ponytail must already be active for dogtail interaction on Wayland.
+            ${SSH} "
+              UID_NUM=\$(id -u)
+              XDG=/run/user/\${UID_NUM}
+              SESSION_BUS=\$(systemctl --user show-environment 2>/dev/null \
+                | grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 | cut -d= -f2-)
+              if [[ -z "\${SESSION_BUS}" ]]; then
+                SESSION_BUS="unix:path=\${XDG}/bus"
+              fi
+              WAYLAND_DISP=\$(ls /run/user/\${UID_NUM}/wayland-* 2>/dev/null \
+                | head -1 | xargs basename 2>/dev/null || echo wayland-0)
+              mkdir -p \$HOME/.ssh
+              {
+                printf 'DBUS_SESSION_BUS_ADDRESS=%s\n' \"\${SESSION_BUS}\"
+                printf 'WAYLAND_DISPLAY=%s\n' \"\${WAYLAND_DISP}\"
+                printf 'XDG_RUNTIME_DIR=%s\n' \"\${XDG}\"
+                printf 'AT_SPI_BUS_ADDRESS=%s\n' \"\${SESSION_BUS}\"
+              } > \$HOME/.ssh/environment
+              chmod 600 \$HOME/.ssh/environment
+              export DBUS_SESSION_BUS_ADDRESS=\"\${SESSION_BUS}\"
+              export WAYLAND_DISPLAY=\"\${WAYLAND_DISP}\"
+              export XDG_RUNTIME_DIR=\"\${XDG}\"
+              export AT_SPI_BUS_ADDRESS=\"\${SESSION_BUS}\"
+              echo \"Ponytail env: DBUS_SESSION_BUS_ADDRESS=\${DBUS_SESSION_BUS_ADDRESS} WAYLAND_DISPLAY=\${WAYLAND_DISPLAY} XDG_RUNTIME_DIR=\${XDG_RUNTIME_DIR}\" >&2
+              mkdir -p /tmp/results
+              : > /tmp/results/ponytail.log
+              nohup /usr/libexec/gnome-ponytail-daemon >/tmp/results/ponytail.log 2>&1 &
+              PONYTAIL_PID=\$!
+              echo \"Started gnome-ponytail-daemon pid=\${PONYTAIL_PID}\" >&2
+              for attempt in 1 2 3 4 5 6 7 8 9 10; do
+                busctl --user --list 2>/dev/null | grep -q 'org.gnome.Ponytail' && exit 0
+                sleep 1
+              done
+              echo 'gnome-ponytail-daemon failed to register org.gnome.Ponytail' >&2
+              tail -50 /tmp/results/ponytail.log >&2 || true
+              exit 1
+            "
             # qecore installs helper scripts to ~/.local/bin but qecore-headless may
             # invoke them via /bin/sh which lacks ~/.local/bin in PATH. Symlink to
             # /usr/local/bin so the unlocked overlay makes them globally reachable.
@@ -168,8 +206,7 @@ spec:
 
             # ── Run tests via qecore-headless or plain SSH ───────────────────
             # qecore-headless takes the full behave invocation as a single string.
-            # It sets up DBUS_SESSION_BUS_ADDRESS, WAYLAND_DISPLAY, XDG_RUNTIME_DIR,
-            # and activates gnome-ponytail-daemon before handing off to behave.
+            # Session env and ponytail are prepared explicitly above for SSH runs.
             TAGS_ARG=""
             if [[ -n "${BEHAVE_TAGS}" ]]; then
               TAGS_ARG="${BEHAVE_TAGS}"
