@@ -64,6 +64,13 @@ def _collect_values(value, keys):
     return matches
 
 
+@step('Cosign certificate issuer is "{issuer}" and identity pattern is "{pattern}"')
+def set_cosign_issuer_identity(context, issuer, pattern):
+    """Configure OIDC issuer and identity pattern before calling Verify cosign signature."""
+    context.cosign_issuer = issuer
+    context.cosign_identity = pattern
+
+
 @step('Verify cosign signature for "{image}"')
 def verify_cosign_signature(context, image):
     """Run cosign verify against the given image with OIDC constraints."""

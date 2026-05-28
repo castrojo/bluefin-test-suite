@@ -11,24 +11,28 @@ Feature: Container image signature verification
   @cosign @bluefin_latest
   Scenario: Bluefin latest image has valid cosign signature
     # TODO: Implement — cosign verify with OIDC issuer constraint.
+    * Cosign certificate issuer is "https://token.actions.githubusercontent.com" and identity pattern is "https://github.com/ublue-os/.*"
     * Verify cosign signature for "ghcr.io/ublue-os/bluefin:latest"
     * Signature OIDC issuer is "https://token.actions.githubusercontent.com"
     * Signature identity matches "https://github.com/ublue-os/.*"
 
   @cosign @bluefin_lts
   Scenario: Bluefin LTS image has valid cosign signature
+    * Cosign certificate issuer is "https://token.actions.githubusercontent.com" and identity pattern is "https://github.com/ublue-os/.*"
     * Verify cosign signature for "ghcr.io/ublue-os/bluefin:lts"
     * Signature OIDC issuer is "https://token.actions.githubusercontent.com"
     * Signature identity matches "https://github.com/ublue-os/.*"
 
   @cosign @bluefin_dx
   Scenario: Bluefin DX image has valid cosign signature
+    * Cosign certificate issuer is "https://token.actions.githubusercontent.com" and identity pattern is "https://github.com/ublue-os/.*"
     * Verify cosign signature for "ghcr.io/ublue-os/bluefin-dx:latest"
     * Signature OIDC issuer is "https://token.actions.githubusercontent.com"
     * Signature identity matches "https://github.com/ublue-os/.*"
 
   @cosign @bluefin_nvidia
   Scenario: Bluefin NVIDIA image has valid cosign signature
+    * Cosign certificate issuer is "https://token.actions.githubusercontent.com" and identity pattern is "https://github.com/ublue-os/.*"
     * Verify cosign signature for "ghcr.io/ublue-os/bluefin-nvidia:latest"
     * Signature OIDC issuer is "https://token.actions.githubusercontent.com"
     * Signature identity matches "https://github.com/ublue-os/.*"
