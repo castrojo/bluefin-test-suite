@@ -84,6 +84,14 @@ def bootc_status_shows_a_valid_image_reference(context) -> None:
     assert _has_image_reference(status), "bootc status JSON does not contain an image or imageDigest field"
 
 
+@step("External DNS resolves external hosts")
+def external_dns_resolves_external_hosts(context) -> None:
+    output, returncode, _ = _run("getent hosts ghcr.io")
+    assert returncode == 0 and output.strip(), (
+        f"DNS resolution for ghcr.io failed (rc={returncode}): {output!r}"
+    )
+
+
 @step('Writable system storage has at least "{percent}" percent free space')
 def writable_system_storage_has_at_least_percent_free_space(context, percent: str) -> None:
     output, returncode, stderr = _run("df -P /var")

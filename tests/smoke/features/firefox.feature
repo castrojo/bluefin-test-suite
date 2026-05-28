@@ -29,6 +29,11 @@ Feature: Firefox smoke tests
     * Firefox tab count increases after Ctrl+T
     * Firefox tab count decreases after Ctrl+W
 
+  @firefox @navigation @url
+  Scenario: Navigating to a real URL loads the page
+    * Navigate Firefox to "https://projectbluefin.io"
+    * Address bar is present in Firefox
+
   @firefox @close
   Scenario: Firefox closes cleanly via Ctrl+Q
     * Key combo: "<Ctrl><Q>" with uinput

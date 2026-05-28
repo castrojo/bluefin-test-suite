@@ -17,6 +17,8 @@ DISPLAY_ROLES = {"text", "entry", "label", "static"}
 BUTTON_ALIASES = {
     "+": {"+", "plus", "＋"},
     "-": {"-", "−", "minus", "subtract", "–"},
+    "×": {"×", "*", "multiply", "⊗"},
+    "÷": {"÷", "/", "divide"},
     "=": {"=", "equals"},
     "clear": {"c", "clear", "ac", "all clear"},
 }

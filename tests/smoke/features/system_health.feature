@@ -22,3 +22,7 @@ Feature: System health smoke checks
   @health @storage
   Scenario: Writable system storage has more than 20 percent free space
     * Writable system storage has at least "20" percent free space
+
+  @health @network
+  Scenario: External DNS resolves external hosts
+    * External DNS resolves external hosts

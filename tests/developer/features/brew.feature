@@ -35,3 +35,14 @@ Feature: Homebrew package management
   Scenario: brew doctor finishes with acceptable status
     * Run brew command in ptyxis and capture result: "brew doctor"
     * brew doctor exits cleanly or only reports warnings
+
+  @brew_install
+  Scenario: brew install and uninstall round-trip succeeds
+    # cowsay: tiny formula, no C compilation, installs in seconds
+    * Run brew command in ptyxis and capture result: "brew install --formula cowsay"
+    * brew command exits with status 0
+    * Run brew command in ptyxis and capture result: "cowsay bluefin-test"
+    * brew command exits with status 0
+    * brew command output includes "bluefin-test"
+    * Run brew command in ptyxis and capture result: "brew uninstall cowsay"
+    * brew command exits with status 0

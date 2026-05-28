@@ -37,6 +37,24 @@ Feature: GNOME Calculator smoke tests
     * Clear calculator display
     * Calculator display shows "0"
 
+  @calculator @multiplication
+  Scenario: Basic multiplication
+    * Calculator window is accessible
+    * Click calculator button "6"
+    * Click calculator button "×"
+    * Click calculator button "7"
+    * Click calculator button "="
+    * Calculator display shows "42"
+
+  @calculator @division
+  Scenario: Basic division
+    * Calculator window is accessible
+    * Click calculator button "9"
+    * Click calculator button "÷"
+    * Click calculator button "3"
+    * Click calculator button "="
+    * Calculator display shows "3"
+
   @calculator @close
   Scenario: Calculator closes cleanly via Ctrl+Q
     * Calculator window is accessible
