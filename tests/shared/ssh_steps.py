@@ -97,3 +97,11 @@ def ssh_output_not_values(context, a, b):
     assert actual not in (a, b), (
         f"System state is '{actual}' — expected neither '{a}' nor '{b}'"
     )
+
+
+@step('SSH command output is not "{value}"')
+def ssh_output_is_not(context, value):
+    actual = getattr(context, "command_stdout", "").strip()
+    assert actual != value, (
+        f"SSH command output is '{value}' — expected a different value"
+    )

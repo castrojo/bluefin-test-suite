@@ -19,8 +19,8 @@ Feature: Emulated hardware peripheral validation
 
   @hardware @audio
   Scenario: Audio output sink is detected
-    * Run SSH command: "pactl list sinks short 2>/dev/null | grep -c RUNNING || pactl list sinks short | wc -l"
-    * SSH command return code is "0"
+    * Run SSH command: "pactl list sinks short 2>/dev/null | wc -l || echo 0"
+    * SSH command output is not "0"
 
   @hardware @audio
   Scenario: PipeWire reports no errors on startup
@@ -37,7 +37,7 @@ Feature: Emulated hardware peripheral validation
   @hardware @tpm
   Scenario: tpm2-tools can query TPM capabilities
     * Run SSH command: "tpm2_getcap properties-fixed 2>&1 | grep -c TPM2_PT_FAMILY_INDICATOR || echo 0"
-    * SSH command return code is "0"
+    * SSH command output is not "0"
 
   # ── Watchdog ───────────────────────────────────────────────────────────────
 
@@ -49,23 +49,23 @@ Feature: Emulated hardware peripheral validation
   @hardware @watchdog
   Scenario: systemd watchdog is configured
     * Run SSH command: "wdctl 2>/dev/null | grep -c 'Device:' || echo 0"
-    * SSH command return code is "0"
+    * SSH command output is not "0"
 
   # ── USB Mass Storage ───────────────────────────────────────────────────────
 
   @hardware @usb
   Scenario: USB controller is detected by kernel
     * Run SSH command: "lsusb 2>/dev/null | grep -c -i 'hub\|host' || echo 0"
-    * SSH command return code is "0"
+    * SSH command output is not "0"
 
   # ── Display / virtio-gpu ───────────────────────────────────────────────────
 
   @hardware @display
   Scenario: virtio-gpu is the active display adapter
     * Run SSH command: "lspci | grep -i -c 'virtio.*display\|virtio.*gpu' || echo 0"
-    * SSH command return code is "0"
+    * SSH command output is not "0"
 
   @hardware @display
   Scenario: Wayland session is using virtio-gpu
     * Run SSH command: "loginctl show-session $(loginctl list-sessions --no-legend | awk '{print $1}' | head -1) -p Type 2>/dev/null | grep -c wayland || echo 0"
-    * SSH command return code is "0"
+    * SSH command output is not "0"
