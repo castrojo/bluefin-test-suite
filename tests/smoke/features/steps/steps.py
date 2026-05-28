@@ -191,7 +191,14 @@ def last_command_output_stripped_is(context, expected) -> None:
 # ── Shell.Eval helpers (GNOME 50: uinput Super + AT-SPI toggle click broken) ──
 
 def _shell_eval(js: str) -> str:
-    """Run JS in GNOME Shell and return stdout. Requires unsafe_mode=true."""
+    """Run JS in GNOME Shell via gdbus and return raw stdout.
+
+    Requires unsafe_mode=true (set in before_all).  Returns the raw gdbus
+    output string, e.g. ``(true, 'some value')\\n``.  Use _eval_bool() when
+    you need to check a JS boolean result — do NOT use ``'true' in out`` on
+    the raw string because gdbus always includes the success flag ``true`` as
+    the first tuple element even when the JS result is ``false``.
+    """
     import subprocess
     r = subprocess.run(
         ['gdbus', 'call', '--session',
@@ -203,6 +210,37 @@ def _shell_eval(js: str) -> str:
     )
     print(f"Shell.Eval({js!r}) → {r.stdout.strip()}", flush=True)
     return r.stdout
+
+
+def _eval_bool(js: str) -> bool:
+    """Evaluate a JS expression that returns true/false via Shell.Eval.
+
+    Parses the gdbus return format ``(true, 'true')`` / ``(true, 'false')``
+    by extracting only the **second** tuple element (the JS result string).
+    Raises AssertionError if the result cannot be parsed as a boolean.
+    """
+    import re
+    out = _shell_eval(js)
+    # gdbus format: (success_bool, 'js_result_string')
+    # We must match the JS result (after the comma), not the success flag.
+    m = re.search(r",\s*'(true|false)'\s*\)", out, re.IGNORECASE)
+    if m:
+        return m.group(1).lower() == 'true'
+    raise AssertionError(
+        f"Shell.Eval did not return a boolean for {js!r}: got {out!r}"
+    )
+
+
+def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.5) -> bool:
+    """Poll _eval_bool(js) until it equals expected, or return False on timeout."""
+    for _ in range(retries):
+        try:
+            if _eval_bool(js) == expected:
+                return True
+        except AssertionError:
+            pass
+        sleep(delay)
+    return False
 
 
 @step('Open Activities overview via Shell.Eval')
@@ -226,18 +264,22 @@ def open_quick_settings_eval(context) -> None:
 
 @step('Quick Settings panel is open via Shell.Eval')
 def quick_settings_open_eval(context) -> None:
-    out = _shell_eval('Main.panel.statusArea.quickSettings.menu.isOpen.toString()')
-    assert 'true' in out.lower(), f"Quick Settings not open — Shell.Eval returned: {out!r}"
+    if not _wait_eval_bool(
+        'Main.panel.statusArea.quickSettings.menu.isOpen.toString()',
+        expected=True, retries=6, delay=0.5,
+    ):
+        out = _shell_eval('Main.panel.statusArea.quickSettings.menu.isOpen.toString()')
+        raise AssertionError(f"Quick Settings not open — Shell.Eval returned: {out!r}")
 
 
 @step('Quick Settings panel is closed via Shell.Eval')
 def quick_settings_closed_eval(context) -> None:
-    for _ in range(8):
+    if not _wait_eval_bool(
+        'Main.panel.statusArea.quickSettings.menu.isOpen.toString()',
+        expected=False, retries=8, delay=0.5,
+    ):
         out = _shell_eval('Main.panel.statusArea.quickSettings.menu.isOpen.toString()')
-        if 'false' in out.lower():
-            return
-        sleep(0.5)
-    raise AssertionError(f"Quick Settings still open after 4s — Shell.Eval: {out!r}")
+        raise AssertionError(f"Quick Settings still open after 4s — Shell.Eval: {out!r}")
 
 
 @step('Open date menu via Shell.Eval')
@@ -262,58 +304,68 @@ def close_date_menu_eval(context) -> None:
 
 @step('Date menu panel is open via Shell.Eval')
 def date_menu_open_eval(context) -> None:
-    out = _shell_eval('Main.panel.statusArea.dateMenu.menu.isOpen.toString()')
-    assert 'true' in out.lower(), f"Date menu not open — Shell.Eval returned: {out!r}"
+    if not _wait_eval_bool(
+        'Main.panel.statusArea.dateMenu.menu.isOpen.toString()',
+        expected=True, retries=6, delay=0.5,
+    ):
+        out = _shell_eval('Main.panel.statusArea.dateMenu.menu.isOpen.toString()')
+        raise AssertionError(f"Date menu not open — Shell.Eval returned: {out!r}")
 
 
 @step('Date menu panel is closed via Shell.Eval')
 def date_menu_closed_eval(context) -> None:
-    for _ in range(8):
+    if not _wait_eval_bool(
+        'Main.panel.statusArea.dateMenu.menu.isOpen.toString()',
+        expected=False, retries=8, delay=0.5,
+    ):
         out = _shell_eval('Main.panel.statusArea.dateMenu.menu.isOpen.toString()')
-        if 'false' in out.lower():
-            return
-        sleep(0.5)
-    raise AssertionError(f"Date menu still open after 4s — Shell.Eval: {out!r}")
+        raise AssertionError(f"Date menu still open after 4s — Shell.Eval: {out!r}")
 
 
 @step('Set overview search text to "{text}" via Shell.Eval')
 def set_overview_search_eval(context, text) -> None:
     """Populate overview search bar via GNOME Shell JS.
-    uinput typing is broken on these VMs — use Shell.Eval instead.
+
+    Uses clutter_text.set_text() which naturally emits the text-changed
+    signal, triggering the search controller without relying on the private
+    _onSearchChanged() method that was removed in GNOME 47+.
     """
-    js = f'Main.overview.searchEntry.set_text("{text}"); Main.overview._onSearchChanged();'
-    _shell_eval(js)
+    safe_text = text.replace('"', '\\"')
+    # clutter_text.set_text() emits text-changed, which the SearchEntry
+    # propagates to the search controller — works across GNOME 45–50.
+    _shell_eval(f'Main.overview.searchEntry.clutter_text.set_text("{safe_text}")')
     sleep(0.5)
 
 
 @step("Overview is open")
 def overview_is_open(context) -> None:
-    shell = tree.root.application("gnome-shell")
-    for _ in range(8):
-        # GNOME 49/50: name may be 'Overview' or 'overview' — match case-insensitively
-        results = shell.findChildren(lambda n: n.name.lower() == "overview" and n.showing)
-        if results:
-            return
-        sleep(0.5)
-    raise AssertionError("Activities overview did not open after 4s")
+    """Check via Shell.Eval: AT-SPI overview node naming is unstable across GNOME versions."""
+    if not _wait_eval_bool('Main.overview.visible.toString()', expected=True, retries=8):
+        raise AssertionError("Activities overview did not open after 4s")
 
 
 @step("Overview is closed")
 def overview_is_closed(context) -> None:
-    shell = tree.root.application("gnome-shell")
-    for _ in range(8):
-        results = shell.findChildren(lambda n: n.name.lower() == "overview" and n.showing)
-        if not results:
-            return
-        sleep(0.5)
-    raise AssertionError("Activities overview is still showing after 4s")
+    """Check via Shell.Eval: AT-SPI overview node naming is unstable across GNOME versions."""
+    if not _wait_eval_bool('Main.overview.visible.toString()', expected=False, retries=8):
+        raise AssertionError("Activities overview is still showing after 4s")
 
 
 @step('Overview search bar contains "{text}"')
 def overview_search_bar_contains(context, text) -> None:
-    shell = tree.root.application("gnome-shell")
-    # dogtail 4.16 dropped requireResult kwarg
-    entries = shell.findChildren(lambda n: n.roleName == "text" and n.showing)
-    assert entries, f"Search bar text entry not found"
-    entry = entries[0]
-    assert text in entry.text, f"Search bar text '{entry.text}' does not contain '{text}'"
+    """Verify search bar text via Shell.Eval for reliability across GNOME versions.
+
+    AT-SPI text entry roles vary (text/entry/document text) and the search
+    entry may not be visible until the controller activates — JS is faster.
+    """
+    import re
+    for _ in range(8):
+        out = _shell_eval('Main.overview.searchEntry.clutter_text.get_text()')
+        # gdbus returns: (true, 'Files') — extract the JS result string
+        m = re.search(r",\s*'([^']*)'\s*\)", out)
+        if m and text in m.group(1):
+            return
+        sleep(0.5)
+    raise AssertionError(
+        f"Overview search bar does not contain {text!r} — last Shell.Eval: {out!r}"
+    )
