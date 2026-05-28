@@ -38,9 +38,8 @@ Feature: Flatcar/KnuckleOS installation and update lifecycle
 
   @flatcar @updates @channel
   Scenario: Update channel is correctly configured
-    # TODO: Implement — validate /etc/flatcar/update.conf settings.
     * Run SSH command: "cat /etc/flatcar/update.conf 2>/dev/null | grep -c GROUP || echo 0"
-    * SSH command return code is "0"
+    * SSH command output is not "0"
 
   @flatcar @updates @disable
   Scenario: Updates can be disabled via update_strategy=off
@@ -50,7 +49,7 @@ Feature: Flatcar/KnuckleOS installation and update lifecycle
 
   @flatcar @afterburn
   Scenario: Afterburn metadata agent runs on supported clouds
-    # TODO: Implement — in KubeVirt, afterburn may not have a metadata source.
-    # Validate it starts but handles "no metadata" gracefully.
+    # In KubeVirt, afterburn may not have a metadata source but must still start
+    # and handle "no metadata" gracefully — it should be active or inactive.
     * Run SSH command: "systemctl status afterburn 2>&1 | grep -c 'active\|inactive' || echo 0"
-    * SSH command return code is "0"
+    * SSH command output is not "0"

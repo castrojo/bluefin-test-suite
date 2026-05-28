@@ -49,7 +49,7 @@ Feature: NVIDIA GPU passthrough validation
   @nvidia @power
   Scenario: GPU power management state is accessible
     * Run SSH command: "nvidia-smi --query-gpu=power.draw --format=csv,noheader 2>/dev/null || echo skip"
-    * SSH command return code is "0"
+    * SSH command output does not contain "skip"
 
   @nvidia @no_nouveau
   Scenario: nouveau driver is NOT loaded (conflicts with proprietary)
