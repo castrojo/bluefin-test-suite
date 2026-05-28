@@ -53,6 +53,51 @@ gdbus call --session \
   "global.context.unsafe_mode = true"
 ```
 
+## Shell.Eval via gdbus — critical parsing rule
+
+`gdbus call` always returns `(success_bool, 'js_result')`. The success flag
+is **always** `true` when the Eval method itself runs — even if the JS result
+is `false`. **Never use `'true' in out`** to check a boolean JS result:
+
+```python
+# WRONG — always True because gdbus wraps result as (true, 'false')
+assert 'true' in out.lower()
+
+# CORRECT — extract the JS result (second tuple element)
+import re
+m = re.search(r",\s*'(true|false)'\s*\)", out, re.IGNORECASE)
+result = m.group(1).lower() == 'true'  # True only if JS returned true
+```
+
+Use the `_eval_bool(js)` / `_wait_eval_bool(js, expected)` helpers from
+`tests/smoke/features/steps/steps.py` rather than hand-rolling this.
+
+## Overview open/closed detection
+
+**Do not** use AT-SPI `n.name.lower() == "overview"` — the node name varies
+across GNOME versions. Use Shell.Eval instead:
+
+```python
+# Reliable across GNOME 45–50
+_wait_eval_bool('Main.overview.visible.toString()', expected=True)
+```
+
+## Overview search entry
+
+**Do not** call `Main.overview._onSearchChanged()` — it was removed in GNOME 47.
+Use `clutter_text.set_text()` which emits the `text-changed` signal and
+triggers the search controller via the public signal path:
+
+```python
+_shell_eval(f'Main.overview.searchEntry.clutter_text.set_text("{text}")')
+```
+
+To read back the current search text:
+```python
+_shell_eval('Main.overview.searchEntry.clutter_text.get_text()')
+# returns: (true, 'Files')  — parse with regex on the second element
+```
+
 ## Screenshot on failure
 
 Hook in `after_scenario`, before sandbox cleanup:
