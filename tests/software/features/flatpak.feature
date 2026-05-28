@@ -48,3 +48,25 @@ Feature: gnome-software (Bazaar) smoke tests
   Scenario: Bazaar closes cleanly via shortcut
     * Close application "software" via "shortcut"
     * Application "software" is no longer running
+
+  # ── Flatpak CLI ───────────────────────────────────────────────────────────
+  # These scenarios bypass the Bazaar GUI and test the flatpak subsystem
+  # directly. Background still opens Bazaar; that's acceptable overhead.
+
+  @software @flatpak_cli
+  Scenario: Flathub remote is configured and reachable
+    * Run and save command output: "flatpak remote-list --columns=name | grep -c flathub"
+    * Last command output "is" "1"
+
+  @software @flatpak_cli @nightly
+  Scenario: flatpak install and uninstall round-trip succeeds
+    # Apostrophe (~5 MB) is a small, stable Flatpak with no heavy runtimes.
+    # Marked @nightly to avoid slow network I/O on every PR run.
+    * Run and save command output: "flatpak install --noninteractive flathub org.gnome.Apostrophe 2>&1; echo rc:$?"
+    * Last command output stripped "is" "rc:0"
+    * Run and save command output: "flatpak list --app --columns=application | grep -c org.gnome.Apostrophe"
+    * Last command output "is" "1"
+    * Run and save command output: "flatpak uninstall --noninteractive org.gnome.Apostrophe 2>&1; echo rc:$?"
+    * Last command output stripped "is" "rc:0"
+    * Run and save command output: "flatpak list --app --columns=application | grep -c org.gnome.Apostrophe || echo 0"
+    * Last command output "is" "0"

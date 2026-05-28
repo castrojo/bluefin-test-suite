@@ -396,6 +396,43 @@ verify-images:
     fi
     echo "✓ All images verified"
 
+# Pin all tracked image tags to their current SHA256 digest and write images.lock.
+# Requires: skopeo on PATH and registry credentials (for ghcr.io, docker login or REGISTRY_AUTH_FILE).
+# Usage: just lock-images
+lock-images:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    IMAGES=(
+        "ghcr.io/ublue-os/bluefin:latest"
+        "ghcr.io/ublue-os/bluefin:lts"
+        "ghcr.io/ublue-os/bluefin-dx:latest"
+        "ghcr.io/ublue-os/bluefin-nvidia:latest"
+    )
+    LOCKED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    LOCK_FILE="images.lock"
+    echo "{" > "${LOCK_FILE}"
+    TOTAL=${#IMAGES[@]}
+    IDX=0
+    for img in "${IMAGES[@]}"; do
+        IDX=$((IDX + 1))
+        tag="${img##*:}"
+        ref="${img%%:*}:${tag}"
+        echo "Resolving ${ref}..."
+        digest="$(skopeo inspect --format='{{.Digest}}' "docker://${ref}" 2>/dev/null)"
+        if [[ -z "${digest}" ]]; then
+            echo "ERROR: could not resolve digest for ${ref}" >&2
+            exit 1
+        fi
+        echo "  ${ref} → ${digest}"
+        COMMA=","
+        [[ ${IDX} -eq ${TOTAL} ]] && COMMA=""
+        printf '  "%s": {"image": "%s", "digest": "%s", "locked_at": "%s"}%s\n' \
+            "${tag}" "${ref}" "${digest}" "${LOCKED_AT}" "${COMMA}" >> "${LOCK_FILE}"
+    done
+    echo "}" >> "${LOCK_FILE}"
+    echo "✓ Written ${LOCK_FILE}"
+    cat "${LOCK_FILE}"
+
 # ── CI/CD ────────────────────────────────────────────────────────────────────
 
 # Manually re-trigger a test run from the CLI (mirrors GitHub Actions manual.yml).
