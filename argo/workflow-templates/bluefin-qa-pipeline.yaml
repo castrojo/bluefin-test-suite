@@ -17,17 +17,16 @@ spec:
   arguments:
     parameters:
       - name: image
-        value: "ghcr.io/ublue-os/bluefin"
+        value: "ghcr.io/ublue-os/bluefin:latest"
       - name: image-tag
-        value: "stable"
+        value: "latest"
       - name: namespace
         value: "bluefin-test"
-      # Comma-separated plan names to run in order (e.g. "/smoke,/developer-tools")
+      # Comma-separated suite phases to run in order.
       - name: phases
         value: "/smoke,/developer-tools"
-      # Used to select Ghostty fixtures on dakota builds
-      - name: variant
-        value: "bluefin"
+      - name: runner-type
+        value: "qecore"
       - name: ssh-pubkey
         value: ""
       - name: ssh-key-secret
@@ -56,10 +55,12 @@ spec:
           - name: provision
             dependencies: [ensure-disk]
             templateRef:
-              name: provision-bluefin-vm
-              template: provision-vm
+              name: provision-variant-vm
+              template: provision-variant-vm
             arguments:
               parameters:
+                - name: image
+                  value: "{{workflow.parameters.image}}"
                 - name: image-tag
                   value: "{{workflow.parameters.image-tag}}"
                 - name: vm-name
@@ -72,54 +73,54 @@ spec:
             dependencies: [provision]
             when: "'{{workflow.parameters.phases}}' contains '/smoke'"
             templateRef:
-              name: run-tmt-tests
-              template: tmt-run
+              name: run-variant-tests
+              template: run-variant-tests
             arguments:
               parameters:
                 - name: vm-ip
                   value: "{{tasks.provision.outputs.parameters.vm-ip}}"
-                - name: plan
-                  value: "/smoke"
+                - name: suite
+                  value: "smoke"
                 - name: variant
-                  value: "{{workflow.parameters.variant}}"
-                - name: ssh-key-secret
-                  value: "{{workflow.parameters.ssh-key-secret}}"
+                  value: "{{workflow.parameters.image-tag}}"
+                - name: runner-type
+                  value: "{{workflow.parameters.runner-type}}"
 
           # 3b. Phase 2 — developer tools (sequential after smoke)
           - name: run-developer-tools
             dependencies: [run-smoke]
             when: "'{{workflow.parameters.phases}}' contains '/developer-tools'"
             templateRef:
-              name: run-tmt-tests
-              template: tmt-run
+              name: run-variant-tests
+              template: run-variant-tests
             arguments:
               parameters:
                 - name: vm-ip
                   value: "{{tasks.provision.outputs.parameters.vm-ip}}"
-                - name: plan
-                  value: "/developer-tools"
+                - name: suite
+                  value: "developer"
                 - name: variant
-                  value: "{{workflow.parameters.variant}}"
-                - name: ssh-key-secret
-                  value: "{{workflow.parameters.ssh-key-secret}}"
+                  value: "{{workflow.parameters.image-tag}}"
+                - name: runner-type
+                  value: "{{workflow.parameters.runner-type}}"
 
           # 3c. Phase 3 — software management (sequential, only if in phases list)
           - name: run-software-management
             dependencies: [run-developer-tools]
             when: "'{{workflow.parameters.phases}}' contains '/software-management'"
             templateRef:
-              name: run-tmt-tests
-              template: tmt-run
+              name: run-variant-tests
+              template: run-variant-tests
             arguments:
               parameters:
                 - name: vm-ip
                   value: "{{tasks.provision.outputs.parameters.vm-ip}}"
-                - name: plan
-                  value: "/software-management"
+                - name: suite
+                  value: "software"
                 - name: variant
-                  value: "{{workflow.parameters.variant}}"
-                - name: ssh-key-secret
-                  value: "{{workflow.parameters.ssh-key-secret}}"
+                  value: "{{workflow.parameters.image-tag}}"
+                - name: runner-type
+                  value: "{{workflow.parameters.runner-type}}"
 
     # ── onExit handler: stop VM → wait VMI gone → delete hostDisk ──────────────
     - name: teardown

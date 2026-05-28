@@ -41,8 +41,8 @@ setup-ssh-secret:
 # Apply all WorkflowTemplates to the cluster
 apply-templates:
     @for f in argo/workflow-templates/*.yaml; do \
-        echo "Applying $$f..."; \
-        kubectl apply -f $$f -n {{ argo_ns }}; \
+        echo "Applying $f..."; \
+        kubectl apply -f $f -n {{ argo_ns }}; \
     done
 
 # One-time cluster setup: CDI + RBAC + templates + SSH secret
