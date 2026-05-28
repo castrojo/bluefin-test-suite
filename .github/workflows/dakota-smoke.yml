@@ -1,0 +1,75 @@
+# Dakota post-merge smoke test.
+#
+# Triggered by a `repository_dispatch` event of type `dakota-build` from
+# projectbluefin/dakota's publish workflow after a successful image push.
+# Also supports manual dispatch for ad-hoc testing.
+#
+# Prerequisites: same as nightly.yml (self-hosted runner on ghost).
+# Secrets required: BLUEFIN_TEST_PUBKEY (shared with nightly)
+
+name: Dakota Smoke Test
+
+on:
+  repository_dispatch:
+    types: [dakota-build]
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Full image reference (e.g. ghcr.io/projectbluefin/dakota:latest)"
+        required: true
+        default: "ghcr.io/projectbluefin/dakota:latest"
+      image_tag:
+        description: "Short tag used for golden disk path (e.g. latest or a SHA)"
+        required: true
+        default: "latest"
+      sha:
+        description: "Dakota commit SHA (optional, for traceability)"
+        required: false
+        default: ""
+
+jobs:
+  smoke:
+    name: Smoke → ${{ github.event.client_payload.image_tag || inputs.image_tag }}
+    runs-on: [self-hosted, ghost]
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve parameters
+        id: params
+        run: |
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            echo "image=${{ github.event.client_payload.image }}"       >> "$GITHUB_OUTPUT"
+            echo "image_tag=${{ github.event.client_payload.image_tag }}" >> "$GITHUB_OUTPUT"
+            echo "sha=${{ github.event.client_payload.sha }}"           >> "$GITHUB_OUTPUT"
+          else
+            echo "image=${{ inputs.image }}"     >> "$GITHUB_OUTPUT"
+            echo "image_tag=${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+            echo "sha=${{ inputs.sha }}"         >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Submit Argo smoke test
+        env:
+          BLUEFIN_TEST_PUBKEY: ${{ secrets.BLUEFIN_TEST_PUBKEY }}
+        run: |
+          argo submit argo/bluefin-smoke-test.yaml \
+            -p image="${{ steps.params.outputs.image }}" \
+            -p image-tag="${{ steps.params.outputs.image_tag }}" \
+            -p suite="smoke" \
+            -p runner-type="plain-ssh" \
+            -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
+            -p pr-title="dakota-gate:${{ steps.params.outputs.sha }}" \
+            -p pr-number="" \
+            -n argo \
+            --wait \
+            --log
+
+      - name: Show results location
+        if: always()
+        run: |
+          printf 'Image tested : %s\n' "${{ steps.params.outputs.image }}"
+          printf 'Dakota SHA   : %s\n' "${{ steps.params.outputs.sha }}"
+          printf 'Results on ghost: /var/tmp/bluefin-results/\n'
+          printf 'Browse: ssh ghost "ls -lt /var/tmp/bluefin-results/ | head -5"\n'
