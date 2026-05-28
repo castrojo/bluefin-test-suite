@@ -31,6 +31,36 @@ Feature: GNOME Settings smoke tests
     * Navigate to Settings panel "Displays"
     * Settings panel "Displays" is visible
 
+  @settings @wifi
+  Scenario: Wi-Fi settings panel is accessible
+    * Navigate to Settings panel "Wi-Fi"
+    * Settings panel "Wi-Fi" is visible
+
+  @settings @privacy
+  Scenario: Privacy settings panel is accessible
+    * Navigate to Settings panel "Privacy & Security"
+    * Settings panel "Privacy & Security" is visible
+
+  @settings @notifications
+  Scenario: Notifications settings panel is accessible
+    * Navigate to Settings panel "Notifications"
+    * Settings panel "Notifications" is visible
+
+  @settings @keyboard
+  Scenario: Keyboard settings panel is accessible
+    * Navigate to Settings panel "Keyboard"
+    * Settings panel "Keyboard" is visible
+
+  @settings @power
+  Scenario: Power settings panel is accessible
+    * Navigate to Settings panel "Power"
+    * Settings panel "Power" is visible
+
+  @settings @accessibility
+  Scenario: Accessibility settings panel is accessible
+    * Navigate to Settings panel "Accessibility"
+    * Settings panel "Accessibility" is visible
+
   @settings @close
   Scenario: Settings closes cleanly via Ctrl+Q
     * Key combo: "<Ctrl><Q>" with uinput

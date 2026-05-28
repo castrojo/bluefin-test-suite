@@ -17,6 +17,7 @@ INFO_TOKENS = ("bluefin", "fedora", "linux", "version", "os")
 SETTINGS_PANEL_ALIASES = {
     "About": ("About", "System"),
     "Displays": ("Displays",),
+    "Privacy & Security": ("Privacy & Security", "Privacy"),
 }
 
 
