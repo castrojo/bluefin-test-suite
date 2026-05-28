@@ -1,6 +1,6 @@
 # testsuite runbook
 
-> Last updated: 2026-05-27
+> Last updated: 2026-05-28
 
 This runbook covers **test-content operations** for `projectbluefin/testsuite`.
 Lab infrastructure operations (cluster topology, ArgoCD ownership, ghost/exo lifecycle) are owned by `projectbluefin/testing-lab`.

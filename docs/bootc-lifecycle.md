@@ -14,6 +14,7 @@ bootc status --format=json
 | Pending reboot | `.status.staged` (null if none) |
 | Active image digest | `.status.booted.image.imageDigest` |
 | Active image ref string | `.status.booted.image.image.image` |
+| Pinned (won't auto-prune) | `.status.booted.pinned` (bool) |
 
 **Wrong paths that cause silent test skips:**
 - `.staged` (missing `.status` prefix)
@@ -68,3 +69,16 @@ assert count >= 2  # not == 2; multiple upgrades can produce more
 ```
 
 Assert `>= 2`, not `== 2` — after multiple upgrades there can be more than two deployment entries.
+
+## bootc pin / unpin
+
+`sudo bootc pin` sets `.status.booted.pinned = true` — the deployment is protected from auto-pruning.  
+`sudo bootc pin --unpin` clears it.
+
+Step definitions in `tests/lifecycle/features/steps/steps.py`:
+```
+* bootc status shows deployment is pinned
+* bootc status shows deployment is not pinned
+```
+
+Both use `_parse_bootc_status(context)` for validated JSON access — do not duplicate the bare `json.loads` pattern.

@@ -21,7 +21,7 @@ Those are owned by `projectbluefin/testing-lab`.
 
 ## Coverage summary
 
-158 scenarios across 20 feature files (last full-audit: 2026-05-28).
+162 scenarios across 20 feature files (last full-audit: 2026-05-28).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
@@ -32,7 +32,7 @@ Those are owned by `projectbluefin/testing-lab`.
 | lifecycle | 7 | ✅ active | bootc upgrade / rollback / switch / /etc merge |
 | hardware | 10 | ✅ active | Fully driven by shared SSH steps |
 | security/image_provenance | 5 | ✅ active | cosign verify steps fully implemented |
-| dx | 8 | 🔄 expanding | VS Code + CLI tools; `_ssh()` local by design (qecore collision) |
+| dx | 9 | 🔄 expanding | VS Code + CLI tools + brew; `_ssh()` local by design (qecore collision) |
 | flatcar/boot | 7 | ✅ active | systemd, containerd, networking |
 | flatcar/lifecycle | 6 | ⏳ @future | Needs dual-disk VM + boot-order swap (Epic E09) |
 | security/selinux | 5 | ⏳ @future | Needs `selinux=0` removed from golden disk (Epic E04) |
@@ -40,14 +40,14 @@ Those are owned by `projectbluefin/testing-lab`.
 
 ## Known coverage gaps
 
-| Area | Priority | Notes |
-|---|---|---|
-| `ujust` commands | Medium | No scenario exercises user-facing `ujust` scripts |
-| Auto-update service | Medium | No test that `bootc-fetch-apply-updates.timer` is active |
-| `bootc pin/unpin` | Low | Lifecycle covers upgrade/rollback but not image pinning |
-| Flatpak permission management | Low | Flatseal / per-app permissions not exercised |
-| Brew on DX | Low | `brew` tested in developer suite but not dx suite |
-| OOBE / first-boot | Low | Initial user setup flow not covered |
+| Area | Priority | Status | Notes |
+|---|---|---|---|
+| `ujust` commands | Medium | ✅ closed | `system_health.feature` — local subprocess step |
+| Auto-update service | Medium | ✅ closed | `lifecycle/bootc.feature` — systemctl list-timers check |
+| `bootc pin/unpin` | Low | ✅ closed | `lifecycle/bootc.feature` — pin/unpin + JSON assertion steps |
+| Brew on DX | Low | ✅ closed | `dx/dx_tools.feature` — @plain_ssh scenario |
+| Flatpak permission management | Low | Open | Flatseal / per-app permissions not exercised |
+| OOBE / first-boot | Low | Open | Initial user setup flow not covered |
 
 ## Known deferred suites
 
