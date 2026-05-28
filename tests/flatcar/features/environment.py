@@ -7,6 +7,8 @@ as an environment variable.
 """
 import os
 
+from tests.shared.ssh_steps import *  # noqa: F401,F403
+
 
 def before_all(context) -> None:
     context.vm_ip = (
