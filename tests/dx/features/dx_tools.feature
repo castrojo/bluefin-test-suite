@@ -50,3 +50,4 @@ Feature: Bluefin DX variant smoke tests
   Scenario: JupyterLab can be launched (DX includes scientific stack)
     * Run DX SSH command: "which jupyter-lab || pip3 show jupyterlab 2>/dev/null | grep -c Name || echo missing"
     * SSH command return code is "0"
+    * Last command output does not contain "missing"

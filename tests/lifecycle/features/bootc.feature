@@ -62,13 +62,19 @@ Feature: bootc upgrade and rollback lifecycle
 
   @lifecycle @etc_merge
   Scenario: /etc customizations survive upgrade
-    # Write a sentinel file to /etc, upgrade, reboot, and verify the file persists.
+    # Write a sentinel, upgrade, reboot, verify file survives AND digest changed.
+    * Capture booted image digest for rollback verification
     * Run SSH command: "echo 'testsuite-marker' | sudo tee /etc/bluefin-test-marker"
     * Run SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * Staged deployment is present in bootc status
+    * Capture staged image digest as upgrade target
     * Reboot VM and wait for SSH
     * Run SSH command: "cat /etc/bluefin-test-marker"
     * SSH command output "is" "testsuite-marker"
+    * Run SSH command: "bootc status --format=json"
+    * Active deployment matches upgrade target digest
 
   @lifecycle @ostree
   Scenario: ostree admin status reports at least two deployments after upgrade

@@ -19,6 +19,7 @@ def before_all(context):
 
 
 def before_scenario(context, scenario):
+    context.scenario = scenario
     context.command_stdout = ""
     context.ssh_rc = None
     context.last_ssh_result = None
