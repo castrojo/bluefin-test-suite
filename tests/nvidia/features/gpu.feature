@@ -31,7 +31,7 @@ Feature: NVIDIA GPU passthrough validation
 
   @nvidia @vulkan @regression @bluefin_4620
   Scenario: No Vulkan validation errors in journal (bluefin#4620)
-    * Run SSH command: "journalctl -b --no-pager -g 'VUID-' 2>/dev/null | grep -c 'VUID-' || echo 0"
+    * Run SSH command: "journalctl -b --no-pager -g 'VUID-' 2>/dev/null | grep -c 'VUID-'"
     * SSH command output stripped "is" "0"
 
   @nvidia @cuda
@@ -53,5 +53,5 @@ Feature: NVIDIA GPU passthrough validation
 
   @nvidia @no_nouveau
   Scenario: nouveau driver is NOT loaded (conflicts with proprietary)
-    * Run SSH command: "lsmod | grep -c nouveau || echo 0"
+    * Run SSH command: "lsmod | grep -c nouveau"
     * SSH command output stripped "is" "0"

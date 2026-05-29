@@ -19,12 +19,13 @@ Feature: Emulated hardware peripheral validation
 
   @hardware @audio
   Scenario: Audio output sink is detected
-    * Run SSH command: "pactl list sinks short 2>/dev/null | wc -l || echo 0"
+    * Run SSH command: "pactl list sinks short 2>/dev/null | grep -v 'auto_null\|dummy' | grep -c '.' || echo 0"
     * SSH command output is not "0"
 
   @hardware @audio
   Scenario: PipeWire reports no errors on startup
-    * Run SSH command: "journalctl --user -u pipewire -b --no-pager -p err 2>/dev/null | grep -c pipewire || echo 0"
+    * Run SSH command: "systemctl --user is-active pipewire.service 2>/dev/null && journalctl --user -u pipewire -b --no-pager -p err 2>/dev/null | grep -c pipewire || echo service-not-active"
+    * SSH command output does not contain "service-not-active"
     * SSH command output stripped "is" "0"
 
   # ── TPM 2.0 ────────────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ Feature: Emulated hardware peripheral validation
 
   @hardware @tpm
   Scenario: tpm2-tools can query TPM capabilities
-    * Run SSH command: "tpm2_getcap properties-fixed 2>&1 | grep -c TPM2_PT_FAMILY_INDICATOR || echo 0"
+    * Run SSH command: "tpm2_getcap properties-fixed 2>&1 | grep -c TPM2_PT_FAMILY_INDICATOR"
     * SSH command output is not "0"
 
   # ── Watchdog ───────────────────────────────────────────────────────────────
@@ -48,24 +49,24 @@ Feature: Emulated hardware peripheral validation
 
   @hardware @watchdog
   Scenario: systemd watchdog is configured
-    * Run SSH command: "wdctl 2>/dev/null | grep -c 'Device:' || echo 0"
+    * Run SSH command: "wdctl 2>/dev/null | grep -c 'Device:'"
     * SSH command output is not "0"
 
   # ── USB Mass Storage ───────────────────────────────────────────────────────
 
   @hardware @usb
   Scenario: USB controller is detected by kernel
-    * Run SSH command: "lsusb 2>/dev/null | grep -c -i 'hub\|host' || echo 0"
+    * Run SSH command: "lsusb 2>/dev/null | grep -c -i 'hub\|host'"
     * SSH command output is not "0"
 
   # ── Display / virtio-gpu ───────────────────────────────────────────────────
 
   @hardware @display
   Scenario: virtio-gpu is the active display adapter
-    * Run SSH command: "lspci | grep -i -c 'virtio.*display\|virtio.*gpu' || echo 0"
+    * Run SSH command: "lspci | grep -i -c 'virtio.*display\|virtio.*gpu'"
     * SSH command output is not "0"
 
   @hardware @display
   Scenario: Wayland session is using virtio-gpu
-    * Run SSH command: "loginctl show-session $(loginctl list-sessions --no-legend | awk '{print $1}' | head -1) -p Type 2>/dev/null | grep -c wayland || echo 0"
+    * Run SSH command: "loginctl show-session $(loginctl list-sessions --no-legend | awk '{print $1}' | head -1) -p Type 2>/dev/null | grep -c wayland"
     * SSH command output is not "0"

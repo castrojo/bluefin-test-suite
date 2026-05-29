@@ -121,6 +121,32 @@ def active_matches_original(context):
     )
 
 
+@step("bootc upgrade output indicates image was staged")
+def upgrade_output_staged(context):
+    """Verify bootc upgrade stdout shows a new image was queued for next boot.
+
+    ``bootc upgrade`` exits 0 in two distinct cases:
+      - New image available: output contains "Queued for next boot: <ref>"
+      - Already up-to-date: output contains "No update available."
+
+    When the upgrade is a no-op, any stale staged deployment left over from a
+    prior run would cause reboot-dependent scenarios to false-pass: the stale
+    staged digest matches the booted digest after rebooting into it, /etc files
+    trivially survive a same-image reboot, and ostree still shows two entries.
+
+    If no staging happened, skip this scenario so the reboot+verify steps
+    don't fire against a stale or absent staged deployment.
+    """
+    output = getattr(context, "command_stdout", "")
+    if "Queued for next boot" not in output:
+        _skip_current_scenario(
+            context,
+            f"bootc upgrade was a no-op (image already up-to-date) — "
+            f"skipping reboot+verify steps to avoid false-pass. "
+            f"bootc output: {output!r}",
+        )
+
+
 @step('Active image reference contains "{fragment}"')
 def active_image_contains(context, fragment):
     """Verify the booted image reference string contains the expected fragment."""

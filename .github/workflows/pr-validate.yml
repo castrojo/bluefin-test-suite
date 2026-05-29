@@ -1,0 +1,55 @@
+# PR Validation — lint & syntax checks
+#
+# Runs on every PR and push to main.  No ghost runner needed — all checks
+# are lightweight and run on ubuntu-latest.
+#
+# Checks:
+#   1. Python lint      — ruff (import errors, undefined names, style)
+#   2. Python syntax    — py_compile on every .py file in tests/
+#   3. YAML lint        — yamllint in relaxed mode on argo/
+#   4. Argo YAML parse  — yaml.safe_load on every argo/*.yaml
+
+name: PR Validation — lint & syntax checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Lint & syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linting tools
+        run: pip install ruff yamllint
+
+      - name: Python lint (ruff)
+        run: ruff check tests/ --select E,F,W --ignore E501
+
+      - name: Python syntax check
+        run: |
+          python -m py_compile $(find tests/ -name '*.py' | tr '\n' ' ')
+          echo "All Python files compile cleanly."
+
+      - name: YAML lint (argo/)
+        run: yamllint -d relaxed argo/
+
+      - name: Argo YAML parse check
+        run: |
+          for f in argo/*.yaml; do
+            echo "Checking $f …"
+            python -c "import yaml, sys; yaml.safe_load(open('$f')) or sys.exit(0)"
+          done
+          echo "All Argo YAML files parse cleanly."

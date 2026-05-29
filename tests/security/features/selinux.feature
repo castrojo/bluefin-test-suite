@@ -20,7 +20,10 @@ Feature: SELinux enforcing mode validation
   @selinux @no_denials
   Scenario: No AVC denials in system journal since boot
     # TODO: Implement — ausearch for recent AVCs, filter known allowlist.
-    * Run SSH command: "sudo ausearch -m avc -ts boot --raw 2>/dev/null | grep -c '^' || echo 0"
+    # Guard: if ausearch is absent or SELinux is not enforcing, emit sentinel so the
+    # test fails visibly rather than passing trivially with a spurious "0".
+    * Run SSH command: "command -v ausearch >/dev/null && getenforce | grep -q Enforcing && sudo ausearch -m avc -ts boot --raw 2>/dev/null | grep -c '^' || echo selinux-not-enforcing"
+    * SSH command output does not contain "selinux-not-enforcing"
     * SSH command output "is" "0"
 
   @selinux @context_labels
@@ -43,7 +46,10 @@ Feature: SELinux enforcing mode validation
   Scenario: No AVC denials during GNOME session startup
     # TODO: Implement — boot, let GNOME start, then check for AVCs
     # related to gnome-shell, gdm, or user session services.
-    * Run SSH command: "sudo ausearch -m avc -ts boot -c gnome-shell --raw 2>/dev/null | grep -c '^' || echo 0"
+    # Guard: emit sentinel if ausearch absent or SELinux not enforcing.
+    * Run SSH command: "command -v ausearch >/dev/null && getenforce | grep -q Enforcing && sudo ausearch -m avc -ts boot -c gnome-shell --raw 2>/dev/null | grep -c '^' || echo selinux-not-enforcing"
+    * SSH command output does not contain "selinux-not-enforcing"
     * SSH command output "is" "0"
-    * Run SSH command: "sudo ausearch -m avc -ts boot -c gdm --raw 2>/dev/null | grep -c '^' || echo 0"
+    * Run SSH command: "command -v ausearch >/dev/null && getenforce | grep -q Enforcing && sudo ausearch -m avc -ts boot -c gdm --raw 2>/dev/null | grep -c '^' || echo selinux-not-enforcing"
+    * SSH command output does not contain "selinux-not-enforcing"
     * SSH command output "is" "0"

@@ -111,6 +111,6 @@ def ignition_hostname_is(context, expected) -> None:
 def afterburn_service_is_available(context) -> None:
     run_ssh(
         context,
-        "systemctl status afterburn 2>&1 | grep -c 'active\\|inactive' || echo 0",
+        "systemctl status afterburn 2>&1 | grep -c 'active\\|inactive'",
     )
     ssh_return_code_is(context, "0")

@@ -43,6 +43,7 @@ Feature: bootc upgrade and rollback lifecycle
     * Capture booted image digest for rollback verification
     * Run SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
+    * bootc upgrade output indicates image was staged
     * Run SSH command: "bootc status --format=json"
     * Capture staged image digest as upgrade target
     * Reboot VM and wait for SSH
@@ -54,6 +55,7 @@ Feature: bootc upgrade and rollback lifecycle
     * Capture booted image digest for rollback verification
     * Run SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
+    * bootc upgrade output indicates image was staged
     * Run SSH command: "bootc status --format=json"
     * Capture staged image digest as upgrade target
     * Reboot VM and wait for SSH
@@ -79,6 +81,7 @@ Feature: bootc upgrade and rollback lifecycle
     * Run SSH command: "echo 'testsuite-marker' | sudo tee /etc/bluefin-test-marker"
     * Run SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
+    * bootc upgrade output indicates image was staged
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
@@ -93,6 +96,7 @@ Feature: bootc upgrade and rollback lifecycle
     # Run after an upgrade + reboot so both booted and rollback deployments are present.
     * Run SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
+    * bootc upgrade output indicates image was staged
     * Reboot VM and wait for SSH
     * Run SSH command: "ostree admin status"
     * SSH command return code is "0"
@@ -101,5 +105,5 @@ Feature: bootc upgrade and rollback lifecycle
   @lifecycle @autoupdate
   Scenario: Auto-update timer is present and not masked
     * Bluefin VM is booted and reachable over SSH
-    * Run SSH command: "systemctl list-timers --all --no-pager 2>/dev/null | grep -c 'bootc\\|ostree' || echo 0"
+    * Run SSH command: "systemctl list-timers --all --no-pager 2>/dev/null | grep -c 'bootc\|ostree'"
     * SSH command output is not "0"
