@@ -95,6 +95,30 @@ just list-stubs
 
 For lab execution commands (`run-tests`, matrix runs, titan paths, nightly/manual automation), prefer the canonical entrypoints in `testing-lab`.
 
+## Vanilla GNOME baseline comparison
+
+The `vanilla-gnome` suite runs against an unmodified GNOME OS disk to establish
+a comparison baseline:
+
+- **Failures on vanilla-gnome** → likely upstream GNOME issue
+- **Failures on Bluefin but not vanilla** → likely Bluefin-specific regression
+
+Currently this comparison is manual. Procedure:
+
+1. Wait for both nightly runs to complete (Argo Workflows in `testing-lab`)
+2. Compare results for the 7 overlapping scenarios between `smoke` and `vanilla-gnome`:
+   - `gnome_calculator` — launch and basic interaction
+   - `gnome_text_editor` — launch and typing
+   - `gnome_files_browse_dir` — Nautilus directory listing
+   - `gnome_settings_about_display` — Settings → About rendering
+   - `firefox_launch_and_close` — Firefox launch via Flatpak
+   - `system_monitor_app_list` — System Monitor process table
+   - `app_grid_search` — GNOME Shell app search
+3. Flag scenarios that fail on Bluefin but pass on vanilla as Bluefin regressions
+4. Record findings in the relevant issue
+
+Future: automated diff via `just compare-results` (see #22).
+
 ## Update checklist for docs + tests
 
 When changing testsuite behavior:
