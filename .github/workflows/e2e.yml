@@ -368,7 +368,7 @@ jobs:
           $SSH "python3 -m pip install --user /tmp/python_uinput*.whl"
 
           $SSH "python3 -m pip install -q --user qecore behave dogtail"
-          $SSH "for f in \$HOME/.local/bin/qecore_*; do sudo ln -sf \"\$f\" /usr/local/bin/\$(basename \"\$f\") 2>/dev/null; done"
+          $SSH "for f in \$HOME/.local/bin/qecore_*; do sudo ln -sf \"\$f\" /usr/local/bin/\$(basename \"\$f\") 2>/dev/null; done || true"
           $SSH "sudo modprobe uinput 2>/dev/null || true"
           $SSH "sudo chmod 0666 /dev/uinput 2>/dev/null || true"
 
@@ -379,8 +379,8 @@ jobs:
             [[ -z \"\${SESSION_BUS}\" ]] && SESSION_BUS=\"unix:path=\${XDG}/bus\"
             WAYLAND_DISP=\$(ls /run/user/1001/wayland-* 2>/dev/null \
               | head -1 | xargs basename 2>/dev/null || echo wayland-0)
-            printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\n' \
-              \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${SESSION_BUS}\" \
+            printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\nexport PATH=%s\n' \
+              \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${SESSION_BUS}\" \"\$HOME/.local/bin:\$PATH\" \
               > /tmp/session.env
             cat /tmp/session.env
           "
