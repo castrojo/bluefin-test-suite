@@ -47,7 +47,7 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 
 ## Coverage snapshot
 
-212 scenarios across 28 feature files (last audit: 2026-05-30).
+216 scenarios across 28 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
@@ -64,7 +64,7 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 | flatcar/boot | 7 | ✅ active | systemd, containerd, networking |
 | flatcar/lifecycle | 6 | ⏳ @future | Needs dual-disk VM (Epic E09) |
 | security/selinux | 5 | ⏳ @future | Needs `selinux=0` removed from golden disk (Epic E04) |
-| nvidia | 8 | ⏳ @future/@hardware_blocked | Needs GPU passthrough (Epic E08) |
+| nvidia | 12 | ⏳ @future/@hardware_blocked | Needs GPU passthrough (Epic E08); freedesktop tools (drm_info, vulkaninfo, glmark2) staged |
 
 ## Known coverage gaps
 
