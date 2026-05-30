@@ -4,7 +4,7 @@
 # Boots a bootc OCI image in a KVM-accelerated QEMU VM, starts a GNOME
 # session, and runs behave tests via qecore-headless or runner-side SSH.
 #
-# No self-hosted runners. No homelab. Pure GHA ubuntu-latest.
+# No self-hosted runners. Pure GHA ubuntu-latest.
 #
 # Inputs:
 #   image  — OCI image to test (default: ghcr.io/projectbluefin/dakota:latest)
@@ -371,8 +371,36 @@ jobs:
 
           echo "behave_rc=${BEHAVE_RC}" >> "$GITHUB_OUTPUT"
 
+      - name: Promote desktop screenshot
+        if: always()
+        id: desktop-screenshot
+        run: |
+          # The smoke suite's after_all takes a fastfetch screenshot; find it
+          # under results/ regardless of exact filename timestamp fragments.
+          SHOT=$(find results/ -name "screenshot_*fastfetch*.png" 2>/dev/null | head -1)
+          if [[ -n "$SHOT" ]]; then
+            cp "$SHOT" desktop-screenshot.png
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "Desktop screenshot found: $SHOT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "No fastfetch screenshot in results/ — skipping promotion"
+          fi
+
+      - name: Upload desktop screenshot
+        if: steps.desktop-screenshot.outputs.found == 'true'
+        id: upload-screenshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: desktop-screenshot-${{ env.SUITE }}
+          path: desktop-screenshot.png
+          retention-days: 90
+          if-no-files-found: ignore
+
       - name: Write job summary
         if: always()
+        env:
+          SCREENSHOT_URL: ${{ steps.upload-screenshot.outputs.artifact-url }}
         run: |
           if [[ -f results/results.json ]]; then
             python3 - << 'PY'
@@ -405,6 +433,20 @@ jobs:
                       lines.append(f"  - `{step['name']}`")
                       if err:
                         lines.append(f"    <pre>{err}</pre>")
+
+          # Desktop screenshot link — useful for release notes
+          screenshot_url = os.environ.get('SCREENSHOT_URL', '').strip()
+          if screenshot_url:
+            lines += [
+              '',
+              '### 🖥️ Desktop Screenshot',
+              '',
+              f'[📸 Download desktop-screenshot-{suite}]({screenshot_url})',
+              '',
+              '_Screenshot taken at end of run with fastfetch open. '
+              'Use for release notes and visual regression reference._',
+            ]
+
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
             f.write('\n'.join(lines) + '\n')
           PY
