@@ -79,6 +79,26 @@ Feature: GNOME Shell smoke tests
     * Close Quick Settings via Shell.Eval
     * Quick Settings panel is closed via Shell.Eval
 
+  @quick_settings @night_light
+  Scenario: Night Light can be enabled and disabled
+    * GNOME Shell is accessible via AT-SPI
+    * Ensure Night Light starts disabled via gsettings
+    * Enable Night Light via gsettings
+    * Night Light is enabled via gsettings
+    * Disable Night Light via gsettings
+    * Night Light is disabled via gsettings
+
+  @quick_settings @dnd
+  Scenario: Do-Not-Disturb can be toggled via Quick Settings
+    * GNOME Shell is accessible via AT-SPI
+    * Open Quick Settings via Shell.Eval
+    * Quick Settings panel is open via Shell.Eval
+    * Enable Do-Not-Disturb via Shell.Eval toggle
+    * Do-Not-Disturb is enabled via Shell.Eval
+    * Disable Do-Not-Disturb via Shell.Eval toggle
+    * Do-Not-Disturb is disabled via Shell.Eval
+    * Close Quick Settings via Shell.Eval
+
   # ── Calendar popup ────────────────────────────────────────────────────────
 
   @calendar
