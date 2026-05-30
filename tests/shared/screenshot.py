@@ -1,87 +1,124 @@
-"""Screenshot helpers for behave GNOME test environments.
+"""Shared screenshot helpers for behave GNOME GUI suites."""
 
-All GNOME GUI suites import from here instead of duplicating the logic.
-"""
-
+import json
 import os
 import re
 import shutil
 import subprocess
 import time
+from typing import Any
 
 RESULTS_DIR = "/tmp/results"
 
 # Seconds to wait after launching an app before screenshotting
 _APP_LAUNCH_WAIT = int(os.environ.get("SCREENSHOT_APP_WAIT", "4"))
+_CAPTURE_WAIT_SECONDS = float(os.environ.get("SCREENSHOT_CAPTURE_WAIT", "5"))
+
+_CURRENT_CONTEXT: Any | None = None
+_CURRENT_SUITE = "unknown"
+_CURRENT_SCENARIO = "end_of_run"
+
+
+def configure_screenshot_context(
+    context: Any,
+    suite_name: str,
+    scenario_name: str | None = None,
+) -> None:
+    """Bind the active behave context so shared helpers can use shell.eval_js."""
+    global _CURRENT_CONTEXT, _CURRENT_SCENARIO, _CURRENT_SUITE
+    _CURRENT_CONTEXT = context
+    _CURRENT_SUITE = suite_name
+    if scenario_name is not None:
+        _CURRENT_SCENARIO = scenario_name
+
+
+def _safe_fragment(value: str | None, fallback: str) -> str:
+    safe = re.sub(r"[^a-z0-9]+", "_", (value or fallback).lower()).strip("_")
+    return safe[:60] or fallback
+
+
+def _scenario_name() -> str:
+    scenario = getattr(getattr(_CURRENT_CONTEXT, "scenario", None), "name", None)
+    return scenario or _CURRENT_SCENARIO or "end_of_run"
+
+
+def _screenshot_path(label: str) -> str:
+    suite = _safe_fragment(_CURRENT_SUITE, "suite")
+    safe_label = _safe_fragment(label, "capture")
+    scenario = _safe_fragment(_scenario_name(), "scenario")
+    return os.path.join(RESULTS_DIR, f"screenshot_{suite}_{safe_label}_{scenario}.png")
+
+
+def _shell_screenshot_js(path: str) -> str:
+    quoted_path = json.dumps(path)
+    return (
+        "const Shell = imports.gi.Shell; "
+        f"const path = {quoted_path}; "
+        "const screenshot = new Shell.Screenshot(); "
+        "screenshot.screenshot(true, true, path, (_obj, res) => { "
+        "try { screenshot.screenshot_finish(res); } "
+        "catch (e) { logError(e, 'Shared screenshot failed'); } "
+        "}); "
+        "'started';"
+    )
 
 
 def take_screenshot(label: str) -> str | None:
-    """Capture a full-screen PNG via gnome-shell D-Bus Screenshot API.
+    """Capture a PNG via GNOME Shell's Screenshot API through shell.eval_js."""
+    context = _CURRENT_CONTEXT
+    sandbox = getattr(context, "sandbox", None) if context is not None else None
+    if sandbox is None:
+        print("Screenshot skipped: sandbox context is unavailable", flush=True)
+        return None
 
-    Args:
-        label: Human-readable label used to derive the filename.
-               Should include suite + status + scenario for uniqueness.
-
-    Returns:
-        Path to the saved file, or None if capture failed.
-    """
-    safe = re.sub(r'[^a-z0-9]+', '_', label.lower())[:120]
-    path = os.path.join(RESULTS_DIR, f"screenshot_{safe}.png")
+    path = _screenshot_path(label)
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    if os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            pass
+
     try:
-        result = subprocess.run(
-            ['gdbus', 'call', '--session',
-             '--dest', 'org.gnome.Shell.Screenshot',
-             '--object-path', '/org/gnome/Shell/Screenshot',
-             '--method', 'org.gnome.Shell.Screenshot.Screenshot',
-             'true', 'true', path],
-            capture_output=True, text=True, timeout=8,
-        )
-        if result.returncode == 0:
-            print(f'Screenshot saved: {path}', flush=True)
-            return path
-        print(f'Screenshot gdbus failed: {result.stderr.strip()}', flush=True)
+        context.sandbox.shell.eval_js(_shell_screenshot_js(path))
     except Exception as exc:  # noqa: BLE001
-        print(f'Screenshot error: {exc}', flush=True)
+        print(f"Screenshot error: {exc}", flush=True)
+        return None
+
+    deadline = time.monotonic() + _CAPTURE_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        if os.path.exists(path):
+            print(f"Screenshot saved: {path}", flush=True)
+            return path
+        time.sleep(0.2)
+
+    print(f"Screenshot did not materialize: {path}", flush=True)
     return None
 
 
-def take_app_screenshot(app_id: str, label: str | None = None, wait: int = _APP_LAUNCH_WAIT) -> str | None:
-    """Launch an app by Flatpak ID or command name, screenshot it, then close.
-
-    Detection logic:
-    - If app_id contains a '.' and is a known Flatpak (flatpak info succeeds) → flatpak run
-    - If app_id is on PATH → run directly
-    - Otherwise falls back to gtk-launch (picks up .desktop files)
-
-    Args:
-        app_id: Flatpak application ID (e.g. 'org.mozilla.firefox') or
-                command name (e.g. 'firefox') or desktop file stem.
-        label:  Screenshot filename label.  Defaults to app_id.
-        wait:   Seconds to wait after launch before capturing.
-
-    Returns:
-        Path to the saved PNG, or None on failure.
-    """
-    label = label or app_id
+def take_app_screenshot(
+    app_id: str,
+    label: str | None = None,
+    wait: int = _APP_LAUNCH_WAIT,
+) -> str | None:
+    """Launch an app, screenshot it, then close it again."""
     proc = None
+    target_label = label or app_id
 
-    # Choose launch method
     if '.' in app_id and _flatpak_installed(app_id):
         cmd = ['flatpak', 'run', app_id]
     elif shutil.which(app_id):
         cmd = [app_id]
     else:
-        # gtk-launch handles .desktop files; strip .desktop suffix if present
         desktop_stem = app_id.removesuffix('.desktop')
         cmd = ['gtk-launch', desktop_stem]
 
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(wait)
-        return take_screenshot(label)
+        return take_screenshot(target_label)
     except Exception as exc:  # noqa: BLE001
-        print(f'App screenshot ({app_id}): {exc}', flush=True)
+        print(f"App screenshot ({app_id}): {exc}", flush=True)
         return None
     finally:
         if proc is not None:
@@ -102,32 +139,28 @@ def _flatpak_installed(app_id: str) -> bool:
 
 
 def take_fastfetch_screenshot() -> str | None:
-    """Open a terminal, run fastfetch, screenshot the result, then close.
-
-    Tries ptyxis, then kgx (GNOME Console), then gnome-terminal.
-    Uses 'sleep 10' to keep the window open long enough to capture.
-
-    Returns:
-        Path to the saved file, or None if any step failed.
-    """
+    """Open a terminal, run fastfetch, screenshot it, then close."""
     candidates = [
         ('ptyxis', ['ptyxis', '--', 'bash', '-c', 'fastfetch; sleep 10']),
         ('kgx', ['kgx', '--', 'bash', '-c', 'fastfetch; sleep 10']),
         ('gnome-terminal', ['gnome-terminal', '--', 'bash', '-c', 'fastfetch; sleep 10']),
     ]
 
+    attempted = False
     for term, cmd in candidates:
         if not shutil.which(term):
             continue
+        attempted = True
         proc = None
         try:
             proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            # Allow time for the terminal window and fastfetch to render
             time.sleep(4)
             path = take_screenshot('fastfetch')
-            return path
+            if path is not None:
+                return path
+            print(f"Fastfetch screenshot ({term}): capture returned no file", flush=True)
         except Exception as exc:  # noqa: BLE001
-            print(f'Fastfetch screenshot ({term}): {exc}', flush=True)
+            print(f"Fastfetch screenshot ({term}): {exc}", flush=True)
         finally:
             if proc is not None:
                 try:
@@ -136,5 +169,8 @@ def take_fastfetch_screenshot() -> str | None:
                 except Exception:  # noqa: BLE001
                     pass
 
-    print('Fastfetch screenshot: no terminal emulator found', flush=True)
+    if not attempted:
+        print('Fastfetch screenshot: no terminal emulator found', flush=True)
+    else:
+        print('Fastfetch screenshot: all terminal attempts failed', flush=True)
     return None

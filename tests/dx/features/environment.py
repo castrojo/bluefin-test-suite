@@ -18,11 +18,21 @@ except Exception:  # noqa: BLE001
         return None
 
 try:
-    from tests.shared.screenshot import take_screenshot
-    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
-except Exception:  # noqa: BLE001
+    from tests.shared.screenshot import configure_screenshot_context, take_screenshot
+except Exception as exc:  # noqa: BLE001
+    print(f"WARNING: screenshot helpers unavailable: {exc}", flush=True)
+
+    def configure_screenshot_context(context, suite_name, scenario_name=None):
+        return None
+
     def take_screenshot(label):
         return None
+
+
+try:
+    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
+except Exception as exc:  # noqa: BLE001
+    print(f"WARNING: screenshot steps unavailable: {exc}", flush=True)
 
 
 SUITE_NAME = "dx"
@@ -43,6 +53,7 @@ def _init_sandbox(context):
         context.sandbox.production = False
         context.shell = context.sandbox.shell
         context._sandbox_initialized = True
+        configure_screenshot_context(context, SUITE_NAME)
     except Exception as error:
         print(f"Environment error: _init_sandbox: {error}", flush=True)
         context.failed_setup = traceback.format_exc()
@@ -74,6 +85,7 @@ def before_all(context):
 
 
 def before_scenario(context, scenario):
+    context.scenario = scenario
     context.command_stdout = ""
     context.last_command_output = ""
     context.last_ssh_result = None
@@ -84,6 +96,7 @@ def before_scenario(context, scenario):
         return
 
     _init_sandbox(context)
+    configure_screenshot_context(context, SUITE_NAME, scenario.name)
     if context.sandbox is None:
         print("HOOK_ERROR: sandbox not initialized for GUI scenario", flush=True)
         sys.exit(1)
@@ -101,7 +114,7 @@ def after_scenario(context, scenario):
     if 'plain_ssh' in scenario.tags:
         return
     if scenario.status.name in ('passed', 'failed'):
-        label = f"{SUITE_NAME}_{scenario.status.name}_{scenario.name}"
-        take_screenshot(label)
+        configure_screenshot_context(context, SUITE_NAME, scenario.name)
+        take_screenshot(scenario.status.name)
     if context.sandbox is not None:
         context.sandbox.after_scenario(context, scenario)

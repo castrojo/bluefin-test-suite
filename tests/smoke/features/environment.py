@@ -28,14 +28,28 @@ except Exception:  # noqa: BLE001
         return None
 
 try:
-    from tests.shared.screenshot import take_screenshot, take_fastfetch_screenshot
-    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
-except Exception:  # noqa: BLE001
+    from tests.shared.screenshot import (
+        configure_screenshot_context,
+        take_fastfetch_screenshot,
+        take_screenshot,
+    )
+except Exception as exc:  # noqa: BLE001
+    print(f"WARNING: screenshot helpers unavailable: {exc}", flush=True)
+
+    def configure_screenshot_context(context, suite_name, scenario_name=None):
+        return None
+
     def take_screenshot(label):
         return None
 
     def take_fastfetch_screenshot():
         return None
+
+
+try:
+    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
+except Exception as exc:  # noqa: BLE001
+    print(f"WARNING: screenshot steps unavailable: {exc}", flush=True)
 
 
 SUITE_NAME = "smoke"
@@ -127,6 +141,7 @@ def before_all(context) -> None:
         context.sandbox.attach_faf = False
         context.sandbox.production = False
         context.shell = context.sandbox.shell
+        configure_screenshot_context(context, SUITE_NAME)
     except Exception as error:
         print(f"Environment error: before_all: {error}", flush=True)
         context.failed_setup = traceback.format_exc()
@@ -135,6 +150,7 @@ def before_all(context) -> None:
 def before_scenario(context, scenario) -> None:
     context.scenario = scenario
     context.html_formatter = None
+    configure_screenshot_context(context, SUITE_NAME, scenario.name)
     # Initialize qecore command output attributes (attribute name varies by version)
     # qecore 4.16: command_stdout; older: last_command_output
     context.command_stdout = ""
@@ -164,8 +180,8 @@ def before_scenario(context, scenario) -> None:
 def after_scenario(context, scenario) -> None:
     record_end(context, scenario)
     if scenario.status.name in ('passed', 'failed'):
-        label = f"{SUITE_NAME}_{scenario.status.name}_{scenario.name}"
-        take_screenshot(label)
+        configure_screenshot_context(context, SUITE_NAME, scenario.name)
+        take_screenshot(scenario.status.name)
     context.sandbox.after_scenario(context, scenario)
 
 
@@ -188,6 +204,7 @@ def after_step(context, step) -> None:
 
 def after_all(context) -> None:
     """Take a fastfetch desktop screenshot, then dump gnome-shell AT-SPI tree."""
+    configure_screenshot_context(context, SUITE_NAME, "end_of_run")
     take_fastfetch_screenshot()
 
     try:
