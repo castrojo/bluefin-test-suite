@@ -6,8 +6,15 @@ Load when: writing behave tests, scaffolding new suites, or debugging step resol
 
 `tests/shared/ssh_steps.py` is canonical for:
 - `Bluefin VM is booted and reachable over SSH`
-- `Run SSH command`
-- `SSH command return code is`
+- `Run SSH command: "<cmd>"`
+- `SSH command return code is "<code>"`
+- `SSH command output "is" "<expected>"`
+- `SSH command output stripped "is" "<expected>"`
+- `SSH command output contains "<text>"`
+- `SSH command output does not contain "<text>"`
+- `SSH command output is not "<value>"`
+- `SSH command output is not "<a>" and not "<b>"`
+- `SSH command output is not empty`
 
 Import in suite `environment.py`:
 ```python

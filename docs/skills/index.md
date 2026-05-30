@@ -37,4 +37,3 @@ New suites → this repo. New infra (Argo templates, VM specs, manifests) → te
 | Submitting improvements, PRs, doc updates | `docs/skills/contributing.md` |
 | Full PR review gate, coverage posture | `QA-REVIEW.md` |
 | Commands, operational guidance | `RUNBOOK.md` |
-| E2E reusable workflow, all inputs, consumer recipes | `docs/skills/e2e-workflow.md` |
