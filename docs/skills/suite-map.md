@@ -47,11 +47,11 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 
 ## Coverage snapshot
 
-208 scenarios across 27 feature files (last audit: 2026-05-30).
+212 scenarios across 28 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
-| smoke | 74 | ✅ active | dogtail 4.16 API correct throughout |
+| smoke | 78 | ✅ active | dogtail 4.16 API correct throughout |
 | developer | 16 | ✅ active | brew, podman, ptyxis covered |
 | software | 10 | ✅ active | Bazaar/gnome-software + Flathub |
 | common | 13 | ✅ active | Bluefin common layer: dconf, scripts, desktop entries, shell |
