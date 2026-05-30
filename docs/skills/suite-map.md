@@ -6,20 +6,31 @@ Load when: deciding which suite to add a test to, checking existing coverage, or
 
 ## Variant matrix
 
-Which suites run on which Bluefin variant:
+Which suites run on which image. Any bootc/ostree GNOME image can run via the GitHub Action.
 
-| Suite | `bluefin` (latest/lts) | `bluefin-dx` | `bluefin-nvidia` | `flatcar` | Notes |
-|---|:---:|:---:|:---:|:---:|---|
-| `smoke` | ✅ | ✅ | ✅ | — | Core GNOME smoke; all Bluefin variants |
-| `vanilla-gnome` | ✅ | — | — | — | GNOME upstream baseline; latest only |
-| `developer` | ✅ | ✅ | — | — | Homebrew/Ptyxis; DX adds extra tools |
-| `software` | ✅ | — | — | — | Bazaar/Flatpak; standard variant only |
-| `lifecycle` | ✅ | ✅ | ✅ | — | bootc upgrade/rollback; all Bluefin variants |
-| `security` | ✅ | ✅ | ✅ | — | cosign + SELinux; all Bluefin variants |
-| `hardware` | ✅ | — | — | — | Emulated peripherals; standard VM spec |
-| `dx` | — | ✅ | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
-| `nvidia` | — | — | ✅ | — | GPU driver validation; NVIDIA variant only |
-| `flatcar` | — | — | — | ✅ | Flatcar OS boot and lifecycle |
+| Suite | `bluefin` (latest/lts) | `bluefin-dx` | `bluefin-nvidia` | `bazzite` | `silverblue` | `flatcar` | Notes |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| `smoke` | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; all Bluefin variants |
+| `vanilla-gnome` | ✅ | — | — | ✅ | ✅ | — | Upstream GNOME baseline; any GNOME image |
+| `bazzite` | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
+| `developer` | ✅ | ✅ | — | — | — | — | Homebrew/Ptyxis; DX adds extra tools |
+| `software` | ✅ | — | — | — | — | — | Bazaar/Flatpak; standard variant only |
+| `lifecycle` | ✅ | ✅ | ✅ | — | — | — | bootc upgrade/rollback; SSH-mode (ghost only for now) |
+| `security` | ✅ | ✅ | ✅ | — | — | — | cosign + SELinux; SSH-mode (ghost only for now) |
+| `hardware` | ✅ | — | — | — | — | — | Emulated peripherals; SSH-mode (ghost only for now) |
+| `dx` | — | ✅ | — | — | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
+| `nvidia` | — | — | ✅ | — | — | — | GPU driver validation; NVIDIA variant only |
+| `flatcar` | — | — | — | — | — | ✅ | Flatcar OS boot and lifecycle |
+
+**GitHub Action consumers** (no ghost/Argo needed):
+```yaml
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+with:
+  image: <your-bootc-image>
+  suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software
+```
+GUI suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`) run on `ubuntu-latest`.  
+SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghost/Argo stack until the SSH-mode action is built (see #43).
 
 ## Scenario tags
 
@@ -35,17 +46,18 @@ Which suites run on which Bluefin variant:
 
 ## Coverage snapshot
 
-162 scenarios across 20 feature files (last audit: 2026-05-28).
+162 scenarios across 20 feature files (last audit: 2026-05-28). Bazzite suite adds 20 scenarios (pending PR).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
 | smoke | 68 | ✅ active | dogtail 4.16 API correct throughout |
 | developer | 16 | ✅ active | brew, podman, ptyxis covered |
 | software | 10 | ✅ active | Bazaar/gnome-software + Flathub |
-| vanilla-gnome | 8 | ✅ active | Baseline GNOME Shell parity check |
+| vanilla-gnome | 8 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 7 | ✅ active | bootc upgrade / rollback / switch / /etc merge |
 | hardware | 10 | ✅ active | Driven by shared SSH steps |
 | security/image_provenance | 5 | ✅ active | cosign verify steps fully implemented |
+| bazzite | 20 | 🔄 new | Extension presence + shell behaviour; epic #42 |
 | dx | 9 | 🔄 expanding | VS Code + CLI tools + brew |
 | flatcar/boot | 7 | ✅ active | systemd, containerd, networking |
 | flatcar/lifecycle | 6 | ⏳ @future | Needs dual-disk VM (Epic E09) |
