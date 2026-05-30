@@ -71,7 +71,8 @@ jobs:
             python3-pip \
             python3-gobject \
             at-spi2-core \
-            gtk3
+            gtk3 \
+            gsettings-desktop-schemas
           pip3 install --quiet behave qecore dogtail
 
       - name: Behave dry-run (step definition coverage)
