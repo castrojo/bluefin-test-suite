@@ -7,9 +7,6 @@ AT-SPI app names confirmed in tests/developer/conftest.py:
 
 Pattern: modehnal/GNOMETerminalAutomation features/environment.py
 """
-import os
-import re
-import subprocess
 import sys
 import traceback
 
@@ -25,28 +22,15 @@ except Exception:  # noqa: BLE001
     def record_end(context, scenario):
         return None
 
+try:
+    from tests.shared.screenshot import take_screenshot
+    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
+except Exception:  # noqa: BLE001
+    def take_screenshot(label):
+        return None
 
-def _take_screenshot(scenario_name: str) -> None:
-    safe = re.sub(r'[^a-z0-9]+', '_', scenario_name.lower())[:60]
-    path = f'/tmp/results/screenshot_{safe}.png'
-    os.makedirs('/tmp/results', exist_ok=True)
-    try:
-        result = subprocess.run(
-            ['gdbus', 'call', '--session',
-             '--dest', 'org.gnome.Shell.Screenshot',
-             '--object-path', '/org/gnome/Shell/Screenshot',
-             '--method', 'org.gnome.Shell.Screenshot.Screenshot',
-             'true',
-             'true',
-             path],
-            capture_output=True, text=True, timeout=8,
-        )
-        if result.returncode == 0:
-            print(f'Screenshot saved: {path}', flush=True)
-        else:
-            print(f'Screenshot gdbus failed: {result.stderr.strip()}', flush=True)
-    except Exception as exc:
-        print(f'Screenshot error: {exc}', flush=True)
+
+SUITE_NAME = "developer"
 
 
 def before_all(context) -> None:
@@ -83,6 +67,7 @@ def before_scenario(context, scenario) -> None:
 
 def after_scenario(context, scenario) -> None:
     record_end(context, scenario)
-    if scenario.status.name == 'failed':
-        _take_screenshot(scenario.name)
+    if scenario.status.name in ('passed', 'failed'):
+        label = f"{SUITE_NAME}_{scenario.status.name}_{scenario.name}"
+        take_screenshot(label)
     context.sandbox.after_scenario(context, scenario)

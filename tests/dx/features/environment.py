@@ -5,8 +5,6 @@ Sandbox is initialized lazily — only when a GUI (@vscode) scenario runs.
 SSH-only (@plain_ssh) scenarios skip the sandbox entirely.
 """
 import os
-import re
-import subprocess
 import sys
 import traceback
 
@@ -19,26 +17,15 @@ except Exception:  # noqa: BLE001
     def record_end(context, scenario):
         return None
 
+try:
+    from tests.shared.screenshot import take_screenshot
+    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
+except Exception:  # noqa: BLE001
+    def take_screenshot(label):
+        return None
 
-def _take_screenshot(scenario_name: str) -> None:
-    safe = re.sub(r'[^a-z0-9]+', '_', scenario_name.lower())[:60]
-    path = f'/tmp/results/screenshot_{safe}.png'
-    os.makedirs('/tmp/results', exist_ok=True)
-    try:
-        result = subprocess.run(
-            ['gdbus', 'call', '--session',
-             '--dest', 'org.gnome.Shell.Screenshot',
-             '--object-path', '/org/gnome/Shell/Screenshot',
-             '--method', 'org.gnome.Shell.Screenshot.Screenshot',
-             'true', 'true', path],
-            capture_output=True, text=True, timeout=8,
-        )
-        if result.returncode == 0:
-            print(f'Screenshot saved: {path}', flush=True)
-        else:
-            print(f'Screenshot gdbus failed: {result.stderr.strip()}', flush=True)
-    except Exception as exc:
-        print(f'Screenshot error: {exc}', flush=True)
+
+SUITE_NAME = "dx"
 
 
 def _init_sandbox(context):
@@ -113,7 +100,8 @@ def after_scenario(context, scenario):
     record_end(context, scenario)
     if 'plain_ssh' in scenario.tags:
         return
-    if scenario.status.name == 'failed':
-        _take_screenshot(scenario.name)
+    if scenario.status.name in ('passed', 'failed'):
+        label = f"{SUITE_NAME}_{scenario.status.name}_{scenario.name}"
+        take_screenshot(label)
     if context.sandbox is not None:
         context.sandbox.after_scenario(context, scenario)
