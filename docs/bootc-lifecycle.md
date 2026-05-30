@@ -1,6 +1,7 @@
 # bootc Lifecycle Testing Reference
 
-Load when: writing or debugging lifecycle, upgrade, or rollback tests.
+Load when: writing or debugging lifecycle, upgrade, or rollback tests.  
+Hard rules live in `docs/skills/index.md` — this doc holds patterns and examples only.
 
 ## bootc status JSON schema (v1alpha1)
 

@@ -1,6 +1,7 @@
 # Behave Patterns Reference
 
-Load when: writing behave tests, scaffolding new suites, or debugging step resolution errors.
+Load when: writing behave tests, scaffolding new suites, or debugging step resolution errors.  
+Hard rules live in `docs/skills/index.md` — this doc holds patterns and examples only.
 
 ## Shared SSH helpers
 

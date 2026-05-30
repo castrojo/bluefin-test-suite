@@ -5,16 +5,16 @@ Lab infrastructure (ghost, exo, ArgoCD, KubeVirt, CronWorkflows) belongs to `pro
 
 ## Skills
 
+**Start here:** `docs/skills/index.md` — hard rules + load-on-demand table for all sub-skills.
+
 | Task | Load |
 |---|---|
-| Any test authoring in this repo | `docs/SKILL.md` |
-| GNOME Shell / AT-SPI / dogtail details | `docs/gnome-testing.md` |
-| behave scaffolding, step patterns, SSH helpers | `docs/behave-patterns.md` |
-| bootc lifecycle / upgrade / rollback tests | `docs/bootc-lifecycle.md` |
-| PR review gate, coverage posture | `QA-REVIEW.md` |
-| Commands, suite layout, operational guidance | `RUNBOOK.md` |
+| Any test authoring task | `docs/skills/index.md` |
+| Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |
+| Submitting improvements, PRs, doc fixes | `docs/skills/contributing.md` |
+| Infra gotchas (GDM autologin, Argo mutex) | `docs/skills/ops.md` |
 
-Start with `docs/SKILL.md`. Load reference docs only when the task touches that area.
+Sub-skills are indexed in `docs/skills/index.md` — load them from there on demand.
 
 ## Ownership constraint
 

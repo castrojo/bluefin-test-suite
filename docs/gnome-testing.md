@@ -1,6 +1,7 @@
 # GNOME Desktop Testing Reference
 
-Load when: writing or debugging GNOME Shell, AT-SPI, or dogtail interactions.
+Load when: writing or debugging GNOME Shell, AT-SPI, or dogtail interactions.  
+Hard rules live in `docs/skills/index.md` — this doc holds patterns and examples only.
 
 ## Stack
 
