@@ -34,7 +34,5 @@ Feature: Bluefin common desktop entry validation
     * SSH command return code is "0"
 
   Scenario: Installed desktop applications count is reasonable
-    * Run SSH command: "find /usr/share/applications -name '*.desktop' | wc -l"
-    * SSH command output is not empty
-    * Run SSH command: "find /usr/share/applications -name '*.desktop' | wc -l | awk '$1 >= 10 {print \"ok\"}'"
+    * Run SSH command: "cnt=$(find /usr/share/applications -name '*.desktop' | wc -l); [ $cnt -ge 10 ] && echo ok || echo fail"
     * SSH command output "is" "ok"

@@ -113,6 +113,39 @@ def after_scenario(context, scenario):
 
 Output path `/tmp/results/screenshot-<name>.png` is SCP'd back by the runner.
 
+## GNOME Extensions CLI (subprocess)
+
+Smoke-suite extension steps run inside the VM via `subprocess`, not AT-SPI:
+
+```python
+import subprocess
+
+# List installed extensions
+result = subprocess.run(["gnome-extensions", "list"], capture_output=True, text=True)
+extensions = [e.strip() for e in result.stdout.splitlines() if e.strip()]
+
+# List enabled extensions
+result = subprocess.run(["gnome-extensions", "list", "--enabled"], capture_output=True, text=True)
+enabled = [e.strip() for e in result.stdout.splitlines() if e.strip()]
+```
+
+Note: `gnome-extensions` requires the GNOME session to be running. These steps run inside the qecore VM (local subprocess), not over SSH.
+
+## Desktop notifications via gdbus (smoke suite)
+
+Send a test notification from inside the VM:
+
+```bash
+gdbus call --session \
+  --dest org.freedesktop.Notifications \
+  --object-path /org/freedesktop/Notifications \
+  --method org.freedesktop.Notifications.Notify \
+  '' 0 '' 'Title' 'Body' '[]' '{}' 3000
+# Returns: (uint32 N,)  — N is the notification ID (>0 on success)
+```
+
+Parse the ID from `context.notify_output` with `re.search(r'\(uint32 (\d+),\)', output)`. An ID of `0` means failure.
+
 ## Parallel agent (swarm) pattern for desktop features
 
 When scaffolding multiple feature areas at once:
