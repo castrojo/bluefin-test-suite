@@ -121,6 +121,25 @@ If a skill doc (`docs/skills/*.md`) is wrong or incomplete:
 
 **Do not add hard rules to individual skill docs** — rules go in `docs/skills/index.md` (single source). Skill docs hold patterns and examples only.
 
+## Testing your changes with the GitHub Action
+
+No ghost runner or Argo access needed. Add a workflow to your branch or fork:
+
+```yaml
+name: Test my scenario
+on: push
+jobs:
+  e2e:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@<your-branch>
+    with:
+      image: ghcr.io/ublue-os/bluefin:latest
+      suites: smoke
+```
+
+Or use the composite action directly for full control over artifact names and failure handling (see `README.md`).
+
+For scenarios in the `developer` or `dx` suites, swap `bluefin:latest` for the appropriate DX image.
+
 ## After the PR merges
 
 - If you changed `QA-REVIEW.md`, verify the scenario count is still accurate

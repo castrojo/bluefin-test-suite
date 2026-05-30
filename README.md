@@ -29,6 +29,74 @@ just list-stubs  # inspect not-yet-implemented scenarios
 Authoring rules, patterns, and skill docs → **`docs/skills/`**  
 Start with `docs/skills/index.md`.
 
+## Using as a GitHub Action
+
+Any GNOME-based OS built as a **bootc/ostree image** can run this test suite as a PR gate on standard `ubuntu-latest` runners — no self-hosted hardware, no Argo, no ghost required.
+
+### Quick start — reusable workflow
+
+Add to your repo's `.github/workflows/e2e.yml`:
+
+```yaml
+name: E2E Tests
+on:
+  pull_request:
+
+jobs:
+  test:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/myorg/myimage:latest   # your bootc OCI image
+      suites: smoke                          # smoke | developer | dx | software | vanilla-gnome
+```
+
+### Advanced — composite action directly
+
+For full control over artifact naming, concurrency, or triggering:
+
+```yaml
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Run GNOME e2e
+        id: test
+        uses: projectbluefin/testsuite/.github/actions/gnome-e2e@main
+        with:
+          image: ghcr.io/myorg/myimage:latest
+          suite: smoke
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ github.run_id }}
+          path: results/
+
+      - name: Fail on test failures
+        if: steps.test.outputs.behave-rc != '0'
+        run: exit 1
+```
+
+### Requirements
+
+- OCI image must be a **bootc/ostree** image (uses `bootc install to-disk`)
+- **`gnome-ponytail-daemon`** must be baked into the image (Wayland coordinate bridge)
+- Supported GUI suites: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`
+- `lifecycle`, `security`, `hardware` use a different SSH-only mode (not yet in this action)
+
+### Inputs
+
+| Input | Default | Description |
+|---|---|---|
+| `image` | — | OCI image ref to test (required) |
+| `suite` | `smoke` | Test suite name |
+| `testsuite-ref` | action ref | `projectbluefin/testsuite` git ref for test content |
+| `memory` | `4096` | VM RAM in MB |
+| `cpus` | `4` | VM CPU count |
+| `free-disk-space` | `true` | Run disk cleanup before provisioning |
+
 ## Image tags
 
 | Tag | Image |
