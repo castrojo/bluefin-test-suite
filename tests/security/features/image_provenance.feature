@@ -10,7 +10,6 @@ Feature: Container image signature verification
 
   @cosign @bluefin_latest
   Scenario: Bluefin latest image has valid cosign signature
-    # TODO: Implement — cosign verify with OIDC issuer constraint.
     * Cosign certificate issuer is "https://token.actions.githubusercontent.com" and identity pattern is "https://github.com/ublue-os/.*"
     * Verify cosign signature for "ghcr.io/ublue-os/bluefin:latest"
     * Signature OIDC issuer is "https://token.actions.githubusercontent.com"
@@ -39,6 +38,5 @@ Feature: Container image signature verification
 
   @cosign @negative
   Scenario: Unsigned image fails verification gracefully
-    # TODO: Use a known-unsigned test image to validate failure path.
     * Verify cosign signature for "docker.io/library/busybox:latest" expecting failure
     * Verification error message is clear and actionable
