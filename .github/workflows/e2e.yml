@@ -177,7 +177,11 @@ jobs:
           # Mask services not needed in CI to shorten first-boot time.
           # NetworkManager-wait-online can block for up to 120s — most
           # expensive to leave unmasked on a SLIRP QEMU network.
-          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.mask=tailscaled.service systemd.mask=brew-setup.service systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service quiet"
+          # flatpak-preinstall: pulls flatpaks from internet on first boot (slow + fails in VM).
+          # podman-auto-update: pulls container images from internet (slow).
+          # malcontent-webd + update: web-filter update service, downloads data on boot.
+          # speech-dispatcherd: speech synthesis daemon, not needed for CI.
+          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.mask=tailscaled.service systemd.mask=brew-setup.service systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service systemd.mask=flatpak-preinstall.service systemd.mask=podman-auto-update.service systemd.mask=malcontent-webd.service systemd.mask=malcontent-webd-update.service systemd.mask=speech-dispatcherd.service quiet"
           echo "KERNEL_ARGS=${KERNEL_ARGS}" >> "$GITHUB_ENV"
 
           # Apply user + sshd config to ALL deployments in this stateroot.
@@ -273,13 +277,13 @@ jobs:
             -serial   file:$(pwd)/vm-serial.log \
             -daemonize \
             -pidfile  /tmp/qemu.pid
-          echo "VM booting (pid=$(cat /tmp/qemu.pid))"
+          echo "VM booting (pid=$(sudo cat /tmp/qemu.pid))"
 
       # selinux=0 + pre-generated host keys + masked slow services = SSH ready in ~90s
       - name: Wait for SSH
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
-          DEADLINE=$((SECONDS + 600))
+          DEADLINE=$((SECONDS + 900))
           while [ $SECONDS -lt $DEADLINE ]; do
             if ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>/dev/null; then
               echo "SSH ready after ${SECONDS}s"
@@ -287,7 +291,7 @@ jobs:
             fi
             sleep 3
           done
-          echo "ERROR: SSH never became ready after 10 minutes"
+          echo "ERROR: SSH never became ready after 15 minutes"
           ssh -v ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>&1 || true
           exit 1
 
