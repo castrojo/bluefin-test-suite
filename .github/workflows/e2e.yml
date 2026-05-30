@@ -163,7 +163,7 @@ jobs:
           fi
           OSTREE_PATH="${BOOT_ENTRY#/mnt/root}"
           echo "ostree boot path: ${OSTREE_PATH}"
-          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 quiet"
+          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.mask=tailscaled.service systemd.mask=brew-setup.service quiet"
           echo "KERNEL_ARGS=${KERNEL_ARGS}" >> "$GITHUB_ENV"
 
           # Enable sshd
@@ -242,11 +242,11 @@ jobs:
             -pidfile  /tmp/qemu.pid
           echo "VM booting (pid=$(cat /tmp/qemu.pid))"
 
-      # selinux=0 + pre-generated host keys mean SSH should be ready in ~60s
+      # selinux=0 + pre-generated host keys + masked slow services = SSH ready in ~90s
       - name: Wait for SSH
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
-          DEADLINE=$((SECONDS + 300))
+          DEADLINE=$((SECONDS + 600))
           while [ $SECONDS -lt $DEADLINE ]; do
             if ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>/dev/null; then
               echo "SSH ready after ${SECONDS}s"
@@ -254,7 +254,8 @@ jobs:
             fi
             sleep 3
           done
-          echo "ERROR: SSH never became ready after 5 minutes"
+          echo "ERROR: SSH never became ready after 10 minutes"
+          ssh -v ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>&1 || true
           exit 1
 
       - name: Dump VM serial log
