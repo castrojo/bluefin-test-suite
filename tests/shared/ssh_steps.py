@@ -113,6 +113,14 @@ def ssh_output_is_not(context, value):
     )
 
 
+@step('SSH command output contains "{text}"')
+def ssh_output_contains(context, text):
+    actual = getattr(context, "command_stdout", "").strip()
+    assert text in actual, (
+        f"SSH command output does not contain '{text}'\nGot: {actual}"
+    )
+
+
 @step('SSH command output does not contain "{text}"')
 def ssh_output_does_not_contain(context, text):
     actual = getattr(context, "command_stdout", "").strip()
