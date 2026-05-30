@@ -35,20 +35,24 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install AT-SPI native libs (required for qecore import on headless runners)
+      - name: Install AT-SPI GObject bindings for behave dry-run
         # qecore.sandbox imports isA11yEnabled from dogtail.utils at module level.
-        # dogtail.utils.isA11yEnabled requires gi.repository.Atspi + gi.repository.Gtk.
-        # python3-gi (from apt) provides pre-compiled GObject bindings for the system
-        # Python.  The toolcache Python reads them via PYTHONPATH in the dry-run step.
+        # dogtail.utils requires gi.repository.Gtk + gi.repository.Atspi.
+        # python3-gi is a compiled C extension — it must run under the SAME Python
+        # binary it was compiled for.  On ubuntu-24.04 that is the system python3;
+        # the toolcache Python would SIGTRAP on ABI mismatch even at the same minor
+        # version.  The behave dry-run step therefore uses 'python3' (system) not
+        # 'python' (toolcache), with behave/qecore/dogtail installed via pip3.
         run: |
           sudo apt-get install -y --no-install-recommends \
             python3-gi \
             python3-gi-cairo \
             gir1.2-atspi-2.0 \
             gir1.2-gtk-3.0
+          pip3 install --break-system-packages --quiet behave qecore dogtail
 
       - name: Install linting tools
-        run: pip install ruff yamllint behave qecore dogtail
+        run: pip install ruff yamllint
 
       - name: Python lint (ruff)
         run: ruff check tests/ --select E,F,W --ignore E501
@@ -62,8 +66,8 @@ jobs:
         # Validates that every step in every feature file has a matching
         # @step definition.  Does NOT boot a VM — exits 1 if any step is
         # undefined, which catches broken imports and missing step patterns.
-        # /usr/lib/python3/dist-packages added so the toolcache Python can
-        # reach the system python3-gi (pre-compiled GObject bindings).
+        # Uses system python3 so that the pre-compiled python3-gi bindings
+        # (installed above) are ABI-compatible with the interpreter.
         run: |
           FAIL=0
           for suite in tests/*/features/; do
@@ -74,8 +78,8 @@ jobs:
             fi
             suitename=$(echo "$suite" | cut -d/ -f2)
             echo "::group::behave --dry-run $suitename"
-            PYTHONPATH="${{ github.workspace }}:/usr/lib/python3/dist-packages" \
-              python -m behave "$suite" --dry-run --no-capture || FAIL=1
+            PYTHONPATH="${{ github.workspace }}" \
+              python3 -m behave "$suite" --dry-run --no-capture || FAIL=1
             echo "::endgroup::"
           done
           [ "$FAIL" -eq 0 ] && echo "All suites: every step is defined." || \
