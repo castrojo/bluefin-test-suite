@@ -7,7 +7,7 @@ Load when: integrating the testsuite into another repo's CI (e.g. `projectbluefi
 `projectbluefin/testsuite/.github/workflows/e2e.yml` is a reusable `workflow_call` workflow.  
 It boots a bootc OCI image in a KVM-accelerated QEMU VM on `ubuntu-latest`, starts a GNOME session (via GDM autologin), and runs behave suites via qecore-headless.
 
-**No self-hosted runners. No homelab. Pure GitHub Actions.**
+**No self-hosted runners. Pure GitHub Actions.**
 
 ## How to call it from another repo
 
@@ -114,5 +114,5 @@ The install + configure step is the heaviest (~10–15 min depending on image si
 
 - `bootupd` is expected to fail (not in bootc images by default) — the workflow catches this and uses direct kernel boot. This is intentional.
 - No display output: `virtio-gpu` with `-display none`. Tests must use AT-SPI (dogtail/qecore), not pixel-based assertions.
-- No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests should remain in the homelab hardware suite.
+- No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests require SSH-mode suites not yet in the GHA action (epics #43/#44).
 - Partition layout assumes `p3` is the root partition. Tested against standard Anaconda/bootc partition tables. Non-standard layouts may break the disk-configure step.

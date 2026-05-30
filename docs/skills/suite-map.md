@@ -16,14 +16,14 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `developer` | ✅ | ✅ | — | — | — | — | Homebrew/Ptyxis; DX adds extra tools |
 | `software` | ✅ | — | — | — | — | — | Bazaar/Flatpak; standard variant only |
 | `common` | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
-| `lifecycle` | ✅ | ✅ | ✅ | — | — | — | bootc upgrade/rollback; SSH-mode (ghost only for now) |
-| `security` | ✅ | ✅ | ✅ | — | — | — | cosign + SELinux; SSH-mode (ghost only for now) |
-| `hardware` | ✅ | — | — | — | — | — | Emulated peripherals; SSH-mode (ghost only for now) |
+| `lifecycle` | ✅ | ✅ | ✅ | — | — | — | bootc upgrade/rollback; SSH-mode |
+| `security` | ✅ | ✅ | ✅ | — | — | — | cosign + SELinux; SSH-mode |
+| `hardware` | ✅ | — | — | — | — | — | Emulated peripherals; SSH-mode |
 | `dx` | — | ✅ | — | — | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
 | `nvidia` | — | — | ✅ | — | — | — | GPU driver validation; NVIDIA variant only |
 | `flatcar` | — | — | — | — | — | ✅ | Flatcar OS boot and lifecycle |
 
-**GitHub Action consumers** (no ghost/Argo needed):
+**GitHub Action consumers**:
 ```yaml
 uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
 with:
@@ -31,7 +31,7 @@ with:
   suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software, common
 ```
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`) run on `ubuntu-latest`.
-Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghost/Argo stack.
+SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA action (epics #43/#44).
 
 ## Scenario tags
 
@@ -47,13 +47,13 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 
 ## Coverage snapshot
 
-246 scenarios across 28 feature files (last audit: 2026-05-30).
+249 scenarios across 28 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
-| smoke | 78 | ✅ active | dogtail 4.16 API correct throughout |
+| smoke | 79 | ✅ active | dogtail 4.16 API correct throughout |
 | developer | 19 | ✅ active | brew, podman Desktop (+Containers/Images/Volumes), ptyxis |
-| software | 10 | ✅ active | Bazaar/gnome-software + Flathub |
+| software | 12 | ✅ active | Bazaar/gnome-software + Flathub + permissions DB |
 | common | 32 | ✅ active | Bluefin common layer: dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
 | vanilla-gnome | 12 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 13 | ✅ active | bootc upgrade / rollback / switch / version tracking / idempotence |
@@ -85,7 +85,7 @@ grep -r "@future" tests/*/features/*.feature
 Activate a `@future` scenario when all three conditions are met:
 1. VM spec supports the required hardware/feature
 2. Step implementations are complete
-3. Suite runs cleanly via the GHA action (or Argo for SSH-mode suites)
+3. Suite runs cleanly via the GHA action
 
 When activating: remove `@future`, update this file's coverage snapshot, update `QA-REVIEW.md`.
 

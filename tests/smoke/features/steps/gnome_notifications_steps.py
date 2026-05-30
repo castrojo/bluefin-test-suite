@@ -46,7 +46,49 @@ def notification_request_returns_positive_id(context) -> None:
     assert notification_id > 0, f"Expected notification ID > 0, got {notification_id}"
 
 
-@step("No gnome-shell notification journal errors are present")
+@step("Dismiss the notification via gdbus CloseNotification")
+def dismiss_notification_via_gdbus(context) -> None:
+    notification_id = getattr(context, "notification_id", None)
+    assert notification_id is not None, (
+        "No notification ID captured — run 'A test desktop notification is sent via gdbus' first"
+    )
+    _, returncode, stderr = _run(
+        f"gdbus call --session "
+        f"--dest org.freedesktop.Notifications "
+        f"--object-path /org/freedesktop/Notifications "
+        f"--method org.freedesktop.Notifications.CloseNotification "
+        f"{notification_id}"
+    )
+    assert returncode == 0, f"CloseNotification failed for id={notification_id}: {stderr}"
+
+
+@step("Notification banner is no longer showing via Shell.Eval")
+def notification_banner_no_longer_showing(context) -> None:
+    import re
+    # Wait up to 4 s for the banner to be dismissed from the message tray.
+    # The banner ref becomes null once Shell finishes the dismiss animation.
+    banner_js = (
+        "(Main.messageTray._banner !== null && "
+        "Main.messageTray._banner !== undefined).toString()"
+    )
+    last_out = ""
+    for _ in range(8):
+        result = subprocess.run(
+            ["gdbus", "call", "--session",
+             "--dest", "org.gnome.Shell",
+             "--object-path", "/org/gnome/Shell",
+             "--method", "org.gnome.Shell.Eval",
+             banner_js],
+            capture_output=True, text=True, timeout=5,
+        )
+        last_out = result.stdout
+        m = re.search(r",\s*'(true|false)'\s*\)", last_out, re.IGNORECASE)
+        if m and m.group(1).lower() == "false":
+            return
+        sleep(0.5)
+    raise AssertionError(
+        f"Notification banner still showing after 4s — Shell.Eval returned: {last_out!r}"
+    )
 def no_gnome_shell_notification_journal_errors(context) -> None:
     output, returncode, stderr = _run("journalctl --no-pager -b -p err..emerg --lines=200")
     assert returncode == 0, f"journalctl failed: {stderr or output}"

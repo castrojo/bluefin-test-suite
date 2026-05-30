@@ -6,7 +6,88 @@ from behave import step
 from qecore.common_steps import *  # noqa: F401,F403
 
 
-@step('Last command output contains "{text}"')
+@step('Flatpak permissions table "{table}" is queryable')
+def flatpak_permissions_table_is_queryable(context, table: str) -> None:
+    result = subprocess.run(
+        ["flatpak", "permissions", table],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    # rc=0 means success (table exists, possibly empty);
+    # rc=1 with "No permissions" is also a valid empty-table response.
+    assert result.returncode == 0 or "No permissions" in result.stdout or "No permissions" in result.stderr, (
+        f"flatpak permissions {table!r} failed unexpectedly: "
+        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+
+
+@step('Set flatpak user override "{override}" for "{app_id}"')
+def set_flatpak_user_override(context, override: str, app_id: str) -> None:
+    result = subprocess.run(
+        ["flatpak", "override", "--user"] + override.split() + [app_id],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"flatpak override --user {override} {app_id} failed: "
+        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+
+
+@step('Flatpak user override "{fragment}" is active for "{app_id}"')
+def flatpak_user_override_is_active(context, fragment: str, app_id: str) -> None:
+    result = subprocess.run(
+        ["flatpak", "override", "--user", "--show", app_id],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"flatpak override --show {app_id} failed: "
+        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    assert fragment in result.stdout, (
+        f"Override fragment {fragment!r} not found in override output for {app_id}:\n{result.stdout}"
+    )
+
+
+@step('Reset flatpak user overrides for "{app_id}"')
+def reset_flatpak_user_overrides(context, app_id: str) -> None:
+    result = subprocess.run(
+        ["flatpak", "override", "--user", "--reset", app_id],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"flatpak override --user --reset {app_id} failed: "
+        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+
+
+@step('No flatpak user overrides exist for "{app_id}"')
+def no_flatpak_user_overrides_exist(context, app_id: str) -> None:
+    result = subprocess.run(
+        ["flatpak", "override", "--user", "--show", app_id],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    # After reset, --show returns empty output (rc=0) or a minimal [Context] header.
+    assert result.returncode == 0, (
+        f"flatpak override --show {app_id} failed: "
+        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    # No override-specific keys should be present (filesystems, devices, etc.)
+    override_keys = {"filesystems", "devices", "features", "sockets", "env"}
+    lines_lower = {line.strip().lower() for line in result.stdout.splitlines()}
+    found = override_keys & lines_lower
+    assert not found, (
+        f"Expected no user overrides for {app_id} after reset, "
+        f"but found active override keys: {found}\n{result.stdout}"
+    )
 def last_command_output_contains(context, text: str) -> None:
     actual = (
         getattr(context, "command_stdout", None)

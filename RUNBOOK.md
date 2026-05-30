@@ -10,16 +10,13 @@ Authoring rules, patterns, and skill docs live in `docs/skills/` — load from t
 | Area | Owner |
 |---|---|
 | Test suites (`tests/**`), step definitions, shared test helpers | `testsuite` |
-| Workflow templates, manifests, persistent VMs, CronWorkflows, host operations | `testing-lab` |
+| Workflow templates, manifests, persistent VMs, CronWorkflows, host operations | `projectbluefin/testing-lab` |
 
 If a change touches both repos, split into two PRs.
 
 ## Commands
 
 ```bash
-# Lint Argo YAML
-just lint
-
 # List @future / not-yet-implemented scenarios
 just list-stubs
 ```

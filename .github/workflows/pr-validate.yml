@@ -2,7 +2,7 @@
 #
 # Runs on every PR and push to main.  Two jobs:
 #
-#   lint      — ubuntu-latest, ruff + py_compile + yamllint + argo YAML parse
+#   lint      — ubuntu-latest, ruff + py_compile
 #   dry-run   — fedora container (has python3-gobject + AT-SPI natively), behave --dry-run
 #
 # The dry-run job uses a Fedora container because qecore/dogtail require
@@ -33,7 +33,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install linting tools
-        run: pip install ruff yamllint
+        run: pip install ruff
 
       - name: Python lint (ruff)
         run: ruff check tests/ --select E,F,W --ignore E501
@@ -42,17 +42,6 @@ jobs:
         run: |
           python -m py_compile $(find tests/ -name '*.py' | tr '\n' ' ')
           echo "All Python files compile cleanly."
-
-      - name: YAML lint (argo/)
-        run: yamllint -d relaxed argo/
-
-      - name: Argo YAML parse check
-        run: |
-          for f in argo/*.yaml; do
-            echo "Checking $f …"
-            python -c "import yaml, sys; yaml.safe_load(open('$f')) or sys.exit(0)"
-          done
-          echo "All Argo YAML files parse cleanly."
 
   dry-run:
     name: Behave dry-run

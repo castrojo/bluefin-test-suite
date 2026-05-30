@@ -9,7 +9,7 @@ This is an agent-first repo — agents MAY file issues and PRs directly. No huma
 | Found in | Fix goes in |
 |---|---|
 | Feature files, step defs, qecore/dogtail patterns, shared SSH helpers | `projectbluefin/testsuite` (this repo) |
-| Argo templates, VM specs, CronWorkflows, cluster manifests | `projectbluefin/testing-lab` |
+| VM specs, CronWorkflows, cluster manifests, infra | `projectbluefin/testing-lab` |
 
 If a fix touches both repos, split into two PRs — one per repo.
 
@@ -51,12 +51,6 @@ ruff check tests/ --select E,F,W --ignore E501
 
 # Python syntax
 python3 -m py_compile $(find tests/ -name '*.py' | tr '\n' ' ')
-
-# YAML lint (relaxed mode)
-yamllint -d relaxed argo/
-
-# YAML parse check
-for f in argo/*.yaml; do python3 -c "import yaml; yaml.safe_load(open('$f'))"; done
 ```
 
 CI also runs `behave --dry-run` across all suites in a Fedora 41 container. This catches undefined step patterns (feature file uses a phrase with no matching `@step` decorator). **If you add a step phrase to a `.feature` file you must implement the `@step` before pushing.**
@@ -71,9 +65,6 @@ done
 ### Recommended local checks (not in CI but catch common mistakes)
 
 ```bash
-# Argo workflow lint
-just lint
-
 # Duplicate step patterns (replace <suite> with the suite you touched)
 grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d
 
@@ -93,7 +84,7 @@ All CI checks must pass cleanly before pushing. Local checks should also be clea
 | New step pattern discovered | `docs/skills/behave.md` |
 | New dogtail / GNOME anti-pattern | `docs/skills/gnome.md` |
 | New bootc JSON path or gotcha | `docs/skills/bootc.md` |
-| Infra gotcha (GDM, Argo, VM) | `docs/skills/ops.md` |
+| Infra gotcha (GDM, VM) | `docs/skills/ops.md` |
 | New hard rule for all agents | `docs/skills/index.md` (rules section) |
 | e2e workflow changes (inputs, stages, image requirements) | `docs/skills/e2e-workflow.md` |
 | Behavior or command change | `README.md` and/or `RUNBOOK.md` if agent-facing docs describe the old behavior |
@@ -111,7 +102,6 @@ One sentence: what changed and why.
 
 - [ ] Ruff passes
 - [ ] py_compile passes
-- [ ] Argo YAML lint passes
 - [ ] No duplicate step phrases
 
 ## Scenario count (if changed)
@@ -132,7 +122,7 @@ If a skill doc (`docs/skills/*.md`) is wrong or incomplete:
 
 ## Testing your changes with the GitHub Action
 
-No ghost runner or Argo access needed. Add a workflow to your branch or fork:
+No cluster access needed. Add a workflow to your branch or fork:
 
 ```yaml
 name: Test my scenario

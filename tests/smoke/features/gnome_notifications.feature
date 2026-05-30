@@ -14,6 +14,13 @@ Feature: GNOME notification smoke tests
     * Date menu panel is open via Shell.Eval
     * Close date menu via Shell.Eval
 
+  @notifications @smoke_suite
+  Scenario: Toast notification banner can be dismissed
+    * A test desktop notification is sent via gdbus
+    * Notification request returns a positive notification ID
+    * Dismiss the notification via gdbus CloseNotification
+    * Notification banner is no longer showing via Shell.Eval
+
   @notifications @regression @smoke_suite
   Scenario: No gnome-shell journal errors after notification
     * A test desktop notification is sent via gdbus

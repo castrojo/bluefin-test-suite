@@ -1,8 +1,8 @@
 # Unit Tests — pytest
 #
-# Runs on every PR and push to main. Lightweight — no ghost runner needed.
+# Runs on every PR and push to main. Lightweight — no VM or cluster needed.
 # Validates syntax, structure, and logic of Python helpers that can be
-# tested without a live VM or cluster.
+# tested without a live VM.
 
 name: Unit Tests
 

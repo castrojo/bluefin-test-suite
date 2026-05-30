@@ -1,7 +1,7 @@
 # Nightly test matrix — runs GUI suites against bluefin:latest and bluefin:lts
 # on standard ubuntu-latest runners via the projectbluefin/testsuite GHA.
 #
-# No self-hosted runners. No Argo. No secrets required.
+# No self-hosted runners. No secrets required.
 #
 # SSH-mode suites (lifecycle, security, hardware) are not yet in the GHA
 # action and are tracked in epics #43 and #44.

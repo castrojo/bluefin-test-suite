@@ -9,9 +9,9 @@ description: Entry point for projectbluefin/testsuite skill tree. Load this for 
 
 | This repo owns | Belongs elsewhere |
 |---|---|
-| Behave features/steps, dogtail/qecore patterns, shared SSH helpers | Hardware ops, ArgoCD, KubeVirt, CronWorkflows → `projectbluefin/testing-lab` |
+| Behave features/steps, dogtail/qecore patterns, shared SSH helpers | Hardware ops, cluster infra, CronWorkflows → `projectbluefin/testing-lab` |
 
-New suites → this repo. New infra (Argo templates, VM specs, manifests) → testing-lab. PRs touching both must be split.
+New suites → this repo. New infra (VM specs, manifests) → testing-lab. PRs touching both must be split.
 
 ## Hard rules (single source of truth)
 
@@ -32,7 +32,7 @@ New suites → this repo. New infra (Argo templates, VM specs, manifests) → te
 | GNOME Shell / AT-SPI / dogtail interactions | `docs/skills/gnome.md` |
 | bootc lifecycle, upgrade, rollback tests | `docs/skills/bootc.md` |
 | Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |
-| Infra gotchas (GDM autologin, Argo mutex) | `docs/skills/ops.md` |
+| Infra gotchas (GDM autologin) | `docs/skills/ops.md` |
 | Reusable e2e workflow (calling from another repo, debugging QEMU pipeline) | `docs/skills/e2e-workflow.md` |
 | Submitting improvements, PRs, doc updates | `docs/skills/contributing.md` |
 | Full PR review gate, coverage posture | `QA-REVIEW.md` |

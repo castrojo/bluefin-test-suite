@@ -47,9 +47,21 @@ Feature: gnome-software (Bazaar) smoke tests
     * Close application "software" via "shortcut"
     * Application "software" is no longer running
 
-  # ── Flatpak CLI ───────────────────────────────────────────────────────────
-  # These scenarios bypass the Bazaar GUI and test the flatpak subsystem
-  # directly. Background still opens Bazaar; that's acceptable overhead.
+  # ── Flatpak permissions ──────────────────────────────────────────────────
+  # Verify the XDG portal permissions database is queryable and that
+  # per-app overrides can be set and reset without corrupting the DB.
+
+  @software @flatpak_permissions
+  Scenario: Flatpak permissions database is queryable
+    * Flatpak permissions table "notifications" is queryable
+
+  @software @flatpak_permissions @nightly
+  Scenario: flatpak user override round-trip succeeds
+    # Calculator is always present; override doesn't require the app to be installed.
+    * Set flatpak user override "--filesystem=home" for "org.gnome.Calculator"
+    * Flatpak user override "filesystem=home" is active for "org.gnome.Calculator"
+    * Reset flatpak user overrides for "org.gnome.Calculator"
+    * No flatpak user overrides exist for "org.gnome.Calculator"
 
   @software @flatpak_cli
   Scenario: Flathub remote is configured and reachable

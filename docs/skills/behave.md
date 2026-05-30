@@ -60,7 +60,7 @@ All step files under a suite directory are loaded together — duplicates across
 
 ## Feature scaffolding with @future
 
-Use `@future` when the VM spec, Argo template, or step implementation isn't ready yet:
+Use `@future` when the step implementation isn't ready yet:
 
 ```gherkin
 @future
@@ -71,8 +71,7 @@ Scenario: Hardware watchdog is active
 
 Remove `@future` when all three are true:
 1. VM spec supports the hardware/feature
-2. Argo template wires the suite
-3. Step implementations are complete
+2. Step implementations are complete
 
 Find remaining stubs:
 ```bash
