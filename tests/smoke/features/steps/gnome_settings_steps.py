@@ -33,7 +33,7 @@ def _settings_app():
 
 def _settings_window():
     app = _settings_app()
-    frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+    frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
     assert frames, "Visible GNOME Settings window not found"
     return frames[0]
 
@@ -55,7 +55,7 @@ def settings_is_no_longer_running(context) -> None:
         for name in SETTINGS_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
                 if frames:
                     break
             except Exception:  # noqa: BLE001

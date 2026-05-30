@@ -38,7 +38,7 @@ def launch_text_editor_via_command(context) -> None:
 
 def _text_editor_window():
     app = _text_editor_app()
-    frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+    frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
     assert frames, "Visible GNOME Text Editor window not found"
     return frames[0]
 
@@ -117,7 +117,7 @@ def text_editor_is_no_longer_running(context) -> None:
         for name in TEXT_EDITOR_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
                 if frames:
                     break
             except Exception:  # noqa: BLE001

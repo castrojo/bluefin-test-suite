@@ -35,7 +35,7 @@ def launch_firefox_via_command(context) -> None:
 
 
 def _firefox_window(context):
-    frames = _firefox_app(context).findChildren(lambda n: n.roleName == "frame" and n.showing)
+    frames = _firefox_app(context).findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
     assert frames, "Firefox main window not found"
     return frames[0]
 
@@ -70,7 +70,7 @@ def firefox_is_no_longer_running(context) -> None:
         for name in FIREFOX_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
                 if frames:
                     break
             except Exception:  # noqa: BLE001

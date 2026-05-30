@@ -36,7 +36,7 @@ def _nautilus_window(timeout: int = 10):
     last_children = []
     for _ in range(timeout * 2):
         frames = app.findChildren(
-            lambda n: n.roleName == "frame"
+            lambda n: n.roleName in {"frame", "filler"}
             and n.showing
             and (n.name or "").strip() in {"Files", "Home"}
         )
@@ -60,7 +60,7 @@ def files_is_no_longer_running(context) -> None:
         for name in FILES_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
                 if frames:
                     break
             except Exception:  # noqa: BLE001

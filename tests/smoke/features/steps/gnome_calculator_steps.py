@@ -45,7 +45,7 @@ def launch_calculator_via_command(context) -> None:
 
 def _calculator_window():
     app = _calculator_app()
-    frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+    frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
     assert frames, "Visible GNOME Calculator window not found"
     return frames[0]
 
@@ -109,7 +109,7 @@ def calculator_is_no_longer_running(context) -> None:
         for name in CALCULATOR_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName == "frame" and n.showing)
+                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
                 if frames:
                     break
             except Exception:  # noqa: BLE001

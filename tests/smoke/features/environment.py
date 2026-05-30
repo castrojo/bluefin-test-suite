@@ -140,6 +140,7 @@ def before_all(context) -> None:
         context.sandbox = TestSandbox("gnome-shell", context=context)
         context.sandbox.attach_faf = False
         context.sandbox.production = False
+        context.sandbox.set_keyring = False  # GDM restart flushes PATH; GNOME 50 doesn't need keyring
         context.shell = context.sandbox.shell
         configure_screenshot_context(context, SUITE_NAME)
     except Exception as error:
