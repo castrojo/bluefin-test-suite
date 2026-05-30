@@ -3,7 +3,7 @@
 > Last updated: 2026-05-30
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 212 scenarios across 28 feature files (last audit: 2026-05-30).
+Current audit: 216 scenarios across 28 feature files (last audit: 2026-05-30).
 
 ## What this repo is responsible for
 
