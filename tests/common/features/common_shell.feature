@@ -17,3 +17,30 @@ Feature: Bluefin common shell environment
     * Run SSH command: "cat /etc/environment"
     * SSH command return code is "0"
     * SSH command output is not empty
+
+  # ── Modern CLI tools (common layer) ──────────────────────────────────────
+
+  Scenario: fzf fuzzy finder is available
+    * Run SSH command: "fzf --version"
+    * SSH command return code is "0"
+
+  Scenario: bat (modern cat) is available
+    * Run SSH command: "bat --version 2>/dev/null || batcat --version 2>/dev/null || echo missing"
+    * SSH command output is not empty
+    * SSH command output does not contain "missing"
+
+  Scenario: eza (modern ls) is available
+    * Run SSH command: "eza --version"
+    * SSH command return code is "0"
+
+  Scenario: fd (modern find) is available
+    * Run SSH command: "fd --version"
+    * SSH command return code is "0"
+
+  Scenario: ripgrep is available
+    * Run SSH command: "rg --version"
+    * SSH command return code is "0"
+
+  Scenario: starship prompt binary is present
+    * Run SSH command: "starship --version"
+    * SSH command return code is "0"

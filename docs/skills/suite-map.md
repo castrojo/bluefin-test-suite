@@ -47,14 +47,14 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 
 ## Coverage snapshot
 
-222 scenarios across 28 feature files (last audit: 2026-05-30).
+228 scenarios across 28 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
 | smoke | 78 | ✅ active | dogtail 4.16 API correct throughout |
 | developer | 16 | ✅ active | brew, podman, ptyxis covered |
 | software | 10 | ✅ active | Bazaar/gnome-software + Flathub |
-| common | 13 | ✅ active | Bluefin common layer: dconf, scripts, desktop entries, shell |
+| common | 19 | ✅ active | Bluefin common layer: dconf, scripts, desktop entries, shell + modern CLI tools |
 | vanilla-gnome | 12 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 13 | ✅ active | bootc upgrade / rollback / switch / version tracking / idempotence |
 | hardware | 10 | ✅ active | Driven by shared SSH steps |
