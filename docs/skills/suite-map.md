@@ -47,7 +47,7 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 
 ## Coverage snapshot
 
-208 scenarios across 27 feature files (last audit: 2026-05-30).
+204 scenarios across 27 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
@@ -56,7 +56,7 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 | software | 10 | ✅ active | Bazaar/gnome-software + Flathub |
 | common | 13 | ✅ active | Bluefin common layer: dconf, scripts, desktop entries, shell |
 | vanilla-gnome | 12 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 13 | ✅ active | bootc upgrade / rollback / switch / version tracking / idempotence |
+| lifecycle | 9 | ✅ active | bootc upgrade / rollback / switch / /etc merge |
 | hardware | 10 | ✅ active | Driven by shared SSH steps |
 | security/image_provenance | 5 | ✅ active | cosign verify steps fully implemented |
 | bazzite | 20 | ✅ active | Extension presence + shell behaviour |
