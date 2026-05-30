@@ -20,7 +20,6 @@ import subprocess
 from time import sleep
 
 from behave import step
-from dogtail import tree
 from qecore.common_steps import *  # noqa: F401,F403
 
 
@@ -366,7 +365,7 @@ def session_is_locked(context) -> None:
             ["loginctl", "list-sessions", "--no-legend"],
             capture_output=True, text=True, timeout=10,
         )
-        lines = [l.strip() for l in result.stdout.splitlines() if l.strip()]
+        lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
         assert lines, "No active loginctl sessions found"
         session_id = lines[0].split()[0]
 

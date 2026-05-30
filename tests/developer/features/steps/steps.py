@@ -13,7 +13,6 @@ Custom steps here:
 from time import sleep
 
 from behave import step
-from dogtail.rawinput import pressKey
 from qecore.common_steps import *  # noqa: F401,F403
 
 
