@@ -401,10 +401,12 @@ jobs:
             set -e
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
-            apt-get install -y -qq build-essential meson ninja-build pkg-config libglib2.0-dev libsystemd-dev git
+            apt-get install -y -qq build-essential meson ninja-build pkg-config libglib2.0-dev git
             git clone --quiet --depth 1 --branch 0.0.11 https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon.git /src
-            meson setup /src/build /src --prefix=/usr -Dsystemd_user_unit_dir=/usr/lib/systemd/user -Dponytail_python=false 2>&1 | tail -5
-            ninja -C /src/build 2>&1 | tail -5
+            # systemd dep is only used to find systemduserunitdir; we provide it directly
+            sed -i \"s/dependency('systemd')/dependency('systemd', required: false)/\" /src/meson.build
+            meson setup /src/build /src --prefix=/usr -Dsystemd_user_unit_dir=/usr/lib/systemd/user -Dponytail_python=false
+            ninja -C /src/build
             cp /src/build/src/gnome-ponytail-daemon /out/
           "
 
