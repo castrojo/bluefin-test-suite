@@ -71,6 +71,7 @@ jobs:
             python3-pip \
             python3-gobject \
             at-spi2-core \
+            dbus-tools \
             gtk3 \
             gsettings-desktop-schemas
           pip3 install --quiet behave qecore dogtail
@@ -78,7 +79,13 @@ jobs:
       - name: Behave dry-run (step definition coverage)
         # Exits 1 if any step is undefined — catches broken imports and
         # missing step patterns without booting a VM.
+        # GNOME suites (smoke/bazzite) import qecore.sandbox which connects
+        # to AT-SPI at module load time; provide a session D-Bus + AT-SPI bus
+        # so that connection attempt doesn't SIGTRAP.
         run: |
+          eval "$(dbus-launch --sh-syntax)"
+          at-spi-bus-launcher --launch-immediately &
+          sleep 1
           FAIL=0
           for suite in tests/*/features/; do
             if ! ls "${suite}"*.feature >/dev/null 2>&1; then
