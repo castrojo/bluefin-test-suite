@@ -30,6 +30,7 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         python3-gobject \
         at-spi2-core \
         gtk3 \
+        gsettings-desktop-schemas \
         dbus-libs \
         glib2 \
     && microdnf clean all
