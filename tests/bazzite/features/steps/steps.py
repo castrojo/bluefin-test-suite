@@ -20,7 +20,80 @@ from dogtail.predicate import GenericPredicate
 from qecore.common_steps import *  # noqa: F401,F403
 
 
-# ── Extension presence helpers ────────────────────────────────────────────────
+# ── AT-SPI connectivity ───────────────────────────────────────────────────────
+
+@step('GNOME Shell is accessible via AT-SPI')
+def shell_accessible_via_atspi(context) -> None:
+    shell = tree.root.application("gnome-shell")
+    assert shell, "gnome-shell application not found in AT-SPI tree"
+
+
+@step('Dump panel children to log')
+def dump_panel_children(context) -> None:
+    shell = tree.root.application("gnome-shell")
+    panels = shell.findChildren(GenericPredicate(roleName="panel"))
+    if panels:
+        for child in panels[0].findChildren(lambda n: True):
+            print(f"  [{child.roleName}] {child.name!r} showing={child.showing}")
+    else:
+        print("  No panel found in AT-SPI tree")
+
+
+@step('Panel is present in AT-SPI tree')
+def panel_is_present(context) -> None:
+    shell = tree.root.application("gnome-shell")
+    panels = shell.findChildren(GenericPredicate(roleName="panel"))
+    assert panels, "No panel found in gnome-shell AT-SPI tree"
+
+
+# ── Activities overview ───────────────────────────────────────────────────────
+
+@step('Open Activities overview via Shell.Eval')
+def open_activities_overview(context) -> None:
+    context.sandbox.shell.eval_js("Main.overview.show()")
+
+
+@step('Close Activities overview via Shell.Eval')
+def close_activities_overview(context) -> None:
+    context.sandbox.shell.eval_js("Main.overview.hide()")
+
+
+@step('Overview is open')
+def overview_is_open(context) -> None:
+    result = context.sandbox.shell.eval_js("Main.overview.visible")
+    visible = str(result).strip().lower()
+    assert "true" in visible, f"Overview is not open (visible={visible!r})"
+
+
+@step('Overview is closed')
+def overview_is_closed(context) -> None:
+    result = context.sandbox.shell.eval_js("Main.overview.visible")
+    visible = str(result).strip().lower()
+    assert "false" in visible or "true" not in visible, (
+        f"Overview is still open (visible={visible!r})"
+    )
+
+
+# ── Quick Settings ────────────────────────────────────────────────────────────
+
+@step('Open Quick Settings via Shell.Eval')
+def open_quick_settings(context) -> None:
+    context.sandbox.shell.eval_js(
+        "Main.panel.statusArea.quickSettings.menu.open(true)"
+    )
+
+
+@step('Quick Settings panel is open via Shell.Eval')
+def quick_settings_is_open(context) -> None:
+    result = context.sandbox.shell.eval_js(
+        "Main.panel.statusArea.quickSettings.menu.isOpen"
+    )
+    is_open = str(result).strip().lower()
+    assert "true" in is_open, (
+        f"Quick Settings panel is not open (isOpen={is_open!r})"
+    )
+
+
 
 def _extension_state(context, uuid: str) -> str:
     """Return the extension state integer as a string via Shell.Eval.

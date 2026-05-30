@@ -13,5 +13,4 @@ from tests.shared.ssh_steps import run_ssh  # noqa: F401
 
 @step("Bluefin NVIDIA VM is booted and reachable over SSH")
 def nvidia_vm_reachable(context):
-    """Intentionally keep this as a stub until NVIDIA VM SSH coverage is implemented."""
-    raise NotImplementedError("Stub — implement SSH connectivity check")
+    context.scenario.skip("NVIDIA GPU passthrough not yet configured — see Epic E08")

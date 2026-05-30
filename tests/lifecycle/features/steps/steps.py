@@ -47,6 +47,22 @@ def _skip_current_scenario(context, reason):
         scenario.skip()
 
 
+def _parse_os_release(raw):
+    """Parse /etc/os-release content into a dict with surrounding quotes removed."""
+    assert raw, "No /etc/os-release output available"
+    data = {}
+    for line in raw.splitlines():
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        data[key] = value.strip().strip('"')
+    return data
+
+
+def _valid_fedora_version(version):
+    return bool(re.fullmatch(r"\d+", version or ""))
+
+
 @step("bootc status shows deployment is pinned")
 def bootc_status_pinned(context):
     booted = _parse_bootc_status(context).get("booted") or {}
@@ -155,6 +171,89 @@ def active_image_contains(context, fragment):
     active_image = booted.get("image", {}).get("image", {}).get("image", "")
     assert fragment in active_image, (
         f"Expected {fragment!r} in active image reference {active_image!r}"
+    )
+
+
+@step('bootc status image reference starts with "{prefix}"')
+def bootc_status_image_reference_starts_with(context, prefix):
+    booted = _parse_bootc_status(context).get("booted", {})
+    active_image = booted.get("image", {}).get("image", {}).get("image", "")
+    assert active_image.startswith(prefix), (
+        f"Expected active image reference {active_image!r} to start with {prefix!r}"
+    )
+
+
+@step("bootc status image digest is a valid sha256")
+def bootc_status_image_digest_valid(context):
+    booted = _parse_bootc_status(context).get("booted", {})
+    digest = booted.get("image", {}).get("imageDigest", "")
+    assert re.fullmatch(r"sha256:[a-f0-9]{64}", digest), (
+        f"Expected booted image digest to match sha256:<64 hex>, got {digest!r}"
+    )
+
+
+@step("Capture current os-release VERSION_ID via SSH")
+def capture_current_version_id(context):
+    run_ssh(context, "cat /etc/os-release")
+    data = _parse_os_release(getattr(context, "command_stdout", ""))
+    version_id = data.get("VERSION_ID", "")
+    assert version_id, f"VERSION_ID missing from /etc/os-release: {data}"
+    if getattr(context, "initial_version_id", None) is None:
+        context.initial_version_id = version_id
+    context.current_version_id = version_id
+    print(f"Captured VERSION_ID: {version_id}", flush=True)
+
+
+@step("Captured VERSION_ID is a valid Fedora version number")
+def captured_version_id_is_valid(context):
+    version_id = getattr(context, "current_version_id", None)
+    assert version_id is not None, "No VERSION_ID captured yet"
+    assert _valid_fedora_version(version_id), (
+        f"Expected VERSION_ID to be a Fedora version number, got {version_id!r}"
+    )
+
+
+@step("os-release VERSION_ID is tracked across upgrade")
+def os_release_version_is_tracked_across_upgrade(context):
+    before = getattr(context, "initial_version_id", None)
+    after = getattr(context, "current_version_id", None)
+    assert before is not None, "Initial VERSION_ID was not captured before upgrade"
+    assert after is not None, "Current VERSION_ID was not captured after upgrade"
+    assert _valid_fedora_version(before), f"Initial VERSION_ID is invalid: {before!r}"
+    assert _valid_fedora_version(after), f"Current VERSION_ID is invalid: {after!r}"
+    if before != after:
+        print(f"VERSION_ID changed across upgrade: {before} -> {after}", flush=True)
+    else:
+        print(
+            f"VERSION_ID remained {after} across upgrade; valid when image content changes within the same Fedora release",
+            flush=True,
+        )
+
+
+@step("os-release reports Fedora Bluefin identity")
+def os_release_reports_fedora_bluefin_identity(context):
+    data = _parse_os_release(getattr(context, "command_stdout", ""))
+    assert data.get("ID") == "fedora", f"Expected ID=fedora in /etc/os-release, got: {data}"
+    variant_id = data.get("VARIANT_ID")
+    pretty_name = data.get("PRETTY_NAME", "")
+    assert variant_id == "bluefin" or "bluefin" in pretty_name.lower(), (
+        "Expected VARIANT_ID=bluefin or PRETTY_NAME containing 'Bluefin' in /etc/os-release, "
+        f"got: {data}"
+    )
+
+
+@step("If bootc upgrade output indicates image was staged, reboot VM and wait for SSH")
+def maybe_reboot_after_upgrade(context):
+    output = getattr(context, "command_stdout", "")
+    if "Queued for next boot" in output:
+        reboot_and_wait(context)
+
+
+@step("No staged deployment is present in bootc status")
+def no_staged_deployment_present(context):
+    status = _parse_bootc_status(context)
+    assert status.get("staged") is None, (
+        f"Expected no staged deployment in bootc status, got status={status}"
     )
 
 

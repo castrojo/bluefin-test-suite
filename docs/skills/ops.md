@@ -22,14 +22,13 @@ AutomaticLogin=bluefin-test
 
 Tracked: testsuite issue #33.
 
-## Zombie `ghost-heavy-compute` mutex
+## Zombie Argo mutex
 
-**Symptom:** A BIB/BST build workflow is stuck `Pending` indefinitely. `exo-1` is down or not scheduling pods. `ResourcesDuration` is near zero. The workflow holds the `ghost-heavy-compute` mutex and blocks all subsequent workflows.
+**Symptom:** A workflow is stuck `Pending` indefinitely. `exo-1` is down or not scheduling pods. `ResourcesDuration` is near zero. The workflow holds a mutex and blocks all subsequent workflows.
 
 **Detect:**
 ```bash
 argo list -n argo --status Running
-# Look for workflow stuck in Pending with low ResourcesDuration and no node assigned
 argo get <workflow-name> -n argo | grep -E "Status|Node|Duration"
 ```
 
@@ -38,9 +37,9 @@ argo get <workflow-name> -n argo | grep -E "Status|Node|Duration"
 argo stop <workflow-name> -n argo
 ```
 
-This releases the mutex. Subsequent workflows can then acquire it and proceed normally.
+This releases the mutex. **Do not** delete the workflow — `stop` preserves the audit trail.
 
-**Do not** delete the workflow — `stop` is sufficient and preserves the audit trail.
+> This applies only to the legacy Argo stack in `projectbluefin/testing-lab`. SSH-mode suites (lifecycle, security, hardware) still use it until the GHA SSH-mode action is built (epics #43/#44).
 
 ## SSH step timeout tuning
 

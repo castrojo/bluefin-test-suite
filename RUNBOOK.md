@@ -22,18 +22,7 @@ just lint
 
 # List @future / not-yet-implemented scenarios
 just list-stubs
-
-# Show recent test results from ghost
-just results
-
-# Compare smoke vs vanilla-gnome for the newest run
-just compare-results
-
-# Compare a specific workflow UID
-just compare-results <uid>
 ```
-
-Lab execution commands (`run-tests`, matrix runs, titan paths) are in `testing-lab`.
 
 ## Vanilla-GNOME comparison
 
@@ -45,8 +34,5 @@ Lab execution commands (`run-tests`, matrix runs, titan paths) are in `testing-l
 | `smoke=failed`, `vanilla-gnome=failed` | ↑ Upstream GNOME issue |
 | all other combinations | Informational |
 
-Manual inspection:
-1. `just results` → find the workflow UID
-2. Open `/var/tmp/bluefin-results/<uid>/smoke/results.json` and `.../vanilla-gnome/results.json`
-3. Compare per-scenario `status` values
+Results are visible in the GitHub Actions job summary and as 30-day artifacts.
 

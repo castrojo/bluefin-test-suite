@@ -1,7 +1,7 @@
 # testsuite — Agent Instructions
 
 This repo owns **Bluefin test content** (behave + qecore-headless + dogtail).  
-Lab infrastructure (ghost, exo, ArgoCD, KubeVirt, CronWorkflows) belongs to `projectbluefin/testing-lab`.
+Infrastructure (ArgoCD, KubeVirt, CronWorkflows) belongs to `projectbluefin/testing-lab`.
 
 ## GNOME 50 Crowdsourcing
 

@@ -243,6 +243,59 @@ def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.
     return False
 
 
+def _gsettings_set_bool(schema: str, key: str, value: bool) -> None:
+    result = subprocess.run(
+        ["gsettings", "set", schema, key, "true" if value else "false"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"gsettings set {schema} {key} failed: rc={result.returncode}\n"
+        f"stdout: {result.stdout}\n"
+        f"stderr: {result.stderr}"
+    )
+
+
+def _gsettings_get_bool(schema: str, key: str) -> bool:
+    result = subprocess.run(
+        ["gsettings", "get", schema, key],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"gsettings get {schema} {key} failed: rc={result.returncode}\n"
+        f"stdout: {result.stdout}\n"
+        f"stderr: {result.stderr}"
+    )
+    value = result.stdout.strip().lower()
+    if value == "true":
+        return True
+    if value == "false":
+        return False
+    raise AssertionError(f"Unexpected gsettings value for {schema} {key}: {result.stdout!r}")
+
+
+def _set_dnd_enabled(expected: bool) -> None:
+    exists_js = (
+        "Main.panel.statusArea.quickSettings._do_not_disturb !== null && "
+        "Main.panel.statusArea.quickSettings._do_not_disturb !== undefined"
+    )
+    checked_js = "Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()"
+    toggle_js = "Main.panel.statusArea.quickSettings._do_not_disturb.toggle()"
+
+    if not _eval_bool(exists_js):
+        raise AssertionError("Do-Not-Disturb toggle is missing from Quick Settings")
+    if _eval_bool(checked_js) != expected:
+        _shell_eval(toggle_js)
+    if not _wait_eval_bool(checked_js, expected=expected, retries=8, delay=0.5):
+        out = _shell_eval(checked_js)
+        raise AssertionError(
+            f"Do-Not-Disturb did not reach {expected} — Shell.Eval returned: {out!r}"
+        )
+
+
 @step('No coredump entries exist for "{name}"')
 def no_coredump_entries_exist(context, name: str) -> None:
     result = subprocess.run(
@@ -335,6 +388,83 @@ def close_quick_settings_eval(context) -> None:
 def close_date_menu_eval(context) -> None:
     _shell_eval('Main.panel.statusArea.dateMenu.menu.close(0)')
     sleep(0.5)
+
+
+@step('Ensure Night Light starts disabled via gsettings')
+def ensure_night_light_starts_disabled(context) -> None:
+    _gsettings_set_bool(
+        'org.gnome.settings-daemon.plugins.color',
+        'night-light-enabled',
+        False,
+    )
+    assert not _gsettings_get_bool(
+        'org.gnome.settings-daemon.plugins.color',
+        'night-light-enabled',
+    ), 'Night Light should start disabled'
+
+
+@step('Enable Night Light via gsettings')
+def enable_night_light_via_gsettings(context) -> None:
+    _gsettings_set_bool(
+        'org.gnome.settings-daemon.plugins.color',
+        'night-light-enabled',
+        True,
+    )
+
+
+@step('Night Light is enabled via gsettings')
+def night_light_is_enabled_via_gsettings(context) -> None:
+    assert _gsettings_get_bool(
+        'org.gnome.settings-daemon.plugins.color',
+        'night-light-enabled',
+    ), 'Night Light should be enabled'
+
+
+@step('Disable Night Light via gsettings')
+def disable_night_light_via_gsettings(context) -> None:
+    _gsettings_set_bool(
+        'org.gnome.settings-daemon.plugins.color',
+        'night-light-enabled',
+        False,
+    )
+
+
+@step('Night Light is disabled via gsettings')
+def night_light_is_disabled_via_gsettings(context) -> None:
+    assert not _gsettings_get_bool(
+        'org.gnome.settings-daemon.plugins.color',
+        'night-light-enabled',
+    ), 'Night Light should be disabled'
+
+
+@step('Enable Do-Not-Disturb via Shell.Eval toggle')
+def enable_do_not_disturb_via_shell_eval_toggle(context) -> None:
+    _set_dnd_enabled(True)
+
+
+@step('Do-Not-Disturb is enabled via Shell.Eval')
+def do_not_disturb_is_enabled_via_shell_eval(context) -> None:
+    assert _wait_eval_bool(
+        'Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()',
+        expected=True,
+        retries=8,
+        delay=0.5,
+    ), 'Do-Not-Disturb should be enabled'
+
+
+@step('Disable Do-Not-Disturb via Shell.Eval toggle')
+def disable_do_not_disturb_via_shell_eval_toggle(context) -> None:
+    _set_dnd_enabled(False)
+
+
+@step('Do-Not-Disturb is disabled via Shell.Eval')
+def do_not_disturb_is_disabled_via_shell_eval(context) -> None:
+    assert _wait_eval_bool(
+        'Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()',
+        expected=False,
+        retries=8,
+        delay=0.5,
+    ), 'Do-Not-Disturb should be disabled'
 
 
 @step('Date menu panel is open via Shell.Eval')

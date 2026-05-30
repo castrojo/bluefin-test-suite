@@ -4,9 +4,7 @@ Feature: NVIDIA GPU passthrough validation
   Runner: plain SSH behave (CLI validation, no GUI needed for most).
 
   # DEFERRED: Requires VFIO-PCI or vGPU passthrough configured in KubeVirt.
-  # ghost has AMD Ryzen AI MAX+ — confirm if discrete NVIDIA GPU is present
-  # before activating this suite. All scenarios are stubbed-only.
-  # See QA-REVIEW.md Epic E08.
+  # All scenarios are stubbed-only. See QA-REVIEW.md Epic E08.
 
   Background:
     * Bluefin NVIDIA VM is booted and reachable over SSH

@@ -6,7 +6,7 @@ Canonical home for **Bluefin GUI/system test content** (behave + qecore-headless
 
 | Concern | Canonical repo |
 |---|---|
-| Hardware/lab infrastructure (ghost, exo-1, ArgoCD, KubeVirt, manifests, CronWorkflows) | `projectbluefin/testing-lab` |
+| Infrastructure (ArgoCD, KubeVirt, manifests, CronWorkflows) | `projectbluefin/testing-lab` |
 | Test framework and suite content (feature files, steps, qecore/dogtail patterns) | `projectbluefin/testsuite` |
 
 ## Test stack
