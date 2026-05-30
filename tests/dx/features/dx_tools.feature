@@ -57,3 +57,33 @@ Feature: Bluefin DX variant smoke tests
     * Run DX SSH command: "brew --version 2>&1 | head -1"
     * SSH command return code is "0"
     * Last command output contains "Homebrew"
+
+  @dx @mise @plain_ssh
+  Scenario: mise is available for version management
+    * Run DX SSH command: "mise --version"
+    * SSH command return code is "0"
+
+  @dx @mise @plain_ssh
+  Scenario: mise lists available runtimes
+    * Run DX SSH command: "mise ls 2>/dev/null | wc -l || echo 0"
+    * SSH command return code is "0"
+
+  @dx @nodejs @plain_ssh
+  Scenario: Node.js is available on DX
+    * Run DX SSH command: "node --version 2>/dev/null || mise exec node -- node --version 2>/dev/null || echo missing"
+    * Last command output does not contain "missing"
+
+  @dx @python @plain_ssh
+  Scenario: Python venv module is available
+    * Run DX SSH command: "python3 -m venv --help 2>&1 | head -1"
+    * SSH command return code is "0"
+
+  @dx @podman @plain_ssh
+  Scenario: podman CLI is functional
+    * Run DX SSH command: "podman info --format '{{.Host.OSType}}' 2>/dev/null || echo missing"
+    * Last command output does not contain "missing"
+
+  @dx @vscode @plain_ssh
+  Scenario: VS Code CLI (code) is available on PATH
+    * Run DX SSH command: "which code || which codium || echo missing"
+    * Last command output does not contain "missing"

@@ -47,7 +47,7 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 
 ## Coverage snapshot
 
-216 scenarios across 28 feature files (last audit: 2026-05-30).
+222 scenarios across 28 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
@@ -60,7 +60,7 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 | hardware | 10 | ✅ active | Driven by shared SSH steps |
 | security/image_provenance | 5 | ✅ active | cosign verify steps fully implemented |
 | bazzite | 20 | ✅ active | Extension presence + shell behaviour |
-| dx | 9 | 🔄 expanding | VS Code + CLI tools + brew |
+| dx | 15 | 🔄 expanding | VS Code + CLI tools + brew |
 | flatcar/boot | 7 | ✅ active | systemd, containerd, networking |
 | flatcar/lifecycle | 6 | ⏳ @future | Needs dual-disk VM (Epic E09) |
 | security/selinux | 5 | ⏳ @future | Needs `selinux=0` removed from golden disk (Epic E04) |
