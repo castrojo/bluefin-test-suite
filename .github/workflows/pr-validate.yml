@@ -71,7 +71,6 @@ jobs:
             python3-pip \
             python3-gobject \
             at-spi2-core \
-            dbus-tools \
             gtk3 \
             gsettings-desktop-schemas
           pip3 install --quiet behave qecore dogtail
@@ -80,11 +79,11 @@ jobs:
         # Exits 1 if any step is undefined — catches broken imports and
         # missing step patterns without booting a VM.
         # GNOME suites (smoke/bazzite) import qecore.sandbox which connects
-        # to AT-SPI at module load time; provide a session D-Bus + AT-SPI bus
-        # so that connection attempt doesn't SIGTRAP.
+        # to AT-SPI at module load time. Wrap the loop in dbus-run-session
+        # and start at-spi-bus-launcher so the AT-SPI connection succeeds.
         run: |
-          eval "$(dbus-launch --sh-syntax)"
-          at-spi-bus-launcher --launch-immediately &
+          cat > /tmp/dry-run.sh << 'DRYEOF'
+          /usr/libexec/at-spi-bus-launcher --launch-immediately &
           sleep 1
           FAIL=0
           for suite in tests/*/features/; do
@@ -100,3 +99,6 @@ jobs:
           done
           [ "$FAIL" -eq 0 ] && echo "All suites: every step is defined." || \
             { echo "One or more suites have undefined steps."; exit 1; }
+          DRYEOF
+          chmod +x /tmp/dry-run.sh
+          dbus-run-session -- bash /tmp/dry-run.sh
