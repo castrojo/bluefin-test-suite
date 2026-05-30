@@ -37,21 +37,18 @@ jobs:
 
       - name: Install AT-SPI native libs (required for qecore import on headless runners)
         # qecore.sandbox imports isA11yEnabled from dogtail.utils at module level.
-        # dogtail.utils.isA11yEnabled requires gi.repository.Atspi.  Without the
-        # GIR typelib + PyGObject bindings the import silently fails and the
-        # module-level call raises NameError, crashing behave --dry-run even
-        # though no AT-SPI session is needed for a dry run.
-        # PyGObject 3.50+ uses the new girepository-2.0 API (libgirepository-2.0-dev
-        # on ubuntu-24.04 noble); libcairo2-dev is needed for pycairo.
+        # dogtail.utils.isA11yEnabled requires gi.repository.Atspi + gi.repository.Gtk.
+        # python3-gi (from apt) provides pre-compiled GObject bindings for the system
+        # Python.  The toolcache Python reads them via PYTHONPATH in the dry-run step.
         run: |
           sudo apt-get install -y --no-install-recommends \
+            python3-gi \
+            python3-gi-cairo \
             gir1.2-atspi-2.0 \
-            libgirepository-2.0-dev \
-            libcairo2-dev \
-            pkg-config
+            gir1.2-gtk-3.0
 
       - name: Install linting tools
-        run: pip install ruff yamllint behave qecore dogtail PyGObject
+        run: pip install ruff yamllint behave qecore dogtail
 
       - name: Python lint (ruff)
         run: ruff check tests/ --select E,F,W --ignore E501
@@ -65,6 +62,8 @@ jobs:
         # Validates that every step in every feature file has a matching
         # @step definition.  Does NOT boot a VM — exits 1 if any step is
         # undefined, which catches broken imports and missing step patterns.
+        # /usr/lib/python3/dist-packages added so the toolcache Python can
+        # reach the system python3-gi (pre-compiled GObject bindings).
         run: |
           FAIL=0
           for suite in tests/*/features/; do
@@ -75,7 +74,7 @@ jobs:
             fi
             suitename=$(echo "$suite" | cut -d/ -f2)
             echo "::group::behave --dry-run $suitename"
-            PYTHONPATH="${{ github.workspace }}" \
+            PYTHONPATH="${{ github.workspace }}:/usr/lib/python3/dist-packages" \
               python -m behave "$suite" --dry-run --no-capture || FAIL=1
             echo "::endgroup::"
           done
