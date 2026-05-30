@@ -49,6 +49,9 @@ jobs:
     needs: matrix
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write   # needed to push desktop screenshot OCI artifact to GHCR
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +60,7 @@ jobs:
     env:
       IMAGE: ${{ inputs.image }}
       SUITE: ${{ matrix.suite }}
+      SCREENSHOT_IMAGE: ghcr.io/projectbluefin/testsuite/desktop-screenshot
 
     steps:
       # Always fetch the latest testsuite tests so test fixes are picked up
@@ -387,20 +391,41 @@ jobs:
             echo "No fastfetch screenshot in results/ — skipping promotion"
           fi
 
-      - name: Upload desktop screenshot
+      - name: Push desktop screenshot to GHCR
         if: steps.desktop-screenshot.outputs.found == 'true'
         id: upload-screenshot
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: desktop-screenshot-${{ env.SUITE }}
-          path: desktop-screenshot.png
-          retention-days: 90
-          if-no-files-found: ignore
+        run: |
+          # Install oras — push the screenshot as an OCI artifact so any workflow
+          # in the org can pull it with: oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:latest
+          ORAS_VERSION="1.2.0"
+          curl -sSfL \
+            "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz" \
+            | tar xz oras
+          sudo mv oras /usr/local/bin/oras
+
+          echo "${{ github.token }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+          SHORT_SHA="${GITHUB_SHA::8}"
+          # Tag with short SHA (immutable) and :latest (always current)
+          oras push "${SCREENSHOT_IMAGE}:${SHORT_SHA}" \
+            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
+            desktop-screenshot.png:image/png
+          oras push "${SCREENSHOT_IMAGE}:latest" \
+            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
+            desktop-screenshot.png:image/png
+
+          echo "ref=${SCREENSHOT_IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA} and :latest"
 
       - name: Write job summary
         if: always()
         env:
-          SCREENSHOT_URL: ${{ steps.upload-screenshot.outputs.artifact-url }}
+          SCREENSHOT_REF: ${{ steps.upload-screenshot.outputs.ref }}
+          SCREENSHOT_IMAGE: ${{ env.SCREENSHOT_IMAGE }}
         run: |
           if [[ -f results/results.json ]]; then
             python3 - << 'PY'
@@ -434,17 +459,22 @@ jobs:
                       if err:
                         lines.append(f"    <pre>{err}</pre>")
 
-          # Desktop screenshot link — useful for release notes
-          screenshot_url = os.environ.get('SCREENSHOT_URL', '').strip()
-          if screenshot_url:
+          # Desktop screenshot — pushed to GHCR, pull with oras from any org workflow
+          screenshot_ref = os.environ.get('SCREENSHOT_REF', '').strip()
+          screenshot_image = os.environ.get('SCREENSHOT_IMAGE', '').strip()
+          if screenshot_ref:
             lines += [
               '',
               '### 🖥️ Desktop Screenshot',
               '',
-              f'[📸 Download desktop-screenshot-{suite}]({screenshot_url})',
+              f'```',
+              f'oras pull {screenshot_ref}',
+              f'# or always-latest:',
+              f'oras pull {screenshot_image}:latest',
+              f'```',
               '',
-              '_Screenshot taken at end of run with fastfetch open. '
-              'Use for release notes and visual regression reference._',
+              '_Desktop screenshot (fastfetch open) pushed to GHCR as an OCI artifact. '
+              'Pull from any org workflow for release notes or visual regression._',
             ]
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
