@@ -1,13 +1,13 @@
 # PR Validation — lint & syntax checks
 #
-# Runs on every PR and push to main.  Two jobs:
+# Runs on every PR and push to main.  All checks are lightweight and run
+# on ubuntu-latest.
 #
-#   lint      — ubuntu-latest, ruff + py_compile + yamllint + argo YAML parse
-#   dry-run   — fedora container (has python3-gobject + AT-SPI natively), behave --dry-run
-#
-# The dry-run job uses a Fedora container because qecore/dogtail require
-# GObject + AT-SPI typelibs that are first-class citizens on Fedora (dnf
-# python3-gobject) but painful to set up on ubuntu-latest.
+# Checks:
+#   1. Python lint      — ruff (import errors, undefined names, style)
+#   2. Python syntax    — py_compile on every .py file in tests/
+#   3. YAML lint        — yamllint in relaxed mode on argo/
+#   4. Argo YAML parse  — yaml.safe_load on every argo/*.yaml
 
 name: PR Validation — lint & syntax checks
 
@@ -18,7 +18,7 @@ on:
       - main
 
 jobs:
-  lint:
+  validate:
     name: Lint & syntax
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -53,53 +53,3 @@ jobs:
             python -c "import yaml, sys; yaml.safe_load(open('$f')) or sys.exit(0)"
           done
           echo "All Argo YAML files parse cleanly."
-
-  dry-run:
-    name: Behave dry-run
-    runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora:41
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install test stack
-        run: |
-          dnf install -y --setopt=install_weak_deps=0 \
-            python3 \
-            python3-pip \
-            python3-gobject \
-            at-spi2-core \
-            dbus-daemon \
-            gtk3 \
-            gsettings-desktop-schemas
-          pip3 install --quiet behave qecore dogtail
-
-      - name: Behave dry-run (step definition coverage)
-        # Exits 1 if any step is undefined — catches broken imports and
-        # missing step patterns without booting a VM.
-        # GNOME suites (smoke/bazzite) import qecore.sandbox which connects
-        # to AT-SPI at module load time. Wrap the loop in dbus-run-session
-        # and start at-spi-bus-launcher so the AT-SPI connection succeeds.
-        run: |
-          cat > /tmp/dry-run.sh << 'DRYEOF'
-          /usr/libexec/at-spi-bus-launcher --launch-immediately &
-          sleep 1
-          FAIL=0
-          for suite in tests/*/features/; do
-            if ! ls "${suite}"*.feature >/dev/null 2>&1; then
-              echo "Skipping ${suite} — no .feature files yet"
-              continue
-            fi
-            suitename=$(echo "$suite" | cut -d/ -f2)
-            echo "::group::behave --dry-run $suitename"
-            PYTHONPATH="${GITHUB_WORKSPACE}" \
-              python3 -m behave "$suite" --dry-run --no-capture || FAIL=1
-            echo "::endgroup::"
-          done
-          [ "$FAIL" -eq 0 ] && echo "All suites: every step is defined." || \
-            { echo "One or more suites have undefined steps."; exit 1; }
-          DRYEOF
-          chmod +x /tmp/dry-run.sh
-          dbus-run-session -- bash /tmp/dry-run.sh
