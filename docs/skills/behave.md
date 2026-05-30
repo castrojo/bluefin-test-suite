@@ -102,3 +102,25 @@ Each suite has:
       steps.py   (+ additional step files)
 ```
 
+
+## Cross-suite step isolation
+
+Each suite loads only its own `steps/*.py` files plus `qecore.common_steps`. A step defined in `tests/software/features/steps/steps.py` is **not** available in `tests/developer/features/steps/steps.py` even if both import qecore.
+
+**Rule:** When the audit agent (or any agent) moves a step phrase from a shared/smoke context into a suite-specific file, verify that every `.feature` file using that phrase is in the same suite. If multiple suites use the phrase, define it in each suite's `steps.py`.
+
+Lesson surfaced 2026-05-30: `No journal entries match "{pattern}"` was added to `software/steps.py` but `ptyxis.feature` (developer suite) also used it — causing `UndefinedStep` at runtime.
+
+## `Last command output stripped "is"` vs multiline output
+
+`stripped "is" "<value>"` strips whitespace from the **entire** captured output and checks equality. This only works correctly for **single-line** command output (e.g. `grep -c`, `echo X`).
+
+For commands that produce multiline output (e.g. `flatpak install ... 2>&1; echo rc:$?`), use `Last command output contains "rc:0"` instead.
+
+```gherkin
+# WRONG — fails when flatpak install produces install progress lines
+* Last command output stripped "is" "rc:0"
+
+# CORRECT — substring check works with multiline output
+* Last command output contains "rc:0"
+```
