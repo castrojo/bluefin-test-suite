@@ -11,6 +11,7 @@ def test_testsuite_structure_has_expected_directories():
     expected = {
         "smoke", "developer", "dx", "hardware", "lifecycle",
         "nvidia", "security", "software", "vanilla-gnome", "flatcar",
+        "bazzite", "common",
     }
     found = set(suites) & expected
     missing = expected - found
@@ -88,3 +89,44 @@ def test_workflows_directory_has_expected_files():
     wf_files = os.listdir(workflows_dir)
     assert "unit-tests.yml" in wf_files, "unit-tests.yml workflow is missing"
     assert "pr-validate.yml" in wf_files, "pr-validate.yml workflow is missing"
+
+
+def test_feature_files_have_scenarios():
+    """Every feature file contains at least one Scenario."""
+    tests_base = os.path.join(os.path.dirname(__file__), "..")
+    empty_features = []
+    for root, dirs, files in os.walk(tests_base):
+        dirs[:] = [d for d in dirs if d not in ("__pycache__",)]
+        for f in sorted(files):
+            if not f.endswith(".feature"):
+                continue
+            path = os.path.join(root, f)
+            with open(path) as fh:
+                content = fh.read()
+            if "Scenario" not in content:
+                empty_features.append(path)
+    assert not empty_features, f"Feature files with no Scenario: {empty_features}"
+
+
+def test_qa_review_has_scenario_count():
+    """QA-REVIEW.md contains a scenario count line."""
+    qa_path = os.path.join(os.path.dirname(__file__), "..", "..", "QA-REVIEW.md")
+    assert os.path.isfile(qa_path), "QA-REVIEW.md is missing"
+    with open(qa_path) as fh:
+        content = fh.read()
+    assert "scenarios across" in content, (
+        "QA-REVIEW.md must contain a 'N scenarios across M feature files' line"
+    )
+
+
+def test_suite_map_has_scenario_count():
+    """docs/skills/suite-map.md contains a scenario count line."""
+    map_path = os.path.join(
+        os.path.dirname(__file__), "..", "..", "docs", "skills", "suite-map.md"
+    )
+    assert os.path.isfile(map_path), "docs/skills/suite-map.md is missing"
+    with open(map_path) as fh:
+        content = fh.read()
+    assert "scenarios across" in content, (
+        "suite-map.md must contain a 'N scenarios across M feature files' line"
+    )
