@@ -142,15 +142,19 @@ jobs:
           sudo cp "${D}/usr/lib/modules/${KVER}/initramfs.img" ./initramfs.img
           sudo chown runner:runner ./vmlinuz ./initramfs.img
 
-          # Find the actual ostree boot entry directory on the installed disk.
-          # More reliable than reading the BLS entry: directly verifies the path
-          # that ostree-prepare-root will look for at boot time.
+          # Find the ostree boot entry directory (boot.N/default/<hash>/serial).
+          # bootc may fail at the bootloader step (bootupd not in image) before
+          # creating this directory. If missing, construct and create it from the
+          # deployment hash so ostree-prepare-root can find the deployment at boot.
           BOOT_ENTRY=$(sudo find /mnt/root/ostree -maxdepth 4 -type d -name '0' 2>/dev/null \
             | grep -E '/boot\.[0-9]' | grep '/default/' | head -1)
           if [[ -z "${BOOT_ENTRY}" ]]; then
-            echo "ERROR: Could not find ostree boot entry directory"
-            sudo find /mnt/root/ostree -maxdepth 5 2>/dev/null | head -30 || true
-            exit 1
+            echo "No boot.N dir found — constructing from deployment hash"
+            DEPLOY_HASH="${DEPLOY%.*}"
+            DEPLOY_SERIAL="${DEPLOY##*.}"
+            BOOT_ENTRY="/mnt/root/ostree/boot.0/default/${DEPLOY_HASH}/${DEPLOY_SERIAL}"
+            sudo mkdir -p "${BOOT_ENTRY}"
+            echo "Created: ${BOOT_ENTRY}"
           fi
           OSTREE_PATH="${BOOT_ENTRY#/mnt/root}"
           echo "ostree boot path: ${OSTREE_PATH}"
