@@ -29,6 +29,7 @@ except Exception:  # noqa: BLE001
 
 try:
     from tests.shared.screenshot import take_screenshot, take_fastfetch_screenshot
+    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
 except Exception:  # noqa: BLE001
     def take_screenshot(label):
         return None

@@ -11,6 +11,9 @@ import time
 
 RESULTS_DIR = "/tmp/results"
 
+# Seconds to wait after launching an app before screenshotting
+_APP_LAUNCH_WAIT = int(os.environ.get("SCREENSHOT_APP_WAIT", "4"))
+
 
 def take_screenshot(label: str) -> str | None:
     """Capture a full-screen PNG via gnome-shell D-Bus Screenshot API.
@@ -41,6 +44,61 @@ def take_screenshot(label: str) -> str | None:
     except Exception as exc:  # noqa: BLE001
         print(f'Screenshot error: {exc}', flush=True)
     return None
+
+
+def take_app_screenshot(app_id: str, label: str | None = None, wait: int = _APP_LAUNCH_WAIT) -> str | None:
+    """Launch an app by Flatpak ID or command name, screenshot it, then close.
+
+    Detection logic:
+    - If app_id contains a '.' and is a known Flatpak (flatpak info succeeds) → flatpak run
+    - If app_id is on PATH → run directly
+    - Otherwise falls back to gtk-launch (picks up .desktop files)
+
+    Args:
+        app_id: Flatpak application ID (e.g. 'org.mozilla.firefox') or
+                command name (e.g. 'firefox') or desktop file stem.
+        label:  Screenshot filename label.  Defaults to app_id.
+        wait:   Seconds to wait after launch before capturing.
+
+    Returns:
+        Path to the saved PNG, or None on failure.
+    """
+    label = label or app_id
+    proc = None
+
+    # Choose launch method
+    if '.' in app_id and _flatpak_installed(app_id):
+        cmd = ['flatpak', 'run', app_id]
+    elif shutil.which(app_id):
+        cmd = [app_id]
+    else:
+        # gtk-launch handles .desktop files; strip .desktop suffix if present
+        desktop_stem = app_id.removesuffix('.desktop')
+        cmd = ['gtk-launch', desktop_stem]
+
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        time.sleep(wait)
+        return take_screenshot(label)
+    except Exception as exc:  # noqa: BLE001
+        print(f'App screenshot ({app_id}): {exc}', flush=True)
+        return None
+    finally:
+        if proc is not None:
+            try:
+                proc.terminate()
+                proc.wait(timeout=5)
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def _flatpak_installed(app_id: str) -> bool:
+    return subprocess.run(
+        ['flatpak', 'info', app_id],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    ).returncode == 0
 
 
 def take_fastfetch_screenshot() -> str | None:
