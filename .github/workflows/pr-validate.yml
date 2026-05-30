@@ -37,13 +37,14 @@ jobs:
 
       - name: Install AT-SPI native libs (required for qecore import on headless runners)
         # qecore.sandbox imports isA11yEnabled from dogtail.utils at module level.
-        # dogtail.utils.isA11yEnabled requires gi.repository.Atspi.  Without this
-        # the import silently fails and the module-level call raises NameError,
-        # crashing behave --dry-run even though no AT-SPI session is needed.
+        # dogtail.utils.isA11yEnabled requires gi.repository.Atspi.  Without the
+        # GIR typelib + PyGObject bindings the import silently fails and the
+        # module-level call raises NameError, crashing behave --dry-run even
+        # though no AT-SPI session is needed for a dry run.
         run: sudo apt-get install -y --no-install-recommends gir1.2-atspi-2.0
 
       - name: Install linting tools
-        run: pip install ruff yamllint behave qecore dogtail
+        run: pip install ruff yamllint behave qecore dogtail PyGObject
 
       - name: Python lint (ruff)
         run: ruff check tests/ --select E,F,W --ignore E501
