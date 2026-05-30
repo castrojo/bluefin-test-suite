@@ -18,9 +18,9 @@ on:
         required: false
         default: "both"
       suites:
-        description: "Comma-separated suites (default: smoke,developer,software,vanilla-gnome)"
+        description: "Comma-separated suites (default: smoke,developer,software,vanilla-gnome,common)"
         required: false
-        default: "smoke,developer,software,vanilla-gnome"
+        default: "smoke,developer,software,vanilla-gnome,common"
 
 jobs:
   test-latest:
@@ -28,14 +28,14 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
 
   test-lts:
     if: ${{ github.event.inputs.image_tag != 'latest' }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
 
   test-dx:
     if: ${{ github.event.inputs.image_tag != 'lts' }}
