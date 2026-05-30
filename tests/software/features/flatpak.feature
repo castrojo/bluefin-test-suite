@@ -60,8 +60,8 @@ Feature: gnome-software (Bazaar) smoke tests
     # Apostrophe (~5 MB) is a small, stable Flatpak with no heavy runtimes.
     # Marked @nightly to avoid slow network I/O on every PR run.
     * Run and save command output: "flatpak install --noninteractive flathub org.gnome.Apostrophe 2>&1; echo rc:$?"
-    * Last command output stripped "is" "rc:0"
+    * Last command output contains "rc:0"
     * Flatpak app "org.gnome.Apostrophe" is installed
     * Run and save command output: "flatpak uninstall --noninteractive org.gnome.Apostrophe 2>&1; echo rc:$?"
-    * Last command output stripped "is" "rc:0"
+    * Last command output contains "rc:0"
     * Flatpak app "org.gnome.Apostrophe" is not installed

@@ -6,6 +6,19 @@ from behave import step
 from qecore.common_steps import *  # noqa: F401,F403
 
 
+@step('Last command output contains "{text}"')
+def last_command_output_contains(context, text: str) -> None:
+    actual = (
+        getattr(context, "command_stdout", None)
+        or getattr(context, "last_command_output", None)
+        or getattr(context, "last_run_output", None)
+        or ""
+    )
+    assert text in actual, (
+        f"Last command output does not contain {text!r}:\n{actual}"
+    )
+
+
 @step('No journal entries match "{pattern}"')
 def no_journal_entries_match(context, pattern: str) -> None:
     result = subprocess.run(
