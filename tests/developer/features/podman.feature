@@ -16,6 +16,24 @@ Feature: Podman Desktop smoke tests
     * Wait until "Podman Desktop" "frame" appears in "podman_desktop"
     * Item "Dashboard" "label" is "showing" in "podman_desktop"
 
+  @podman_desktop @ui
+  Scenario: Podman Desktop shows Containers navigation item
+    * Start application "podman_desktop" via "command"
+    * Wait until "Podman Desktop" "frame" appears in "podman_desktop"
+    * Item "Containers" "label" is "showing" in "podman_desktop"
+
+  @podman_desktop @ui
+  Scenario: Podman Desktop shows Images navigation item
+    * Start application "podman_desktop" via "command"
+    * Wait until "Podman Desktop" "frame" appears in "podman_desktop"
+    * Item "Images" "label" is "showing" in "podman_desktop"
+
+  @podman_desktop @ui
+  Scenario: Podman Desktop shows Volumes navigation item
+    * Start application "podman_desktop" via "command"
+    * Wait until "Podman Desktop" "frame" appears in "podman_desktop"
+    * Item "Volumes" "label" is "showing" in "podman_desktop"
+
   @podman_desktop @close
   Scenario: Podman Desktop closes cleanly
     * Start application "podman_desktop" via "command"

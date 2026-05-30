@@ -40,3 +40,17 @@ Feature: Container image signature verification
   Scenario: Unsigned image fails verification gracefully
     * Verify cosign signature for "docker.io/library/busybox:latest" expecting failure
     * Verification error message is clear and actionable
+
+  @cosign @bluefin_gts
+  Scenario: Bluefin GTS stream image has valid cosign signature
+    * Cosign certificate issuer is "https://token.actions.githubusercontent.com" and identity pattern is "https://github.com/ublue-os/.*"
+    * Verify cosign signature for "ghcr.io/ublue-os/bluefin:gts"
+    * Signature OIDC issuer is "https://token.actions.githubusercontent.com"
+    * Signature identity matches "https://github.com/ublue-os/.*"
+
+  @cosign @bluefin_dx_nvidia
+  Scenario: Bluefin DX NVIDIA image has valid cosign signature
+    * Cosign certificate issuer is "https://token.actions.githubusercontent.com" and identity pattern is "https://github.com/ublue-os/.*"
+    * Verify cosign signature for "ghcr.io/ublue-os/bluefin-dx-nvidia:latest"
+    * Signature OIDC issuer is "https://token.actions.githubusercontent.com"
+    * Signature identity matches "https://github.com/ublue-os/.*"

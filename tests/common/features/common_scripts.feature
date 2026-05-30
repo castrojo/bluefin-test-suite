@@ -22,3 +22,16 @@ Feature: Bluefin common system scripts
   Scenario: ublue-user-setup is executable
     * Run SSH command: "test -x /usr/bin/ublue-user-setup"
     * SSH command return code is "0"
+
+  Scenario: bootc is on PATH and returns version
+    * Run SSH command: "bootc --version"
+    * SSH command return code is "0"
+    * Last command output contains "bootc"
+
+  Scenario: just is available for ujust task runner
+    * Run SSH command: "just --version"
+    * SSH command return code is "0"
+
+  Scenario: ublue-update service unit exists
+    * Run SSH command: "systemctl list-unit-files ublue-update.timer 2>/dev/null | grep -c 'ublue-update'"
+    * SSH command output is not "0"

@@ -20,3 +20,22 @@ Feature: Bluefin common dconf and GSettings defaults
   Scenario: Custom keybindings are configured
     * Run SSH command: "gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings"
     * SSH command output is not empty
+
+  Scenario: GNOME interface color scheme preference is set
+    * Run SSH command: "gsettings get org.gnome.desktop.interface color-scheme"
+    * SSH command return code is "0"
+    * SSH command output is not empty
+
+  Scenario: GNOME clock format is configured
+    * Run SSH command: "gsettings get org.gnome.desktop.interface clock-format"
+    * SSH command return code is "0"
+    * SSH command output is not empty
+
+  Scenario: GNOME font-name setting is present
+    * Run SSH command: "gsettings get org.gnome.desktop.interface font-name"
+    * SSH command return code is "0"
+    * SSH command output is not empty
+
+  Scenario: GNOME show-battery-percentage setting is readable
+    * Run SSH command: "gsettings get org.gnome.desktop.interface show-battery-percentage"
+    * SSH command return code is "0"

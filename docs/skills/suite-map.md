@@ -47,20 +47,20 @@ Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghos
 
 ## Coverage snapshot
 
-228 scenarios across 28 feature files (last audit: 2026-05-30).
+246 scenarios across 28 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
 | smoke | 78 | ✅ active | dogtail 4.16 API correct throughout |
-| developer | 16 | ✅ active | brew, podman, ptyxis covered |
+| developer | 19 | ✅ active | brew, podman Desktop (+Containers/Images/Volumes), ptyxis |
 | software | 10 | ✅ active | Bazaar/gnome-software + Flathub |
-| common | 19 | ✅ active | Bluefin common layer: dconf, scripts, desktop entries, shell + modern CLI tools |
+| common | 32 | ✅ active | Bluefin common layer: dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
 | vanilla-gnome | 12 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 13 | ✅ active | bootc upgrade / rollback / switch / version tracking / idempotence |
 | hardware | 10 | ✅ active | Driven by shared SSH steps |
-| security/image_provenance | 5 | ✅ active | cosign verify steps fully implemented |
+| security/image_provenance | 7 | ✅ active | cosign verify: latest, LTS, DX, nvidia, GTS, DX-nvidia, negative |
 | bazzite | 20 | ✅ active | Extension presence + shell behaviour |
-| dx | 15 | 🔄 expanding | VS Code + CLI tools + brew |
+| dx | 15 | ✅ active | VS Code + CLI tools + brew |
 | flatcar/boot | 7 | ✅ active | systemd, containerd, networking |
 | flatcar/lifecycle | 6 | ⏳ @future | Needs dual-disk VM (Epic E09) |
 | security/selinux | 5 | ⏳ @future | Needs `selinux=0` removed from golden disk (Epic E04) |

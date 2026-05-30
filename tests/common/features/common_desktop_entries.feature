@@ -12,3 +12,29 @@ Feature: Bluefin common desktop entry validation
   Scenario: Bluefin-specific desktop entries are present
     * Run SSH command: "test -f /usr/share/applications/ujust.desktop || test -f /usr/share/applications/org.gnome.Shell.desktop"
     * SSH command return code is "0"
+
+  Scenario: GNOME Files application desktop entry is present
+    * Run SSH command: "test -f /usr/share/applications/org.gnome.Nautilus.desktop"
+    * SSH command return code is "0"
+
+  Scenario: GNOME Settings application desktop entry is present
+    * Run SSH command: "test -f /usr/share/applications/org.gnome.Settings.desktop"
+    * SSH command return code is "0"
+
+  Scenario: HTML MIME type has a default handler registered
+    * Run SSH command: "xdg-mime query default text/html 2>/dev/null || grep -r 'text/html' /usr/share/applications/*.desktop | grep -c 'MimeType' | grep -v '^0$'"
+    * SSH command return code is "0"
+
+  Scenario: PDF MIME type has a default handler registered
+    * Run SSH command: "xdg-mime query default application/pdf 2>/dev/null || grep -rl 'application/pdf' /usr/share/applications/*.desktop | wc -l | grep -v '^0$'"
+    * SSH command return code is "0"
+
+  Scenario: XDG icon theme directories are present
+    * Run SSH command: "test -d /usr/share/icons/hicolor && test -d /usr/share/pixmaps"
+    * SSH command return code is "0"
+
+  Scenario: Installed desktop applications count is reasonable
+    * Run SSH command: "find /usr/share/applications -name '*.desktop' | wc -l"
+    * SSH command output is not empty
+    * Run SSH command: "find /usr/share/applications -name '*.desktop' | wc -l | awk '$1 >= 10 {print \"ok\"}'"
+    * SSH command output "is" "ok"
