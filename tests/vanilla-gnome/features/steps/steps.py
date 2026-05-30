@@ -208,23 +208,22 @@ def _shell_eval(js: str, timeout: int = 10) -> str:
 
 
 def _shell_eval_value(context, js: str, timeout: int = 10) -> str:
-    """Return a Shell.Eval result string via qecore with gdbus fallback."""
-    try:
-        result = context.sandbox.shell.eval_js(js)
-        if isinstance(result, tuple):
-            return str(result[1]).strip().strip("'\"")
-        return str(result).strip().strip("'\"")
-    except Exception:
-        out = _shell_eval(js, timeout=timeout)
-        match = re.search(r",\s*'(.*)'\s*\)\s*$", out.strip(), re.DOTALL)
-        if match:
-            return match.group(1)
-        raise AssertionError(f"Could not parse Shell.Eval value from output: {out}")
+    """Return a Shell.Eval result string via gdbus.
+
+    GNOME 50 may wrap strings in extra double-quotes: (true, '"value"').
+    """
+    out = _shell_eval(js, timeout=timeout)
+    # Parse the gdbus tuple: (true, 'value') or (true, '"value"')
+    match = re.search(r",\s*'\"?(.+?)\"?'\s*\)\s*$", out.strip(), re.DOTALL)
+    if match:
+        return match.group(1)
+    raise AssertionError(f"Could not parse Shell.Eval value from output: {out}")
 
 
 def _eval_bool(js: str) -> bool:
     out = _shell_eval(js)
-    match = re.search(r",\s*'(true|false)'\s*\)", out, re.IGNORECASE)
+    # GNOME 50 may wrap the JS result in extra double-quotes: (true, '"true"')
+    match = re.search(r',\s*\'"?(true|false)"?\'\s*\)', out, re.IGNORECASE)
     if match:
         return match.group(1).lower() == 'true'
     raise AssertionError(f"Could not parse boolean from Shell.Eval output: {out}")
@@ -234,7 +233,7 @@ def _eval_context_bool(context, js: str, timeout: int = 10) -> bool:
     value = _shell_eval_value(context, f"({js}).toString()", timeout=timeout)
     if value.lower() in {'true', 'false'}:
         return value.lower() == 'true'
-    raise AssertionError(f"Could not parse boolean from qecore Shell.Eval output: {value}")
+    raise AssertionError(f"Could not parse boolean from Shell.Eval output: {value}")
 
 
 def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.5) -> bool:

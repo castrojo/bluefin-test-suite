@@ -15,7 +15,7 @@ EXTENSIONS_APP_NAMES = (
     "gnome-extensions-app",
     "gnome-extensions",
 )
-EXTENSIONS_WINDOW_ROLES = {"frame", "dialog"}
+EXTENSIONS_WINDOW_ROLES = {"frame", "dialog", "filler"}
 EXTENSIONS_DESKTOP_FILE = "/usr/share/applications/org.gnome.Extensions.desktop"
 
 

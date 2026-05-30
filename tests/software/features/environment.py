@@ -44,6 +44,7 @@ def before_all(context) -> None:
         context.sandbox = TestSandbox("gnome-software", context=context)
         context.sandbox.attach_faf = False
         context.sandbox.production = False
+        context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
 
         context.software = context.sandbox.get_application(
             name="gnome-software",

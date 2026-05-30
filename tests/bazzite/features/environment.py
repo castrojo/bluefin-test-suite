@@ -86,6 +86,7 @@ def before_all(context) -> None:
         context.sandbox = TestSandbox("gnome-shell", context=context)
         context.sandbox.attach_faf = False
         context.sandbox.production = False
+        context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
         context.shell = context.sandbox.shell
     except Exception as error:
         print(f"Environment error: before_all: {error}", flush=True)

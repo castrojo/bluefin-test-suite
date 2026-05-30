@@ -51,6 +51,7 @@ def _init_sandbox(context):
         context.sandbox = TestSandbox("gnome-shell", context=context)
         context.sandbox.attach_faf = False
         context.sandbox.production = False
+        context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
         context.shell = context.sandbox.shell
         context._sandbox_initialized = True
         configure_screenshot_context(context, SUITE_NAME)

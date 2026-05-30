@@ -48,6 +48,7 @@ def before_all(context) -> None:
         context.sandbox = TestSandbox("ptyxis", context=context)
         context.sandbox.attach_faf = False
         context.sandbox.production = False
+        context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
 
         context.ptyxis = context.sandbox.get_application(
             name="ptyxis",
