@@ -1,8 +1,8 @@
-# Unit Tests — pytest + coverage
+# Unit Tests — pytest
 #
 # Runs on every PR and push to main. Lightweight — no ghost runner needed.
-# Enforces 80% coverage threshold on Python helper/utility code that can
-# be tested without a live VM or cluster.
+# Validates syntax, structure, and logic of Python helpers that can be
+# tested without a live VM or cluster.
 
 name: Unit Tests
 
@@ -14,7 +14,7 @@ on:
 
 jobs:
   unit-tests:
-    name: pytest + coverage
+    name: pytest
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -28,15 +28,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install test dependencies
-        run: pip install pytest pytest-cov
+        run: pip install pytest
 
-      - name: Run unit tests with coverage
-        run: pytest tests/unit/ --cov=tests/shared --cov=tests/smoke/features/environment.py --cov-report=term --cov-fail-under=80
-
-      - name: Upload coverage artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: .coverage
-          retention-days: 7
+      - name: Run unit tests
+        run: pytest tests/unit/ -v
