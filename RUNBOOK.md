@@ -95,6 +95,33 @@ just list-stubs
 
 For lab execution commands (`run-tests`, matrix runs, titan paths, nightly/manual automation), prefer the canonical entrypoints in `testing-lab`.
 
+## Vanilla-GNOME comparison procedure
+
+`tests/vanilla-gnome/` exists as a GNOME upstream baseline for the `tests/smoke/` scenarios. If smoke fails while vanilla-gnome passes, treat that as a likely Bluefin regression. If both suites fail on the same scenario, treat it as a likely upstream GNOME issue until proven otherwise.
+
+Use the comparison helper after a run finishes:
+
+```bash
+# compare the newest run on ghost
+just compare-results
+
+# compare a specific workflow UID
+just compare-results <run-uid>
+```
+
+Interpret the output as follows:
+
+- `⚠ Bluefin regression` → `smoke=failed` and `vanilla-gnome=passed`
+- `↑ Upstream GNOME issue` → `smoke=failed` and `vanilla-gnome=failed`
+- all other rows are informational (for example `passed/passed`, `skipped/skipped`, or other mixed states)
+
+If you need to inspect a specific scenario manually:
+
+1. Run `just results` to find the workflow UID you care about.
+2. Open `/var/tmp/bluefin-results/<workflow-uid>/smoke/results.json` and `/var/tmp/bluefin-results/<workflow-uid>/vanilla-gnome/results.json`.
+3. Find the scenario name in both files and compare the per-scenario `status` values.
+4. Use the suite-specific logs or workflow artifacts for deeper debugging once you know whether the failure reproduces on vanilla GNOME.
+
 ## Update checklist for docs + tests
 
 When changing testsuite behavior:

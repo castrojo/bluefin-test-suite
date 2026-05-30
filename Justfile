@@ -212,7 +212,7 @@ run-vanilla-gnome:
 
 # ── Results ──────────────────────────────────────────────────────────────────
 
-# Targets: results, results-timing, clean-results
+# Targets: results, results-timing, compare-results, clean-results
 # List recent test results stored on ghost (most recent first)
 # Usage: just results            → last 10 runs
 # Usage: just results 20         → last 20 runs
