@@ -15,6 +15,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `bazzite` | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | Homebrew/Ptyxis; DX adds extra tools |
 | `software` | ✅ | — | — | — | — | — | Bazaar/Flatpak; standard variant only |
+| `common` | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
 | `lifecycle` | ✅ | ✅ | ✅ | — | — | — | bootc upgrade/rollback; SSH-mode (ghost only for now) |
 | `security` | ✅ | ✅ | ✅ | — | — | — | cosign + SELinux; SSH-mode (ghost only for now) |
 | `hardware` | ✅ | — | — | — | — | — | Emulated peripherals; SSH-mode (ghost only for now) |
@@ -27,10 +28,10 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
 with:
   image: <your-bootc-image>
-  suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software
+  suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software, common
 ```
-GUI suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`) run on `ubuntu-latest`.  
-SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghost/Argo stack until the SSH-mode action is built (see #43).
+GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`) run on `ubuntu-latest`.
+Remaining SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghost/Argo stack.
 
 ## Scenario tags
 
@@ -46,18 +47,19 @@ SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghost/Argo sta
 
 ## Coverage snapshot
 
-166 scenarios across 20 feature files (last audit: 2026-05-30). Bazzite suite adds 20 scenarios (pending PR).
+199 scenarios across 26 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
-| smoke | 68 | ✅ active | dogtail 4.16 API correct throughout |
+| smoke | 69 | ✅ active | dogtail 4.16 API correct throughout |
 | developer | 16 | ✅ active | brew, podman, ptyxis covered |
 | software | 10 | ✅ active | Bazaar/gnome-software + Flathub |
+| common | 13 | ✅ active | Bluefin common layer: dconf, scripts, desktop entries, shell |
 | vanilla-gnome | 12 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 7 | ✅ active | bootc upgrade / rollback / switch / /etc merge |
+| lifecycle | 9 | ✅ active | bootc upgrade / rollback / switch / /etc merge |
 | hardware | 10 | ✅ active | Driven by shared SSH steps |
 | security/image_provenance | 5 | ✅ active | cosign verify steps fully implemented |
-| bazzite | 20 | 🔄 new | Extension presence + shell behaviour; epic #42 |
+| bazzite | 20 | ✅ active | Extension presence + shell behaviour |
 | dx | 9 | 🔄 expanding | VS Code + CLI tools + brew |
 | flatcar/boot | 7 | ✅ active | systemd, containerd, networking |
 | flatcar/lifecycle | 6 | ⏳ @future | Needs dual-disk VM (Epic E09) |
@@ -82,8 +84,8 @@ grep -r "@future" tests/*/features/*.feature
 
 Activate a `@future` scenario when all three conditions are met:
 1. VM spec supports the required hardware/feature
-2. Argo template wires the suite
-3. Step implementations are complete
+2. Step implementations are complete
+3. Suite runs cleanly via the GHA action (or Argo for SSH-mode suites)
 
 When activating: remove `@future`, update this file's coverage snapshot, update `QA-REVIEW.md`.
 

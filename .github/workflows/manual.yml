@@ -1,7 +1,9 @@
-# Manual test trigger — run any suite against any image from the Actions UI.
+# Manual test trigger — run supported suites against any bootc image from the
+# Actions UI. No self-hosted runners required.
 #
-# Prerequisites: same as nightly.yml (self-hosted runner on ghost).
-# Usage: Actions → "Run Workflow" → fill in parameters.
+# Supported suites: smoke, developer, dx, software, vanilla-gnome, bazzite, common
+# Remaining SSH-mode suites (lifecycle, security, hardware) stay on the
+# ghost/Argo stack until the broader SSH-mode action work lands.
 
 name: Manual Test Run
 
@@ -9,51 +11,17 @@ on:
   workflow_dispatch:
     inputs:
       image:
-        description: "Full image reference (e.g. ghcr.io/ublue-os/bluefin:latest)"
+        description: "Full OCI image reference (e.g. ghcr.io/ublue-os/bluefin:latest)"
         required: true
         default: "ghcr.io/ublue-os/bluefin:latest"
-      image_tag:
-        description: "Short tag used for golden disk path (e.g. latest, lts, dx-latest)"
-        required: true
-        default: "latest"
-      suite:
-        description: "Test suite to run (smoke | developer | lifecycle | security | dx | hardware | vanilla-gnome)"
+      suites:
+        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common"
         required: true
         default: "smoke"
-      runner_type:
-        description: "Runner type (qecore | plain-ssh)"
-        required: false
-        default: "qecore"
 
 jobs:
-  submit:
-    name: Submit ${{ github.event.inputs.suite }} → ${{ github.event.inputs.image_tag }}
-    runs-on: [self-hosted, ghost]
-    timeout-minutes: 90
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Submit Argo workflow
-        env:
-          BLUEFIN_TEST_PUBKEY: ${{ secrets.BLUEFIN_TEST_PUBKEY }}
-        run: |
-          argo submit argo/bluefin-smoke-test.yaml \
-            -p image="${{ github.event.inputs.image }}" \
-            -p image-tag="${{ github.event.inputs.image_tag }}" \
-            -p suite="${{ github.event.inputs.suite }}" \
-            -p runner-type="${{ github.event.inputs.runner_type }}" \
-            -p ssh-pubkey="${BLUEFIN_TEST_PUBKEY}" \
-            -p pr-title="manual:${{ github.actor }}" \
-            -p pr-number="" \
-            -n argo \
-            --wait \
-            --log
-
-      - name: Show results location
-        run: |
-          echo "Results persisted on ghost at:"
-          echo "  /var/tmp/bluefin-results/<workflow-uid>/${{ github.event.inputs.suite }}/"
-          echo ""
-          echo "To browse: ssh ghost 'ls -lt /var/tmp/bluefin-results/ | head -5'"
+  test:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ${{ github.event.inputs.image }}
+      suites: ${{ github.event.inputs.suites }}

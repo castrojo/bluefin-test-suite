@@ -2,13 +2,14 @@
 #
 # Called by consumer repos (e.g. projectbluefin/dakota) to gate PRs.
 # Boots a bootc OCI image in a KVM-accelerated QEMU VM, starts a GNOME
-# session, and runs behave tests via qecore-headless.
+# session, and runs behave tests via qecore-headless or runner-side SSH.
 #
 # No self-hosted runners. No homelab. Pure GHA ubuntu-latest.
 #
 # Inputs:
 #   image  — OCI image to test (default: ghcr.io/projectbluefin/dakota:latest)
 #   suites — comma-separated suite names (default: smoke)
+#            common runs in SSH mode on the runner; GUI suites use qecore.
 
 name: E2E — GNOME in QEMU
 
@@ -20,7 +21,7 @@ on:
         type: string
         default: "ghcr.io/projectbluefin/dakota:latest"
       suites:
-        description: "Comma-separated suites: smoke,developer,dx,software"
+        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common"
         type: string
         default: "smoke"
 
@@ -289,7 +290,7 @@ jobs:
           echo "=== VM serial console output ==="
           cat "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
 
-      # GDM autologin is pre-baked — just wait for the Wayland socket
+      # GDM autologin is pre-baked — common also needs a live user session for gsettings.
       - name: Wait for GNOME session
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
@@ -307,6 +308,7 @@ jobs:
           exit 1
 
       - name: Install Python test stack
+        if: ${{ env.SUITE != 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
@@ -330,29 +332,43 @@ jobs:
             cat /tmp/session.env
           "
 
-      - name: Copy testsuite and run behave via qecore-headless
+      - name: Run behave suite
         id: run
         run: |
-          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
-          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
-          SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlPath=/tmp/ssh-ctrl-%C -P 2222 -r"
           mkdir -p results
-
-          $SSH "mkdir -p /tmp/bluefin-tests /tmp/results"
-          $SCP "tests/${SUITE}" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/"
-          [[ -d "tests/shared" ]] && \
-            $SCP "tests/shared" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/" || true
-
           BEHAVE_RC=0
-          $SSH "
-            set -e
-            source /tmp/session.env
-            export PATH=\$HOME/.local/bin:\$PATH
-            BEHAVE_BIN=\$(which behave)
-            \$HOME/.local/bin/qecore-headless \"\$BEHAVE_BIN /tmp/bluefin-tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --format pretty --outfile /tmp/results/results.txt --no-capture\"
-          " || BEHAVE_RC=$?
 
-          $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
+          if [[ "${SUITE}" == "common" ]]; then
+            python3 -m pip install -q --user behave
+            PYTHONPATH="$(pwd)" \
+            VM_IP=127.0.0.1 \
+            VM_USER=bluefin-test \
+            SSH_KEY=/tmp/vm_key \
+            python3 -m behave tests/${SUITE}/features/ \
+              --format json.pretty --outfile results/results.json \
+              --format pretty --outfile results/results.txt \
+              --no-capture || BEHAVE_RC=$?
+          else
+            SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+            SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+            SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlPath=/tmp/ssh-ctrl-%C -P 2222 -r"
+
+            $SSH "mkdir -p /tmp/bluefin-tests /tmp/results"
+            $SCP "tests/${SUITE}" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/"
+            [[ -d "tests/shared" ]] && \
+              $SCP "tests/shared" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/" || true
+
+            $SSH "
+              set -e
+              source /tmp/session.env
+              export PATH=\$HOME/.local/bin:\$PATH
+              BEHAVE_BIN=\$(which behave)
+              \$HOME/.local/bin/qecore-headless \"\$BEHAVE_BIN /tmp/bluefin-tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --format pretty --outfile /tmp/results/results.txt --no-capture\"
+            " || BEHAVE_RC=$?
+
+            $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
+          fi
+
           echo "behave_rc=${BEHAVE_RC}" >> "$GITHUB_OUTPUT"
 
       - name: Write job summary

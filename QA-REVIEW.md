@@ -2,9 +2,8 @@
 
 > Last updated: 2026-05-30
 
-Coverage snapshot and known gaps live in `docs/skills/suite-map.md` (single source of truth).
-
-Current coverage snapshot: 166 scenarios across 20 feature files; `vanilla-gnome` now covers 12 scenarios.
+Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
+Current audit: 199 scenarios across 26 feature files (last audit: 2026-05-30).
 
 ## What this repo is responsible for
 

@@ -5,6 +5,7 @@ Import with: from tests.shared.ssh_steps import *
 Or register with behave via environment.py importing this module.
 """
 
+import shlex
 import subprocess
 from time import sleep
 
@@ -13,6 +14,10 @@ from behave import step
 
 def run_ssh(context, cmd, timeout=60):
     """Run a command over SSH and store stdout/return code on context."""
+    prefix = getattr(context, "ssh_command_prefix", "")
+    final_cmd = cmd
+    if prefix:
+        final_cmd = f"bash -lc {shlex.quote(f'{prefix}; {cmd}')}"
     ssh_opts = [
         "ssh",
         "-i",
@@ -26,11 +31,12 @@ def run_ssh(context, cmd, timeout=60):
         "-o",
         "LogLevel=ERROR",
         f"{context.ssh_user}@{context.vm_ip}",
-        cmd,
+        final_cmd,
     ]
     result = subprocess.run(ssh_opts, capture_output=True, text=True, timeout=timeout)
     stdout = result.stdout.strip()
     context.command_stdout = stdout
+    context.last_command_output = stdout
     context.ssh_rc = result.returncode
     context.last_ssh_result = result
     return stdout, result.returncode
