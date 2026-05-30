@@ -102,6 +102,46 @@ Feature: bootc upgrade and rollback lifecycle
     * SSH command return code is "0"
     * ostree status shows two deployments
 
+  @lifecycle @upgrade @version
+  Scenario: os-release version changes are tracked after upgrade
+    * Capture current os-release VERSION_ID via SSH
+    * Run SSH command: "sudo bootc upgrade"
+    * SSH command return code is "0"
+    * bootc upgrade output indicates image was staged
+    * Run SSH command: "bootc status --format=json"
+    * Capture staged image digest as upgrade target
+    * Reboot VM and wait for SSH
+    * Capture current os-release VERSION_ID via SSH
+    * os-release VERSION_ID is tracked across upgrade
+    * Run SSH command: "bootc status --format=json"
+    * Active deployment matches upgrade target digest
+    * bootc status image reference starts with "ghcr.io/ublue-os/"
+
+  @lifecycle @status @version
+  Scenario: bootc status shows image reference format is valid
+    * Run SSH command: "bootc status --format=json"
+    * SSH command return code is "0"
+    * bootc status image reference starts with "ghcr.io/ublue-os/"
+    * bootc status image digest is a valid sha256
+    * Capture current os-release VERSION_ID via SSH
+    * Captured VERSION_ID is a valid Fedora version number
+
+  @lifecycle @status @version
+  Scenario: Bluefin version is tracked in os-release
+    * Run SSH command: "cat /etc/os-release"
+    * SSH command return code is "0"
+    * os-release reports Fedora Bluefin identity
+
+  @lifecycle @upgrade @idempotent
+  Scenario: bootc upgrade is idempotent when already at latest
+    * Run SSH command: "sudo bootc upgrade"
+    * SSH command return code is "0"
+    * If bootc upgrade output indicates image was staged, reboot VM and wait for SSH
+    * Run SSH command: "sudo bootc upgrade"
+    * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * No staged deployment is present in bootc status
+
   @lifecycle @autoupdate
   Scenario: Auto-update timer is present and not masked
     * Bluefin VM is booted and reachable over SSH

@@ -25,6 +25,8 @@ def before_all(context):
     context.ssh_key = os.environ.get("SSH_KEY", "/etc/ssh/test-key/id_ed25519")
     context.expected_upgrade_digest = None
     context.original_digest = None
+    context.initial_version_id = None
+    context.current_version_id = None
 
 
 def before_scenario(context, scenario):
@@ -32,6 +34,10 @@ def before_scenario(context, scenario):
     context.command_stdout = ""
     context.ssh_rc = None
     context.last_ssh_result = None
+    context.expected_upgrade_digest = None
+    context.original_digest = None
+    context.initial_version_id = None
+    context.current_version_id = None
     record_start(context)
 
 
