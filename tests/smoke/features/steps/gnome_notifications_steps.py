@@ -89,6 +89,9 @@ def notification_banner_no_longer_showing(context) -> None:
     raise AssertionError(
         f"Notification banner still showing after 4s — Shell.Eval returned: {last_out!r}"
     )
+
+
+@step("No gnome-shell notification journal errors are present")
 def no_gnome_shell_notification_journal_errors(context) -> None:
     output, returncode, stderr = _run("journalctl --no-pager -b -p err..emerg --lines=200")
     assert returncode == 0, f"journalctl failed: {stderr or output}"
