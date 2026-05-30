@@ -41,5 +41,4 @@ Feature: Firefox smoke tests
 
   @firefox @regression @bluefin
   Scenario: No Firefox coredump after session start
-    * Run and save command output: "sh -c 'coredumpctl list firefox --no-pager --lines=10 2>/dev/null | grep -c firefox; true'"
-    * Last command output stripped "is" "0"
+    * No coredump entries exist for "firefox"

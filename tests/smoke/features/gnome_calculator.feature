@@ -85,5 +85,4 @@ Feature: GNOME Calculator smoke tests
 
   @calculator @coredump @regression @bluefin
   Scenario: No gnome-calculator coredump after session start
-    * Run and save command output: "sh -c 'coredumpctl list gnome-calculator --no-pager --lines=10 2>/dev/null | grep -c gnome-calculator; true'"
-    * Last command output stripped "is" "0"
+    * No coredump entries exist for "gnome-calculator"

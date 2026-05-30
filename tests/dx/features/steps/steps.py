@@ -79,3 +79,25 @@ def output_contains(context, text):
     """Assert last command output contains the given text."""
     actual = getattr(context, 'command_stdout', '') or ''
     assert text in actual, f"Output does not contain '{text}': {actual}"
+
+
+@step('DX distrobox "{name}" can be created from "{image}"')
+def dx_distrobox_can_be_created(context, name: str, image: str) -> None:
+    cleanup_out, cleanup_rc = _ssh(
+        context,
+        f"distrobox rm --force {name}",
+        timeout=60,
+    )
+    if cleanup_rc not in (0, 1) and 'No such container' not in cleanup_out:
+        raise AssertionError(f'Unexpected distrobox cleanup failure: {cleanup_out}')
+
+    create_out, create_rc = _ssh(
+        context,
+        f"distrobox create --name {name} --image {image} --yes",
+        timeout=300,
+    )
+    assert create_rc == 0, f'distrobox create failed:\n{create_out}'
+
+    list_out, list_rc = _ssh(context, 'distrobox list --no-color', timeout=60)
+    assert list_rc == 0, f'distrobox list failed:\n{list_out}'
+    assert name in list_out, f'distrobox {name!r} not found after create:\n{list_out}'

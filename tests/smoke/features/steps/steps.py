@@ -243,6 +243,41 @@ def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.
     return False
 
 
+@step('No coredump entries exist for "{name}"')
+def no_coredump_entries_exist(context, name: str) -> None:
+    result = subprocess.run(
+        ["coredumpctl", "list", name, "--no-pager", "--lines=10"],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    if result.returncode not in (0, 1):
+        raise AssertionError(
+            f"coredumpctl list failed for {name}: rc={result.returncode}\n"
+            f"stdout: {result.stdout}\n"
+            f"stderr: {result.stderr}"
+        )
+    matches = [line for line in result.stdout.splitlines() if name in line]
+    assert not matches, f"Unexpected coredump entries for {name}: {matches}"
+
+
+@step('No journal entries at priority "{priority}" contain "{text}"')
+def no_journal_entries_at_priority_contain(context, priority: str, text: str) -> None:
+    result = subprocess.run(
+        ["journalctl", "--no-pager", "-b", "-p", priority, "--lines=50"],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode == 0, (
+        f"journalctl failed for priority {priority}: rc={result.returncode}\n"
+        f"stdout: {result.stdout}\n"
+        f"stderr: {result.stderr}"
+    )
+    matches = [line for line in result.stdout.splitlines() if text in line]
+    assert not matches, f"Unexpected journal matches for {text!r}: {matches}"
+
+
 @step('Open Activities overview via Shell.Eval')
 def open_overview_eval(context) -> None:
     _shell_eval('Main.overview.show()')
@@ -395,9 +430,33 @@ def unlock_screen_via_shell_eval(context) -> None:
         ],
         capture_output=True, text=True, timeout=10,
     )
-    print(
-        f"unlock result: rc={result.returncode}, stderr={result.stderr.strip()}",
-        flush=True,
+    assert result.returncode == 0, (
+        f"gdbus ScreenSaver.SetActive(false) failed: {result.stderr.strip()}"
+    )
+
+    import os
+
+    session_id = os.environ.get("XDG_SESSION_ID", "")
+    if not session_id:
+        session_result = subprocess.run(
+            ["loginctl", "list-sessions", "--no-legend"],
+            capture_output=True, text=True, timeout=10,
+        )
+        lines = [line.strip() for line in session_result.stdout.splitlines() if line.strip()]
+        assert lines, "No active loginctl sessions found while unlocking"
+        session_id = lines[0].split()[0]
+
+    for _ in range(10):
+        locked_hint = subprocess.run(
+            ["loginctl", "show-session", session_id, "--property=LockedHint"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if "LockedHint=no" in locked_hint.stdout:
+            return
+        sleep(1)
+
+    raise AssertionError(
+        f"Session {session_id} is still locked after unlock attempt: {locked_hint.stdout.strip()}"
     )
 
 

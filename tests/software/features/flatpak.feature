@@ -34,15 +34,13 @@ Feature: gnome-software (Bazaar) smoke tests
   @software @regression @bluefin_4062
   Scenario: Flatpak updates section is reachable without crash (bluefin#4062)
     * Left click "Installed" "toggle button" in "software"
-    * Run and save command output: "journalctl -b --no-pager -g 'gnome-software.*segfault\|gnome-software.*abort' | grep -c ."
-    * Last command output "is" "0"
+    * No journal entries match "gnome-software.*segfault|gnome-software.*abort"
 
   @software @regression @bluefin_4471
   Scenario: No gnome-software coredump on Explore page load (bluefin#4471)
     * Left click "Explore" "toggle button" in "software"
     * Wait 2 seconds before action
-    * Run and save command output: "coredumpctl list gnome-software --no-pager 2>&1 | grep -c 'gnome-software'"
-    * Last command output "is" "0"
+    * No coredump entries exist for "gnome-software"
 
   @software @close
   Scenario: Bazaar closes cleanly via shortcut
@@ -55,8 +53,7 @@ Feature: gnome-software (Bazaar) smoke tests
 
   @software @flatpak_cli
   Scenario: Flathub remote is configured and reachable
-    * Run and save command output: "flatpak remote-list --columns=name | grep -c flathub"
-    * Last command output "is" "1"
+    * Flatpak remote "flathub" is configured
 
   @software @flatpak_cli @nightly
   Scenario: flatpak install and uninstall round-trip succeeds
@@ -64,9 +61,7 @@ Feature: gnome-software (Bazaar) smoke tests
     # Marked @nightly to avoid slow network I/O on every PR run.
     * Run and save command output: "flatpak install --noninteractive flathub org.gnome.Apostrophe 2>&1; echo rc:$?"
     * Last command output stripped "is" "rc:0"
-    * Run and save command output: "flatpak list --app --columns=application | grep -c org.gnome.Apostrophe"
-    * Last command output "is" "1"
+    * Flatpak app "org.gnome.Apostrophe" is installed
     * Run and save command output: "flatpak uninstall --noninteractive org.gnome.Apostrophe 2>&1; echo rc:$?"
     * Last command output stripped "is" "rc:0"
-    * Run and save command output: "flatpak list --app --columns=application | grep -c org.gnome.Apostrophe"
-    * Last command output "is" "0"
+    * Flatpak app "org.gnome.Apostrophe" is not installed

@@ -33,8 +33,7 @@ Feature: Ptyxis terminal smoke tests
 
   @ptyxis @regression @bluefin_4620
   Scenario: No Vulkan validation spam on terminal open (bluefin#4620)
-    * Run and save command output: "journalctl -b --no-pager -g 'VUID-' | grep -c 'VUID-'"
-    * Last command output "is" "0"
+    * No journal entries match "VUID-"
 
   @ptyxis @new_tab
   Scenario: New tab opens via keyboard shortcut

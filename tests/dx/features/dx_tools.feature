@@ -31,10 +31,9 @@ Feature: Bluefin DX variant smoke tests
     * Run DX SSH command: "distrobox --version"
     * SSH command return code is "0"
 
-  @dx @distrobox @plain_ssh
+  @dx @distrobox @plain_ssh @nightly
   Scenario: distrobox enter works with default container
-    * Run DX SSH command: "distrobox create --name test-dx --image fedora:latest --yes 2>&1 | tail -1"
-    * SSH command return code is "0"
+    * DX distrobox "test-dx" can be created from "fedora:latest"
 
   @dx @toolbox @plain_ssh
   Scenario: toolbox is available as alternative to distrobox
@@ -43,7 +42,8 @@ Feature: Bluefin DX variant smoke tests
 
   @dx @podman_compose @plain_ssh
   Scenario: podman-compose is available for container orchestration
-    * Run DX SSH command: "podman-compose --version 2>&1 | head -1"
+    * Run DX SSH command: "podman-compose --version"
+    * SSH command return code is "0"
     * Last command output contains "podman-compose"
 
   @dx @jupyter @plain_ssh

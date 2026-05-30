@@ -19,14 +19,11 @@ Feature: Emulated hardware peripheral validation
 
   @hardware @audio
   Scenario: Audio output sink is detected
-    * Run SSH command: "pactl list sinks short 2>/dev/null | grep -v 'auto_null\|dummy' | grep -c '.' || echo 0"
-    * SSH command output is not "0"
+    * Audio output sink is detected
 
   @hardware @audio
   Scenario: PipeWire reports no errors on startup
-    * Run SSH command: "systemctl --user is-active pipewire.service 2>/dev/null && journalctl --user -u pipewire -b --no-pager -p err 2>/dev/null | grep -c pipewire || echo service-not-active"
-    * SSH command output does not contain "service-not-active"
-    * SSH command output stripped "is" "0"
+    * PipeWire reports no startup errors
 
   # ── TPM 2.0 ────────────────────────────────────────────────────────────────
 

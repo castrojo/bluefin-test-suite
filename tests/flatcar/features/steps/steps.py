@@ -17,11 +17,15 @@ from tests.shared.ssh_steps import run_ssh, ssh_output_is, ssh_return_code_is  #
 
 @step("Flatcar VM is reachable over SSH")
 def flatcar_vm_is_reachable(context) -> None:
-    stdout, returncode = run_ssh(context, "echo ok", timeout=20)
-    stderr = getattr(getattr(context, "last_ssh_result", None), "stderr", "")
-    assert returncode == 0 and stdout == "ok", (
-        f"Cannot reach Flatcar VM at {context.vm_ip}: {stderr}"
-    )
+    last_error = ''
+    for _ in range(6):
+        stdout, returncode = run_ssh(context, "echo ok", timeout=20)
+        stderr = getattr(getattr(context, "last_ssh_result", None), "stderr", "")
+        if returncode == 0 and stdout == "ok":
+            return
+        last_error = stderr or stdout
+        time.sleep(5)
+    raise AssertionError(f"Cannot reach Flatcar VM at {context.vm_ip}: {last_error}")
 
 
 @step("Install Flatcar to target disk via knuckle")

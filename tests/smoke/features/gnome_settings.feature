@@ -68,5 +68,4 @@ Feature: GNOME Settings smoke tests
 
   @regression @bluefin
   Scenario: No gnome-control-center coredump after session start
-    * Run and save command output: "sh -c 'coredumpctl list gnome-control-center --no-pager --lines=10 2>/dev/null | grep -c gnome-control-center; true'"
-    * Last command output stripped "is" "0"
+    * No coredump entries exist for "gnome-control-center"

@@ -57,5 +57,4 @@ Feature: Vanilla GNOME baseline smoke tests
 
   @gnome_core
   Scenario: No gnome-shell coredump after session start
-    * Run and save command output: "sh -c 'coredumpctl list gnome-shell --no-pager --lines=10 2>/dev/null | grep -c gnome-shell; true'"
-    * Last command output stripped "is" "0"
+    * No coredump entries exist for "gnome-shell"

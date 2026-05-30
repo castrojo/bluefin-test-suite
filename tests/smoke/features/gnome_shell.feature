@@ -119,10 +119,8 @@ Feature: GNOME Shell smoke tests
   @regression @bluefin_4612
   Scenario: GNOME Shell extensions do not crash shell on load (bluefin#4612)
     * GNOME Shell is accessible via AT-SPI
-    * Run and save command output: "sh -c 'journalctl --no-pager -b -p err..emerg --lines=50 2>/dev/null | grep -c gnome-shell; true'"
-    * Last command output stripped "is" "0"
+    * No journal entries at priority "err..emerg" contain "gnome-shell"
 
   @regression @bluefin_4642
   Scenario: No gnome-shell coredump after session start (bluefin#4642)
-    * Run and save command output: "sh -c 'coredumpctl list gnome-shell --no-pager --lines=10 2>/dev/null | grep -c gnome-shell; true'"
-    * Last command output stripped "is" "0"
+    * No coredump entries exist for "gnome-shell"

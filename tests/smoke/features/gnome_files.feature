@@ -45,5 +45,4 @@ Feature: GNOME Files smoke tests
 
   @regression @bluefin
   Scenario: No Nautilus coredump after session start
-    * Run and save command output: "sh -c 'coredumpctl list nautilus --no-pager --lines=10 2>/dev/null | grep -c nautilus; true'"
-    * Last command output stripped "is" "0"
+    * No coredump entries exist for "nautilus"

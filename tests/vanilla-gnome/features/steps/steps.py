@@ -190,7 +190,7 @@ def last_command_output_stripped_is(context, expected) -> None:
 
 # ── Shell.Eval helpers (GNOME 50: uinput Super + AT-SPI toggle click broken) ──
 
-def _shell_eval(js: str) -> str:
+def _shell_eval(js: str, timeout: int = 10) -> str:
     """Run JS in GNOME Shell and return stdout. Requires unsafe_mode=true."""
     import subprocess
     r = subprocess.run(
@@ -199,16 +199,60 @@ def _shell_eval(js: str) -> str:
          '--object-path', '/org/gnome/Shell',
          '--method', 'org.gnome.Shell.Eval',
          js],
-        capture_output=True, text=True, timeout=5,
+        capture_output=True, text=True, timeout=timeout,
     )
+    assert r.returncode == 0, f"Shell.Eval failed: {r.stderr.strip()}"
     print(f"Shell.Eval({js!r}) → {r.stdout.strip()}", flush=True)
     return r.stdout
 
 
+def _eval_bool(js: str) -> bool:
+    import re
+
+    out = _shell_eval(js)
+    match = re.search(r",\s*'(true|false)'\s*\)", out, re.IGNORECASE)
+    if match:
+        return match.group(1).lower() == 'true'
+    raise AssertionError(f"Could not parse boolean from Shell.Eval output: {out}")
+
+
+def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.5) -> bool:
+    for _ in range(retries):
+        try:
+            if _eval_bool(js) == expected:
+                return True
+        except AssertionError:
+            pass
+        sleep(delay)
+    return False
+
+
+@step('No coredump entries exist for "{name}"')
+def no_coredump_entries_exist(context, name: str) -> None:
+    import subprocess
+
+    result = subprocess.run(
+        ['coredumpctl', 'list', name, '--no-pager', '--lines=10'],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    if result.returncode not in (0, 1):
+        raise AssertionError(
+            f"coredumpctl list failed for {name}: rc={result.returncode}\n"
+            f"stdout: {result.stdout}\n"
+            f"stderr: {result.stderr}"
+        )
+    matches = [line for line in result.stdout.splitlines() if name in line]
+    assert not matches, f"Unexpected coredump entries for {name}: {matches}"
+
+
 @step('Open Activities overview via Shell.Eval')
 def open_overview_eval(context) -> None:
-    _shell_eval('Main.overview.show()')
-    sleep(1)
+    out = _shell_eval('Main.overview.show(); Main.overview.visible')
+    assert '(true,' in out, f"overview show failed: {out}"
+    ok = _wait_eval_bool('Main.overview.visible', True, retries=8, delay=0.5)
+    assert ok, 'Overview did not become visible after show()'
 
 
 @step('Close Activities overview via Shell.Eval')
@@ -226,8 +270,7 @@ def open_quick_settings_eval(context) -> None:
 
 @step('Quick Settings panel is open via Shell.Eval')
 def quick_settings_open_eval(context) -> None:
-    out = _shell_eval('Main.panel.statusArea.quickSettings.menu.isOpen.toString()')
-    assert 'true' in out.lower(), f"Quick Settings not open — Shell.Eval returned: {out!r}"
+    assert _eval_bool('Main.panel.statusArea.quickSettings.menu.isOpen'), 'Quick Settings menu is not open'
 
 
 @step('Quick Settings panel is closed via Shell.Eval')
@@ -262,8 +305,7 @@ def close_date_menu_eval(context) -> None:
 
 @step('Date menu panel is open via Shell.Eval')
 def date_menu_open_eval(context) -> None:
-    out = _shell_eval('Main.panel.statusArea.dateMenu.menu.isOpen.toString()')
-    assert 'true' in out.lower(), f"Date menu not open — Shell.Eval returned: {out!r}"
+    assert _eval_bool('Main.panel.statusArea.dateMenu.menu.isOpen'), 'Date menu is not open'
 
 
 @step('Date menu panel is closed via Shell.Eval')
@@ -281,8 +323,16 @@ def set_overview_search_eval(context, text) -> None:
     """Populate overview search bar via GNOME Shell JS.
     uinput typing is broken on these VMs — use Shell.Eval instead.
     """
-    js = f'Main.overview.searchEntry.set_text("{text}"); Main.overview._onSearchChanged();'
-    _shell_eval(js)
+    js = (
+        "Main.overview.show();"
+        "const entry = Main.overview.searchEntry || Main.overview._overview.controls._searchController._searchEntry;"
+        f"entry.get_clutter_text().set_text({text!r});"
+        "entry.get_clutter_text().set_cursor_position(-1);"
+        "entry.get_clutter_text().queue_redraw();"
+        "true"
+    )
+    out = _shell_eval(js, timeout=15)
+    assert '(true,' in out, f"Failed to set overview search text via Shell.Eval: {out}"
     sleep(0.5)
 
 
