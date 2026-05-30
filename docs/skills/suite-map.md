@@ -2,6 +2,8 @@
 
 Load when: deciding which suite to add a test to, checking existing coverage, or reviewing @future gaps.
 
+> Coverage snapshot here and in `QA-REVIEW.md` are co-authoritative — update both when scenario counts or gap status change.
+
 ## Variant matrix
 
 Which suites run on which Bluefin variant:

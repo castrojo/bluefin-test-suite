@@ -1,6 +1,6 @@
 # bootc Lifecycle Testing
 
-Canonical reference: **`docs/bootc-lifecycle.md`**
+**This file contains no guidance.** Load `docs/bootc-lifecycle.md` now.
 
-Load `docs/bootc-lifecycle.md` directly. It covers the bootc status JSON schema (v1alpha1), lifecycle capture pattern (digest timing), ostree admin status parsing, and pin/unpin step definitions.
+It covers: bootc status JSON schema (v1alpha1), lifecycle capture pattern (digest timing), ostree admin status parsing, pin/unpin step definitions.
 

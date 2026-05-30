@@ -43,40 +43,52 @@ feat/smoke/add-calendar-scenario
 
 ## Pre-PR validation checklist
 
-Run these before opening a PR (mirrors what `.github/workflows/pr-validate.yml` checks):
+### CI checks (`.github/workflows/pr-validate.yml` — must pass)
 
 ```bash
-# 1. Ruff lint (all test Python)
+# Ruff lint
 ruff check tests/ --select E,F,W --ignore E501
 
-# 2. Python syntax check (all test Python)
+# Python syntax
 python3 -m py_compile $(find tests/ -name '*.py' | tr '\n' ' ')
 
-# 3. Argo YAML lint
+# YAML lint (relaxed mode)
+yamllint -d relaxed argo/
+
+# YAML parse check
+for f in argo/*.yaml; do python3 -c "import yaml; yaml.safe_load(open('$f'))"; done
+```
+
+### Recommended local checks (not in CI but catch common mistakes)
+
+```bash
+# Argo workflow lint
 just lint
 
-# 4. Duplicate step check (replace <suite> with the suite you touched)
+# Duplicate step patterns (replace <suite> with the suite you touched)
 grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d
 
-# 5. @future inventory (verify you didn't accidentally add/remove @future tags)
+# @future inventory (verify no accidental tag changes)
 just list-stubs
 ```
 
-All of these must pass cleanly before pushing.
+All CI checks must pass cleanly before pushing. Local checks should also be clean.
 
 ## What to update in the PR
 
 | Change | Files to update |
 |---|---|
 | New scenario in any suite | Feature file + steps file |
-| Scenario count changes | `QA-REVIEW.md` coverage table |
-| New step pattern discovered | `docs/skills/behave.md` |
-| New dogtail / GNOME anti-pattern | `docs/skills/gnome.md` |
-| New bootc JSON path or gotcha | `docs/skills/bootc.md` |
+| Scenario count changes | `QA-REVIEW.md` coverage table + `docs/skills/suite-map.md` coverage snapshot |
+| New suite or variant-matrix change | `docs/skills/suite-map.md` variant matrix + `RUNBOOK.md` suite layout table |
+| New step pattern discovered | `docs/behave-patterns.md` |
+| New dogtail / GNOME anti-pattern | `docs/gnome-testing.md` |
+| New bootc JSON path or gotcha | `docs/bootc-lifecycle.md` |
 | Infra gotcha (GDM, Argo, VM) | `docs/skills/ops.md` |
 | New hard rule for all agents | `docs/skills/index.md` (rules section) |
-| @future scenario now implemented | Remove `@future` tag; update `QA-REVIEW.md` status |
-| Coverage gap resolved | Update `QA-REVIEW.md` known gaps table |
+| Behavior or command change | `README.md` and/or `RUNBOOK.md` if agent-facing docs describe the old behavior |
+| @future scenario now implemented | Remove `@future` tag; update `QA-REVIEW.md` + `docs/skills/suite-map.md` status |
+| Coverage gap resolved | Update `QA-REVIEW.md` known gaps + `docs/skills/suite-map.md` known gaps |
 
 ## PR description format
 
@@ -112,4 +124,4 @@ If a skill doc (`docs/skills/*.md`) is wrong or incomplete:
 
 - If you changed `QA-REVIEW.md`, verify the scenario count is still accurate
 - If you resolved a `@future` scenario, confirm `just list-stubs` no longer lists it
-- If you added a new operational gotcha to `docs/skills/ops.md`, check SKILL.md's rules section in `docs/skills/index.md` doesn't already cover it (avoid duplication)
+- If you added a new operational gotcha to `docs/skills/ops.md`, check `docs/skills/index.md`'s rules section doesn't already cover it (avoid duplication)

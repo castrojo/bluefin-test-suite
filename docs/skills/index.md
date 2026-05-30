@@ -26,9 +26,9 @@ New suites → this repo. New infra (Argo templates, VM specs, manifests) → te
 
 | Task | Load |
 |---|---|
-| Writing behave tests, scaffolding suites, debugging step resolution | `docs/skills/behave.md` |
-| GNOME Shell / AT-SPI / dogtail interactions | `docs/skills/gnome.md` |
-| bootc lifecycle, upgrade, rollback tests | `docs/skills/bootc.md` |
+| Writing behave tests, scaffolding suites, debugging step resolution | `docs/behave-patterns.md` |
+| GNOME Shell / AT-SPI / dogtail interactions | `docs/gnome-testing.md` |
+| bootc lifecycle, upgrade, rollback tests | `docs/bootc-lifecycle.md` |
 | Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |
 | Infra gotchas (GDM autologin, Argo mutex) | `docs/skills/ops.md` |
 | Submitting improvements, PRs, doc updates | `docs/skills/contributing.md` |
