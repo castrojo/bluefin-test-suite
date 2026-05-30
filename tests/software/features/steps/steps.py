@@ -88,6 +88,9 @@ def no_flatpak_user_overrides_exist(context, app_id: str) -> None:
         f"Expected no user overrides for {app_id} after reset, "
         f"but found active override keys: {found}\n{result.stdout}"
     )
+
+
+@step('Last command output contains "{text}"')
 def last_command_output_contains(context, text: str) -> None:
     actual = (
         getattr(context, "command_stdout", None)
