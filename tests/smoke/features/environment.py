@@ -11,8 +11,6 @@ qecore-headless (invoked by the Argo runner) handles:
   - AT-SPI bus bridge
 """
 import os
-import re
-import subprocess
 import sys
 import traceback
 
@@ -28,6 +26,18 @@ except Exception:  # noqa: BLE001
 
     def record_end(context, scenario):
         return None
+
+try:
+    from tests.shared.screenshot import take_screenshot, take_fastfetch_screenshot
+except Exception:  # noqa: BLE001
+    def take_screenshot(label):
+        return None
+
+    def take_fastfetch_screenshot():
+        return None
+
+
+SUITE_NAME = "smoke"
 
 
 OPTIONAL_SCENARIO_TARGETS = {
@@ -47,29 +57,6 @@ OPTIONAL_SCENARIO_TARGETS = {
         ("desktop", "org.gnome.TextEditor.Devel.desktop"),
     ),
 }
-
-
-def _take_screenshot(scenario_name: str) -> None:
-    safe = re.sub(r'[^a-z0-9]+', '_', scenario_name.lower())[:60]
-    path = f'/tmp/results/screenshot_{safe}.png'
-    os.makedirs('/tmp/results', exist_ok=True)
-    try:
-        result = subprocess.run(
-            ['gdbus', 'call', '--session',
-             '--dest', 'org.gnome.Shell.Screenshot',
-             '--object-path', '/org/gnome/Shell/Screenshot',
-             '--method', 'org.gnome.Shell.Screenshot.Screenshot',
-             'true',
-             'true',
-             path],
-            capture_output=True, text=True, timeout=8,
-        )
-        if result.returncode == 0:
-            print(f'Screenshot saved: {path}', flush=True)
-        else:
-            print(f'Screenshot gdbus failed: {result.stderr.strip()}', flush=True)
-    except Exception as exc:
-        print(f'Screenshot error: {exc}', flush=True)
 
 
 def before_all(context) -> None:
@@ -175,8 +162,9 @@ def before_scenario(context, scenario) -> None:
 
 def after_scenario(context, scenario) -> None:
     record_end(context, scenario)
-    if scenario.status.name == 'failed':
-        _take_screenshot(scenario.name)
+    if scenario.status.name in ('passed', 'failed'):
+        label = f"{SUITE_NAME}_{scenario.status.name}_{scenario.name}"
+        take_screenshot(label)
     context.sandbox.after_scenario(context, scenario)
 
 
@@ -198,10 +186,9 @@ def after_step(context, step) -> None:
 
 
 def after_all(context) -> None:
-    """Dump gnome-shell AT-SPI tree to results for node name discovery.
-    Runs after the last scenario while the session is still active enough
-    for the sandbox to have a valid shell handle.
-    """
+    """Take a fastfetch desktop screenshot, then dump gnome-shell AT-SPI tree."""
+    take_fastfetch_screenshot()
+
     try:
         import os
         if os.path.exists("/tmp/results/atspi_tree.txt"):
