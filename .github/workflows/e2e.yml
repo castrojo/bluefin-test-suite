@@ -58,10 +58,16 @@ jobs:
       SUITE: ${{ matrix.suite }}
 
     steps:
-      # Always fetch the latest testsuite so test fixes are picked up immediately
+      # Always fetch the latest testsuite tests so test fixes are picked up
+      # immediately. Explicitly target projectbluefin/testsuite so that caller
+      # repos (e.g. projectbluefin/common, dakota) without their own tests/
+      # directory work correctly — github.repository resolves to the caller
+      # when a reusable workflow is invoked cross-repo.
       - name: Checkout testsuite
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
+          repository: projectbluefin/testsuite
+          ref: main
           sparse-checkout: |
             tests/${{ matrix.suite }}
             tests/shared
