@@ -166,49 +166,57 @@ jobs:
           KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.mask=tailscaled.service systemd.mask=brew-setup.service quiet"
           echo "KERNEL_ARGS=${KERNEL_ARGS}" >> "$GITHUB_ENV"
 
-          # Enable sshd
-          sudo mkdir -p "${D}/etc/systemd/system/multi-user.target.wants/"
-          sudo ln -sf /usr/lib/systemd/system/sshd.service \
-            "${D}/etc/systemd/system/multi-user.target.wants/sshd.service"
-
-          # Pre-generate SSH host keys so sshd starts without key-gen delay
-          sudo ssh-keygen -A -f "${D}" 2>/dev/null || true
-
-          # Create bluefin-test user (UID 1001)
+          # Apply user + sshd config to ALL deployments in this stateroot.
+          # bootc may deploy with a different checksum than what `ls|head-1`
+          # returns, so we iterate to ensure the booted deployment gets set up.
           BFT_UID=1001
-          if ! sudo grep -q '^bluefin-test:' "${D}/etc/passwd" 2>/dev/null; then
-            printf 'bluefin-test:x:%d:%d:Bluefin Test:/var/home/bluefin-test:/bin/bash\n' \
-              "${BFT_UID}" "${BFT_UID}" | sudo tee -a "${D}/etc/passwd"
-            printf 'bluefin-test:!:19000:0:99999:7:::\n' | sudo tee -a "${D}/etc/shadow"
-            printf 'bluefin-test:x:%d:\n' "${BFT_UID}" | sudo tee -a "${D}/etc/group"
-          fi
+          for DEP in $(sudo find /mnt/root/ostree/deploy/default/deploy \
+              -maxdepth 1 -mindepth 1 -type d 2>/dev/null); do
 
-          # Inject SSH public key
+            # Enable sshd
+            sudo mkdir -p "${DEP}/etc/systemd/system/multi-user.target.wants/"
+            sudo ln -sf /usr/lib/systemd/system/sshd.service \
+              "${DEP}/etc/systemd/system/multi-user.target.wants/sshd.service"
+
+            # Pre-generate SSH host keys so sshd starts without key-gen delay
+            sudo ssh-keygen -A -f "${DEP}" 2>/dev/null || true
+
+            # Create bluefin-test user (UID 1001)
+            if ! sudo grep -q '^bluefin-test:' "${DEP}/etc/passwd" 2>/dev/null; then
+              printf 'bluefin-test:x:%d:%d:Bluefin Test:/var/home/bluefin-test:/bin/bash\n' \
+                "${BFT_UID}" "${BFT_UID}" | sudo tee -a "${DEP}/etc/passwd"
+              # Use '*' (no-password, not locked) so pam_unix account check passes
+              printf 'bluefin-test:*:19000:0:99999:7:::\n' | sudo tee -a "${DEP}/etc/shadow"
+              printf 'bluefin-test:x:%d:\n' "${BFT_UID}" | sudo tee -a "${DEP}/etc/group"
+            fi
+
+            # sshd config: UsePAM no bypasses pam_unix account check for locked/no-pw accounts
+            sudo mkdir -p "${DEP}/etc/ssh/sshd_config.d/"
+            printf 'PermitUserEnvironment yes\nUsePAM no\nPubkeyAuthentication yes\n' | \
+              sudo tee "${DEP}/etc/ssh/sshd_config.d/99-bluefin-test.conf"
+
+            # Passwordless sudo for test operations
+            printf 'bluefin-test ALL=(ALL) NOPASSWD:ALL\n' | \
+              sudo tee "${DEP}/etc/sudoers.d/bluefin-test"
+            sudo chmod 440 "${DEP}/etc/sudoers.d/bluefin-test"
+
+            # Pre-bake GDM autologin
+            sudo mkdir -p "${DEP}/etc/gdm"
+            printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=bluefin-test\n' | \
+              sudo tee "${DEP}/etc/gdm/custom.conf"
+
+            # Mask CI-irrelevant services to shorten first-boot systemd startup
+            for svc in bluetooth cups avahi-daemon ModemManager fwupd colord; do
+              sudo ln -sf /dev/null "${DEP}/etc/systemd/system/${svc}.service" 2>/dev/null || true
+            done
+          done
+
+          # Inject SSH public key (shared var — visible to all deployments)
           sudo mkdir -p "${VAR}/home/bluefin-test/.ssh"
           sudo tee "${VAR}/home/bluefin-test/.ssh/authorized_keys" < /tmp/vm_key.pub
           sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
           sudo chmod 700 "${VAR}/home/bluefin-test/.ssh"
           sudo chmod 600 "${VAR}/home/bluefin-test/.ssh/authorized_keys"
-
-          # Allow env forwarding so AT-SPI bus vars reach the test runner over SSH
-          sudo mkdir -p "${D}/etc/ssh/sshd_config.d/"
-          echo 'PermitUserEnvironment yes' | \
-            sudo tee "${D}/etc/ssh/sshd_config.d/99-bluefin-test.conf"
-
-          # Passwordless sudo for test operations
-          echo 'bluefin-test ALL=(ALL) NOPASSWD:ALL' | \
-            sudo tee "${D}/etc/sudoers.d/bluefin-test"
-          sudo chmod 440 "${D}/etc/sudoers.d/bluefin-test"
-
-          # Pre-bake GDM autologin — no post-boot restart needed
-          sudo mkdir -p "${D}/etc/gdm"
-          printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=bluefin-test\n' | \
-            sudo tee "${D}/etc/gdm/custom.conf"
-
-          # Mask CI-irrelevant services to shorten first-boot systemd startup
-          for svc in bluetooth cups avahi-daemon ModemManager fwupd colord; do
-            sudo ln -sf /dev/null "${D}/etc/systemd/system/${svc}.service" 2>/dev/null || true
-          done
 
           sudo umount /mnt/root
           sudo losetup -d "${LOOP}"
