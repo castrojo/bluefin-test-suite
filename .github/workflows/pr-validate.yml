@@ -41,7 +41,14 @@ jobs:
         # GIR typelib + PyGObject bindings the import silently fails and the
         # module-level call raises NameError, crashing behave --dry-run even
         # though no AT-SPI session is needed for a dry run.
-        run: sudo apt-get install -y --no-install-recommends gir1.2-atspi-2.0
+        # libgirepository1.0-dev + libcairo2-dev are needed to build PyGObject +
+        # pycairo from source on the actions runner.
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            gir1.2-atspi-2.0 \
+            libgirepository1.0-dev \
+            libcairo2-dev \
+            pkg-config
 
       - name: Install linting tools
         run: pip install ruff yamllint behave qecore dogtail PyGObject
