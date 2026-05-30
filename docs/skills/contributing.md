@@ -81,9 +81,9 @@ All CI checks must pass cleanly before pushing. Local checks should also be clea
 | New scenario in any suite | Feature file + steps file |
 | Scenario count changes | `QA-REVIEW.md` coverage table + `docs/skills/suite-map.md` coverage snapshot |
 | New suite or variant-matrix change | `docs/skills/suite-map.md` variant matrix + `RUNBOOK.md` suite layout table |
-| New step pattern discovered | `docs/behave-patterns.md` |
-| New dogtail / GNOME anti-pattern | `docs/gnome-testing.md` |
-| New bootc JSON path or gotcha | `docs/bootc-lifecycle.md` |
+| New step pattern discovered | `docs/skills/behave.md` |
+| New dogtail / GNOME anti-pattern | `docs/skills/gnome.md` |
+| New bootc JSON path or gotcha | `docs/skills/bootc.md` |
 | Infra gotcha (GDM, Argo, VM) | `docs/skills/ops.md` |
 | New hard rule for all agents | `docs/skills/index.md` (rules section) |
 | Behavior or command change | `README.md` and/or `RUNBOOK.md` if agent-facing docs describe the old behavior |
