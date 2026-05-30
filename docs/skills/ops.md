@@ -50,3 +50,37 @@ run_ssh(context, "sudo bootc upgrade", timeout=180)
 ```
 
 Never lower the default below 60s.
+
+## Running behave --dry-run for GNOME suites in CI
+
+**Problem:** GNOME suites (smoke, bazzite, developer, dx, software, vanilla-gnome) import `qecore.sandbox` which loads `gi.repository.Atspi` at module import time. Without a real AT-SPI bus, `libatspi` calls `g_error()` → `SIGTRAP` (core dump). This happens even during `behave --dry-run`.
+
+**Solution:** Use `dbus-run-session` to create a session bus, then start `at-spi-bus-launcher` before running behave. The required Fedora 41 packages:
+
+```yaml
+dnf install -y \
+  python3-gobject \   # PyGObject (gi.repository.*)
+  at-spi2-core \      # Atspi-2.0 typelib + at-spi-bus-launcher
+  dbus-daemon \       # provides dbus-run-session (NOT dbus-tools, NOT dbus)
+  gtk3 \              # Gtk-3.0 typelib
+  gsettings-desktop-schemas  # org.gnome.desktop.interface (isA11yEnabled())
+```
+
+**Pattern (from `.github/workflows/pr-validate.yml`):**
+
+```bash
+cat > /tmp/dry-run.sh << 'DRYEOF'
+/usr/libexec/at-spi-bus-launcher --launch-immediately &
+sleep 1
+# ... behave --dry-run loop ...
+DRYEOF
+chmod +x /tmp/dry-run.sh
+dbus-run-session -- bash /tmp/dry-run.sh
+```
+
+**Key facts:**
+- `dbus-run-session` is in `dbus-daemon` on Fedora 41 (not `dbus-tools` or `dbus`)
+- `at-spi-bus-launcher` is at `/usr/libexec/at-spi-bus-launcher` from `at-spi2-core`
+- `isA11yEnabled()` from dogtail reads `org.gnome.desktop.interface` → needs `gsettings-desktop-schemas`
+- PyGObject from Ubuntu always fights ABI with the GHA toolcache Python → always use Fedora
+- `dogtail` has a `tests/` package in site-packages that shadows local `tests/` → fix with empty `tests/__init__.py` (already in repo)

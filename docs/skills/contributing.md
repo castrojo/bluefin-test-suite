@@ -59,6 +59,15 @@ yamllint -d relaxed argo/
 for f in argo/*.yaml; do python3 -c "import yaml; yaml.safe_load(open('$f'))"; done
 ```
 
+CI also runs `behave --dry-run` across all suites in a Fedora 41 container. This catches undefined step patterns (feature file uses a phrase with no matching `@step` decorator). **If you add a step phrase to a `.feature` file you must implement the `@step` before pushing.**
+
+To replicate locally (requires Fedora or the runner container `ghcr.io/projectbluefin/testsuite:runner`):
+```bash
+for suite in tests/*/features/; do
+  PYTHONPATH=. python3 -m behave "$suite" --dry-run --no-capture
+done
+```
+
 ### Recommended local checks (not in CI but catch common mistakes)
 
 ```bash

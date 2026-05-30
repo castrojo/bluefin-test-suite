@@ -21,6 +21,8 @@ New suites → this repo. New infra (Argo templates, VM specs, manifests) → te
 4. **GNOME Shell 50+ top-bar** — AT-SPI click on clock/system-status is unreliable. Use `Shell.Eval` path. Set `unsafe_mode=true` first.
 5. **Smoke suite is local, not SSH** — smoke runs inside the VM via qecore-headless. Steps use `subprocess.run`, not `context.vm_ip`. Never import `tests.shared.ssh_steps` into smoke environment.
 6. **All new tests must use behave** — legacy pytest was removed 2026-05-28. No new pytest files.
+7. **CI containers: upstream only, never `ubuntu-latest` for test jobs** — use the container the upstream ecosystem targets. qecore/dogtail/GObject stack → `registry.fedoraproject.org/fedora:41`. Pure lint/yaml-only jobs may use `ubuntu-latest`. Never fight PyGObject ABI on Ubuntu.
+8. **Feature files and step files must stay in sync** — every step phrase used in a `.feature` file must have a matching `@step` decorator. Run `behave --dry-run` locally before pushing. The CI dry-run job catches any mismatch.
 
 ## Load on demand
 
