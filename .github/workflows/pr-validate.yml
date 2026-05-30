@@ -1,7 +1,7 @@
 # PR Validation — lint & syntax checks
 #
-# Runs on every PR and push to main.  No ghost runner needed — all checks
-# are lightweight and run on ubuntu-latest.
+# Runs on every PR and push to main.  All checks are lightweight and run
+# on ubuntu-latest.
 #
 # Checks:
 #   1. Python lint      — ruff (import errors, undefined names, style)

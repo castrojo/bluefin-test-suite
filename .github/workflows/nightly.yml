@@ -1,12 +1,10 @@
-# Nightly test matrix — runs supported GitHub Action suites against bluefin:latest
-# and bluefin:lts.
+# Nightly test matrix — runs GUI suites against bluefin:latest and bluefin:lts
 # on standard ubuntu-latest runners via the projectbluefin/testsuite GHA.
 #
 # No self-hosted runners. No Argo. No secrets required.
 #
-# common runs in the GitHub Action; remaining SSH-mode suites (lifecycle,
-# security, hardware) stay on the ghost/Argo stack until broader SSH-mode
-# support lands.
+# SSH-mode suites (lifecycle, security, hardware) are not yet in the GHA
+# action and are tracked in epics #43 and #44.
 
 name: Nightly Test Matrix
 
@@ -20,9 +18,9 @@ on:
         required: false
         default: "both"
       suites:
-        description: "Comma-separated suites (default: smoke,developer,software,vanilla-gnome,common)"
+        description: "Comma-separated suites (default: smoke,developer,software,vanilla-gnome)"
         required: false
-        default: "smoke,developer,software,vanilla-gnome,common"
+        default: "smoke,developer,software,vanilla-gnome"
 
 jobs:
   test-latest:
@@ -30,11 +28,11 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome' }}
 
   test-lts:
     if: ${{ github.event.inputs.image_tag != 'latest' }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome' }}

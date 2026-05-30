@@ -1,9 +1,9 @@
-# Manual test trigger — run supported suites against any bootc image from the
+# Manual test trigger — run any GUI suite against any bootc image from the
 # Actions UI. No self-hosted runners required.
 #
-# Supported suites: smoke, developer, dx, software, vanilla-gnome, bazzite, common
-# Remaining SSH-mode suites (lifecycle, security, hardware) stay on the
-# ghost/Argo stack until the broader SSH-mode action work lands.
+# Supported suites: smoke, developer, dx, software, vanilla-gnome, bazzite
+# SSH-mode suites (lifecycle, security, hardware) are not yet in the GHA
+# action — tracked in epics #43 and #44.
 
 name: Manual Test Run
 
@@ -15,7 +15,7 @@ on:
         required: true
         default: "ghcr.io/ublue-os/bluefin:latest"
       suites:
-        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common"
+        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite"
         required: true
         default: "smoke"
 
