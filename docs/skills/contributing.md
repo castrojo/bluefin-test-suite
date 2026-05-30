@@ -86,6 +86,7 @@ All CI checks must pass cleanly before pushing. Local checks should also be clea
 | New bootc JSON path or gotcha | `docs/skills/bootc.md` |
 | Infra gotcha (GDM, Argo, VM) | `docs/skills/ops.md` |
 | New hard rule for all agents | `docs/skills/index.md` (rules section) |
+| e2e workflow changes (inputs, stages, image requirements) | `docs/skills/e2e-workflow.md` |
 | Behavior or command change | `README.md` and/or `RUNBOOK.md` if agent-facing docs describe the old behavior |
 | @future scenario now implemented | Remove `@future` tag; update `QA-REVIEW.md` + `docs/skills/suite-map.md` status |
 | Coverage gap resolved | Update `QA-REVIEW.md` known gaps + `docs/skills/suite-map.md` known gaps |

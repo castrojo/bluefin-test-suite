@@ -31,6 +31,7 @@ New suites → this repo. New infra (Argo templates, VM specs, manifests) → te
 | bootc lifecycle, upgrade, rollback tests | `docs/skills/bootc.md` |
 | Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |
 | Infra gotchas (GDM autologin, Argo mutex) | `docs/skills/ops.md` |
+| Reusable e2e workflow (calling from another repo, debugging QEMU pipeline) | `docs/skills/e2e-workflow.md` |
 | Submitting improvements, PRs, doc updates | `docs/skills/contributing.md` |
 | Full PR review gate, coverage posture | `QA-REVIEW.md` |
 | Commands, operational guidance | `RUNBOOK.md` |
