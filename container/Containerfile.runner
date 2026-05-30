@@ -36,12 +36,10 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
     && microdnf clean all
 
 # Install Python test stack — pinned so bumps are explicit and reviewed
-RUN python3 -m pip install --no-cache-dir \
-        qecore \
-        behave \
-        dogtail \
-        python-uinput \
-    && python3 -m pip cache purge
+COPY container/requirements-runner.txt /tmp/requirements-runner.txt
+RUN python3 -m pip install --no-cache-dir -r /tmp/requirements-runner.txt \
+    && python3 -m pip cache purge \
+    && rm -f /tmp/requirements-runner.txt
 
 # Symlink qecore helpers onto PATH
 RUN for f in /usr/local/bin/qecore_*; do \

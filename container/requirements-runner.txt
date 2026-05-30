@@ -1,0 +1,5 @@
+# Keep runner dependencies on known-compatible minor tracks.
+qecore>=4.16,<4.17
+behave>=1.2,<1.3
+dogtail>=4.16,<4.17
+python-uinput>=0.11,<0.12
