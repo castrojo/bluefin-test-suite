@@ -385,6 +385,61 @@ jobs:
             cat /tmp/session.env
           "
 
+      - name: Install gnome-ponytail-daemon
+        if: ${{ env.SUITE != 'common' }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+          SCP_OPTS="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o ControlPath=/tmp/ssh-ctrl-%C -P 2222"
+
+          # gnome-ponytail-daemon is not yet baked into the image (PR #618).
+          # Build it without libei on debian:bookworm (glibc 2.36 < VM glibc 2.42).
+          # Without libei the daemon uses the Mutter D-Bus fallback for input events.
+          mkdir -p /tmp/ponytail-build
+          podman run --rm -v /tmp/ponytail-build:/out:Z debian:bookworm bash -c "
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update -qq
+            apt-get install -y -qq build-essential meson ninja-build pkg-config libglib2.0-dev libsystemd-dev git
+            git clone --quiet --depth 1 --branch 0.0.11 https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon.git /src
+            meson setup /src/build /src --prefix=/usr -Dsystemd_user_unit_dir=/usr/lib/systemd/user -Dponytail_python=false 2>&1 | tail -5
+            ninja -C /src/build 2>&1 | tail -5
+            cp /src/build/src/gnome-ponytail-daemon /out/
+          "
+
+          $SSH "mkdir -p \$HOME/.local/libexec"
+          scp ${SCP_OPTS} /tmp/ponytail-build/gnome-ponytail-daemon \
+            bluefin-test@127.0.0.1:/home/bluefin-test/.local/libexec/gnome-ponytail-daemon
+
+          $SSH "
+            set -e
+            chmod +x \$HOME/.local/libexec/gnome-ponytail-daemon
+
+            # Install the pure-Python ponytail module using the runtime Python path
+            PONYTAIL_DIR=\$(python3 -c 'import site; print(site.getusersitepackages())')/ponytail
+            mkdir -p \"\${PONYTAIL_DIR}\"
+            PBASE='https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon/-/raw/0.0.11/ponytail'
+            curl -sL \"\${PBASE}/__init__.py\" -o \"\${PONYTAIL_DIR}/__init__.py\"
+            curl -sL \"\${PBASE}/ponytail.py\"  -o \"\${PONYTAIL_DIR}/ponytail.py\"
+
+            # User D-Bus session service file enables auto-activation
+            mkdir -p \$HOME/.local/share/dbus-1/services
+            printf '[D-BUS Service]\nName=org.gnome.Ponytail\nExec=%s/.local/libexec/gnome-ponytail-daemon\n' \
+              \"\$HOME\" > \$HOME/.local/share/dbus-1/services/org.gnome.Ponytail.service
+
+            # Pre-start the daemon and wait for it to register on the session bus
+            source /tmp/session.env
+            nohup \$HOME/.local/libexec/gnome-ponytail-daemon >/tmp/ponytail-daemon.log 2>&1 &
+            for i in \$(seq 1 15); do
+              dbus-send --session --print-reply \
+                --dest=org.freedesktop.DBus /org/freedesktop/DBus \
+                org.freedesktop.DBus.NameHasOwner string:org.gnome.Ponytail 2>/dev/null \
+                | grep -q 'boolean true' && echo 'gnome-ponytail-daemon registered on DBus' && break
+              sleep 1
+            done
+          "
+
       - name: Run behave suite
         id: run
         run: |
