@@ -50,10 +50,40 @@ Feature: Vanilla GNOME baseline smoke tests
     * Quick Settings panel is open via Shell.Eval
 
   @gnome_core
+  Scenario: Do-not-disturb toggle is accessible via Quick Settings
+    * GNOME Shell is accessible via AT-SPI
+    * Open Quick Settings via Shell.Eval
+    * Quick Settings panel is open via Shell.Eval
+    * Do-not-disturb toggle is present in Quick Settings
+    * Close Quick Settings via Shell.Eval
+
+  @gnome_core
+  Scenario: Night Light toggle is present in Quick Settings
+    * GNOME Shell is accessible via AT-SPI
+    * Open Quick Settings via Shell.Eval
+    * Quick Settings panel is open via Shell.Eval
+    * Night Light toggle is present in Quick Settings
+    * Close Quick Settings via Shell.Eval
+
+  @gnome_core
   Scenario: Clicking clock opens calendar popup
     * GNOME Shell is accessible via AT-SPI
     * Open date menu via Shell.Eval
     * Date menu panel is open via Shell.Eval
+
+  @gnome_core
+  Scenario: Default GNOME apps are installed
+    * GNOME Files application is installed
+    * GNOME Text Editor application is installed
+    * A web browser application is installed
+    * A terminal application is installed
+
+  @gnome_core
+  Scenario: Screenshot tool opens via keyboard shortcut
+    * GNOME Shell is accessible via AT-SPI
+    * Screenshot tool launches via Shell.Eval
+    * Screenshot tool window is accessible via AT-SPI
+    * Close screenshot tool
 
   @gnome_core
   Scenario: No gnome-shell coredump after session start

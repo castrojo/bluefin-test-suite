@@ -35,6 +35,12 @@ with:
   suites: vanilla-gnome
 ```
 
+## Silverblue / Fedora bootc
+
+`vanilla-gnome` is the upstream GNOME baseline for any bootc GNOME image, including
+`quay.io/fedora/fedora-bootc:latest`. Use it to validate Fedora Silverblue-style
+GNOME behaviour without Bluefin customisation, then compare against downstream suites.
+
 ## Prerequisites
 
 - `gnome-ponytail-daemon` must be in the image

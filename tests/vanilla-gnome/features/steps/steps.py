@@ -16,6 +16,8 @@ Instead we use a distinct step name: 'GNOME Shell is accessible via AT-SPI'.
 Step patterns sourced from: modehnal/GNOMETerminalAutomation steps.py
 dogtail API: root.application(), Node.findChild(), Node.child(roleName=)
 """
+import re
+import subprocess
 from time import sleep
 
 from behave import step
@@ -192,8 +194,7 @@ def last_command_output_stripped_is(context, expected) -> None:
 
 def _shell_eval(js: str, timeout: int = 10) -> str:
     """Run JS in GNOME Shell and return stdout. Requires unsafe_mode=true."""
-    import subprocess
-    r = subprocess.run(
+    result = subprocess.run(
         ['gdbus', 'call', '--session',
          '--dest', 'org.gnome.Shell',
          '--object-path', '/org/gnome/Shell',
@@ -201,19 +202,39 @@ def _shell_eval(js: str, timeout: int = 10) -> str:
          js],
         capture_output=True, text=True, timeout=timeout,
     )
-    assert r.returncode == 0, f"Shell.Eval failed: {r.stderr.strip()}"
-    print(f"Shell.Eval({js!r}) → {r.stdout.strip()}", flush=True)
-    return r.stdout
+    assert result.returncode == 0, f"Shell.Eval failed: {result.stderr.strip()}"
+    print(f"Shell.Eval({js!r}) → {result.stdout.strip()}", flush=True)
+    return result.stdout
+
+
+def _shell_eval_value(context, js: str, timeout: int = 10) -> str:
+    """Return a Shell.Eval result string via qecore with gdbus fallback."""
+    try:
+        result = context.sandbox.shell.eval_js(js)
+        if isinstance(result, tuple):
+            return str(result[1]).strip().strip("'\"")
+        return str(result).strip().strip("'\"")
+    except Exception:
+        out = _shell_eval(js, timeout=timeout)
+        match = re.search(r",\s*'(.*)'\s*\)\s*$", out.strip(), re.DOTALL)
+        if match:
+            return match.group(1)
+        raise AssertionError(f"Could not parse Shell.Eval value from output: {out}")
 
 
 def _eval_bool(js: str) -> bool:
-    import re
-
     out = _shell_eval(js)
     match = re.search(r",\s*'(true|false)'\s*\)", out, re.IGNORECASE)
     if match:
         return match.group(1).lower() == 'true'
     raise AssertionError(f"Could not parse boolean from Shell.Eval output: {out}")
+
+
+def _eval_context_bool(context, js: str, timeout: int = 10) -> bool:
+    value = _shell_eval_value(context, f"({js}).toString()", timeout=timeout)
+    if value.lower() in {'true', 'false'}:
+        return value.lower() == 'true'
+    raise AssertionError(f"Could not parse boolean from qecore Shell.Eval output: {value}")
 
 
 def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.5) -> bool:
@@ -249,9 +270,9 @@ def no_coredump_entries_exist(context, name: str) -> None:
 
 @step('Open Activities overview via Shell.Eval')
 def open_overview_eval(context) -> None:
-    out = _shell_eval('Main.overview.show(); Main.overview.visible')
+    out = _shell_eval('Main.overview.show(); Main.overview.visible.toString()')
     assert '(true,' in out, f"overview show failed: {out}"
-    ok = _wait_eval_bool('Main.overview.visible', True, retries=8, delay=0.5)
+    ok = _wait_eval_bool('Main.overview.visible.toString()', True, retries=8, delay=0.5)
     assert ok, 'Overview did not become visible after show()'
 
 
@@ -270,17 +291,17 @@ def open_quick_settings_eval(context) -> None:
 
 @step('Quick Settings panel is open via Shell.Eval')
 def quick_settings_open_eval(context) -> None:
-    assert _eval_bool('Main.panel.statusArea.quickSettings.menu.isOpen'), 'Quick Settings menu is not open'
+    assert _eval_bool('Main.panel.statusArea.quickSettings.menu.isOpen.toString()'), 'Quick Settings menu is not open'
 
 
 @step('Quick Settings panel is closed via Shell.Eval')
 def quick_settings_closed_eval(context) -> None:
-    for _ in range(8):
+    if not _wait_eval_bool(
+        'Main.panel.statusArea.quickSettings.menu.isOpen.toString()',
+        expected=False, retries=8, delay=0.5,
+    ):
         out = _shell_eval('Main.panel.statusArea.quickSettings.menu.isOpen.toString()')
-        if 'false' in out.lower():
-            return
-        sleep(0.5)
-    raise AssertionError(f"Quick Settings still open after 4s — Shell.Eval: {out!r}")
+        raise AssertionError(f"Quick Settings still open after 4s — Shell.Eval: {out!r}")
 
 
 @step('Open date menu via Shell.Eval')
@@ -305,17 +326,17 @@ def close_date_menu_eval(context) -> None:
 
 @step('Date menu panel is open via Shell.Eval')
 def date_menu_open_eval(context) -> None:
-    assert _eval_bool('Main.panel.statusArea.dateMenu.menu.isOpen'), 'Date menu is not open'
+    assert _eval_bool('Main.panel.statusArea.dateMenu.menu.isOpen.toString()'), 'Date menu is not open'
 
 
 @step('Date menu panel is closed via Shell.Eval')
 def date_menu_closed_eval(context) -> None:
-    for _ in range(8):
+    if not _wait_eval_bool(
+        'Main.panel.statusArea.dateMenu.menu.isOpen.toString()',
+        expected=False, retries=8, delay=0.5,
+    ):
         out = _shell_eval('Main.panel.statusArea.dateMenu.menu.isOpen.toString()')
-        if 'false' in out.lower():
-            return
-        sleep(0.5)
-    raise AssertionError(f"Date menu still open after 4s — Shell.Eval: {out!r}")
+        raise AssertionError(f"Date menu still open after 4s — Shell.Eval: {out!r}")
 
 
 @step('Set overview search text to "{text}" via Shell.Eval')
@@ -338,25 +359,14 @@ def set_overview_search_eval(context, text) -> None:
 
 @step("Overview is open")
 def overview_is_open(context) -> None:
-    shell = tree.root.application("gnome-shell")
-    for _ in range(8):
-        # GNOME 49/50: name may be 'Overview' or 'overview' — match case-insensitively
-        results = shell.findChildren(lambda n: n.name.lower() == "overview" and n.showing)
-        if results:
-            return
-        sleep(0.5)
-    raise AssertionError("Activities overview did not open after 4s")
+    if not _wait_eval_bool('Main.overview.visible.toString()', expected=True, retries=8):
+        raise AssertionError("Activities overview did not open after 4s")
 
 
 @step("Overview is closed")
 def overview_is_closed(context) -> None:
-    shell = tree.root.application("gnome-shell")
-    for _ in range(8):
-        results = shell.findChildren(lambda n: n.name.lower() == "overview" and n.showing)
-        if not results:
-            return
-        sleep(0.5)
-    raise AssertionError("Activities overview is still showing after 4s")
+    if not _wait_eval_bool('Main.overview.visible.toString()', expected=False, retries=8):
+        raise AssertionError("Activities overview is still showing after 4s")
 
 
 @step('Overview search bar contains "{text}"')
@@ -367,3 +377,130 @@ def overview_search_bar_contains(context, text) -> None:
     assert entries, "Search bar text entry not found"
     entry = entries[0]
     assert text in entry.text, f"Search bar text '{entry.text}' does not contain '{text}'"
+
+
+def _command_exists(command: str) -> bool:
+    try:
+        result = subprocess.run(
+            ['which', command],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except FileNotFoundError:
+        return False
+    return result.returncode == 0 and bool(result.stdout.strip())
+
+
+def _flatpak_app_exists(app_id: str) -> bool:
+    try:
+        result = subprocess.run(
+            ['flatpak', 'list', '--app', '--columns=application'],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except FileNotFoundError:
+        return False
+    if result.returncode != 0:
+        return False
+    installed = {line.strip() for line in result.stdout.splitlines() if line.strip()}
+    return app_id in installed
+
+
+def _assert_any_app_present(label: str, commands: tuple[str, ...], flatpaks: tuple[str, ...]) -> None:
+    found_commands = [command for command in commands if _command_exists(command)]
+    found_flatpaks = [app_id for app_id in flatpaks if _flatpak_app_exists(app_id)]
+    assert found_commands or found_flatpaks, (
+        f"{label} not found. Commands checked: {commands}; flatpaks checked: {flatpaks}"
+    )
+
+
+@step('Do-not-disturb toggle is present in Quick Settings')
+def dnd_toggle_present(context) -> None:
+    assert _eval_context_bool(
+        context,
+        'Main.panel.statusArea.quickSettings._dnd !== null && '
+        'Main.panel.statusArea.quickSettings._dnd !== undefined',
+    ), 'Do-not-disturb toggle is missing from Quick Settings'
+
+
+@step('Night Light toggle is present in Quick Settings')
+def night_light_toggle_present(context) -> None:
+    assert _eval_context_bool(
+        context,
+        'Main.panel.statusArea.quickSettings._nightLight !== null && '
+        'Main.panel.statusArea.quickSettings._nightLight !== undefined',
+    ), 'Night Light toggle is missing from Quick Settings'
+
+
+@step('GNOME Files application is installed')
+def files_application_is_installed(context) -> None:
+    _assert_any_app_present(
+        'GNOME Files application',
+        ('nautilus',),
+        ('org.gnome.Nautilus',),
+    )
+
+
+@step('GNOME Text Editor application is installed')
+def text_editor_application_is_installed(context) -> None:
+    _assert_any_app_present(
+        'GNOME Text Editor application',
+        ('gnome-text-editor',),
+        ('org.gnome.TextEditor',),
+    )
+
+
+@step('A web browser application is installed')
+def web_browser_application_is_installed(context) -> None:
+    _assert_any_app_present(
+        'Web browser application',
+        ('epiphany', 'firefox', 'chromium', 'chromium-browser'),
+        ('org.gnome.Epiphany', 'org.mozilla.firefox', 'org.chromium.Chromium'),
+    )
+
+
+@step('A terminal application is installed')
+def terminal_application_is_installed(context) -> None:
+    _assert_any_app_present(
+        'Terminal application',
+        ('kgx', 'ptyxis', 'gnome-terminal'),
+        ('org.gnome.Console', 'app.devsuite.Ptyxis', 'org.gnome.Terminal'),
+    )
+
+
+@step('Screenshot tool launches via Shell.Eval')
+def screenshot_tool_launches(context) -> None:
+    _shell_eval('Main.screenshotUI.open().catch(logError); true', timeout=15)
+    if not _wait_eval_bool('Main.screenshotUI.visible.toString()', expected=True, retries=10):
+        out = _shell_eval('Main.screenshotUI.visible.toString()')
+        raise AssertionError(f'Screenshot UI did not become visible: {out!r}')
+
+
+@step('Screenshot tool window is accessible via AT-SPI')
+def screenshot_tool_window_accessible(context) -> None:
+    expected_labels = {'Selection', 'Screen', 'Window', 'Show Pointer', 'Take Screenshot'}
+    visible_labels: list[str] = []
+    for _ in range(10):
+        shell = tree.root.application('gnome-shell')
+        visible_labels = sorted({
+            node.name for node in shell.findChildren(
+                lambda n: n.showing and n.name in expected_labels
+            )
+        })
+        if len(visible_labels) >= 2:
+            return
+        sleep(0.5)
+    raise AssertionError(
+        'Screenshot UI was not accessible via AT-SPI. '
+        f'Visible screenshot labels: {visible_labels}'
+    )
+
+
+@step('Close screenshot tool')
+def close_screenshot_tool(context) -> None:
+    _shell_eval('Main.screenshotUI.close(true)')
+    if not _wait_eval_bool('Main.screenshotUI.visible.toString()', expected=False, retries=8):
+        out = _shell_eval('Main.screenshotUI.visible.toString()')
+        raise AssertionError(f'Screenshot UI is still visible after close(): {out!r}')

@@ -46,14 +46,14 @@ SSH-mode suites (`lifecycle`, `security`, `hardware`) require the ghost/Argo sta
 
 ## Coverage snapshot
 
-162 scenarios across 20 feature files (last audit: 2026-05-28). Bazzite suite adds 20 scenarios (pending PR).
+166 scenarios across 20 feature files (last audit: 2026-05-30). Bazzite suite adds 20 scenarios (pending PR).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
 | smoke | 68 | ✅ active | dogtail 4.16 API correct throughout |
 | developer | 16 | ✅ active | brew, podman, ptyxis covered |
 | software | 10 | ✅ active | Bazaar/gnome-software + Flathub |
-| vanilla-gnome | 8 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
+| vanilla-gnome | 12 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 7 | ✅ active | bootc upgrade / rollback / switch / /etc merge |
 | hardware | 10 | ✅ active | Driven by shared SSH steps |
 | security/image_provenance | 5 | ✅ active | cosign verify steps fully implemented |
