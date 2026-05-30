@@ -142,19 +142,24 @@ jobs:
           sudo cp "${D}/usr/lib/modules/${KVER}/initramfs.img" ./initramfs.img
           sudo chown runner:runner ./vmlinuz ./initramfs.img
 
-          # Find the ostree boot entry directory (boot.N/default/<hash>/serial).
-          # bootc may fail at the bootloader step (bootupd not in image) before
-          # creating this directory. If missing, construct and create it from the
-          # deployment hash so ostree-prepare-root can find the deployment at boot.
-          BOOT_ENTRY=$(sudo find /mnt/root/ostree -maxdepth 4 -type d -name '0' 2>/dev/null \
+          # Find the ostree boot entry symlink (boot.N/default/<hash>/serial).
+          # ostree-prepare-root requires this to be a symlink pointing to the
+          # deployment directory. bootc may fail at the bootloader step (bootupd
+          # not in image) before creating it. If missing, create it ourselves.
+          BOOT_ENTRY=$(sudo find /mnt/root/ostree -maxdepth 4 -type l -name '0' 2>/dev/null \
             | grep -E '/boot\.[0-9]' | grep '/default/' | head -1)
           if [[ -z "${BOOT_ENTRY}" ]]; then
-            echo "No boot.N dir found — constructing from deployment hash"
+            echo "No boot.N symlink found — constructing from deployment hash"
             DEPLOY_HASH="${DEPLOY%.*}"
             DEPLOY_SERIAL="${DEPLOY##*.}"
-            BOOT_ENTRY="/mnt/root/ostree/boot.0/default/${DEPLOY_HASH}/${DEPLOY_SERIAL}"
-            sudo mkdir -p "${BOOT_ENTRY}"
-            echo "Created: ${BOOT_ENTRY}"
+            BOOT_DIR="/mnt/root/ostree/boot.0/default/${DEPLOY_HASH}"
+            sudo mkdir -p "${BOOT_DIR}"
+            # symlink target is relative from the symlink's parent directory:
+            # boot.0/default/<hash>/ -> ../../../deploy/default/deploy/<hash>.<serial>
+            sudo ln -sfT "../../../deploy/default/deploy/${DEPLOY}" \
+              "${BOOT_DIR}/${DEPLOY_SERIAL}"
+            BOOT_ENTRY="${BOOT_DIR}/${DEPLOY_SERIAL}"
+            echo "Created symlink: ${BOOT_ENTRY}"
           fi
           OSTREE_PATH="${BOOT_ENTRY#/mnt/root}"
           echo "ostree boot path: ${OSTREE_PATH}"
