@@ -36,3 +36,10 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin:lts
       suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome' }}
+
+  test-dx:
+    if: ${{ github.event.inputs.image_tag != 'lts' }}
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin-dx:latest
+      suites: dx
