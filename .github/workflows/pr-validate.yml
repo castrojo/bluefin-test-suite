@@ -6,8 +6,11 @@
 # Checks:
 #   1. Python lint      — ruff (import errors, undefined names, style)
 #   2. Python syntax    — py_compile on every .py file in tests/
-#   3. YAML lint        — yamllint in relaxed mode on argo/
-#   4. Argo YAML parse  — yaml.safe_load on every argo/*.yaml
+#   3. Behave dry-run   — validates step definitions + feature file syntax
+#                         without booting a VM (catches undefined steps,
+#                         broken imports, mismatched step patterns)
+#   4. YAML lint        — yamllint in relaxed mode on argo/
+#   5. Argo YAML parse  — yaml.safe_load on every argo/*.yaml
 
 name: PR Validation — lint & syntax checks
 
@@ -32,8 +35,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install AT-SPI native libs (required for qecore import on headless runners)
+        # qecore.sandbox imports isA11yEnabled from dogtail.utils at module level.
+        # dogtail.utils.isA11yEnabled requires gi.repository.Atspi.  Without this
+        # the import silently fails and the module-level call raises NameError,
+        # crashing behave --dry-run even though no AT-SPI session is needed.
+        run: sudo apt-get install -y --no-install-recommends gir1.2-atspi-2.0
+
       - name: Install linting tools
-        run: pip install ruff yamllint
+        run: pip install ruff yamllint behave qecore dogtail
 
       - name: Python lint (ruff)
         run: ruff check tests/ --select E,F,W --ignore E501
@@ -42,6 +52,27 @@ jobs:
         run: |
           python -m py_compile $(find tests/ -name '*.py' | tr '\n' ' ')
           echo "All Python files compile cleanly."
+
+      - name: Behave dry-run (step definition coverage)
+        # Validates that every step in every feature file has a matching
+        # @step definition.  Does NOT boot a VM — exits 1 if any step is
+        # undefined, which catches broken imports and missing step patterns.
+        run: |
+          FAIL=0
+          for suite in tests/*/features/; do
+            # Skip suites with no .feature files (empty scaffolds in-progress)
+            if ! ls "${suite}"*.feature >/dev/null 2>&1; then
+              echo "Skipping ${suite} — no .feature files yet"
+              continue
+            fi
+            suitename=$(echo "$suite" | cut -d/ -f2)
+            echo "::group::behave --dry-run $suitename"
+            PYTHONPATH="${{ github.workspace }}" \
+              python -m behave "$suite" --dry-run --no-capture || FAIL=1
+            echo "::endgroup::"
+          done
+          [ "$FAIL" -eq 0 ] && echo "All suites: every step is defined." || \
+            { echo "One or more suites have undefined steps."; exit 1; }
 
       - name: YAML lint (argo/)
         run: yamllint -d relaxed argo/
