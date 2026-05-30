@@ -10,6 +10,15 @@ import subprocess
 import sys
 import traceback
 
+try:
+    from tests.shared.timing import record_end, record_start
+except Exception:  # noqa: BLE001
+    def record_start(context):
+        return None
+
+    def record_end(context, scenario):
+        return None
+
 
 def _take_screenshot(scenario_name: str) -> None:
     safe = re.sub(r'[^a-z0-9]+', '_', scenario_name.lower())[:60]
@@ -82,6 +91,7 @@ def before_scenario(context, scenario):
     context.last_command_output = ""
     context.last_ssh_result = None
     context.ssh_rc = 0
+    record_start(context)
 
     if 'plain_ssh' in scenario.tags:
         return
@@ -100,6 +110,7 @@ def before_scenario(context, scenario):
 
 
 def after_scenario(context, scenario):
+    record_end(context, scenario)
     if 'plain_ssh' in scenario.tags:
         return
     if scenario.status.name == 'failed':

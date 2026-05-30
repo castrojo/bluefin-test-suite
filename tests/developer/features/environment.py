@@ -16,6 +16,15 @@ import traceback
 from qecore.sandbox import TestSandbox
 from qecore.common_steps import *  # noqa: F401,F403
 
+try:
+    from tests.shared.timing import record_end, record_start
+except Exception:  # noqa: BLE001
+    def record_start(context):
+        return None
+
+    def record_end(context, scenario):
+        return None
+
 
 def _take_screenshot(scenario_name: str) -> None:
     safe = re.sub(r'[^a-z0-9]+', '_', scenario_name.lower())[:60]
@@ -64,6 +73,7 @@ def before_all(context) -> None:
 
 
 def before_scenario(context, scenario) -> None:
+    record_start(context)
     try:
         context.sandbox.before_scenario(context, scenario)
     except Exception:
@@ -72,6 +82,7 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, scenario) -> None:
+    record_end(context, scenario)
     if scenario.status.name == 'failed':
         _take_screenshot(scenario.name)
     context.sandbox.after_scenario(context, scenario)

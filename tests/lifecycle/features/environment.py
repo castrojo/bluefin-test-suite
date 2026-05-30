@@ -8,6 +8,15 @@ import os
 
 from tests.shared.ssh_steps import *  # noqa: F401,F403
 
+try:
+    from tests.shared.timing import record_end, record_start
+except Exception:  # noqa: BLE001
+    def record_start(context):
+        return None
+
+    def record_end(context, scenario):
+        return None
+
 
 def before_all(context):
     """Set up SSH connection parameters from environment."""
@@ -23,7 +32,8 @@ def before_scenario(context, scenario):
     context.command_stdout = ""
     context.ssh_rc = None
     context.last_ssh_result = None
+    record_start(context)
 
 
 def after_scenario(context, scenario):
-    pass
+    record_end(context, scenario)

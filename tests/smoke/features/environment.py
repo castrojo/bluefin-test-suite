@@ -20,6 +20,15 @@ from qecore.sandbox import TestSandbox
 from qecore.common_steps import *  # noqa: F401,F403 — registers all common @step definitions
 from steps.app_support import launch_target_available
 
+try:
+    from tests.shared.timing import record_end, record_start
+except Exception:  # noqa: BLE001
+    def record_start(context):
+        return None
+
+    def record_end(context, scenario):
+        return None
+
 
 OPTIONAL_SCENARIO_TARGETS = {
     "firefox": (
@@ -142,6 +151,7 @@ def before_scenario(context, scenario) -> None:
     # qecore 4.16: command_stdout; older: last_command_output
     context.command_stdout = ""
     context.last_command_output = ""
+    record_start(context)
     availability = getattr(context, "optional_scenario_availability", {})
     for tag, present in availability.items():
         scenario_tags = set(getattr(scenario, "effective_tags", scenario.tags))
@@ -164,6 +174,7 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, scenario) -> None:
+    record_end(context, scenario)
     if scenario.status.name == 'failed':
         _take_screenshot(scenario.name)
     context.sandbox.after_scenario(context, scenario)
