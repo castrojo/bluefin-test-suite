@@ -1,0 +1,390 @@
+# E2E Reusable Workflow — GNOME desktop testing in QEMU on GitHub Actions
+#
+# Called by consumer repos (e.g. projectbluefin/dakota) to gate PRs.
+# Boots a bootc OCI image in a KVM-accelerated QEMU VM, starts a GNOME
+# session, and runs behave tests via qecore-headless.
+#
+# No self-hosted runners. No homelab. Pure GHA ubuntu-latest.
+#
+# Inputs:
+#   image  — OCI image to test (default: ghcr.io/projectbluefin/dakota:latest)
+#   suites — comma-separated suite names (default: smoke)
+
+name: E2E — GNOME in QEMU
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: "OCI image to test"
+        type: string
+        default: "ghcr.io/projectbluefin/dakota:latest"
+      suites:
+        description: "Comma-separated suites: smoke,developer,dx,software"
+        type: string
+        default: "smoke"
+
+jobs:
+  # Resolve comma-separated suite list into a JSON matrix
+  matrix:
+    name: Resolve test matrix
+    runs-on: ubuntu-latest
+    outputs:
+      suites: ${{ steps.resolve.outputs.suites }}
+    steps:
+      - name: Resolve suites
+        id: resolve
+        run: |
+          JSON=$(python3 -c "
+          import json, sys
+          parts = [s.strip() for s in sys.argv[1].split(',') if s.strip()]
+          print(json.dumps(parts))
+          " "${{ inputs.suites }}")
+          echo "suites=${JSON}" >> "$GITHUB_OUTPUT"
+          echo "Suites: ${JSON}"
+
+  e2e:
+    name: GNOME 50 — ${{ matrix.suite }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: ${{ fromJson(needs.matrix.outputs.suites) }}
+
+    env:
+      IMAGE: ${{ inputs.image }}
+      SUITE: ${{ matrix.suite }}
+
+    steps:
+      # Always fetch the latest testsuite so test fixes are picked up immediately
+      - name: Checkout testsuite
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          sparse-checkout: |
+            tests/${{ matrix.suite }}
+            tests/shared
+          sparse-checkout-cone-mode: true
+
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      # Pull OCI image in background while apt installs QEMU — saves ~2 min
+      - name: Install QEMU and pull OCI image
+        run: |
+          sudo podman pull "${IMAGE}" &
+          PULL_PID=$!
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends qemu-system-x86
+          wait $PULL_PID
+
+      - name: Generate SSH keypair
+        run: |
+          ssh-keygen -t ed25519 -f /tmp/vm_key -N "" -C "e2e@gha"
+          echo "VM_PUBKEY=$(cat /tmp/vm_key.pub)" >> "$GITHUB_ENV"
+
+      # Install OCI image to a raw disk and configure it for CI testing.
+      # bootc install to-disk deploys ostree layers but fails at the bootloader
+      # step (bootupd not in the image). We catch that, then set up direct QEMU
+      # kernel boot so OVMF/systemd-boot is not needed.
+      - name: Install OCI image and configure disk
+        run: |
+          fallocate -l 30G disk.raw
+
+          sudo podman run \
+            --rm --privileged --pid=host \
+            --security-opt label=type:unconfined_t \
+            -v /var/lib/containers:/var/lib/containers \
+            -v /dev:/dev \
+            -v "$(pwd):/data" \
+            "${IMAGE}" bootc install to-disk \
+              --via-loopback /data/disk.raw \
+              --filesystem ext4 \
+              --wipe \
+              --bootloader systemd \
+              --karg systemd.firstboot=no \
+            || echo "bootc install exited $? (bootupd expected — continuing)"
+
+          LOOP=$(sudo losetup -f --show -P disk.raw)
+          echo "Loop: ${LOOP}"
+          sudo mkdir -p /mnt/root
+
+          ROOT_PART="${LOOP}p3"
+          ROOT_UUID=$(sudo blkid -s UUID -o value "${ROOT_PART}")
+          echo "root=${ROOT_PART}  uuid=${ROOT_UUID}"
+
+          sudo mount "${ROOT_PART}" /mnt/root
+
+          DEPLOY=$(sudo ls /mnt/root/ostree/deploy/default/deploy/ 2>/dev/null | head -1)
+          if [[ -z "${DEPLOY}" ]]; then
+            echo "ERROR: ostree deployment missing — bootc install failed before writing layers"
+            sudo ls -la /mnt/root/ || true
+            exit 1
+          fi
+          D="/mnt/root/ostree/deploy/default/deploy/${DEPLOY}"
+          VAR="/mnt/root/ostree/deploy/default/var"
+          KVER=$(ls "${D}/usr/lib/modules/" | head -1)
+          echo "deploy=${DEPLOY}  kver=${KVER}"
+
+          echo "ROOT_UUID=${ROOT_UUID}" >> "$GITHUB_ENV"
+          echo "KVER=${KVER}" >> "$GITHUB_ENV"
+
+          # Copy kernel + initramfs to workspace for direct QEMU boot (no OVMF)
+          sudo cp "${D}/usr/lib/modules/${KVER}/vmlinuz" ./vmlinuz
+          sudo cp "${D}/usr/lib/modules/${KVER}/initramfs.img" ./initramfs.img
+          sudo chown runner:runner ./vmlinuz ./initramfs.img
+
+          # Find the actual ostree boot entry directory on the installed disk.
+          # More reliable than reading the BLS entry: directly verifies the path
+          # that ostree-prepare-root will look for at boot time.
+          BOOT_ENTRY=$(sudo find /mnt/root/ostree -maxdepth 4 -type d -name '0' 2>/dev/null \
+            | grep -E '/boot\.[0-9]' | grep '/default/' | head -1)
+          if [[ -z "${BOOT_ENTRY}" ]]; then
+            echo "ERROR: Could not find ostree boot entry directory"
+            sudo find /mnt/root/ostree -maxdepth 5 2>/dev/null | head -30 || true
+            exit 1
+          fi
+          OSTREE_PATH="${BOOT_ENTRY#/mnt/root}"
+          echo "ostree boot path: ${OSTREE_PATH}"
+          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 quiet"
+          echo "KERNEL_ARGS=${KERNEL_ARGS}" >> "$GITHUB_ENV"
+
+          # Enable sshd
+          sudo mkdir -p "${D}/etc/systemd/system/multi-user.target.wants/"
+          sudo ln -sf /usr/lib/systemd/system/sshd.service \
+            "${D}/etc/systemd/system/multi-user.target.wants/sshd.service"
+
+          # Pre-generate SSH host keys so sshd starts without key-gen delay
+          sudo ssh-keygen -A -f "${D}" 2>/dev/null || true
+
+          # Create bluefin-test user (UID 1001)
+          BFT_UID=1001
+          if ! sudo grep -q '^bluefin-test:' "${D}/etc/passwd" 2>/dev/null; then
+            printf 'bluefin-test:x:%d:%d:Bluefin Test:/var/home/bluefin-test:/bin/bash\n' \
+              "${BFT_UID}" "${BFT_UID}" | sudo tee -a "${D}/etc/passwd"
+            printf 'bluefin-test:!:19000:0:99999:7:::\n' | sudo tee -a "${D}/etc/shadow"
+            printf 'bluefin-test:x:%d:\n' "${BFT_UID}" | sudo tee -a "${D}/etc/group"
+          fi
+
+          # Inject SSH public key
+          sudo mkdir -p "${VAR}/home/bluefin-test/.ssh"
+          sudo tee "${VAR}/home/bluefin-test/.ssh/authorized_keys" < /tmp/vm_key.pub
+          sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
+          sudo chmod 700 "${VAR}/home/bluefin-test/.ssh"
+          sudo chmod 600 "${VAR}/home/bluefin-test/.ssh/authorized_keys"
+
+          # Allow env forwarding so AT-SPI bus vars reach the test runner over SSH
+          sudo mkdir -p "${D}/etc/ssh/sshd_config.d/"
+          echo 'PermitUserEnvironment yes' | \
+            sudo tee "${D}/etc/ssh/sshd_config.d/99-bluefin-test.conf"
+
+          # Passwordless sudo for test operations
+          echo 'bluefin-test ALL=(ALL) NOPASSWD:ALL' | \
+            sudo tee "${D}/etc/sudoers.d/bluefin-test"
+          sudo chmod 440 "${D}/etc/sudoers.d/bluefin-test"
+
+          # Pre-bake GDM autologin — no post-boot restart needed
+          sudo mkdir -p "${D}/etc/gdm"
+          printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=bluefin-test\n' | \
+            sudo tee "${D}/etc/gdm/custom.conf"
+
+          # Mask CI-irrelevant services to shorten first-boot systemd startup
+          for svc in bluetooth cups avahi-daemon ModemManager fwupd colord; do
+            sudo ln -sf /dev/null "${D}/etc/systemd/system/${svc}.service" 2>/dev/null || true
+          done
+
+          sudo umount /mnt/root
+          sudo losetup -d "${LOOP}"
+          sudo podman rmi "${IMAGE}" 2>/dev/null || true
+          ls -lh disk.raw vmlinuz initramfs.img
+          df -h .
+
+      # Pre-create serial log world-writable: root QEMU writes it, runner reads it
+      - name: Boot VM with QEMU + KVM
+        run: |
+          touch "$(pwd)/vm-serial.log"
+          chmod 666 "$(pwd)/vm-serial.log"
+
+          sudo qemu-system-x86_64 \
+            -machine  q35,accel=kvm \
+            -cpu      host \
+            -m        4096 \
+            -smp      4 \
+            -kernel   ./vmlinuz \
+            -initrd   ./initramfs.img \
+            -append   "${KERNEL_ARGS}" \
+            -object   iothread,id=ioth0 \
+            -drive    if=none,id=disk,file=disk.raw,format=raw,cache=unsafe,aio=threads,discard=unmap \
+            -device   virtio-blk-pci,drive=disk,iothread=ioth0 \
+            -netdev   user,id=net0,hostfwd=tcp::2222-:22 \
+            -device   virtio-net-pci,netdev=net0 \
+            -device   virtio-gpu-pci \
+            -display  none \
+            -serial   file:$(pwd)/vm-serial.log \
+            -daemonize \
+            -pidfile  /tmp/qemu.pid
+          echo "VM booting (pid=$(cat /tmp/qemu.pid))"
+
+      # selinux=0 + pre-generated host keys mean SSH should be ready in ~60s
+      - name: Wait for SSH
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          DEADLINE=$((SECONDS + 300))
+          while [ $SECONDS -lt $DEADLINE ]; do
+            if ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>/dev/null; then
+              echo "SSH ready after ${SECONDS}s"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "ERROR: SSH never became ready after 5 minutes"
+          exit 1
+
+      - name: Dump VM serial log
+        if: always()
+        run: |
+          echo "=== VM serial console output ==="
+          cat "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
+
+      # GDM autologin is pre-baked — just wait for the Wayland socket
+      - name: Wait for GNOME session
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+          DEADLINE=$((SECONDS + 180))
+          while [ $SECONDS -lt $DEADLINE ]; do
+            if $SSH "test -S /run/user/1001/wayland-0" 2>/dev/null; then
+              echo "GNOME session active after ${SECONDS}s"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "ERROR: GNOME session did not start within 3 minutes"
+          $SSH "journalctl -u gdm --no-pager -n 50" 2>/dev/null || true
+          exit 1
+
+      - name: Install Python test stack
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+
+          $SSH "python3 -m ensurepip --user 2>/dev/null || true"
+          $SSH "python3 -m pip install -q --user qecore behave dogtail python-uinput"
+          $SSH "for f in \$HOME/.local/bin/qecore_*; do sudo ln -sf \"\$f\" /usr/local/bin/\$(basename \"\$f\") 2>/dev/null; done"
+          $SSH "sudo modprobe uinput 2>/dev/null || true"
+          $SSH "sudo chmod 0666 /dev/uinput 2>/dev/null || true"
+
+          $SSH "
+            XDG=/run/user/1001
+            SESSION_BUS=\$(systemctl --user show-environment 2>/dev/null \
+              | grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 | cut -d= -f2-)
+            [[ -z \"\${SESSION_BUS}\" ]] && SESSION_BUS=\"unix:path=\${XDG}/bus\"
+            WAYLAND_DISP=\$(ls /run/user/1001/wayland-* 2>/dev/null \
+              | head -1 | xargs basename 2>/dev/null || echo wayland-0)
+            printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\n' \
+              \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${SESSION_BUS}\" \
+              > /tmp/session.env
+            cat /tmp/session.env
+          "
+
+      - name: Copy testsuite and run behave via qecore-headless
+        id: run
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+          SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlPath=/tmp/ssh-ctrl-%C -P 2222 -r"
+          mkdir -p results
+
+          $SSH "mkdir -p /tmp/bluefin-tests /tmp/results"
+          $SCP "tests/${SUITE}" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/"
+          [[ -d "tests/shared" ]] && \
+            $SCP "tests/shared" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/" || true
+
+          BEHAVE_RC=0
+          $SSH "
+            set -e
+            source /tmp/session.env
+            export PATH=\$HOME/.local/bin:\$PATH
+            BEHAVE_BIN=\$(which behave)
+            \$HOME/.local/bin/qecore-headless \"\$BEHAVE_BIN /tmp/bluefin-tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --format pretty --outfile /tmp/results/results.txt --no-capture\"
+          " || BEHAVE_RC=$?
+
+          $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
+          echo "behave_rc=${BEHAVE_RC}" >> "$GITHUB_OUTPUT"
+
+      - name: Write job summary
+        if: always()
+        run: |
+          if [[ -f results/results.json ]]; then
+            python3 - << 'PY'
+          import json, os
+          data    = json.load(open('results/results.json'))
+          failed  = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'failed')
+          skipped = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'skipped')
+          total   = sum(len(f.get('elements', [])) for f in data)
+          passed  = total - failed - skipped
+          suite   = os.environ.get('SUITE', 'smoke')
+          icon    = '✅' if failed == 0 else '❌'
+
+          lines = [
+            f'## {icon} E2E Results — GNOME 50 ({suite})', '',
+            '| Result | Count |', '|--------|-------|',
+            f'| ✅ Passed  | {passed} |',
+            f'| ❌ Failed  | {failed} |',
+            f'| ⏭️ Skipped | {skipped} |',
+            f'| **Total** | **{total}** |',
+          ]
+          if failed:
+            lines += ['', '### Failed scenarios', '']
+            for feat in data:
+              for s in feat.get('elements', []):
+                if s.get('status') == 'failed':
+                  lines.append(f"- **{feat['name']}** › {s['name']}")
+                  for step in s.get('steps', []):
+                    if step.get('result', {}).get('status') == 'failed':
+                      err = step['result'].get('error_message', '').strip()[:500]
+                      lines.append(f"  - `{step['name']}`")
+                      if err:
+                        lines.append(f"    <pre>{err}</pre>")
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
+            f.write('\n'.join(lines) + '\n')
+          PY
+          else
+            echo "## ⚠️ No results.json — test run did not complete" >> "$GITHUB_STEP_SUMMARY"
+            echo "<details><summary>VM serial console output</summary>" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            tail -150 "$(pwd)/vm-serial.log" 2>/dev/null >> "$GITHUB_STEP_SUMMARY" || echo "(no serial log)" >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "</details>" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ env.SUITE }}
+          path: results/
+          retention-days: 30
+          if-no-files-found: ignore
+
+      - name: Upload serial log artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vm-serial-log-${{ env.SUITE }}
+          path: vm-serial.log
+          retention-days: 3
+          if-no-files-found: ignore
+
+      - name: Fail job if tests failed
+        if: steps.run.outputs.behave_rc != '0'
+        run: exit "${{ steps.run.outputs.behave_rc }}"
