@@ -11,8 +11,8 @@ import time
 
 from behave import step
 
-from tests.shared.ssh_steps import *  # noqa: F401,F403
-from tests.shared.ssh_steps import run_ssh
+from tests.shared.ssh_steps import *  # noqa: F401,F403,F405
+from tests.shared.ssh_steps import run_ssh, ssh_output_is, ssh_return_code_is  # noqa: F401
 
 
 @step("Flatcar VM is reachable over SSH")

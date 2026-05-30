@@ -314,6 +314,6 @@ def overview_search_bar_contains(context, text) -> None:
     shell = tree.root.application("gnome-shell")
     # dogtail 4.16 dropped requireResult kwarg
     entries = shell.findChildren(lambda n: n.roleName == "text" and n.showing)
-    assert entries, f"Search bar text entry not found"
+    assert entries, "Search bar text entry not found"
     entry = entries[0]
     assert text in entry.text, f"Search bar text '{entry.text}' does not contain '{text}'"
