@@ -22,20 +22,30 @@ on:
         required: false
         default: "smoke,developer,software,vanilla-gnome"
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   test-latest:
     if: ${{ github.event.inputs.image_tag != 'lts' }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+    permissions:
+      contents: read
+      packages: write
 
   test-lts:
     if: ${{ github.event.inputs.image_tag != 'latest' }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+    permissions:
+      contents: read
+      packages: write
 
   test-dx:
     if: ${{ github.event.inputs.image_tag != 'lts' }}
@@ -43,3 +53,6 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin-dx:latest
       suites: dx
+    permissions:
+      contents: read
+      packages: write
