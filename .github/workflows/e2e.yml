@@ -190,10 +190,13 @@ jobs:
               printf 'bluefin-test:x:%d:\n' "${BFT_UID}" | sudo tee -a "${DEP}/etc/group"
             fi
 
-            # sshd config: UsePAM no bypasses pam_unix account check for locked/no-pw accounts
+            # sshd config: explicit authorized_keys path, disable PAM and StrictModes
+            # to avoid any image-level overrides blocking pubkey auth.
             sudo mkdir -p "${DEP}/etc/ssh/sshd_config.d/"
-            printf 'PermitUserEnvironment yes\nUsePAM no\nPubkeyAuthentication yes\n' | \
+            printf 'UsePAM no\nPubkeyAuthentication yes\nStrictModes no\nPermitUserEnvironment yes\nAuthorizedKeysFile /var/home/%%u/.ssh/authorized_keys /etc/ssh/authorized_keys/%%u\n' | \
               sudo tee "${DEP}/etc/ssh/sshd_config.d/99-bluefin-test.conf"
+            # Also write key to root-owned fallback location
+            sudo mkdir -p "${DEP}/etc/ssh/authorized_keys/"
 
             # Passwordless sudo for test operations
             printf 'bluefin-test ALL=(ALL) NOPASSWD:ALL\n' | \
@@ -211,12 +214,20 @@ jobs:
             done
           done
 
-          # Inject SSH public key (shared var — visible to all deployments)
+          # Inject SSH public key into var (runtime /var/home) and into each
+          # deployment's etc/ssh/authorized_keys/ (root-owned fallback path).
           sudo mkdir -p "${VAR}/home/bluefin-test/.ssh"
           sudo tee "${VAR}/home/bluefin-test/.ssh/authorized_keys" < /tmp/vm_key.pub
           sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
           sudo chmod 700 "${VAR}/home/bluefin-test/.ssh"
           sudo chmod 600 "${VAR}/home/bluefin-test/.ssh/authorized_keys"
+          # Write to root-owned etc fallback in every deployment
+          for DEP in $(sudo find /mnt/root/ostree/deploy/default/deploy \
+              -maxdepth 1 -mindepth 1 -type d 2>/dev/null); do
+            sudo mkdir -p "${DEP}/etc/ssh/authorized_keys/"
+            sudo cp /tmp/vm_key.pub "${DEP}/etc/ssh/authorized_keys/bluefin-test"
+            sudo chmod 644 "${DEP}/etc/ssh/authorized_keys/bluefin-test"
+          done
 
           sudo umount /mnt/root
           sudo losetup -d "${LOOP}"
