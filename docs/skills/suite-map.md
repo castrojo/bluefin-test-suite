@@ -75,12 +75,8 @@ Activate a `@future` scenario when all three conditions are met:
 
 When activating: remove `@future`, update this file's coverage snapshot, update `QA-REVIEW.md`.
 
-## Comparing smoke vs vanilla-gnome
+## smoke vs vanilla-gnome
 
-If smoke fails while vanilla-gnome passes → likely Bluefin regression.  
-If both fail → likely upstream GNOME issue.
-
-```bash
-just compare-results          # newest run
-just compare-results <uid>    # specific workflow UID
-```
+`smoke=failed` + `vanilla-gnome=passed` → Bluefin regression.  
+`smoke=failed` + `vanilla-gnome=failed` → upstream GNOME issue.  
+Comparison commands and manual inspection procedure → `RUNBOOK.md`.
