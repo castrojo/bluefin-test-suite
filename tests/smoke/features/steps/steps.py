@@ -215,15 +215,17 @@ def _shell_eval(js: str) -> str:
 def _eval_bool(js: str) -> bool:
     """Evaluate a JS expression that returns true/false via Shell.Eval.
 
-    Parses the gdbus return format ``(true, 'true')`` / ``(true, 'false')``
-    by extracting only the **second** tuple element (the JS result string).
+    Parses the gdbus return format ``(true, 'true')`` / ``(true, 'false')``.
+    GNOME 50 may wrap the JS result in extra double quotes: ``(true, '"true"')``.
+    Extracts only the **second** tuple element (the JS result string).
     Raises AssertionError if the result cannot be parsed as a boolean.
     """
     import re
     out = _shell_eval(js)
     # gdbus format: (success_bool, 'js_result_string')
+    # GNOME 50 may return (true, '"true"') with extra double-quotes around the result.
     # We must match the JS result (after the comma), not the success flag.
-    m = re.search(r",\s*'(true|false)'\s*\)", out, re.IGNORECASE)
+    m = re.search(r',\s*\'"?(true|false)"?\'\s*\)', out, re.IGNORECASE)
     if m:
         return m.group(1).lower() == 'true'
     raise AssertionError(
@@ -593,11 +595,13 @@ def unlock_screen_via_shell_eval(context) -> None:
 @step("Active workspace index is noted")
 def note_active_workspace_index(context) -> None:
     """Store the current workspace index for later comparison."""
-    out = context.sandbox.shell.eval_js(
+    import re
+    out = _shell_eval(
         "global.workspace_manager.get_active_workspace_index();"
     )
+    m = re.search(r',\s*\'"?(\d+)"?\'\s*\)', out)
     try:
-        context.initial_workspace_index = int(out.strip())
+        context.initial_workspace_index = int(m.group(1)) if m else 0
     except (ValueError, AttributeError):
         context.initial_workspace_index = 0
     print(f"Initial workspace index: {context.initial_workspace_index}", flush=True)
@@ -606,7 +610,7 @@ def note_active_workspace_index(context) -> None:
 @step("Switch to next workspace via Shell.Eval")
 def switch_to_next_workspace_via_shell_eval(context) -> None:
     """Switch to the next workspace using workspace_manager."""
-    context.sandbox.shell.eval_js(
+    _shell_eval(
         "global.workspace_manager.get_active_workspace().get_neighbor("
         "Meta.MotionDirection.RIGHT).activate(global.get_current_time());"
     )
@@ -616,17 +620,19 @@ def switch_to_next_workspace_via_shell_eval(context) -> None:
 @step("Active workspace has changed")
 def active_workspace_has_changed(context) -> None:
     """Assert the active workspace index changed from the noted value."""
+    import re
     initial = getattr(context, 'initial_workspace_index', 0)
     for _ in range(10):
-        out = context.sandbox.shell.eval_js(
+        out = _shell_eval(
             "global.workspace_manager.get_active_workspace_index();"
         )
+        m = re.search(r',\s*\'"?(\d+)"?\'\s*\)', out)
         try:
-            current = int(out.strip())
+            current = int(m.group(1)) if m else None
         except (ValueError, AttributeError):
             sleep(0.5)
             continue
-        if current != initial:
+        if current is not None and current != initial:
             return
         sleep(0.5)
     raise AssertionError(
