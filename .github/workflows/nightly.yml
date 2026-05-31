@@ -21,6 +21,11 @@ on:
         description: "Comma-separated suites to override for Bluefin jobs (default: smoke,developer,software,common)"
         required: false
         default: "smoke,developer,software,common"
+      skip_native_apps:
+        description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -35,6 +40,7 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin:latest
       suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -45,6 +51,7 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin:gts
       suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -55,6 +62,7 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin:lts
       suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -67,6 +75,7 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin-dx:latest
       suites: smoke,developer,dx,common
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -77,6 +86,7 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin-dx:gts
       suites: smoke,developer,dx,common
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -87,6 +97,7 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin-dx:lts
       suites: smoke,developer,dx,common
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -99,6 +110,7 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin-nvidia:latest
       suites: smoke,common
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -111,6 +123,7 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:latest
       suites: bazzite
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
@@ -123,6 +136,7 @@ jobs:
     with:
       image: quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest
       suites: vanilla-gnome
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write

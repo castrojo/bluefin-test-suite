@@ -1,4 +1,4 @@
-@smoke_suite
+@native_app @smoke_suite
 Feature: GNOME Files smoke tests
   Validates GNOME Files (Nautilus) is functional on a fresh Bluefin boot.
   All shared steps come from qecore common_steps; Nautilus-specific checks live in

@@ -1,4 +1,4 @@
-@smoke_suite
+@native_app @smoke_suite
 Feature: GNOME Text Editor smoke tests
   Validates GNOME Text Editor launches, accepts input, opens core dialogs,
   and exits cleanly on a fresh Bluefin session.

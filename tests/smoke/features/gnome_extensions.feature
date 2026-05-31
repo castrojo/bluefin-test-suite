@@ -1,4 +1,4 @@
-@smoke_suite
+@native_app @smoke_suite
 Feature: GNOME Extensions smoke tests
   Validates installed Bluefin GNOME Shell extensions are present, enabled,
   manageable via the Extensions app, and do not trigger shell load errors.
