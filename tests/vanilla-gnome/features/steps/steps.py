@@ -200,10 +200,13 @@ def _assert_any_app_present(label: str, commands: tuple[str, ...], flatpaks: tup
 
 @step('Do-not-disturb toggle is present in Quick Settings')
 def dnd_toggle_present(context) -> None:
+    # GNOME 47+ renamed _dnd to _do_not_disturb; try both for compatibility
     assert _eval_context_bool(
         context,
-        'Main.panel.statusArea.quickSettings._dnd !== null && '
-        'Main.panel.statusArea.quickSettings._dnd !== undefined',
+        '(Main.panel.statusArea.quickSettings._do_not_disturb !== null && '
+        'Main.panel.statusArea.quickSettings._do_not_disturb !== undefined) || '
+        '(Main.panel.statusArea.quickSettings._dnd !== null && '
+        'Main.panel.statusArea.quickSettings._dnd !== undefined)',
     ), 'Do-not-disturb toggle is missing from Quick Settings'
 
 
@@ -229,8 +232,9 @@ def files_application_is_installed(context) -> None:
 def text_editor_application_is_installed(context) -> None:
     _assert_any_app_present(
         'GNOME Text Editor application',
-        ('gnome-text-editor',),
-        ('org.gnome.TextEditor',),
+        # gnome-text-editor (GNOME 42+); gedit (classic fallback)
+        ('gnome-text-editor', 'gedit'),
+        ('org.gnome.TextEditor', 'org.gnome.gedit'),
     )
 
 
