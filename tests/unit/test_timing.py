@@ -19,11 +19,14 @@ def _context(results_dir, start=None):
     return context
 
 
-def _scenario(name="Launch app", status="passed", feature="Smoke"):
+def _scenario(name="Launch app", status="passed", feature="Smoke", tags=None):
+    tags = tags or []
     return SimpleNamespace(
         name=name,
         status=SimpleNamespace(name=status),
         feature=SimpleNamespace(name=feature),
+        tags=tags,
+        effective_tags=tags,
     )
 
 
@@ -37,27 +40,14 @@ def test_record_start_sets_monotonic_float():
     assert context._timing_start == pytest.approx(12.5)
 
 
-@pytest.mark.parametrize(
-    ("end_time", "expected_violation"),
-    [
-        (102.5, False),
-        (104.25, True),
-    ],
-)
-def test_record_end_writes_jsonl_and_sets_sla_status(
-    tmp_path,
-    monkeypatch,
-    end_time,
-    expected_violation,
-):
+def test_record_end_writes_jsonl_without_sla_when_no_tag_present(tmp_path):
     context = _context(tmp_path, start=100.0)
     scenario = _scenario()
-    monkeypatch.setattr(timing, "SLA_SCENARIO_DEFAULT", 3)
 
-    with patch("tests.shared.timing.time.monotonic", return_value=end_time):
+    with patch("tests.shared.timing.time.monotonic", return_value=102.5):
         elapsed = timing.record_end(context, scenario)
 
-    assert elapsed == pytest.approx(end_time - 100.0)
+    assert elapsed == pytest.approx(2.5)
 
     timings_file = tmp_path / "timings.jsonl"
     lines = timings_file.read_text(encoding="utf-8").strip().splitlines()
@@ -68,9 +58,36 @@ def test_record_end_writes_jsonl_and_sets_sla_status(
     assert entry["scenario"] == scenario.name
     assert entry["elapsed"] == pytest.approx(round(elapsed, 3))
     assert entry["elapsed_s"] == pytest.approx(round(elapsed, 3))
-    assert entry["sla_violated"] is expected_violation
+    assert entry["sla_s"] is None
+    assert entry["sla_violated"] is False
     assert entry["feature"] == scenario.feature.name
     assert entry["status"] == scenario.status.name
+
+
+@pytest.mark.parametrize(
+    ("tags", "end_time", "expected_sla", "expected_violation"),
+    [
+        (["sla_3s"], 102.5, 3, False),
+        (["smoke", "sla_3s"], 104.25, 3, True),
+        (["@sla_15s"], 110.0, 15, False),
+    ],
+)
+def test_record_end_parses_sla_tag_and_sets_sla_status(
+    tmp_path,
+    tags,
+    end_time,
+    expected_sla,
+    expected_violation,
+):
+    context = _context(tmp_path, start=100.0)
+    scenario = _scenario(tags=tags)
+
+    with patch("tests.shared.timing.time.monotonic", return_value=end_time):
+        timing.record_end(context, scenario)
+
+    entry = json.loads((tmp_path / "timings.jsonl").read_text(encoding="utf-8").strip())
+    assert entry["sla_s"] == expected_sla
+    assert entry["sla_violated"] is expected_violation
 
 
 def test_record_end_without_start_returns_none(tmp_path):
@@ -100,3 +117,12 @@ def test_sla_strict_env_parsing(monkeypatch, raw_value, expected):
     finally:
         monkeypatch.delenv("TIMING_SLA_STRICT", raising=False)
         importlib.reload(timing)
+
+
+def test_default_sla_thresholds_are_defined_for_future_use():
+    assert timing.DEFAULT_SLA == {
+        "app_launch": 10,
+        "shell_eval": 5,
+        "ssh_check": 15,
+        "system_health": 8,
+    }

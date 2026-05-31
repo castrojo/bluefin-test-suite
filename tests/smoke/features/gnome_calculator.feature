@@ -6,7 +6,7 @@ Feature: GNOME Calculator smoke tests
   Background:
     * Launch Calculator via command
 
-  @calculator @launch
+  @calculator @launch @sla_15s
   Scenario: Calculator launches and window is accessible
     * Calculator window is accessible
 

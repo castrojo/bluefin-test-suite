@@ -7,7 +7,7 @@ Feature: Firefox smoke tests
     * Launch Firefox via command
     * Firefox main window is accessible
 
-  @firefox @launch
+  @firefox @launch @sla_15s
   Scenario: Firefox launches and main window is accessible
     * Firefox main window is accessible
 

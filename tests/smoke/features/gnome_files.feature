@@ -8,7 +8,7 @@ Feature: GNOME Files smoke tests
     * Launch Files via command
     * Files window is accessible
 
-  @files @launch
+  @files @launch @sla_15s
   Scenario: Files launches and window is accessible
     * Files window is accessible
 

@@ -7,7 +7,7 @@ Feature: GNOME Settings smoke tests
     * Launch Settings via command
     * Settings window is accessible
 
-  @settings @launch
+  @settings @launch @sla_15s
   Scenario: GNOME Settings launches and window is accessible
     * Settings window is accessible
 
