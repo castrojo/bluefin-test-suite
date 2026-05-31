@@ -30,6 +30,7 @@ jobs:
   # ── bluefin ──────────────────────────────────────────────────────────────────
 
   test-latest:
+    name: bluefin:latest
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
@@ -39,6 +40,7 @@ jobs:
       packages: write
 
   test-gts:
+    name: bluefin:gts
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:gts
@@ -48,6 +50,7 @@ jobs:
       packages: write
 
   test-lts:
+    name: bluefin:lts
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
@@ -59,6 +62,7 @@ jobs:
   # ── bluefin-dx ───────────────────────────────────────────────────────────────
 
   test-dx:
+    name: bluefin-dx:latest
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin-dx:latest
@@ -68,6 +72,7 @@ jobs:
       packages: write
 
   test-dx-gts:
+    name: bluefin-dx:gts
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin-dx:gts
@@ -77,6 +82,7 @@ jobs:
       packages: write
 
   test-dx-lts:
+    name: bluefin-dx:lts
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin-dx:lts
@@ -88,6 +94,7 @@ jobs:
   # ── bluefin-nvidia ───────────────────────────────────────────────────────────
 
   test-nvidia:
+    name: bluefin-nvidia:latest
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin-nvidia:latest
@@ -99,6 +106,7 @@ jobs:
   # ── bazzite ──────────────────────────────────────────────────────────────────
 
   test-bazzite:
+    name: bazzite-gnome:latest
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:latest
@@ -110,6 +118,7 @@ jobs:
   # ── upstream GNOME OS (vanilla-gnome baseline) ───────────────────────────────
 
   test-gnomeos:
+    name: gnomeos-latest (vanilla-gnome)
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest
