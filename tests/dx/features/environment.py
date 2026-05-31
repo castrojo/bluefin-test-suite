@@ -1,10 +1,10 @@
 """
-DX variant test environment — qecore sandbox for GUI tests.
-Identical to smoke/environment.py but for DX-specific scenarios.
-Sandbox is initialized lazily — only when a GUI (@vscode) scenario runs.
-SSH-only (@plain_ssh) scenarios skip the sandbox entirely.
+DX variant test environment -- qecore sandbox for GUI tests.
+Sandbox is initialized eagerly in before_all so qecore can track session state.
+SSH-only (@plain_ssh) scenarios still work -- sandbox is initialized but unused.
 """
 import os
+import time
 import traceback
 
 try:
@@ -29,7 +29,7 @@ except Exception as exc:  # noqa: BLE001
 
 
 try:
-    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
+    from tests.shared.screenshot_steps import *  # noqa: F401,F403 -- registers screenshot steps
 except Exception as exc:  # noqa: BLE001
     print(f"WARNING: screenshot steps unavailable: {exc}", flush=True)
 
@@ -37,29 +37,9 @@ except Exception as exc:  # noqa: BLE001
 SUITE_NAME = "dx"
 
 
-def _init_sandbox(context):
-    """Initialize the qecore TestSandbox on first GUI scenario."""
-    if getattr(context, '_sandbox_initialized', False):
-        return
-
-    import time
+def before_all(context):
     from qecore.sandbox import TestSandbox
 
-    time.sleep(5)
-    try:
-        context.sandbox = TestSandbox("gnome-shell", context=context)
-        context.sandbox.attach_faf = False
-        context.sandbox.production = False
-        context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
-        context.shell = context.sandbox.shell
-        context._sandbox_initialized = True
-        configure_screenshot_context(context, SUITE_NAME)
-    except Exception as error:
-        print(f"Environment error: _init_sandbox: {error}", flush=True)
-        context.failed_setup = traceback.format_exc()
-
-
-def before_all(context):
     context.vm_ip = (
         os.environ.get("VM_IP")
         or os.environ.get("TMT_SSH_HOST")
@@ -79,9 +59,22 @@ def before_all(context):
     context.last_command_output = ""
     context.last_ssh_result = None
     context.ssh_rc = 0
-    context._sandbox_initialized = False
+    # failed_setup must be falsy so qecore before_scenario does not call sys.exit(1)
+    context.failed_setup = None
     context.sandbox = None
     context.shell = None
+
+    time.sleep(5)
+    try:
+        context.sandbox = TestSandbox("gnome-shell", context=context)
+        context.sandbox.attach_faf = False
+        context.sandbox.production = False
+        context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
+        context.shell = context.sandbox.shell
+        configure_screenshot_context(context, SUITE_NAME)
+    except BaseException as error:  # noqa: BLE001 -- catch SystemExit too
+        print(f"Environment error: before_all: {error}", flush=True)
+        # Do NOT set context.failed_setup -- qecore calls sys.exit(1) when it is set.
 
 
 def before_scenario(context, scenario):
@@ -99,7 +92,6 @@ def before_scenario(context, scenario):
     if 'plain_ssh' in scenario.tags:
         return
 
-    _init_sandbox(context)
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
     if context.sandbox is None:
         print("HOOK_ERROR: sandbox not initialized for GUI scenario", flush=True)

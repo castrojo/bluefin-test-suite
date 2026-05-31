@@ -20,6 +20,29 @@ from dogtail.predicate import GenericPredicate
 from qecore.common_steps import *  # noqa: F401,F403
 
 
+def _shell_eval(js: str, timeout: int = 5) -> str:
+    """Run JS in GNOME Shell via gdbus and return raw stdout."""
+    result = subprocess.run(
+        ['gdbus', 'call', '--session',
+         '--dest', 'org.gnome.Shell',
+         '--object-path', '/org/gnome/Shell',
+         '--method', 'org.gnome.Shell.Eval', js],
+        capture_output=True, text=True, timeout=timeout,
+    )
+    assert result.returncode == 0, f"Shell.Eval failed: {result.stderr.strip()}"
+    return result.stdout.strip()
+
+
+def _eval_bool(js: str) -> bool:
+    """Return True/False from a Shell.Eval JS expression."""
+    import re
+    out = _shell_eval(js)
+    m = re.search(r",\s*'?(true|false)'?\s*\)", out, re.IGNORECASE)
+    if m:
+        return m.group(1).lower() == "true"
+    raise AssertionError(f"Could not parse boolean from Shell.Eval output: {out}")
+
+
 # ── AT-SPI connectivity ───────────────────────────────────────────────────────
 
 @step('GNOME Shell is accessible via AT-SPI')
@@ -50,48 +73,36 @@ def panel_is_present(context) -> None:
 
 @step('Open Activities overview via Shell.Eval')
 def open_activities_overview(context) -> None:
-    context.sandbox.shell.eval_js("Main.overview.show()")
+    _shell_eval("Main.overview.show()")
 
 
 @step('Close Activities overview via Shell.Eval')
 def close_activities_overview(context) -> None:
-    context.sandbox.shell.eval_js("Main.overview.hide()")
+    _shell_eval("Main.overview.hide()")
 
 
 @step('Overview is open')
 def overview_is_open(context) -> None:
-    result = context.sandbox.shell.eval_js("Main.overview.visible")
-    visible = str(result).strip().lower()
-    assert "true" in visible, f"Overview is not open (visible={visible!r})"
+    assert _eval_bool("Main.overview.visible"), "Overview is not open"
 
 
 @step('Overview is closed')
 def overview_is_closed(context) -> None:
-    result = context.sandbox.shell.eval_js("Main.overview.visible")
-    visible = str(result).strip().lower()
-    assert "false" in visible or "true" not in visible, (
-        f"Overview is still open (visible={visible!r})"
-    )
+    assert not _eval_bool("Main.overview.visible"), "Overview is still open"
 
 
 # ── Quick Settings ────────────────────────────────────────────────────────────
 
 @step('Open Quick Settings via Shell.Eval')
 def open_quick_settings(context) -> None:
-    context.sandbox.shell.eval_js(
-        "Main.panel.statusArea.quickSettings.menu.open(true)"
-    )
+    _shell_eval("Main.panel.statusArea.quickSettings.menu.open(true)")
 
 
 @step('Quick Settings panel is open via Shell.Eval')
 def quick_settings_is_open(context) -> None:
-    result = context.sandbox.shell.eval_js(
+    assert _eval_bool(
         "Main.panel.statusArea.quickSettings.menu.isOpen"
-    )
-    is_open = str(result).strip().lower()
-    assert "true" in is_open, (
-        f"Quick Settings panel is not open (isOpen={is_open!r})"
-    )
+    ), "Quick Settings panel is not open"
 
 
 
@@ -100,12 +111,12 @@ def _extension_state(context, uuid: str) -> str:
     State values: 1=ENABLED, 2=DISABLED, 3=ERROR, 4=OUT_OF_DATE,
                   5=DOWNLOADING, 6=INITIALIZED, 99=UNINSTALLED
     """
+    import re
     js = f"Main.extensionManager.lookup('{uuid}')?.state ?? 99"
-    result = context.sandbox.shell.eval_js(js)
-    # eval_js returns a string like "(true, '1')" — extract the value
-    if isinstance(result, tuple):
-        return str(result[1]).strip().strip("'\"")
-    return str(result).strip().strip("'\"")
+    out = _shell_eval(js)
+    # _shell_eval returns raw gdbus stdout: (true, 'value')
+    m = re.search(r",\s*'([^']+)'\s*\)", out)
+    return m.group(1).strip() if m else out.strip()
 
 
 @step('Extension "{uuid}" is enabled')

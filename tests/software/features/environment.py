@@ -50,7 +50,8 @@ def before_all(context) -> None:
         context.software = context.sandbox.get_application(
             name="gnome-software",
             a11y_app_name="gnome-software",
-            desktop_file_name="org.gnome.Software.desktop",
+            # qecore 4.16: rpm -qlf lookup fails for Flatpak-style apps; use full path
+            desktop_file_path="/usr/share/applications/org.gnome.Software.desktop",
         )
         context.software.exit_shortcut = "<Ctrl>Q"
         configure_screenshot_context(context, SUITE_NAME)

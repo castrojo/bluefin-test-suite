@@ -33,7 +33,7 @@ def configure_screenshot_context(
     suite_name: str,
     scenario_name: str | None = None,
 ) -> None:
-    """Bind the active behave context so shared helpers can use shell.eval_js."""
+    """Bind the active behave context so shared helpers can capture screenshots."""
     global _CURRENT_CONTEXT, _CURRENT_SCENARIO, _CURRENT_SUITE
     _CURRENT_CONTEXT = context
     _CURRENT_SUITE = suite_name
@@ -73,7 +73,7 @@ def _shell_screenshot_js(path: str) -> str:
 
 
 def take_screenshot(label: str, context: Any | None = None) -> str | None:
-    """Capture a PNG via GNOME Shell's Screenshot API through shell.eval_js."""
+    """Capture a PNG via GNOME Shell's Screenshot API through gdbus Shell.Eval."""
     context = context or _CURRENT_CONTEXT
     sandbox = getattr(context, "sandbox", None) if context is not None else None
     if sandbox is None:
@@ -90,7 +90,18 @@ def take_screenshot(label: str, context: Any | None = None) -> str | None:
             pass
 
     try:
-        context.sandbox.shell.eval_js(_shell_screenshot_js(path))
+        subprocess.run(
+            [
+                'gdbus', 'call', '--session',
+                '--dest', 'org.gnome.Shell',
+                '--object-path', '/org/gnome/Shell',
+                '--method', 'org.gnome.Shell.Eval',
+                _shell_screenshot_js(path),
+            ],
+            capture_output=True,
+            timeout=10,
+            check=True,
+        )
     except Exception as exc:  # noqa: BLE001
         print(f"Screenshot error: {exc}", flush=True)
         return None
