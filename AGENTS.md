@@ -13,12 +13,8 @@ Run `just list-stubs` to see `@future` scenarios waiting for implementation. Cur
 
 | Area | Suite | Gap | Priority |
 |---|---|---|---|
-| Quick Settings panel | smoke | Open/close via Shell.Eval | High |
-| Notifications | smoke | Toast dismiss, do-not-disturb toggle | High |
-| Night Light | smoke | Enable/disable via Quick Settings | Medium |
 | OOBE / first-boot | smoke | Initial user setup flow | Low |
 | Flatpak permissions | software | Flatseal per-app permissions | Low |
-| Extensions management | smoke | GNOME Extensions app install/toggle | Medium |
 
 ### How agents contribute
 
