@@ -150,6 +150,13 @@ OPTIONAL_SCENARIO_TARGETS = {
         ("desktop", "org.gnome.TextEditor.desktop"),
         ("desktop", "org.gnome.TextEditor.Devel.desktop"),
     ),
+    "ptyxis": (
+        ("command", "ptyxis"),
+        ("desktop", "org.gnome.Ptyxis.desktop"),
+    ),
+    "extensions_app": (
+        ("desktop", "org.gnome.Extensions.desktop"),
+    ),
 }
 
 
