@@ -3,7 +3,7 @@
 #
 # Bluefin variants:  bluefin (latest/lts/gts)  → smoke,developer,common
 #                    bluefin-dx (latest/lts/gts) → smoke,developer,dx,common
-#                    bluefin-nvidia              → smoke,common
+#                    bluefin-nvidia-open         → smoke,common
 # Bazzite:          bazzite-gnome:latest  → bazzite suite only
 # GNOME OS:         gnomeos-latest        → vanilla-gnome,software
 #   (gnome-software / Bazaar is only present on vanilla GNOME OS, not Bluefin)
@@ -108,10 +108,10 @@ jobs:
   # ── bluefin-nvidia ───────────────────────────────────────────────────────────
 
   test-nvidia:
-    name: bluefin-nvidia:latest
+    name: bluefin-nvidia-open:latest
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
-      image: ghcr.io/ublue-os/bluefin-nvidia:latest
+      image: ghcr.io/ublue-os/bluefin-nvidia-open:latest
       suites: smoke,common
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
