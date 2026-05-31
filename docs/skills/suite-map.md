@@ -62,7 +62,7 @@ SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA act
 | bazzite | 20 | ✅ active | Extension presence + shell behaviour |
 | dx | 15 | ✅ active | VS Code + CLI tools + brew |
 | flatcar/boot | 7 | ✅ active | systemd, containerd, networking |
-| flatcar/lifecycle | 6 | ⏳ @future | Needs dual-disk VM (Epic E09) |
+| flatcar/lifecycle | 6 | ⚠️ partially active | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
 | security/selinux | 5 | ⏳ @future | Needs `selinux=0` removed from golden disk (Epic E04) |
 | nvidia | 12 | ⏳ @future/@hardware_blocked | Needs GPU passthrough (Epic E08); freedesktop tools (drm_info, vulkaninfo, glmark2) staged |
 

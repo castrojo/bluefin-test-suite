@@ -1,9 +1,9 @@
 # testsuite QA review
 
-> Last updated: 2026-05-30
+> Last updated: 2026-05-31
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 251 scenarios across 29 feature files (last audit: 2026-05-30).
+Current audit: 251 scenarios across 29 feature files (last audit: 2026-05-31).
 
 ## What this repo is responsible for
 
@@ -30,4 +30,10 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 5. Do docs (`README.md`, `RUNBOOK.md`, `docs/skills/`) still match behavior?
 6. Are new pytest files being added? (Legacy pytest removed 2026-05-28 — all new tests must use behave.)
 7. If scenario count changed, is `docs/skills/suite-map.md` updated?
+
+## Current stub posture
+
+- `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
+- `security/selinux`: still `@future` until Bluefin test images stop booting with `selinux=0`.
+- `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
 
