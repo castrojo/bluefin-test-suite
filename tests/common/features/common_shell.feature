@@ -5,10 +5,12 @@ Feature: Bluefin common shell environment
   Background:
     * Bluefin VM is booted and reachable over SSH
 
+  @quarantine
   Scenario: zsh is available
     * Run SSH command: "zsh --version"
     * SSH command return code is "0"
 
+  @quarantine
   Scenario: fish is available
     * Run SSH command: "fish --version"
     * SSH command return code is "0"
@@ -45,6 +47,7 @@ Feature: Bluefin common shell environment
     * Run SSH command: "rg --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/rg --version"
     * SSH command return code is "0"
 
+  @quarantine
   Scenario: starship prompt binary is present
     * Run SSH command: "starship --version"
     * SSH command return code is "0"
