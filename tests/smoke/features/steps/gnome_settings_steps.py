@@ -152,17 +152,21 @@ def settings_panel_is_visible(context, name: str) -> None:
 @step("About page shows system information")
 def about_page_shows_system_information(context) -> None:
     app = _settings_app()
+    # GNOME 50 libadwaita uses additional AT-SPI roles not in TEXT_ROLES.
+    # First try with TEXT_ROLES, then fall back to all showing nodes.
     for _ in range(10):
-        visible_texts = [
-            _visible_text(node)
-            for node in app.findChildren(
-                lambda n: n.showing and n.roleName in TEXT_ROLES and bool(_visible_text(n))
-            )
-        ]
-        matches = [text for text in visible_texts if _looks_like_system_info(text)]
-        if matches:
-            context.about_system_info = matches[0]
-            return
+        for role_filter in (
+            lambda n: n.showing and n.roleName in TEXT_ROLES and bool(_visible_text(n)),
+            lambda n: n.showing and bool(_visible_text(n)),
+        ):
+            visible_texts = [
+                _visible_text(node)
+                for node in app.findChildren(role_filter)
+            ]
+            matches = [text for text in visible_texts if _looks_like_system_info(text)]
+            if matches:
+                context.about_system_info = matches[0]
+                return
         sleep(0.5)
     raise AssertionError(
         "About page did not expose visible system information text"

@@ -9,6 +9,8 @@ from qecore.common_steps import *  # noqa: F401,F403
 
 FRAME_ROLES = {"frame", "filler"}
 PTYXIS_APP_NAMES = ("ptyxis", "Ptyxis")
+# GNOME 50 changed the Ptyxis window title from "Ptyxis" to "Terminal"
+PTYXIS_WINDOW_NAMES: set[str] = {"Ptyxis", "Terminal", ""}
 FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
 
 
@@ -119,6 +121,15 @@ def _launch_assert_and_close(
     except Exception:  # noqa: BLE001
         pass
     context.execute_steps('* Key combo: "<Alt><F4>" with uinput')
+    # Nautilus (and some other GNOME 50 apps) persist as background daemons
+    # even after all windows close.  Force-quit to ensure a clean state.
+    if "nautilus" in app_id.lower() or any("nautilus" in n.lower() for n in app_names):
+        subprocess.run(
+            ["nautilus", "--quit"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
     _wait_for_app_to_close(app_names, label)
 
 
@@ -128,7 +139,7 @@ def ptyxis_terminal_launches_successfully(context) -> None:
         context,
         "org.gnome.Ptyxis",
         PTYXIS_APP_NAMES,
-        {"Ptyxis"},
+        PTYXIS_WINDOW_NAMES,
         "Ptyxis",
     )
 
