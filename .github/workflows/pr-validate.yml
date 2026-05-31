@@ -46,7 +46,7 @@ jobs:
   dry-run:
     name: Behave dry-run
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora:41
+    container: registry.fedoraproject.org/fedora:45@sha256:277f4c735ab59ea13a453d88880d28fcec7d196dc132b9fb2e241cf3faac99fc
     timeout-minutes: 10
 
     steps:
