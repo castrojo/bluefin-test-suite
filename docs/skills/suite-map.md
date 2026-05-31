@@ -14,7 +14,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour; `bazzite-gnome:latest` only |
 | `developer` | ✅ | ✅ | — | — | — | — | Homebrew/Ptyxis; DX adds extra tools |
-| `software` | ✅ | — | — | — | — | — | Bazaar/Flatpak; standard variant only |
+| `software` | — | — | — | — | ✅ | — | Bazaar/Flatpak; gnomeos only — Bluefin ships Warehouse, not GNOME Software |
 | `common` | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
 | `lifecycle` | ✅ | ✅ | ✅ | — | — | — | bootc upgrade/rollback; SSH-mode |
 | `security` | ✅ | ✅ | ✅ | — | — | — | cosign + SELinux; SSH-mode |
@@ -32,6 +32,28 @@ with:
 ```
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`) run on `ubuntu-latest`.
 SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA action (epics #43/#44).
+
+## Nightly CI job matrix
+
+The `nightly.yml` workflow runs 9 named jobs. Each job name is visible in the Actions UI:
+
+| Job name | Image | Suites |
+|---|---|---|
+| `bluefin:latest` | `ghcr.io/ublue-os/bluefin:latest` | smoke, developer, common |
+| `bluefin:gts` | `ghcr.io/ublue-os/bluefin:gts` | smoke, developer, common |
+| `bluefin:lts` | `ghcr.io/ublue-os/bluefin:lts` | smoke, developer, common |
+| `bluefin-dx:latest` | `ghcr.io/ublue-os/bluefin-dx:latest` | smoke, developer, dx, common |
+| `bluefin-dx:gts` | `ghcr.io/ublue-os/bluefin-dx:gts` | smoke, developer, dx, common |
+| `bluefin-dx:lts` | `ghcr.io/ublue-os/bluefin-dx:lts` | smoke, developer, dx, common |
+| `bluefin-nvidia-open:latest` | `ghcr.io/ublue-os/bluefin-nvidia-open:latest` | smoke, common |
+| `bazzite-gnome:latest` | `ghcr.io/ublue-os/bazzite-gnome:latest` | bazzite |
+| `gnomeos-latest` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
+
+**Why these assignments:**
+- `bluefin` does not ship GNOME Software (it ships Warehouse) → software suite is gnomeos-only
+- `bazzite` is not vanilla GNOME → only the bazzite suite runs against it (no vanilla-gnome)
+- `bluefin-nvidia-open` is used instead of `bluefin-nvidia` because nvidia-open is built daily; `bluefin-nvidia:latest` (Oct 2025) ships bootc too old to support `--bootloader`
+- nvidia services (`nvidia-persistenced`, `ublue-nvctk-cdi`) are in the `IGNORED_FAILED_UNITS_IN_VM` allowlist because they always fail in QEMU without a physical GPU
 
 ## Scenario tags
 
