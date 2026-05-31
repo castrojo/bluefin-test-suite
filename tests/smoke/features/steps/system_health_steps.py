@@ -153,3 +153,17 @@ def ujust_list_has_tasks(context) -> None:
         assert returncode == 0, f"ujust --list failed (rc={returncode}): {stderr or output}"
     tasks = [line for line in output.splitlines() if line.strip()]
     assert tasks, "ujust --list returned no tasks"
+
+
+@step("ujust report --confirm rejects non-integer issue number")
+def ujust_report_confirm_invalid(context) -> None:
+    output, returncode, stderr = _run("ujust report --confirm abc 2>&1")
+    assert returncode == 1, f"Expected exit code 1, got {returncode}. Output: {output}"
+    assert "positive integer" in output, f"Expected validation error, got: {output}"
+
+
+@step("ujust report --confirm without issue number prints error")
+def ujust_report_confirm_missing_number(context) -> None:
+    output, returncode, stderr = _run("ujust report --confirm 2>&1")
+    assert returncode == 1, f"Expected exit code 1, got {returncode}. Output: {output}"
+    assert "requires an issue number" in output, f"Expected parameter error, got: {output}"
