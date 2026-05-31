@@ -32,6 +32,82 @@ run_ssh(context, "sudo bootc upgrade", timeout=180)
 
 Never lower the default below 60s.
 
+## sys.exit(1) in before_scenario kills behave — always use raise
+
+**Symptom:** All scenarios from the second failure onward appear to pass (not run), but behave exits non-zero and only shows the first failure in logs.
+
+**Cause:** `sys.exit(1)` inside `before_scenario` (or anywhere in a before-hook) raises `SystemExit`, which is caught by qecore and propagated, but it terminates the entire behave process — not just the current scenario.
+
+**Fix:** Replace every `sys.exit(1)` with `raise` (re-raises the exception and lets behave mark the scenario failed, then continues). Check all `environment.py` files:
+
+```bash
+grep -r "sys.exit" tests/*/features/environment.py
+```
+
+Should return nothing. Any hit must be replaced with `raise`.
+
+## GNOME 50 requires qecore >= 4.12
+
+**Symptom:** `GetWindows` returns `AccessDenied`; `unsafe_mode` is never set; `Shell.Eval` returns `""`.
+
+**Cause:** qecore 3.35.3 on Fedora 44 uses a unit name pattern that never matched GNOME 50's gnome-shell unit, so `unsafe_mode` was never activated. All AT-SPI window queries fail silently.
+
+**Fix:** `e2e.yml` pins `qecore>=4.12` in the pip install step. Do not downgrade.
+
+## @quarantine tag enforcement
+
+**Symptom:** Scenarios tagged `@quarantine` run anyway and fail.
+
+**Cause:** The `@quarantine` tag was historically cosmetic — `--tags ~quarantine` was never passed to behave. The `skip_quarantine()` helper in `tests/shared/quarantine.py` does skip inside `before_scenario`, but only if the scenario reaches that hook (retries pass the raw failing entries without re-checking tags).
+
+**Fix (now in place, two layers):**
+1. `behave_retry.py` calls `with_quarantine_filter()` which always appends `--tags ~@quarantine` to the behave invocation.
+2. `e2e.yml` sets `BEHAVE_TAG_ARGS="--tags ~quarantine"` before calling `behave_retry.py`.
+
+Both layers are required. Do not remove either.
+
+## --bootloader flag requires bootc >= 0.1.13
+
+**Symptom:** `bootc install to-disk --bootloader systemd` fails with `unrecognized flag`.
+
+**Cause:** The `--bootloader` flag was added in bootc 0.1.13. Older LTS images ship an earlier bootc.
+
+**Fix (in e2e.yml):**
+```bash
+BOOTLOADER_ARG=""
+if bootc install to-disk --help 2>&1 | grep -q '\-\-bootloader'; then
+  BOOTLOADER_ARG="--bootloader systemd"
+fi
+bootc install to-disk $BOOTLOADER_ARG ...
+```
+
+Always probe before using. Never hard-code `--bootloader`.
+
+## gnomeos: python-uinput build fails (no gcc)
+
+**Symptom:** `pip install python-uinput` fails with `x86_64-unknown-linux-gnu-gcc: not found` or `gcc: not found`.
+
+**Cause:** GNOME OS is compiled with a cross-toolchain. Python's build system looks for the cross-compiler, not the native `gcc`. Even setting `CC=gcc` only helps if `gcc` is present — on gnomeos it is not.
+
+**Consequence:** Any scenario that uses `Type text: "X" with uinput` **cannot run on gnomeos** and must be `@quarantine`d.
+
+**Workaround in e2e.yml:**
+```bash
+CC=gcc pip install python-uinput || echo "WARNING: python-uinput unavailable — keyboard input scenarios will be skipped"
+```
+
+The step continues (not `set -e` fatal) so other scenarios proceed.
+
+## NVIDIA services always fail in QEMU
+
+**Symptom:** `system_health.feature` fails with "failed units found" on nvidia-open images running in QEMU.
+
+**Units:** `nvidia-persistenced.service` and `ublue-nvctk-cdi.service`
+
+**Cause:** These services require a physical NVIDIA GPU. In QEMU with virtio-gpu, they fail unconditionally.
+
+**Fix:** Both services are in `IGNORED_FAILED_UNITS_IN_VM` in `tests/smoke/features/steps/system_health_steps.py`. Do not remove them.
+
 ## Running behave --dry-run for GNOME suites in CI
 
 **Problem:** GNOME suites (smoke, bazzite, developer, dx, software, vanilla-gnome) import `qecore.sandbox` which loads `gi.repository.Atspi` at module import time. Without a real AT-SPI bus, `libatspi` calls `g_error()` → `SIGTRAP` (core dump). This happens even during `behave --dry-run`.

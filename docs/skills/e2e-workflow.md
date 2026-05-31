@@ -32,7 +32,8 @@ jobs:
 | Input | Type | Default | Description |
 |-------|------|---------|-------------|
 | `image` | string | `ghcr.io/projectbluefin/dakota:latest` | OCI image to test (must be a bootc/ostree image) |
-| `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software` |
+| `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common` |
+| `skip_native_apps` | boolean | `false` | When `true`, skips `@native_app` scenarios (Flatpak apps that may not be installed in all variants) |
 
 Multiple suites run as a matrix (parallel jobs):
 

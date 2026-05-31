@@ -139,6 +139,22 @@ Or use the composite action directly for full control over artifact names and fa
 
 For scenarios in the `developer` or `dx` suites, swap `bluefin:latest` for the appropriate DX image.
 
+## Merging PRs — merge queue required
+
+This repo uses a **merge queue**. `gh pr merge` and the GitHub UI "Merge" button are blocked. You must enqueue via GraphQL:
+
+```bash
+PR_NODE_ID=$(gh api /repos/projectbluefin/testsuite/pulls/<NUMBER> --jq '.node_id')
+gh api graphql -f query="
+mutation {
+  enqueuePullRequest(input: { pullRequestId: \"${PR_NODE_ID}\" }) {
+    mergeQueueEntry { id position }
+  }
+}"
+```
+
+The merge queue runs all required CI checks (`Lint & syntax`, `pytest`, `Behave dry-run`) then merges automatically on green. Do not attempt `--admin` bypasses.
+
 ## After the PR merges
 
 - If you changed `QA-REVIEW.md`, verify the scenario count is still accurate
