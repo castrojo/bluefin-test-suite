@@ -8,7 +8,16 @@ import subprocess
 import time
 from typing import Any
 
-RESULTS_DIR = "/tmp/results"
+
+def _results_dir(context: Any | None = None) -> str:
+    """Resolve output dir: userdata > env var > default /tmp/results."""
+    if context is not None:
+        config = getattr(context, "config", None)
+        if config and hasattr(config, "userdata"):
+            value = config.userdata.get("results_dir")
+            if value:
+                return value
+    return os.environ.get("TESTSUITE_RESULTS_DIR", "/tmp/results")
 
 # Seconds to wait after launching an app before screenshotting
 _APP_LAUNCH_WAIT = int(os.environ.get("SCREENSHOT_APP_WAIT", "4"))
@@ -42,11 +51,11 @@ def _scenario_name() -> str:
     return scenario or _CURRENT_SCENARIO or "end_of_run"
 
 
-def _screenshot_path(label: str) -> str:
+def _screenshot_path(label: str, context: Any | None = None) -> str:
     suite = _safe_fragment(_CURRENT_SUITE, "suite")
     safe_label = _safe_fragment(label, "capture")
     scenario = _safe_fragment(_scenario_name(), "scenario")
-    return os.path.join(RESULTS_DIR, f"screenshot_{suite}_{safe_label}_{scenario}.png")
+    return os.path.join(_results_dir(context), f"screenshot_{suite}_{safe_label}_{scenario}.png")
 
 
 def _shell_screenshot_js(path: str) -> str:
@@ -63,16 +72,17 @@ def _shell_screenshot_js(path: str) -> str:
     )
 
 
-def take_screenshot(label: str) -> str | None:
+def take_screenshot(label: str, context: Any | None = None) -> str | None:
     """Capture a PNG via GNOME Shell's Screenshot API through shell.eval_js."""
-    context = _CURRENT_CONTEXT
+    context = context or _CURRENT_CONTEXT
     sandbox = getattr(context, "sandbox", None) if context is not None else None
     if sandbox is None:
         print("Screenshot skipped: sandbox context is unavailable", flush=True)
         return None
 
-    path = _screenshot_path(label)
-    os.makedirs(RESULTS_DIR, exist_ok=True)
+    results_dir = _results_dir(context)
+    path = _screenshot_path(label, context)
+    os.makedirs(results_dir, exist_ok=True)
     if os.path.exists(path):
         try:
             os.remove(path)
@@ -100,6 +110,7 @@ def take_app_screenshot(
     app_id: str,
     label: str | None = None,
     wait: int = _APP_LAUNCH_WAIT,
+    context: Any | None = None,
 ) -> str | None:
     """Launch an app, screenshot it, then close it again."""
     proc = None
@@ -116,7 +127,7 @@ def take_app_screenshot(
     try:
         proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         time.sleep(wait)
-        return take_screenshot(target_label)
+        return take_screenshot(target_label, context)
     except Exception as exc:  # noqa: BLE001
         print(f"App screenshot ({app_id}): {exc}", flush=True)
         return None
@@ -138,7 +149,7 @@ def _flatpak_installed(app_id: str) -> bool:
     ).returncode == 0
 
 
-def take_fastfetch_screenshot() -> str | None:
+def take_fastfetch_screenshot(context: Any | None = None) -> str | None:
     """Open a terminal, run fastfetch, screenshot it, then close."""
     candidates = [
         ('ptyxis', ['ptyxis', '--', 'bash', '-c', 'fastfetch; sleep 10']),
@@ -155,7 +166,7 @@ def take_fastfetch_screenshot() -> str | None:
         try:
             proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             time.sleep(4)
-            path = take_screenshot('fastfetch')
+            path = take_screenshot('fastfetch', context)
             if path is not None:
                 return path
             print(f"Fastfetch screenshot ({term}): capture returned no file", flush=True)
