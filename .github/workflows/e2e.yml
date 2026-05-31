@@ -115,6 +115,14 @@ jobs:
         run: |
           fallocate -l 30G disk.raw
 
+          # --bootloader was added in bootc ≥0.1.13. Older images (e.g. nvidia:latest
+          # built Oct 2025) ship an earlier bootc that rejects the flag. Probe
+          # support before constructing the install command.
+          BOOTLOADER_FLAG=""
+          if sudo podman run --rm --quiet "${IMAGE}" bootc install to-disk --help 2>&1 | grep -q "\-\-bootloader"; then
+            BOOTLOADER_FLAG="--bootloader systemd"
+          fi
+
           sudo podman run \
             --rm --privileged --pid=host \
             --security-opt label=type:unconfined_t \
@@ -125,7 +133,7 @@ jobs:
               --via-loopback /data/disk.raw \
               --filesystem ext4 \
               --wipe \
-              --bootloader systemd \
+              ${BOOTLOADER_FLAG} \
               --karg systemd.firstboot=no \
             || echo "bootc install exited $? (bootupd expected — continuing)"
 
