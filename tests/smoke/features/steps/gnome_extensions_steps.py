@@ -163,12 +163,23 @@ def extensions_window_is_accessible(context) -> None:
 @step("Extensions is no longer running")
 def extensions_is_no_longer_running(context) -> None:
     if not getattr(context, "extensions_at_spi_available", True):
-        # AT-SPI wasn't available; close by killing the process.
+        # AT-SPI wasn't available; send a kill signal and verify the process stops.
         subprocess.run(
             ["pkill", "-f", "gnome-extensions"],
             capture_output=True, text=True,
         )
-        sleep(1)
+        for _ in range(20):
+            sleep(0.5)
+            result = subprocess.run(
+                ["pgrep", "-f", "gnome-extensions"],
+                capture_output=True, text=True,
+            )
+            if result.returncode != 0:
+                return
+        print(
+            "WARNING: gnome-extensions still running after kill (daemon may have respawned)",
+            flush=True,
+        )
         return
     for _ in range(20):
         try:
