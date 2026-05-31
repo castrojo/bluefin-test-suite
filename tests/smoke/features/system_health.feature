@@ -31,3 +31,9 @@ Feature: System health smoke checks
   Scenario: ujust is available and lists at least one task
     * ujust is on PATH and returns exit 0
     * ujust --list prints at least one task
+
+  @system_health @ujust @ujust_report
+  Scenario: ujust report confirm validation rejects invalid inputs
+    * ujust is on PATH and returns exit 0
+    * ujust report --confirm rejects non-integer issue number
+    * ujust report --confirm without issue number prints error
