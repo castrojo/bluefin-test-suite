@@ -8,11 +8,11 @@ Load when: deciding which suite to add a test to, checking existing coverage, or
 
 Which suites run on which image. Any bootc/ostree GNOME image can run via the GitHub Action.
 
-| Suite | `bluefin` (latest/lts) | `bluefin-dx` | `bluefin-nvidia` | `bazzite` | `silverblue` | `flatcar` | Notes |
+| Suite | `bluefin` (latest/lts) | `bluefin-dx` | `bluefin-nvidia` | `bazzite` | `gnomeos` | `flatcar` | Notes |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | `smoke` | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; all Bluefin variants |
-| `vanilla-gnome` | ✅ | — | — | ✅ | ✅ | — | Upstream GNOME baseline; any GNOME image |
-| `bazzite` | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
+| `vanilla-gnome` | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
+| `bazzite` | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour; `bazzite-gnome:latest` only |
 | `developer` | ✅ | ✅ | — | — | — | — | Homebrew/Ptyxis; DX adds extra tools |
 | `software` | ✅ | — | — | — | — | — | Bazaar/Flatpak; standard variant only |
 | `common` | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
@@ -93,4 +93,5 @@ When activating: remove `@future`, update this file's coverage snapshot, update 
 
 `smoke=failed` + `vanilla-gnome=passed` → Bluefin regression.  
 `smoke=failed` + `vanilla-gnome=failed` → upstream GNOME issue.  
+`vanilla-gnome` runs exclusively against `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` — the official upstream GNOME OS bootc image — so results are directly comparable to what GNOME ships.  
 Comparison commands and manual inspection procedure → `RUNBOOK.md`.

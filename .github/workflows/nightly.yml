@@ -1,5 +1,5 @@
-# Nightly test matrix — runs GUI suites against bluefin:latest and bluefin:lts
-# on standard ubuntu-latest runners via the projectbluefin/testsuite GHA.
+# Nightly test matrix — runs GUI suites against bluefin:latest, bluefin:lts,
+# bazzite-gnome:latest, and the upstream GNOME OS bootc image.
 #
 # No self-hosted runners. No secrets required.
 #
@@ -14,13 +14,13 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image stream to test (latest | lts | bazzite | both)"
+        description: "Image stream to test (latest | lts | bazzite | gnomeos | both)"
         required: false
         default: "both"
       suites:
-        description: "Comma-separated suites (default: smoke,developer,software,vanilla-gnome,common)"
+        description: "Comma-separated suites (default: smoke,developer,software,common)"
         required: false
-        default: "smoke,developer,software,vanilla-gnome,common"
+        default: "smoke,developer,software,common"
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
     permissions:
       contents: read
       packages: write
@@ -42,7 +42,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
     permissions:
       contents: read
       packages: write
@@ -52,7 +52,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:latest
-      suites: bazzite,vanilla-gnome
+      suites: bazzite
     permissions:
       contents: read
       packages: write
@@ -63,6 +63,15 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin-dx:latest
       suites: dx
+    permissions:
+      contents: read
+      packages: write
+
+  test-gnomeos:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest
+      suites: vanilla-gnome
     permissions:
       contents: read
       packages: write
