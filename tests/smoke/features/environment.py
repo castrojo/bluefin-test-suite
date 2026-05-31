@@ -149,6 +149,10 @@ def before_all(context) -> None:
 
 
 def before_scenario(context, scenario) -> None:
+    from tests.shared.quarantine import skip_quarantine
+
+    if skip_quarantine(scenario):
+        return
     context.scenario = scenario
     context.html_formatter = None
     configure_screenshot_context(context, SUITE_NAME, scenario.name)

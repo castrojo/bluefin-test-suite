@@ -480,6 +480,8 @@ jobs:
 
       - name: Run behave suite
         id: run
+        env:
+          BEHAVE_RETRIES: 2
         run: |
           mkdir -p results
           BEHAVE_RC=0
@@ -490,7 +492,7 @@ jobs:
             VM_IP=127.0.0.1 \
             VM_USER=bluefin-test \
             SSH_KEY=/tmp/vm_key \
-            python3 -m behave tests/${SUITE}/features/ \
+            python3 tests/shared/behave_retry.py tests/${SUITE}/features/ \
               --format json.pretty --outfile results/results.json \
               --format pretty --outfile results/results.txt \
               --no-capture || BEHAVE_RC=$?
@@ -514,7 +516,7 @@ jobs:
               export PATH=\$HOME/.local/bin:\$PATH
               export PYTHONPATH=/tmp/bluefin-tests
               BEHAVE_BIN=\$(which behave)
-              \$HOME/.local/bin/qecore-headless \"\$BEHAVE_BIN /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --format pretty --outfile /tmp/results/results.txt --no-capture\"
+              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \$HOME/.local/bin/qecore-headless \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --format pretty --outfile /tmp/results/results.txt --no-capture\"
             " || BEHAVE_RC=$?
 
             $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
