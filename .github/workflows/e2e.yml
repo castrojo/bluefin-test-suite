@@ -89,12 +89,6 @@ jobs:
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
           ls -la /dev/kvm
 
-      - name: Cache QEMU apt packages
-        uses: awalber/cache-apt-pkgs-action@v1.4
-        with:
-          packages: qemu-system-x86
-          version: 1 # bump to invalidate cache
-
       # Pull OCI image in background while apt installs QEMU — saves ~2 min
       - name: Install QEMU and pull OCI image
         run: |
