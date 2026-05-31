@@ -116,22 +116,42 @@ def _gsettings_get_bool(schema: str, key: str) -> bool:
 
 
 def _set_dnd_enabled(expected: bool) -> None:
+    # In GNOME 48+, the _do_not_disturb property on quickSettings may not exist
+    # or may have been relocated.  Try the Shell.Eval UI path first; if the
+    # toggle object is absent, fall back to the gsettings canonical source.
+    # (DND is active when org.gnome.desktop.notifications show-banners = false)
     exists_js = (
         "Main.panel.statusArea.quickSettings._do_not_disturb !== null && "
         "Main.panel.statusArea.quickSettings._do_not_disturb !== undefined"
     )
-    checked_js = "Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()"
-    toggle_js = "Main.panel.statusArea.quickSettings._do_not_disturb.toggle()"
+    try:
+        toggle_exists = _eval_bool(exists_js)
+    except AssertionError:
+        toggle_exists = False
 
-    if not _eval_bool(exists_js):
-        raise AssertionError("Do-Not-Disturb toggle is missing from Quick Settings")
-    if _eval_bool(checked_js) != expected:
-        _shell_eval(toggle_js)
-    if not _wait_eval_bool(checked_js, expected=expected, retries=8, delay=0.5):
-        out = _shell_eval(checked_js)
-        raise AssertionError(
-            f"Do-Not-Disturb did not reach {expected} — Shell.Eval returned: {out!r}"
+    if toggle_exists:
+        checked_js = "Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()"
+        toggle_js = "Main.panel.statusArea.quickSettings._do_not_disturb.toggle()"
+        if _eval_bool(checked_js) != expected:
+            _shell_eval(toggle_js)
+        if not _wait_eval_bool(checked_js, expected=expected, retries=8, delay=0.5):
+            out = _shell_eval(checked_js)
+            raise AssertionError(
+                f"Do-Not-Disturb did not reach {expected} — Shell.Eval returned: {out!r}"
+            )
+    else:
+        # Fallback: drive DND through gsettings
+        # show-banners=true → DND disabled; show-banners=false → DND enabled
+        _gsettings_set_bool(
+            "org.gnome.desktop.notifications", "show-banners", not expected
         )
+        actual = _gsettings_get_bool("org.gnome.desktop.notifications", "show-banners")
+        dnd_active = not actual
+        if dnd_active != expected:
+            raise AssertionError(
+                f"Do-Not-Disturb gsettings fallback: expected DND={expected}, "
+                f"show-banners={actual!r}"
+            )
 
 
 @step('No coredump entries exist for "{name}"')
@@ -239,12 +259,18 @@ def enable_do_not_disturb_via_shell_eval_toggle(context) -> None:
 
 @step('Do-Not-Disturb is enabled via Shell.Eval')
 def do_not_disturb_is_enabled_via_shell_eval(context) -> None:
-    assert _wait_eval_bool(
-        'Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()',
-        expected=True,
-        retries=8,
-        delay=0.5,
-    ), 'Do-Not-Disturb should be enabled'
+    # Prefer Shell.Eval UI check; fall back to gsettings if toggle not available.
+    checked_js = 'Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()'
+    try:
+        ok = _wait_eval_bool(checked_js, expected=True, retries=8, delay=0.5)
+    except AssertionError:
+        ok = False
+    if not ok:
+        # gsettings fallback: show-banners=false means DND is enabled
+        dnd_active = not _gsettings_get_bool(
+            'org.gnome.desktop.notifications', 'show-banners'
+        )
+        assert dnd_active, 'Do-Not-Disturb should be enabled'
 
 
 @step('Disable Do-Not-Disturb via Shell.Eval toggle')
@@ -254,12 +280,18 @@ def disable_do_not_disturb_via_shell_eval_toggle(context) -> None:
 
 @step('Do-Not-Disturb is disabled via Shell.Eval')
 def do_not_disturb_is_disabled_via_shell_eval(context) -> None:
-    assert _wait_eval_bool(
-        'Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()',
-        expected=False,
-        retries=8,
-        delay=0.5,
-    ), 'Do-Not-Disturb should be disabled'
+    # Prefer Shell.Eval UI check; fall back to gsettings if toggle not available.
+    checked_js = 'Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()'
+    try:
+        ok = _wait_eval_bool(checked_js, expected=False, retries=8, delay=0.5)
+    except AssertionError:
+        ok = False
+    if not ok:
+        # gsettings fallback: show-banners=true means DND is disabled
+        dnd_active = not _gsettings_get_bool(
+            'org.gnome.desktop.notifications', 'show-banners'
+        )
+        assert not dnd_active, 'Do-Not-Disturb should be disabled'
 
 
 @step('Date menu panel is open via Shell.Eval')

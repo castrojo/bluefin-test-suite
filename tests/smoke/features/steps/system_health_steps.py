@@ -18,6 +18,8 @@ IGNORED_FAILED_UNITS_IN_VM = {
     "malcontent-control.service",
     "blueman-mechanism.service",
     "gnome-remote-desktop.service",
+    # bootupd cannot update the bootloader inside a QEMU VM (no EFI vars/bootctl)
+    "bootloader-update.service",
 }
 
 
@@ -137,7 +139,7 @@ def ujust_on_path(context) -> None:
 
 @step("ujust --list prints at least one task")
 def ujust_list_has_tasks(context) -> None:
-    output, returncode, stderr = _run("ujust --list 2>/dev/null")
-    assert returncode == 0, f"ujust --list failed (rc={returncode}): {stderr}"
+    output, returncode, stderr = _run("ujust --list")
+    assert returncode == 0, f"ujust --list failed (rc={returncode}): {stderr or output}"
     tasks = [line for line in output.splitlines() if line.strip()]
     assert tasks, "ujust --list returned no tasks"

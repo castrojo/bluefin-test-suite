@@ -12,7 +12,7 @@ SETTINGS_LAUNCH_TARGETS = (
     ("command", "gnome-control-center"),
     ("desktop", "org.gnome.Settings.desktop"),
 )
-TEXT_ROLES = {"heading", "label", "static", "text"}
+TEXT_ROLES = {"heading", "label", "static", "text", "description", "paragraph"}
 INFO_TOKENS = ("bluefin", "fedora", "linux", "version", "os")
 SETTINGS_PANEL_ALIASES = {
     "About": ("About", "System"),

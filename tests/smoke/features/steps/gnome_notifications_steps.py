@@ -82,7 +82,7 @@ def notification_banner_no_longer_showing(context) -> None:
             capture_output=True, text=True, timeout=5,
         )
         last_out = result.stdout
-        m = re.search(r",\s*'(true|false)'\s*\)", last_out, re.IGNORECASE)
+        m = re.search(r",\s*'\"?(true|false)\"?'\s*\)", last_out, re.IGNORECASE)
         if m and m.group(1).lower() == "false":
             return
         sleep(0.5)
