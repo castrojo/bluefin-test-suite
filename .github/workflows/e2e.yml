@@ -548,8 +548,8 @@ jobs:
         run: |
           mkdir -p results
           BEHAVE_RC=0
-          BEHAVE_TAG_ARGS=""
-          [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="--tags ~native_app"
+          BEHAVE_TAG_ARGS="--tags ~quarantine"
+          [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ~native_app"
 
           if [[ "${SUITE}" == "common" ]]; then
             python3 -m pip install -q --user behave

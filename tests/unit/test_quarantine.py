@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
 
 from tests.shared.quarantine import skip_quarantine
 
