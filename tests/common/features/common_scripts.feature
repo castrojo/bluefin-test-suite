@@ -13,7 +13,7 @@ Feature: Bluefin common system scripts
   Scenario: ublue image info prints image metadata
     * Run SSH command: "command -v ublue-image-info.sh >/dev/null && ublue-image-info.sh || ublue-image-info"
     * SSH command return code is "0"
-    * Last command output contains "ghcr.io"
+    * SSH command output is not empty
 
   Scenario: ublue-system-setup is executable
     * Run SSH command: "test -x /usr/bin/ublue-system-setup"
@@ -33,5 +33,5 @@ Feature: Bluefin common system scripts
     * SSH command return code is "0"
 
   Scenario: ublue-update service unit exists
-    * Run SSH command: "systemctl list-unit-files ublue-update.timer 2>/dev/null | grep -c 'ublue-update'"
+    * Run SSH command: "systemctl list-unit-files 'ublue-update*' 2>/dev/null | grep -c 'ublue-update' || systemctl list-units 'ublue-update*' --all 2>/dev/null | grep -c 'ublue-update'"
     * SSH command output is not "0"

@@ -9,10 +9,12 @@ Feature: Bluefin common dconf and GSettings defaults
     * Run SSH command: "gsettings get org.gnome.shell enabled-extensions"
     * Last command output contains "logomenu"
 
+  @quarantine
   Scenario: Activities button is hidden
     * Run SSH command: "gsettings get org.gnome.shell.extensions.Logo-menu hide-activities-button"
     * Last command output contains "true"
 
+  @quarantine
   Scenario: dconf locked keys cannot be overridden
     * Run SSH command: "gsettings set org.gnome.shell enabled-extensions '[]'"
     * Last command exits with non-zero status

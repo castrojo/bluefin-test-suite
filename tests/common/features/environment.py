@@ -56,8 +56,16 @@ def before_all(context):
     if session_env:
         quoted = shlex.quote(session_env)
         session_prefix = f"if [ -f {quoted} ]; then . {quoted}; fi; "
+    # Set up Homebrew PATH so brew-installed tools (bat, eza, fd, rg, etc.) are
+    # accessible in non-interactive SSH sessions.
+    brew_prefix = (
+        '[ -x /home/linuxbrew/.linuxbrew/bin/brew ] '
+        '&& eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)" '
+        '|| true; '
+    )
     context.ssh_command_prefix = (
         session_prefix
+        + brew_prefix
         + 'XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}; '
         + 'export XDG_RUNTIME_DIR; '
         + 'SESSION_BUS=$(systemctl --user show-environment 2>/dev/null '
