@@ -89,6 +89,12 @@ def before_scenario(context, scenario):
     context.ssh_rc = 0
     record_start(context)
 
+    # qecore only clears _scenario_skipped inside sandbox.before_scenario(), which
+    # is never called for @plain_ssh scenarios.  Notify it here so after_all doesn't
+    # assert "No scenario matched tags" when all GUI scenarios are @quarantine'd.
+    if context.sandbox is not None:
+        context.sandbox._scenario_skipped = False
+
     if 'plain_ssh' in scenario.tags:
         return
 
