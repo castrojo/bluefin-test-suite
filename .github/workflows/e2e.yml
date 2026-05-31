@@ -442,7 +442,7 @@ jobs:
           $SSH "python3 -m pip install -q --user --no-binary python-uinput python-uinput"
           $SSH "sudo dnf remove -y -q gcc python3-devel libudev-devel 2>/dev/null || true"
 
-          $SSH "python3 -m pip install -q --user qecore behave dogtail"
+          $SSH "python3 -m pip install -q --user --upgrade 'qecore>=4.12' behave dogtail"
           $SSH "for f in \$HOME/.local/bin/qecore_*; do sudo ln -sf \"\$f\" /usr/local/bin/\$(basename \"\$f\") 2>/dev/null; done || true"
           $SSH "sudo modprobe uinput 2>/dev/null || true"
           $SSH "sudo chmod 0666 /dev/uinput 2>/dev/null || true"

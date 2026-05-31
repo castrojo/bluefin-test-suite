@@ -3,7 +3,6 @@ Software test environment — qecore TestSandbox for gnome-software (Bazaar).
 
 Regressions: bluefin#4062, #4471.
 """
-import sys
 import traceback
 
 from qecore.sandbox import TestSandbox
@@ -71,8 +70,12 @@ def before_scenario(context, scenario) -> None:
     try:
         context.sandbox.before_scenario(context, scenario)
     except Exception:
-        context.embed("text/plain", traceback.format_exc(), "Before Scenario Error")
-        sys.exit(1)
+        tb = traceback.format_exc()
+        try:
+            context.embed("text/plain", tb, "Before Scenario Error")
+        except Exception:
+            print(f"HOOK_ERROR in before_scenario:\n{tb}", flush=True)
+        raise
 
 
 def after_scenario(context, scenario) -> None:

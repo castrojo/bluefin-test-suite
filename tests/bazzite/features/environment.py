@@ -105,7 +105,7 @@ def before_scenario(context, scenario) -> None:
     except Exception:
         tb = traceback.format_exc()
         print(f"HOOK_ERROR in before_scenario:\n{tb}", flush=True)
-        sys.exit(1)
+        raise
 
 
 def after_scenario(context, scenario) -> None:

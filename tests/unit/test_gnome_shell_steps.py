@@ -16,7 +16,6 @@ import pytest
 
 def _import_gnome_shell_steps():
     """Import the module under test, skipping behave decorator registration."""
-    import importlib
     import sys
 
     # Stub out behave.step so @step decorators don't explode without a running
