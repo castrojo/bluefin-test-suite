@@ -52,7 +52,7 @@ def before_all(context) -> None:
         context.ptyxis = context.sandbox.get_application(
             name="ptyxis",
             a11y_app_name="ptyxis",
-            desktop_file_name="org.gnome.Ptyxis.desktop",
+            desktop_file_path="/usr/share/applications/org.gnome.Ptyxis.desktop",
         )
         context.ptyxis.exit_shortcut = "<Alt>F4"
 

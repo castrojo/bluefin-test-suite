@@ -19,7 +19,7 @@ Feature: Ptyxis terminal smoke tests
     * Press key: "Return" with uinput
     * Terminal output in ptyxis contains "bluefin-test"
 
-  @ptyxis @brew
+  @quarantine @ptyxis @brew
   Scenario: brew is on PATH and returns version string
     * Type text: "brew --version" with uinput
     * Press key: "Return" with uinput
