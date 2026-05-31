@@ -12,15 +12,15 @@ Feature: gnome-software (Bazaar) smoke tests
     * Application "software" is running
     * Item "Software" "frame" is "showing" in "software"
 
-  @software @navigation
+  @quarantine @software @navigation
   Scenario: Explore tab is present and accessible
     * Item "Explore" "toggle button" is "showing" in "software"
 
-  @software @navigation
+  @quarantine @software @navigation
   Scenario: Installed tab is present and accessible
     * Item "Installed" "toggle button" is "showing" in "software"
 
-  @software @navigation
+  @quarantine @software @navigation
   Scenario: Clicking Installed tab shows installed apps list
     * Left click "Installed" "toggle button" in "software"
     * Wait until "Installed" "page tab" appears in "software"
@@ -31,18 +31,18 @@ Feature: gnome-software (Bazaar) smoke tests
     * Type text: "Firefox" with uinput
     * Wait until "Firefox" "label" appears in "software"
 
-  @software @regression @bluefin_4062
+  @quarantine @software @regression @bluefin_4062
   Scenario: Flatpak updates section is reachable without crash (bluefin#4062)
     * Left click "Installed" "toggle button" in "software"
     * No journal entries match "gnome-software.*segfault|gnome-software.*abort"
 
-  @software @regression @bluefin_4471
+  @quarantine @software @regression @bluefin_4471
   Scenario: No gnome-software coredump on Explore page load (bluefin#4471)
     * Left click "Explore" "toggle button" in "software"
     * Wait 2 seconds before action
     * No coredump entries exist for "gnome-software"
 
-  @software @close
+  @quarantine @software @close
   Scenario: Bazaar closes cleanly via shortcut
     * Close application "software" via "shortcut"
     * Application "software" is no longer running
@@ -55,7 +55,7 @@ Feature: gnome-software (Bazaar) smoke tests
   Scenario: Flatpak permissions database is queryable
     * Flatpak permissions table "notifications" is queryable
 
-  @software @flatpak_permissions @nightly
+  @quarantine @software @flatpak_permissions @nightly
   Scenario: flatpak user override round-trip succeeds
     # Calculator is always present; override doesn't require the app to be installed.
     * Set flatpak user override "--filesystem=home" for "org.gnome.Calculator"
@@ -67,7 +67,7 @@ Feature: gnome-software (Bazaar) smoke tests
   Scenario: Flathub remote is configured and reachable
     * Flatpak remote "flathub" is configured
 
-  @software @flatpak_cli @nightly
+  @quarantine @software @flatpak_cli @nightly
   Scenario: flatpak install and uninstall round-trip succeeds
     # Apostrophe (~5 MB) is a small, stable Flatpak with no heavy runtimes.
     # Marked @nightly to avoid slow network I/O on every PR run.

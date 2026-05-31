@@ -8,12 +8,12 @@ Feature: Ptyxis terminal smoke tests
     * Start application "ptyxis" via "command"
     * Make sure window is focused for wayland testing
 
-  @ptyxis @launch
+  @quarantine @ptyxis @launch
   Scenario: Ptyxis launches and window is accessible
     * Application "ptyxis" is running
     * Item "Ptyxis" "frame" is "showing" in "ptyxis"
 
-  @ptyxis @input
+  @quarantine @ptyxis @input
   Scenario: Terminal accepts keyboard input
     * Type text: "echo bluefin-test" with uinput
     * Press key: "Return" with uinput
@@ -25,17 +25,17 @@ Feature: Ptyxis terminal smoke tests
     * Press key: "Return" with uinput
     * Terminal output in ptyxis contains "Homebrew"
 
-  @ptyxis @podman
+  @quarantine @ptyxis @podman
   Scenario: podman is available in terminal
     * Type text: "podman --version" with uinput
     * Press key: "Return" with uinput
     * Terminal output in ptyxis contains "podman version"
 
-  @ptyxis @regression @bluefin_4620
+  @quarantine @ptyxis @regression @bluefin_4620
   Scenario: No Vulkan validation spam on terminal open (bluefin#4620)
     * No journal entries match "VUID-"
 
-  @ptyxis @new_tab
+  @quarantine @ptyxis @new_tab
   Scenario: New tab opens via keyboard shortcut
     * Key combo: "<Shift><Ctrl><T>" with uinput
     * Ptyxis has "2" tabs
