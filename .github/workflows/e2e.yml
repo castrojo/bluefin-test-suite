@@ -603,7 +603,8 @@ jobs:
                   lines.append(f"- **{feat['name']}** › {s['name']}")
                   for step in s.get('steps', []):
                     if step.get('result', {}).get('status') == 'failed':
-                      err = step['result'].get('error_message', '').strip()[:500]
+                      err_raw = step['result'].get('error_message', '')
+                      err = ('\n'.join(err_raw) if isinstance(err_raw, list) else err_raw).strip()[:500]
                       lines.append(f"  - `{step['name']}`")
                       if err:
                         lines.append(f"    <pre>{err}</pre>")
