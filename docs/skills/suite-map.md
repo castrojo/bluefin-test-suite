@@ -8,7 +8,7 @@ Load when: deciding which suite to add a test to, checking existing coverage, or
 
 Which suites run on which image. Any bootc/ostree GNOME image can run via the GitHub Action.
 
-| Suite | `bluefin` (latest/lts) | `bluefin-dx` | `bluefin-nvidia` | `bazzite` | `gnomeos` | `flatcar` | Notes |
+| Suite | `bluefin` (latest/gts/lts) | `bluefin-dx` (latest/gts/lts) | `bluefin-nvidia` | `bazzite` | `gnomeos` | `flatcar` | Notes |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | `smoke` | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; all Bluefin variants |
 | `vanilla-gnome` | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
