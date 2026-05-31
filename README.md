@@ -1,10 +1,11 @@
 # testsuite
+> Enslave the oppressors
 
-Canonical home for **Bluefin GUI/system test content** (behave + qecore-headless + dogtail) and shared step libraries.
+Automated behave + qecore-headless + dogtail and shared libraries for testing GNOME. Totally headless, k8s friendly. Help wanted!
 
-GOAL: GNOME 50 Test coverage
-Bonus Image test: Bazzite, Bluefin ... you?
-End Goal: GNOME 51 and autonomous agent maintenance of this testsuite
+- GNOME 50 
+- Individual image tests for: Bazzite, Bluefin ... you?
+- End Goal: GNOME 51 and autonomous agent maintenance of this testsuite
 
 ## Repository split (normalized)
 
