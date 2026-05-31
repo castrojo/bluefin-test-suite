@@ -57,11 +57,13 @@ def _shell_eval_force_close(app_names: tuple[str, ...]) -> None:
 def _launch_app(app_id: str) -> None:
     """Launch a GNOME app by ID, trying multiple invocation methods.
 
-    ``gio launch`` requires the full ``.desktop`` file ID (e.g.
-    ``org.gnome.Ptyxis.desktop``).  Older callers may pass the bare app ID
-    without the suffix, so we try several variants before giving up.
+    GNOME 50 / GLib 2.82+ changed ``gio launch`` to require an absolute path
+    to the ``.desktop`` file rather than resolving by application ID via
+    XDG_DATA_DIRS.  We try the absolute /usr/share path first, then fall back
+    to older invocation styles.
     """
     attempts = [
+        ["gio", "launch", f"/usr/share/applications/{app_id}.desktop"],
         ["gtk-launch", app_id],
         ["gio", "launch", f"{app_id}.desktop"],
         ["gio", "launch", app_id],

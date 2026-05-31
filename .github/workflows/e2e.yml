@@ -149,9 +149,28 @@ jobs:
           echo "ROOT_UUID=${ROOT_UUID}" >> "$GITHUB_ENV"
           echo "KVER=${KVER}" >> "$GITHUB_ENV"
 
-          # Copy kernel + initramfs to workspace for direct QEMU boot (no OVMF)
-          sudo cp "${D}/usr/lib/modules/${KVER}/vmlinuz" ./vmlinuz
-          sudo cp "${D}/usr/lib/modules/${KVER}/initramfs.img" ./initramfs.img
+          # Copy kernel + initramfs to workspace for direct QEMU boot (no OVMF).
+          # Fedora images pack vmlinuz into the deployment at usr/lib/modules/VERSION/.
+          # RHEL/el10 images put the kernel in the boot partition instead.
+          # Try deployment path first; fall back to mounting the boot partition.
+          if [[ -f "${D}/usr/lib/modules/${KVER}/vmlinuz" ]]; then
+            sudo cp "${D}/usr/lib/modules/${KVER}/vmlinuz" ./vmlinuz
+            sudo cp "${D}/usr/lib/modules/${KVER}/initramfs.img" ./initramfs.img
+          else
+            echo "vmlinuz not in deployment — trying boot partition (${LOOP}p2)"
+            sudo mkdir -p /mnt/boot
+            sudo mount "${LOOP}p2" /mnt/boot
+            BOOT_VMLINUZ=$(sudo find /mnt/boot -name "vmlinuz-${KVER}" -o -name "vmlinuz" 2>/dev/null | head -1)
+            BOOT_INITRD=$(sudo find /mnt/boot -name "initramfs-${KVER}.img" -o -name "initramfs.img" 2>/dev/null | head -1)
+            if [[ -z "${BOOT_VMLINUZ}" ]]; then
+              echo "ERROR: vmlinuz not found in deployment or boot partition"
+              sudo find /mnt/boot /mnt/root -name "vmlinuz*" 2>/dev/null | head -20
+              exit 1
+            fi
+            sudo cp "${BOOT_VMLINUZ}" ./vmlinuz
+            sudo cp "${BOOT_INITRD}" ./initramfs.img
+            sudo umount /mnt/boot
+          fi
           sudo chown runner:runner ./vmlinuz ./initramfs.img
 
           # Find the ostree boot entry symlink (boot.N/default/<hash>/serial).
@@ -572,6 +591,7 @@ jobs:
 
       - name: Write job summary
         if: always()
+        continue-on-error: true
         env:
           SCREENSHOT_REF: ${{ steps.upload-screenshot.outputs.ref }}
           SCREENSHOT_IMAGE: ${{ env.SCREENSHOT_IMAGE }}

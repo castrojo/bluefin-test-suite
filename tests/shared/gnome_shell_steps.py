@@ -221,11 +221,24 @@ def close_overview_eval(context: Context) -> None:
 
 @step('Open Quick Settings via Shell.Eval')
 def open_quick_settings_eval(context: Context) -> None:
-    # Use conditional open instead of toggle() — if QS is already open from a
-    # prior scenario, toggle() would close it, causing the subsequent isOpen check to fail.
+    # Re-enable unsafe_mode — GNOME 50 may reset it after UI events.
+    _shell_eval('global.context.unsafe_mode = true')
+    for attempt in range(4):
+        _shell_eval(
+            'if (!Main.panel.statusArea.quickSettings.menu.isOpen)'
+            ' Main.panel.statusArea.quickSettings.menu.open(0)'
+        )
+        sleep(0.5)
+        try:
+            if _eval_bool('Main.panel.statusArea.quickSettings.menu.isOpen.toString()'):
+                return
+        except AssertionError:
+            pass
+        sleep(0.5)
+    # Final fallback: toggle into open state.
     _shell_eval(
         'if (!Main.panel.statusArea.quickSettings.menu.isOpen)'
-        ' Main.panel.statusArea.quickSettings.menu.open(0)'
+        ' Main.panel.statusArea.quickSettings.menu.toggle()'
     )
     sleep(0.5)
 
@@ -242,10 +255,24 @@ def quick_settings_closed_eval(context: Context) -> None:
 
 @step('Open date menu via Shell.Eval')
 def open_date_menu_eval(context: Context) -> None:
-    # Use conditional open instead of toggle() for the same reason as Quick Settings.
+    # Re-enable unsafe_mode — GNOME 50 may reset it after UI events.
+    _shell_eval('global.context.unsafe_mode = true')
+    for attempt in range(4):
+        _shell_eval(
+            'if (!Main.panel.statusArea.dateMenu.menu.isOpen)'
+            ' Main.panel.statusArea.dateMenu.menu.open(0)'
+        )
+        sleep(0.5)
+        try:
+            if _eval_bool('Main.panel.statusArea.dateMenu.menu.isOpen.toString()'):
+                return
+        except AssertionError:
+            pass
+        sleep(0.5)
+    # Final fallback: toggle into open state.
     _shell_eval(
         'if (!Main.panel.statusArea.dateMenu.menu.isOpen)'
-        ' Main.panel.statusArea.dateMenu.menu.open(0)'
+        ' Main.panel.statusArea.dateMenu.menu.toggle()'
     )
     sleep(0.5)
 
