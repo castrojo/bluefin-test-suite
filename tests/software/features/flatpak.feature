@@ -25,8 +25,9 @@ Feature: gnome-software (Bazaar) smoke tests
     * Left click "Installed" "toggle button" in "software"
     * Wait until "Installed" "page tab" appears in "software"
 
-  @software @search
+  @quarantine @software @search
   Scenario: Search bar accepts input and returns results
+    # Quarantined: uinput (python-uinput) not available on gnomeos — no gcc in image.
     * Left click "Search" "toggle button" in "software"
     * Type text: "Firefox" with uinput
     * Wait until "Firefox" "label" appears in "software"
