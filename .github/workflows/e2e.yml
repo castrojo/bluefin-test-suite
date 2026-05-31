@@ -396,17 +396,12 @@ jobs:
 
           $SSH "python3 -m ensurepip --user 2>/dev/null || true"
 
-          # python-uinput has no pre-built wheels and the image has no compiler.
-          # Build the wheel on the runner using a matching Python 3.13 container,
-          # then SCP it into the VM and install it there.
-          mkdir -p /tmp/py-wheels
-          podman run --rm -v /tmp/py-wheels:/wheels:Z docker.io/python:3.13-slim \
-            bash -c "apt-get update -q && apt-get install -y -q gcc libudev-dev && \
-                     pip wheel python-uinput -w /wheels --no-deps --quiet"
-          SCP_OPTS="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-            -o ControlPath=/tmp/ssh-ctrl-%C -P 2222"
-          scp ${SCP_OPTS} /tmp/py-wheels/python_uinput*.whl bluefin-test@127.0.0.1:/tmp/
-          $SSH "python3 -m pip install --user /tmp/python_uinput*.whl"
+          # python-uinput has no pre-built wheels. Build it natively in the VM
+          # so the resulting wheel matches Fedora's Python ABI (avoids
+          # "not a supported wheel on this platform" from cross-built Debian wheels).
+          $SSH "sudo dnf install -y -q gcc python3-devel libudev-devel 2>/dev/null || true"
+          $SSH "python3 -m pip install -q --user --no-binary python-uinput python-uinput"
+          $SSH "sudo dnf remove -y -q gcc python3-devel libudev-devel 2>/dev/null || true"
 
           $SSH "python3 -m pip install -q --user qecore behave dogtail"
           $SSH "for f in \$HOME/.local/bin/qecore_*; do sudo ln -sf \"\$f\" /usr/local/bin/\$(basename \"\$f\") 2>/dev/null; done || true"
