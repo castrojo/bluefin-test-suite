@@ -23,7 +23,7 @@ Feature: GNOME Files smoke tests
 
   @files @navigation
   Scenario: Back button returns to previous location after navigating to Downloads
-    * Left click "Downloads" "button" in "nautilus"
+    * Left click "Downloads" "list item" in "nautilus"
     * Nautilus location shows "Downloads"
     * Key combo: "<Alt>Left" with uinput
     * Nautilus location shows "Home"
