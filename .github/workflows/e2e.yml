@@ -143,7 +143,19 @@ jobs:
           fi
           D="/mnt/root/ostree/deploy/default/deploy/${DEPLOY}"
           VAR="/mnt/root/ostree/deploy/default/var"
-          KVER=$(ls "${D}/usr/lib/modules/" | head -1)
+          # el10/LTS images may have multiple entries in usr/lib/modules/ (e.g., a
+          # modules-only dir for the old kernel + a full dir with vmlinuz for the new
+          # one). Pick the version that actually contains a vmlinuz; fall back to the
+          # newest version by sort -V if none do (boot-partition path handles that).
+          KVER=""
+          for kv in $(ls "${D}/usr/lib/modules/" | sort -V); do
+            if [[ -f "${D}/usr/lib/modules/${kv}/vmlinuz" ]]; then
+              KVER="${kv}"
+            fi
+          done
+          if [[ -z "${KVER}" ]]; then
+            KVER=$(ls "${D}/usr/lib/modules/" | sort -V | tail -1)
+          fi
           echo "deploy=${DEPLOY}  kver=${KVER}"
 
           echo "ROOT_UUID=${ROOT_UUID}" >> "$GITHUB_ENV"
@@ -160,8 +172,16 @@ jobs:
             echo "vmlinuz not in deployment — trying boot partition (${LOOP}p2)"
             sudo mkdir -p /mnt/boot
             sudo mount "${LOOP}p2" /mnt/boot
-            BOOT_VMLINUZ=$(sudo find /mnt/boot -name "vmlinuz-${KVER}" -o -name "vmlinuz" 2>/dev/null | head -1)
-            BOOT_INITRD=$(sudo find /mnt/boot -name "initramfs-${KVER}.img" -o -name "initramfs.img" 2>/dev/null | head -1)
+            # Search by exact KVER first, then fall back to any vmlinuz in the partition.
+            BOOT_VMLINUZ=$(sudo find /mnt/boot -name "vmlinuz-${KVER}" 2>/dev/null | head -1)
+            BOOT_INITRD=$(sudo find /mnt/boot -name "initramfs-${KVER}.img" 2>/dev/null | head -1)
+            if [[ -z "${BOOT_VMLINUZ}" ]]; then
+              BOOT_VMLINUZ=$(sudo find /mnt/boot -name "vmlinuz*" 2>/dev/null | grep -v '\.efi$' | sort -V | tail -1)
+              BOOT_INITRD=$(sudo find /mnt/boot -name "initramfs*.img" 2>/dev/null | sort -V | tail -1)
+              # Update KVER from the filename we found so the kernel args stay consistent.
+              KVER=$(basename "${BOOT_VMLINUZ}" | sed 's/^vmlinuz-//')
+              echo "KVER=${KVER}" >> "$GITHUB_ENV"
+            fi
             if [[ -z "${BOOT_VMLINUZ}" ]]; then
               echo "ERROR: vmlinuz not found in deployment or boot partition"
               sudo find /mnt/boot /mnt/root -name "vmlinuz*" 2>/dev/null | head -20
