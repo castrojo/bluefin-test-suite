@@ -28,7 +28,7 @@ jobs:
           python-version: "3.14"
 
       - name: Install test dependencies
-        run: pip install pytest pytest-cov
+        run: pip install pytest pytest-cov behave
 
       - name: Run unit tests
         run: pytest tests/unit/ -v --cov=tests --cov-report=xml --cov-report=term-missing --cov-fail-under=65
