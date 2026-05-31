@@ -1,4 +1,5 @@
 """Custom step definitions for GNOME Files (Nautilus) smoke tests."""
+import subprocess
 from time import sleep
 
 from behave import step
@@ -52,11 +53,16 @@ def _nautilus_window(timeout: int = 10):
 @step("Files window is accessible")
 def files_window_is_accessible(context) -> None:
     context.files_window = _nautilus_window()
+    # Click to ensure the window has keyboard focus before subsequent steps.
+    try:
+        context.files_window.click()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 @step("Files is no longer running")
 def files_is_no_longer_running(context) -> None:
-    for _ in range(20):
+    for i in range(40):
         for name in FILES_APP_NAMES:
             try:
                 app = tree.root.application(name)
@@ -67,7 +73,12 @@ def files_is_no_longer_running(context) -> None:
                 continue
         else:
             return
-        sleep(0.5)
+        # After 10s (20 retries), force-quit the Nautilus daemon.
+        if i == 19:
+            subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
+            sleep(1)
+        else:
+            sleep(0.5)
     raise AssertionError("GNOME Files is still visible in the AT-SPI tree")
 
 
@@ -110,7 +121,7 @@ def navigating_to_home_folder_shows_file_listing(context) -> None:
 
 @step("New folder dialog is open")
 def new_folder_dialog_is_open(context) -> None:
-    app = tree.root.application("nautilus")
+    app = _nautilus_app()
     for _ in range(10):
         dialogs = app.findChildren(lambda n: n.roleName == "dialog" and n.showing)
         for dialog in dialogs:

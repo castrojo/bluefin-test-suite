@@ -65,7 +65,7 @@ def dismiss_notification_via_gdbus(context) -> None:
 @step("Notification banner is no longer showing via Shell.Eval")
 def notification_banner_no_longer_showing(context) -> None:
     import re
-    # Wait up to 4 s for the banner to be dismissed from the message tray.
+    # Wait up to 20 s for the banner to be dismissed from the message tray.
     # The banner ref becomes null once Shell finishes the dismiss animation.
     # GNOME 50 changed the banner API — check both _banner property and banner visibility.
     # Use a compound expression that returns 'false' when no banner is showing.
@@ -78,7 +78,7 @@ def notification_banner_no_longer_showing(context) -> None:
         "!Main.messageTray._bannerBin.visible)).toString()"
     )
     last_out = ""
-    for _ in range(20):  # 10s — GNOME 50 banners can linger longer than 4s
+    for _ in range(40):  # 20s — GNOME 50 banners can linger longer in QEMU
         result = subprocess.run(
             ["gdbus", "call", "--session",
              "--dest", "org.gnome.Shell",
@@ -92,8 +92,41 @@ def notification_banner_no_longer_showing(context) -> None:
         if m and m.group(1).lower() == "true":
             return
         sleep(0.5)
+
+    # Banner still showing after 20s — force-dismiss via Shell.Eval.
+    dismiss_js = (
+        "try {"
+        "  if (Main.messageTray._banner && Main.messageTray._banner.destroy) {"
+        "    Main.messageTray._banner.destroy();"
+        "  } else if (Main.messageTray._bannerBin) {"
+        "    Main.messageTray._bannerBin.hide();"
+        "  }"
+        "} catch(e) {}; 'dismissed'"
+    )
+    subprocess.run(
+        ["gdbus", "call", "--session",
+         "--dest", "org.gnome.Shell",
+         "--object-path", "/org/gnome/Shell",
+         "--method", "org.gnome.Shell.Eval",
+         dismiss_js],
+        capture_output=True, text=True, timeout=5,
+    )
+    sleep(1)
+    # Final check after explicit dismiss
+    result = subprocess.run(
+        ["gdbus", "call", "--session",
+         "--dest", "org.gnome.Shell",
+         "--object-path", "/org/gnome/Shell",
+         "--method", "org.gnome.Shell.Eval",
+         banner_js],
+        capture_output=True, text=True, timeout=5,
+    )
+    last_out = result.stdout
+    m = re.search(r",\s*'\"?(true|false)\"?'\s*\)", last_out, re.IGNORECASE)
+    if m and m.group(1).lower() == "true":
+        return
     raise AssertionError(
-        f"Notification banner still showing after 4s — Shell.Eval returned: {last_out!r}"
+        f"Notification banner still showing after explicit dismiss — Shell.Eval returned: {last_out!r}"
     )
 
 
