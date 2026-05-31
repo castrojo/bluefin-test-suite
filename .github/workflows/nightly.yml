@@ -1,5 +1,9 @@
-# Nightly test matrix — runs GUI suites against bluefin:latest, bluefin:lts,
+# Nightly test matrix — runs GUI suites against all Bluefin image variants,
 # bazzite-gnome:latest, and the upstream GNOME OS bootc image.
+#
+# Bluefin variants:  bluefin (latest/lts/gts)  bluefin-dx (latest/lts/gts)  bluefin-nvidia
+# Bazzite:          bazzite-gnome:latest  (bazzite suite only)
+# GNOME OS:         gnomeos-latest        (vanilla-gnome baseline)
 #
 # No self-hosted runners. No secrets required.
 #
@@ -13,12 +17,8 @@ on:
     - cron: "0 3 * * *"
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: "Image stream to test (latest | lts | bazzite | gnomeos | both)"
-        required: false
-        default: "both"
       suites:
-        description: "Comma-separated suites (default: smoke,developer,software,common)"
+        description: "Comma-separated suites to override for Bluefin jobs (default: smoke,developer,software,common)"
         required: false
         default: "smoke,developer,software,common"
 
@@ -27,8 +27,9 @@ permissions:
   packages: write
 
 jobs:
+  # ── bluefin ──────────────────────────────────────────────────────────────────
+
   test-latest:
-    if: ${{ github.event.inputs.image_tag != 'lts' }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
@@ -37,8 +38,16 @@ jobs:
       contents: read
       packages: write
 
+  test-gts:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin:gts
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+    permissions:
+      contents: read
+      packages: write
+
   test-lts:
-    if: ${{ github.event.inputs.image_tag != 'latest' }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
@@ -47,8 +56,49 @@ jobs:
       contents: read
       packages: write
 
+  # ── bluefin-dx ───────────────────────────────────────────────────────────────
+
+  test-dx:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin-dx:latest
+      suites: smoke,developer,dx,common
+    permissions:
+      contents: read
+      packages: write
+
+  test-dx-gts:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin-dx:gts
+      suites: smoke,developer,dx,common
+    permissions:
+      contents: read
+      packages: write
+
+  test-dx-lts:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin-dx:lts
+      suites: smoke,developer,dx,common
+    permissions:
+      contents: read
+      packages: write
+
+  # ── bluefin-nvidia ───────────────────────────────────────────────────────────
+
+  test-nvidia:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin-nvidia:latest
+      suites: smoke,common
+    permissions:
+      contents: read
+      packages: write
+
+  # ── bazzite ──────────────────────────────────────────────────────────────────
+
   test-bazzite:
-    if: ${{ github.event.inputs.image_tag != 'lts' }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:latest
@@ -57,15 +107,7 @@ jobs:
       contents: read
       packages: write
 
-  test-dx:
-    if: ${{ github.event.inputs.image_tag != 'lts' }}
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
-    with:
-      image: ghcr.io/ublue-os/bluefin-dx:latest
-      suites: dx
-    permissions:
-      contents: read
-      packages: write
+  # ── upstream GNOME OS (vanilla-gnome baseline) ───────────────────────────────
 
   test-gnomeos:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
