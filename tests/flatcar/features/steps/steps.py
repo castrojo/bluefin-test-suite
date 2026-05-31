@@ -104,11 +104,32 @@ def reboot_vm_from_target_disk(context) -> None:
     )
 
 
+@step("Flatcar target disk has partitions")
+def flatcar_target_disk_has_partitions(context) -> None:
+    run_ssh(context, "lsblk -ln -o TYPE /dev/vdb | grep -c '^part$'")
+    ssh_return_code_is(context, "0")
+    assert getattr(context, "command_stdout", "").strip() != "0", (
+        "Expected /dev/vdb to contain at least one partition after knuckle install"
+    )
+
+
 @step('Ignition hostname is "{expected}"')
 def ignition_hostname_is(context, expected) -> None:
     run_ssh(context, "cat /etc/hostname")
     ssh_return_code_is(context, "0")
     ssh_output_is(context, expected)
+
+
+@step("Flatcar update channel is configured")
+def flatcar_update_channel_is_configured(context) -> None:
+    run_ssh(
+        context,
+        "grep -E '^GROUP=' /etc/flatcar/update.conf 2>/dev/null",
+    )
+    ssh_return_code_is(context, "0")
+    assert getattr(context, "command_stdout", "").strip(), (
+        "Expected /etc/flatcar/update.conf to contain a non-empty GROUP setting"
+    )
 
 
 @step("Afterburn service is available")
