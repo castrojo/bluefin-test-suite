@@ -1,4 +1,5 @@
 """Custom step definitions for GNOME Settings smoke tests."""
+import subprocess
 from time import sleep
 
 from behave import step
@@ -51,7 +52,7 @@ def settings_window_is_accessible(context) -> None:
 
 @step("Settings is no longer running")
 def settings_is_no_longer_running(context) -> None:
-    for _ in range(20):
+    for i in range(40):
         for name in SETTINGS_APP_NAMES:
             try:
                 app = tree.root.application(name)
@@ -62,7 +63,15 @@ def settings_is_no_longer_running(context) -> None:
                 continue
         else:
             return
-        sleep(0.5)
+        # After 10s, force-kill the gnome-control-center daemon.
+        if i == 19:
+            subprocess.run(
+                ["pkill", "-f", "gnome-control-center"],
+                capture_output=True, text=True,
+            )
+            sleep(1)
+        else:
+            sleep(0.5)
     raise AssertionError("GNOME Settings is still visible in the AT-SPI tree")
 
 

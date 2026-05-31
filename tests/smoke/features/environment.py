@@ -185,6 +185,26 @@ def before_all(context) -> None:
 
     # Poll until clock + system toggles appear in AT-SPI (up to 15s)
     from dogtail import tree as dtree
+
+    # GNOME 50 changed the Nautilus AT-SPI application name from "nautilus"
+    # to "Files".  Patch tree.root.application so that any lookup for
+    # "nautilus" also tries "Files" and "org.gnome.Nautilus" as fallbacks.
+    # This fixes qecore steps such as `Left click "X" "Y" in "nautilus"`.
+    _orig_root_application = dtree.root.application
+
+    def _nautilus_aliased_application(name, *args, **kwargs):
+        try:
+            return _orig_root_application(name, *args, **kwargs)
+        except Exception:  # noqa: BLE001
+            if name.lower() == "nautilus":
+                for alt in ("Files", "org.gnome.Nautilus"):
+                    try:
+                        return _orig_root_application(alt, *args, **kwargs)
+                    except Exception:  # noqa: BLE001
+                        pass
+            raise
+
+    dtree.root.application = _nautilus_aliased_application
     deadline = time.time() + 15
     while time.time() < deadline:
         try:

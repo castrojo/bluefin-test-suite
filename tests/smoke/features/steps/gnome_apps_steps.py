@@ -13,6 +13,46 @@ PTYXIS_APP_NAMES = ("ptyxis", "Ptyxis")
 PTYXIS_WINDOW_NAMES: set[str] = {"Ptyxis", "Terminal", ""}
 FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
 
+# Map app name fragments → WM class substrings for Shell.Eval force-close.
+# GNOME 50 apps (Ptyxis, Settings, Files) run as background daemons and
+# don't terminate on Alt+F4 — we must force-delete via mutter.
+_APP_WM_CLASS_HINTS: dict[str, str] = {
+    "ptyxis": "ptyxis",
+    "nautilus": "nautilus",
+    "gnome.nautilus": "nautilus",
+    "gnome-control-center": "gnome-control-center",
+    "org.gnome.settings": "gnome-control-center",
+}
+
+
+def _shell_eval_force_close(app_names: tuple[str, ...]) -> None:
+    """Force-close via mutter any windows matching app_names WM class fragments."""
+    wm_hints: set[str] = set()
+    for name in app_names:
+        for key, hint in _APP_WM_CLASS_HINTS.items():
+            if key in name.lower():
+                wm_hints.add(hint)
+    if not wm_hints:
+        return
+    checks = " || ".join(f"wc.includes('{h}')" for h in wm_hints)
+    js = (
+        "global.get_window_actors().forEach(a => {"
+        "  try {"
+        f"    const wc = (a.meta_window.get_wm_class() || '').toLowerCase();"
+        f"    if ({checks}) a.meta_window.delete(global.get_current_time());"
+        "  } catch(e) {}"
+        "});"
+    )
+    subprocess.run(
+        ["gdbus", "call", "--session",
+         "--dest", "org.gnome.Shell",
+         "--object-path", "/org/gnome/Shell",
+         "--method", "org.gnome.Shell.Eval",
+         js],
+        capture_output=True, text=True, timeout=5,
+    )
+    sleep(1)
+
 
 def _launch_app(app_id: str) -> None:
     """Launch a GNOME app by ID, trying multiple invocation methods.
@@ -89,7 +129,7 @@ def _wait_for_window(
 
 
 def _wait_for_app_to_close(app_names: tuple[str, ...], label: str) -> None:
-    for _ in range(20):
+    for _ in range(40):
         for name in app_names:
             try:
                 app = tree.root.application(name)
@@ -121,8 +161,11 @@ def _launch_assert_and_close(
     except Exception:  # noqa: BLE001
         pass
     context.execute_steps('* Key combo: "<Alt><F4>" with uinput')
-    # Nautilus (and some other GNOME 50 apps) persist as background daemons
-    # even after all windows close.  Force-quit to ensure a clean state.
+    # GNOME 50 apps (Ptyxis, Files, Settings) run as background daemons and
+    # don't quit on Alt+F4.  Force-delete the window via mutter so the test
+    # environment is clean for subsequent scenarios.
+    _shell_eval_force_close(app_names)
+    # Nautilus also needs --quit to stop its background service process.
     if "nautilus" in app_id.lower() or any("nautilus" in n.lower() for n in app_names):
         subprocess.run(
             ["nautilus", "--quit"],
@@ -130,6 +173,7 @@ def _launch_assert_and_close(
             text=True,
             timeout=5,
         )
+        sleep(1)
     _wait_for_app_to_close(app_names, label)
 
 
