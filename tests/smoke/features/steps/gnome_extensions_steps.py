@@ -63,17 +63,20 @@ def _extensions_window(allow_process_fallback: bool = False):
     # Extensions app may launch and render without exposing AT-SPI children.
     # If the caller allows it, accept a running process as a soft pass.
     if allow_process_fallback:
-        result = subprocess.run(
-            ["pgrep", "-f", "gnome-extensions"],
-            capture_output=True, text=True,
-        )
-        if result.returncode == 0:
-            print(
-                "WARNING: Extensions process running but AT-SPI tree empty "
-                "(headless GNOME 50 limitation) — soft pass",
-                flush=True,
+        # Try several process name patterns — the binary may be gnome-extensions-app,
+        # or the D-Bus service activates a differently named process.
+        for pattern in ("gnome-extensions", "org.gnome.Extensions", "extensions-app"):
+            result = subprocess.run(
+                ["pgrep", "-f", pattern],
+                capture_output=True, text=True,
             )
-            return None  # caller must handle None (no AT-SPI reference)
+            if result.returncode == 0:
+                print(
+                    f"WARNING: Extensions process running (pgrep '{pattern}') but "
+                    "AT-SPI tree empty (headless GNOME 50 limitation) — soft pass",
+                    flush=True,
+                )
+                return None  # caller must handle None (no AT-SPI reference)
 
     raise AssertionError(
         "Visible GNOME Extensions window not found in AT-SPI tree. "
@@ -162,19 +165,19 @@ def extensions_window_is_accessible(context) -> None:
 
 @step("Extensions is no longer running")
 def extensions_is_no_longer_running(context) -> None:
+    _EXTENSION_PATTERNS = ["gnome-extensions", "extensions-app", "org.gnome.Extensions"]
+
     if not getattr(context, "extensions_at_spi_available", True):
         # AT-SPI wasn't available; send a kill signal and verify the process stops.
-        subprocess.run(
-            ["pkill", "-f", "gnome-extensions"],
-            capture_output=True, text=True,
-        )
+        for pattern in _EXTENSION_PATTERNS:
+            subprocess.run(["pkill", "-f", pattern], capture_output=True, text=True)
         for _ in range(20):
             sleep(0.5)
-            result = subprocess.run(
-                ["pgrep", "-f", "gnome-extensions"],
-                capture_output=True, text=True,
+            still_running = any(
+                subprocess.run(["pgrep", "-f", p], capture_output=True, text=True).returncode == 0
+                for p in _EXTENSION_PATTERNS
             )
-            if result.returncode != 0:
+            if not still_running:
                 return
         print(
             "WARNING: gnome-extensions still running after kill (daemon may have respawned)",

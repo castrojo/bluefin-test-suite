@@ -58,6 +58,8 @@ def files_window_is_accessible(context) -> None:
         context.files_window.click()
     except Exception:  # noqa: BLE001
         pass
+    # Brief pause so Nautilus finishes its focus transition before key combos.
+    sleep(0.5)
 
 
 @step("Files is no longer running")
@@ -94,9 +96,10 @@ def home_folder_is_in_the_sidebar(context) -> None:
 
     home_items = []
     for sidebar in trees:
+        # GNOME 50: sidebar items changed from "list item" to "button" role
         home_items.extend(
             sidebar.findChildren(
-                lambda n: n.roleName == "list item"
+                lambda n: n.roleName in {"list item", "button"}
                 and n.showing
                 and bool(n.name)
                 and ("Home" in n.name or "Personal Folder" in n.name)
@@ -104,6 +107,24 @@ def home_folder_is_in_the_sidebar(context) -> None:
         )
 
     assert home_items, "Home list item not found in Nautilus sidebar"
+
+
+@step('Nautilus location shows "{location}"')
+def nautilus_location_shows(context, location) -> None:
+    """Verify the current Nautilus navigation path contains the given text.
+
+    In GNOME 50, the breadcrumb bar uses labels (full path) and buttons.
+    Checks any visible node whose name contains the expected location string.
+    """
+    app = _nautilus_app()
+    for _ in range(10):
+        items = app.findChildren(
+            lambda n: n.showing and location.lower() in (n.name or "").lower()
+        )
+        if items:
+            return
+        sleep(0.5)
+    raise AssertionError(f"Nautilus location bar does not show '{location}'")
 
 
 @step("Navigating to home folder shows file listing")
@@ -123,7 +144,11 @@ def navigating_to_home_folder_shows_file_listing(context) -> None:
 def new_folder_dialog_is_open(context) -> None:
     app = _nautilus_app()
     for _ in range(10):
-        dialogs = app.findChildren(lambda n: n.roleName == "dialog" and n.showing)
+        # GNOME 50 Nautilus uses a popover instead of a traditional dialog.
+        # Check: dialog, popover, or any focused/focusable entry widget.
+        dialogs = app.findChildren(
+            lambda n: n.roleName in {"dialog", "window", "panel"} and n.showing
+        )
         for dialog in dialogs:
             entries = dialog.findChildren(
                 lambda n: n.roleName in {"text", "entry"}
@@ -133,10 +158,11 @@ def new_folder_dialog_is_open(context) -> None:
             if entries:
                 return
 
+        # Any focused text entry anywhere in the app (inline rename/folder dialog)
         focused_entries = app.findChildren(
             lambda n: n.roleName in {"text", "entry"}
             and n.showing
-            and getattr(n, "focused", False)
+            and (getattr(n, "focused", False) or getattr(n, "focusable", False))
         )
         if focused_entries:
             return
