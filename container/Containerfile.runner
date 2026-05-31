@@ -19,7 +19,7 @@
 #   WAYLAND_DISPLAY
 #   XDG_RUNTIME_DIR=/run/user/1001
 
-FROM registry.fedoraproject.org/fedora-minimal:latest
+FROM registry.fedoraproject.org/fedora-minimal:latest@sha256:2c719f24ea8407bbe52aea9ea321d29f8f84cb4b19121327455f38d202d1c327
 
 LABEL org.opencontainers.image.source="https://github.com/projectbluefin/testsuite"
 LABEL org.opencontainers.image.description="qecore/behave/dogtail test runner for GNOME e2e tests"

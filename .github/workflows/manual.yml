@@ -21,7 +21,7 @@ on:
 
 jobs:
   test:
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e75b52cbbc923c337e05740692d2a42b793126d7 # main
     with:
       image: ${{ github.event.inputs.image }}
       suites: ${{ github.event.inputs.suites }}
