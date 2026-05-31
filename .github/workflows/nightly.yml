@@ -18,9 +18,9 @@ on:
         required: false
         default: "both"
       suites:
-        description: "Comma-separated suites (default: smoke,developer,software,vanilla-gnome)"
+        description: "Comma-separated suites (default: smoke,developer,software,vanilla-gnome,common)"
         required: false
-        default: "smoke,developer,software,vanilla-gnome"
+        default: "smoke,developer,software,vanilla-gnome,common"
 
 permissions:
   contents: read
