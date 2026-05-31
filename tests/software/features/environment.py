@@ -41,7 +41,9 @@ SUITE_NAME = "software"
 
 def before_all(context) -> None:
     try:
-        context.sandbox = TestSandbox("gnome-software", context=context)
+        # In GNOME 50 / Fedora 44 the desktop file is org.gnome.Software.desktop
+        # (reverse-DNS naming); qecore TestSandbox resolves it from the component name.
+        context.sandbox = TestSandbox("org.gnome.Software", context=context)
         context.sandbox.attach_faf = False
         context.sandbox.production = False
         context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
