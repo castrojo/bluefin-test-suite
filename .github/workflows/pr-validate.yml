@@ -46,12 +46,12 @@ jobs:
   dry-run:
     name: Behave dry-run
     runs-on: ubuntu-latest
-    container: registry.fedoraproject.org/fedora:41
+    container: registry.fedoraproject.org/fedora:41@sha256:893f7eeffce8e3e2bb2bc62786ba5603fb1e0bd6ba07091acb892266b95bafdf
     timeout-minutes: 10
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Install test stack
         run: |
