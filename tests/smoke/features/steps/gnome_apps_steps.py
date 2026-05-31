@@ -1,0 +1,128 @@
+"""Custom step definitions for GNOME app launch smoke tests."""
+import subprocess
+from time import sleep
+
+from behave import step
+from dogtail import tree
+from qecore.common_steps import *  # noqa: F401,F403
+
+
+FRAME_ROLES = {"frame", "filler"}
+PTYXIS_APP_NAMES = ("ptyxis", "Ptyxis")
+FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
+
+
+def _launch_app(app_id: str) -> None:
+    result = subprocess.run(
+        ["gio", "launch", app_id],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0, (
+        f"gio launch {app_id} failed: rc={result.returncode}\n"
+        f"stdout: {result.stdout}\n"
+        f"stderr: {result.stderr}"
+    )
+    sleep(1)
+
+
+def _app(app_names: tuple[str, ...], label: str):
+    last_error = None
+    for name in app_names:
+        try:
+            return tree.root.application(name)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+    raise AssertionError(f"{label} application was not found via AT-SPI: {last_error}")
+
+
+def _wait_for_window(
+    app_names: tuple[str, ...],
+    window_names: set[str],
+    label: str,
+    timeout: int = 15,
+):
+    last_frames = []
+    for _ in range(timeout * 2):
+        try:
+            app = _app(app_names, label)
+        except Exception:  # noqa: BLE001
+            sleep(0.5)
+            continue
+
+        frames = app.findChildren(
+            lambda n: n.roleName in FRAME_ROLES
+            and n.showing
+            and (not window_names or (n.name or "").strip() in window_names)
+        )
+        if frames:
+            return frames[0]
+
+        last_frames = [
+            ((frame.name or "").strip(), frame.roleName)
+            for frame in app.findChildren(lambda n: n.roleName in FRAME_ROLES and n.showing)
+        ]
+        sleep(0.5)
+
+    raise AssertionError(
+        f"Visible {label} window not found. Visible frames: {last_frames}"
+    )
+
+
+def _wait_for_app_to_close(app_names: tuple[str, ...], label: str) -> None:
+    for _ in range(20):
+        for name in app_names:
+            try:
+                app = tree.root.application(name)
+                frames = app.findChildren(
+                    lambda n: n.roleName in FRAME_ROLES and n.showing
+                )
+                if frames:
+                    break
+            except Exception:  # noqa: BLE001
+                continue
+        else:
+            return
+        sleep(0.5)
+    raise AssertionError(f"{label} is still visible in the AT-SPI tree")
+
+
+def _launch_assert_and_close(
+    context,
+    app_id: str,
+    app_names: tuple[str, ...],
+    window_names: set[str],
+    label: str,
+) -> None:
+    _launch_app(app_id)
+    window = _wait_for_window(app_names, window_names, label)
+    context.last_launched_app_window = window
+    try:
+        window.click()
+    except Exception:  # noqa: BLE001
+        pass
+    context.execute_steps('* Key combo: "<Alt><F4>" with uinput')
+    _wait_for_app_to_close(app_names, label)
+
+
+@step("the Ptyxis terminal launches successfully")
+def ptyxis_terminal_launches_successfully(context) -> None:
+    _launch_assert_and_close(
+        context,
+        "org.gnome.Ptyxis",
+        PTYXIS_APP_NAMES,
+        {"Ptyxis"},
+        "Ptyxis",
+    )
+
+
+@step("the Files file manager launches successfully")
+def files_file_manager_launches_successfully(context) -> None:
+    _launch_assert_and_close(
+        context,
+        "org.gnome.Nautilus",
+        FILES_APP_NAMES,
+        {"Files", "Home"},
+        "Files",
+    )
