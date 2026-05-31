@@ -1,9 +1,12 @@
 # Nightly test matrix — runs GUI suites against all Bluefin image variants,
 # bazzite-gnome:latest, and the upstream GNOME OS bootc image.
 #
-# Bluefin variants:  bluefin (latest/lts/gts)  bluefin-dx (latest/lts/gts)  bluefin-nvidia
-# Bazzite:          bazzite-gnome:latest  (bazzite suite only)
-# GNOME OS:         gnomeos-latest        (vanilla-gnome baseline)
+# Bluefin variants:  bluefin (latest/lts/gts)  → smoke,developer,common
+#                    bluefin-dx (latest/lts/gts) → smoke,developer,dx,common
+#                    bluefin-nvidia              → smoke,common
+# Bazzite:          bazzite-gnome:latest  → bazzite suite only
+# GNOME OS:         gnomeos-latest        → vanilla-gnome,software
+#   (gnome-software / Bazaar is only present on vanilla GNOME OS, not Bluefin)
 #
 # No self-hosted runners. No secrets required.
 #
@@ -18,9 +21,9 @@ on:
   workflow_dispatch:
     inputs:
       suites:
-        description: "Comma-separated suites to override for Bluefin jobs (default: smoke,developer,software,common)"
+        description: "Comma-separated suites to override for Bluefin jobs (default: smoke,developer,common)"
         required: false
-        default: "smoke,developer,software,common"
+        default: "smoke,developer,common"
       skip_native_apps:
         description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
         type: boolean
@@ -39,7 +42,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
@@ -50,7 +53,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:gts
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
@@ -61,7 +64,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
@@ -135,7 +138,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest
-      suites: vanilla-gnome
+      suites: vanilla-gnome,software
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
