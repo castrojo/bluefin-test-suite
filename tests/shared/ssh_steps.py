@@ -1,6 +1,6 @@
 """
-Shared SSH step definitions for non-GUI test suites.
-Used by lifecycle, security, nvidia, and hardware suites.
+Shared SSH step definitions for reusable command/assertion steps.
+Used by common, developer, lifecycle, security, nvidia, hardware, and software suites.
 Import with: from tests.shared.ssh_steps import *
 Or register with behave via environment.py importing this module.
 """
@@ -127,3 +127,51 @@ def ssh_output_does_not_contain(context, text):
     assert text not in actual, (
         f"SSH command output contains '{text}' — expected it to be absent\nGot: {actual}"
     )
+
+
+def _last_output(context):
+    return (
+        getattr(context, "command_stdout", None)
+        or getattr(context, "last_command_output", None)
+        or getattr(context, "last_run_output", None)
+        or ""
+    )
+
+
+@step('Last command output contains "{text}"')
+def last_command_output_contains(context, text):
+    actual = _last_output(context)
+    assert text in actual, f"Last command output does not contain {text!r}:\n{actual}"
+
+
+@step('No journal entries match "{pattern}"')
+def no_journal_entries_match(context, pattern):
+    result = subprocess.run(
+        ["journalctl", "-b", "--no-pager", "-g", pattern],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode in (0, 1), (
+        f"journalctl failed while searching for {pattern!r}:\n"
+        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    assert result.stdout.strip() == "", (
+        f"Unexpected journal entries matched {pattern!r}:\n{result.stdout.strip()}"
+    )
+
+
+@step('No coredump entries exist for "{name}"')
+def no_coredump_entries_exist(context, name):
+    result = subprocess.run(
+        ["coredumpctl", "list", name, "--no-pager", "--lines=10"],
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+    assert result.returncode in (0, 1), (
+        f"coredumpctl failed for {name}:\n"
+        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    matches = [line for line in result.stdout.splitlines() if name in line]
+    assert not matches, f"Unexpected coredump entries for {name}: {matches}"
