@@ -2,6 +2,10 @@
 
 Canonical home for **Bluefin GUI/system test content** (behave + qecore-headless + dogtail) and shared step libraries.
 
+GOAL: GNOME 50 Test coverage
+Bonus Image test: Bazzite, Bluefin ... you?
+End Goal: GNOME 51 and autonomous agent maintenance of this testsuite
+
 ## Repository split (normalized)
 
 | Concern | Canonical repo |
