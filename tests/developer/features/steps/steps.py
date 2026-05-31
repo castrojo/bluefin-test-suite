@@ -9,13 +9,13 @@ Custom steps here:
   - Terminal output in ptyxis contains <text>
   - Ptyxis has N tabs
   - No Flatpak missing-runtime error
-  - No journal entries match <pattern>
 """
 import subprocess
 from time import sleep
 
 from behave import step
 from qecore.common_steps import *  # noqa: F401,F403
+from tests.shared.ssh_steps import *  # noqa: F401,F403
 
 
 @step("Make sure window is focused for wayland testing")
@@ -60,17 +60,3 @@ def no_flatpak_missing_runtime_error(context, flatpak_id) -> None:
         f"Flatpak runtime-missing error found for {flatpak_id}:\n{result.stdout}"
     )
 
-
-@step('No journal entries match "{pattern}"')
-def no_journal_entries_match(context, pattern: str) -> None:
-    result = subprocess.run(
-        ["journalctl", "-b", "--no-pager", "-g", pattern],
-        capture_output=True, text=True, timeout=10,
-    )
-    assert result.returncode in (0, 1), (
-        f"journalctl failed while searching for {pattern!r}:\n"
-        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
-    )
-    assert result.stdout.strip() == "", (
-        f"Unexpected journal entries matched {pattern!r}:\n{result.stdout.strip()}"
-    )
