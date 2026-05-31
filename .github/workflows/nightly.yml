@@ -1,5 +1,9 @@
-# Nightly test matrix — runs GUI suites against bluefin:latest and bluefin:lts
-# on standard ubuntu-latest runners via the projectbluefin/testsuite GHA.
+# Nightly test matrix — runs GUI suites against all Bluefin image variants,
+# bazzite-gnome:latest, and the upstream GNOME OS bootc image.
+#
+# Bluefin variants:  bluefin (latest/lts/gts)  bluefin-dx (latest/lts/gts)  bluefin-nvidia
+# Bazzite:          bazzite-gnome:latest  (bazzite suite only)
+# GNOME OS:         gnomeos-latest        (vanilla-gnome baseline)
 #
 # No self-hosted runners. No secrets required.
 #
@@ -13,56 +17,126 @@ on:
     - cron: "0 3 * * *"
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: "Image stream to test (latest | lts | bazzite | both)"
-        required: false
-        default: "both"
       suites:
-        description: "Comma-separated suites (default: smoke,developer,software,vanilla-gnome,common)"
+        description: "Comma-separated suites to override for Bluefin jobs (default: smoke,developer,software,common)"
         required: false
-        default: "smoke,developer,software,vanilla-gnome,common"
+        default: "smoke,developer,software,common"
+      skip_native_apps:
+        description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
   packages: write
 
 jobs:
+  # ── bluefin ──────────────────────────────────────────────────────────────────
+
   test-latest:
-    if: ${{ github.event.inputs.image_tag != 'lts' }}
+    name: bluefin:latest
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+
+  test-gts:
+    name: bluefin:gts
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin:gts
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
 
   test-lts:
-    if: ${{ github.event.inputs.image_tag != 'latest' }}
+    name: bluefin:lts
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,software,common' }}
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write
 
-  test-bazzite:
-    if: ${{ github.event.inputs.image_tag != 'lts' }}
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
-    with:
-      image: ghcr.io/ublue-os/bazzite-gnome:latest
-      suites: bazzite,vanilla-gnome
-    permissions:
-      contents: read
-      packages: write
+  # ── bluefin-dx ───────────────────────────────────────────────────────────────
 
   test-dx:
-    if: ${{ github.event.inputs.image_tag != 'lts' }}
+    name: bluefin-dx:latest
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
     with:
       image: ghcr.io/ublue-os/bluefin-dx:latest
-      suites: dx
+      suites: smoke,developer,dx,common
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+
+  test-dx-gts:
+    name: bluefin-dx:gts
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin-dx:gts
+      suites: smoke,developer,dx,common
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+
+  test-dx-lts:
+    name: bluefin-dx:lts
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin-dx:lts
+      suites: smoke,developer,dx,common
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+
+  # ── bluefin-nvidia ───────────────────────────────────────────────────────────
+
+  test-nvidia:
+    name: bluefin-nvidia:latest
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bluefin-nvidia:latest
+      suites: smoke,common
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+
+  # ── bazzite ──────────────────────────────────────────────────────────────────
+
+  test-bazzite:
+    name: bazzite-gnome:latest
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bazzite-gnome:latest
+      suites: bazzite
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
+    permissions:
+      contents: read
+      packages: write
+
+  # ── upstream GNOME OS (vanilla-gnome baseline) ───────────────────────────────
+
+  test-gnomeos:
+    name: gnomeos-latest (vanilla-gnome)
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest
+      suites: vanilla-gnome
+      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
       packages: write

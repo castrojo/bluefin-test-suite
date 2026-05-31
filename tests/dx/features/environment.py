@@ -5,7 +5,6 @@ Sandbox is initialized lazily — only when a GUI (@vscode) scenario runs.
 SSH-only (@plain_ssh) scenarios skip the sandbox entirely.
 """
 import os
-import sys
 import traceback
 
 try:
@@ -104,14 +103,14 @@ def before_scenario(context, scenario):
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
     if context.sandbox is None:
         print("HOOK_ERROR: sandbox not initialized for GUI scenario", flush=True)
-        sys.exit(1)
+        raise RuntimeError("sandbox not initialized for GUI scenario")
 
     try:
         context.sandbox.before_scenario(context, scenario)
     except Exception:
         tb = traceback.format_exc()
         print(f"HOOK_ERROR in before_scenario:\n{tb}", flush=True)
-        sys.exit(1)
+        raise
 
 
 def after_scenario(context, scenario):

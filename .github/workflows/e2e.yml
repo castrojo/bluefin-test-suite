@@ -24,6 +24,10 @@ on:
         description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common"
         type: string
         default: "smoke"
+      skip_native_apps:
+        description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
+        type: boolean
+        default: false
 
 jobs:
   # Resolve comma-separated suite list into a JSON matrix
@@ -442,7 +446,7 @@ jobs:
           $SSH "python3 -m pip install -q --user --no-binary python-uinput python-uinput"
           $SSH "sudo dnf remove -y -q gcc python3-devel libudev-devel 2>/dev/null || true"
 
-          $SSH "python3 -m pip install -q --user qecore behave dogtail"
+          $SSH "python3 -m pip install -q --user --upgrade 'qecore>=4.12' behave dogtail"
           $SSH "for f in \$HOME/.local/bin/qecore_*; do sudo ln -sf \"\$f\" /usr/local/bin/\$(basename \"\$f\") 2>/dev/null; done || true"
           $SSH "sudo modprobe uinput 2>/dev/null || true"
           $SSH "sudo chmod 0666 /dev/uinput 2>/dev/null || true"
@@ -521,9 +525,12 @@ jobs:
         id: run
         env:
           BEHAVE_RETRIES: 2
+          SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
         run: |
           mkdir -p results
           BEHAVE_RC=0
+          BEHAVE_TAG_ARGS=""
+          [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="--tags ~native_app"
 
           if [[ "${SUITE}" == "common" ]]; then
             python3 -m pip install -q --user behave
@@ -534,7 +541,7 @@ jobs:
             SSH_PORT=2222 \
             python3 tests/shared/behave_retry.py tests/${SUITE}/features/ \
               --format json.pretty --outfile results/results.json \
-              --no-capture || BEHAVE_RC=$?
+              --no-capture ${BEHAVE_TAG_ARGS} || BEHAVE_RC=$?
           else
             SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
             SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
@@ -555,7 +562,7 @@ jobs:
               export PATH=\$HOME/.local/bin:\$PATH
               export PYTHONPATH=/tmp/bluefin-tests
               BEHAVE_BIN=\$(which behave)
-              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \$HOME/.local/bin/qecore-headless \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --no-capture\"
+              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \$HOME/.local/bin/qecore-headless \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}\"
             " || BEHAVE_RC=$?
 
             $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true

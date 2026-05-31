@@ -1,4 +1,4 @@
-@smoke_suite
+@native_app @smoke_suite
 Feature: GNOME Calculator smoke tests
   Validates GNOME Calculator launches, performs simple arithmetic, resets
   state cleanly, and exits without crashes on a fresh Bluefin session.

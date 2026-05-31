@@ -1,4 +1,4 @@
-@smoke_suite
+@native_app @smoke_suite
 Feature: GNOME app launch smoke tests
   Validates core Bluefin desktop apps launch, show a visible window, and exit cleanly.
 

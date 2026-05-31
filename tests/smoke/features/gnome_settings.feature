@@ -1,4 +1,4 @@
-@smoke_suite
+@native_app @smoke_suite
 Feature: GNOME Settings smoke tests
   Validates GNOME Settings launches, exposes core navigation, and shows
   Bluefin system information without crashing.
