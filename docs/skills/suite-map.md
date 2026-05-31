@@ -47,7 +47,7 @@ SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA act
 
 ## Coverage snapshot
 
-251 scenarios across 29 feature files (last audit: 2026-05-30).
+255 scenarios across 29 feature files (last audit: 2026-05-31).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
@@ -58,7 +58,7 @@ SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA act
 | vanilla-gnome | 12 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 13 | ✅ active | bootc upgrade / rollback / switch / version tracking / idempotence |
 | hardware | 10 | ✅ active | Driven by shared SSH steps |
-| security/image_provenance | 7 | ✅ active | cosign verify: latest, LTS, DX, nvidia, GTS, DX-nvidia, negative |
+| security/image_provenance | 10 | ✅ active | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | ✅ active | Extension presence + shell behaviour |
 | dx | 15 | ✅ active | VS Code + CLI tools + brew |
 | flatcar/boot | 7 | ✅ active | systemd, containerd, networking |
