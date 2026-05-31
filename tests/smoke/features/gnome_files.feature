@@ -18,15 +18,15 @@ Feature: GNOME Files smoke tests
 
   @files @navigation
   Scenario: Navigating to home folder shows contents
-    * Left click "Home" "list item" in "nautilus"
+    * Left click "Home" "button" in "nautilus"
     * Navigating to home folder shows file listing
 
   @files @navigation
   Scenario: Back button returns to previous location after navigating to Downloads
-    * Left click "Downloads" "list item" in "nautilus"
-    * Item "Downloads" "toggle button" is "showing" in "nautilus"
+    * Left click "Downloads" "button" in "nautilus"
+    * Nautilus location shows "Downloads"
     * Key combo: "<Alt>Left" with uinput
-    * Item "Home" "toggle button" is "showing" in "nautilus"
+    * Nautilus location shows "Home"
 
   @files @new_folder
   Scenario: New folder dialog opens via keyboard shortcut Ctrl+Shift+N
