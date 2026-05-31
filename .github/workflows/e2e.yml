@@ -118,6 +118,8 @@ jobs:
           # --bootloader was added in bootc ≥0.1.13. Older images (e.g. nvidia:latest
           # built Oct 2025) ship an earlier bootc that rejects the flag. Probe
           # support before constructing the install command.
+          # --karg is also not present in all bootc versions; omit it entirely since
+          # systemd.firstboot=no is already included in the QEMU -append KERNEL_ARGS.
           BOOTLOADER_FLAG=""
           if sudo podman run --rm --quiet "${IMAGE}" bootc install to-disk --help 2>&1 | grep -q "\-\-bootloader"; then
             BOOTLOADER_FLAG="--bootloader systemd"
@@ -134,7 +136,6 @@ jobs:
               --filesystem ext4 \
               --wipe \
               ${BOOTLOADER_FLAG} \
-              --karg systemd.firstboot=no \
             || echo "bootc install exited $? (bootupd expected — continuing)"
 
           LOOP=$(sudo losetup -f --show -P disk.raw)
