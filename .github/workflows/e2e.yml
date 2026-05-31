@@ -98,9 +98,13 @@ jobs:
         run: |
           sudo podman pull "${IMAGE}" &
           PULL_PID=$!
+          # Pull runner container in parallel — piped into VM after boot
+          sudo podman pull ghcr.io/projectbluefin/testsuite:runner &
+          RUNNER_PID=$!
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends qemu-system-x86
           wait $PULL_PID
+          wait $RUNNER_PID
 
       - name: Generate SSH keypair
         run: |
@@ -440,25 +444,23 @@ jobs:
           $SSH "journalctl -u gdm --no-pager -n 50" 2>/dev/null || true
           exit 1
 
+      - name: Load runner container into VM
+        if: ${{ env.SUITE != 'common' }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          echo "Piping runner container into VM (this replaces in-VM pip install)..."
+          sudo podman save ghcr.io/projectbluefin/testsuite:runner | \
+            ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 sudo podman load
+          echo "Runner container loaded in VM"
+
       - name: Install Python test stack
         if: ${{ env.SUITE != 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
 
-          $SSH "python3 -m ensurepip --user 2>/dev/null || true"
-
-          # python-uinput has no pre-built wheels. Build it natively in the VM.
-          # On mutable images (Bluefin/Bazzite) use dnf. On immutable images
-          # (GNOME OS) dnf may be absent or read-only — fall back silently.
-          # Set CC=gcc to override cross-compiler names that Python may have
-          # baked in from the build toolchain (e.g. x86_64-unknown-linux-gnu-gcc).
-          $SSH "sudo dnf install -y -q gcc python3-devel libudev-devel 2>/dev/null || true"
-          $SSH "CC=gcc python3 -m pip install -q --user --no-binary python-uinput python-uinput 2>&1 || echo 'WARNING: python-uinput install skipped — uinput keyboard simulation unavailable'"
-          $SSH "sudo dnf remove -y -q gcc python3-devel libudev-devel 2>/dev/null || true"
-
-          $SSH "python3 -m pip install -q --user --upgrade 'qecore>=4.12' behave dogtail"
-          $SSH "for f in \$HOME/.local/bin/qecore_*; do sudo ln -sf \"\$f\" /usr/local/bin/\$(basename \"\$f\") 2>/dev/null; done || true"
+          # pip installs are skipped — packages are in the pre-built runner container.
+          # Only set up kernel module, device permission, and session environment.
           $SSH "sudo modprobe uinput 2>/dev/null || true"
           $SSH "sudo chmod 0666 /dev/uinput 2>/dev/null || true"
 
@@ -516,12 +518,8 @@ jobs:
             set -e
             chmod +x \$HOME/.local/libexec/gnome-ponytail-daemon
 
-            # Install the pure-Python ponytail module using the runtime Python path
-            PONYTAIL_DIR=\$(python3 -c 'import site; print(site.getusersitepackages())')/ponytail
-            mkdir -p \"\${PONYTAIL_DIR}\"
-            PBASE='https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon/-/raw/0.0.11/ponytail'
-            curl -sL \"\${PBASE}/__init__.py\" -o \"\${PONYTAIL_DIR}/__init__.py\"
-            curl -sL \"\${PBASE}/ponytail.py\"  -o \"\${PONYTAIL_DIR}/ponytail.py\"
+            # ponytail Python module is now baked into the runner container image.
+            # Only install the D-Bus service file and pre-start the daemon here.
 
             # User D-Bus session service file enables auto-activation
             mkdir -p \$HOME/.local/share/dbus-1/services
@@ -578,13 +576,31 @@ jobs:
             $SSH "
               set -e
               source /tmp/session.env
-              export PATH=\$HOME/.local/bin:\$PATH
-              export PYTHONPATH=/tmp/bluefin-tests
-              export VM_IP=127.0.0.1
-              export VM_USER=bluefin-test
-              export SSH_KEY=/home/bluefin-test/.ssh/id_ed25519
-              BEHAVE_BIN=\$(which behave)
-              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \$HOME/.local/bin/qecore-headless \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}\"
+              mkdir -p /tmp/results
+              # Run tests inside the pre-loaded runner container.
+              # --pid=host: qecore reads GNOME session env from /proc/<pid>/environ.
+              # --privileged: AT-SPI socket access + uinput device passthrough.
+              # --network host: D-Bus session bus traffic reaches ponytail daemon.
+              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} sudo podman run --rm \
+                --pid=host \
+                --privileged \
+                --network host \
+                -v /run/user/1001:/run/user/1001 \
+                -v /tmp/bluefin-tests:/tmp/bluefin-tests:ro \
+                -v /tmp/results:/tmp/results \
+                -v /home/bluefin-test/.ssh/id_ed25519:/home/bluefin-test/.ssh/id_ed25519:ro \
+                -e DBUS_SESSION_BUS_ADDRESS=\"\${DBUS_SESSION_BUS_ADDRESS}\" \
+                -e WAYLAND_DISPLAY=\"\${WAYLAND_DISPLAY}\" \
+                -e XDG_RUNTIME_DIR=/run/user/1001 \
+                -e AT_SPI_BUS_ADDRESS=\"\${AT_SPI_BUS_ADDRESS}\" \
+                -e VM_IP=127.0.0.1 \
+                -e VM_USER=bluefin-test \
+                -e SSH_KEY=/home/bluefin-test/.ssh/id_ed25519 \
+                -e SSH_PORT=22 \
+                -e BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \
+                -e PYTHONPATH=/tmp/bluefin-tests \
+                ghcr.io/projectbluefin/testsuite:runner \
+                \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}\"
             " || BEHAVE_RC=$?
 
             $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true

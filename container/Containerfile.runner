@@ -18,6 +18,10 @@
 #   DBUS_SESSION_BUS_ADDRESS
 #   WAYLAND_DISPLAY
 #   XDG_RUNTIME_DIR=/run/user/1001
+#
+# Required podman flags when running inside the QEMU VM:
+#   --pid=host          (qecore reads GNOME session env from /proc/<pid>/environ)
+#   --privileged        (uinput + AT-SPI socket access)
 
 FROM registry.fedoraproject.org/fedora-minimal:latest@sha256:2c719f24ea8407bbe52aea9ea321d29f8f84cb4b19121327455f38d202d1c327
 
@@ -33,6 +37,7 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         gsettings-desktop-schemas \
         dbus-libs \
         glib2 \
+        curl \
     && microdnf clean all
 
 # Install Python test stack — pinned so bumps are explicit and reviewed
@@ -48,6 +53,16 @@ RUN microdnf install -y --setopt=install_weak_deps=0 gcc python3-devel \
     && python3 -m pip cache purge \
     && microdnf remove -y gcc python3-devel \
     && microdnf clean all
+
+# Install the pure-Python ponytail module (qecore imports it for input events via
+# gnome-ponytail-daemon). Not on PyPI — downloaded directly from the tagged release.
+ARG PONYTAIL_VERSION=0.0.11
+RUN PDIR="$(python3 -c 'import site; print(site.getsitepackages()[0])')/ponytail" && \
+    mkdir -p "$PDIR" && \
+    curl -sSfL "https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon/-/raw/${PONYTAIL_VERSION}/ponytail/__init__.py" \
+         -o "$PDIR/__init__.py" && \
+    curl -sSfL "https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon/-/raw/${PONYTAIL_VERSION}/ponytail/ponytail.py" \
+         -o "$PDIR/ponytail.py"
 
 # Symlink qecore helpers onto PATH
 RUN for f in /usr/local/bin/qecore_*; do \
