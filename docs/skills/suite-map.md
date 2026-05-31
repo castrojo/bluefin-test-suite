@@ -47,11 +47,11 @@ SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA act
 
 ## Coverage snapshot
 
-249 scenarios across 28 feature files (last audit: 2026-05-30).
+251 scenarios across 29 feature files (last audit: 2026-05-30).
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
-| smoke | 79 | ✅ active | dogtail 4.16 API correct throughout |
+| smoke | 81 | ✅ active | dogtail 4.16 API correct throughout |
 | developer | 19 | ✅ active | brew, podman Desktop (+Containers/Images/Volumes), ptyxis |
 | software | 12 | ✅ active | Bazaar/gnome-software + Flathub + permissions DB |
 | common | 32 | ✅ active | Bluefin common layer: dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
