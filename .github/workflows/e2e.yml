@@ -173,7 +173,26 @@ jobs:
             BOOT_ENTRY="${BOOT_DIR}/${DEPLOY_SERIAL}"
             echo "Created symlink: ${BOOT_ENTRY}"
           fi
+
           OSTREE_PATH="${BOOT_ENTRY#/mnt/root}"
+
+          # ostree-system-generator regex only accepts /ostree/boot.[01]/...
+          # Newer bootc (Fedora 44+) installs deployments under a versioned directory
+          # (e.g. boot.1.1) for atomic updates. The generator fails to parse this path
+          # → /var never bind-mounted → dbus-broker/logind/GDM cascade failure.
+          # Fix: create a canonical boot.N symlink pointing to the versioned dir so the
+          # generator gets a path it can parse, while composefs stays untouched.
+          if [[ "${OSTREE_PATH}" =~ /ostree/(boot\.[0-9]+)\.[0-9]+ ]]; then
+            VERSIONED_NAME=$(echo "${OSTREE_PATH}" | grep -oE 'boot\.[0-9]+\.[0-9]+')
+            CANONICAL_NAME="${BASH_REMATCH[1]}"   # e.g. boot.1
+            CANONICAL_ABS="/mnt/root/ostree/${CANONICAL_NAME}"
+            if [[ ! -e "${CANONICAL_ABS}" ]]; then
+              sudo ln -s "${VERSIONED_NAME}" "${CANONICAL_ABS}"
+              echo "Created canonical boot symlink: ${CANONICAL_ABS} -> ${VERSIONED_NAME}"
+            fi
+            OSTREE_PATH="${OSTREE_PATH/${VERSIONED_NAME}/${CANONICAL_NAME}}"
+          fi
+
           echo "ostree boot path: ${OSTREE_PATH}"
           # Mask services not needed in CI to shorten first-boot time.
           # NetworkManager-wait-online can block for up to 120s — most
@@ -182,7 +201,10 @@ jobs:
           # podman-auto-update: pulls container images from internet (slow).
           # malcontent-webd + update: web-filter update service, downloads data on boot.
           # speech-dispatcherd: speech synthesis daemon, not needed for CI.
-          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.mask=tailscaled.service systemd.mask=brew-setup.service systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service systemd.mask=flatpak-preinstall.service systemd.mask=podman-auto-update.service systemd.mask=podman-auto-update.timer systemd.mask=malcontent-webd.service systemd.mask=malcontent-webd-update.service systemd.mask=malcontent-control.service systemd.mask=speech-dispatcherd.service systemd.mask=avahi-daemon.service systemd.mask=avahi-daemon.socket systemd.mask=cups.service systemd.mask=cups.path systemd.mask=cups.socket systemd.mask=cups.browsed.service systemd.mask=blueman-mechanism.service systemd.mask=gnome-remote-desktop.service quiet"
+          #
+          # systemd.journald.forward_to_console=1 — forward full journal to serial for
+          #   diagnostics when SSH fails (output captured in vm-serial.log artifact).
+          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.journald.forward_to_console=1 systemd.mask=tailscaled.service systemd.mask=brew-setup.service systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service systemd.mask=flatpak-preinstall.service systemd.mask=podman-auto-update.service systemd.mask=podman-auto-update.timer systemd.mask=malcontent-webd.service systemd.mask=malcontent-webd-update.service systemd.mask=malcontent-control.service systemd.mask=speech-dispatcherd.service systemd.mask=avahi-daemon.service systemd.mask=avahi-daemon.socket systemd.mask=cups.service systemd.mask=cups.path systemd.mask=cups.socket systemd.mask=cups.browsed.service systemd.mask=blueman-mechanism.service systemd.mask=gnome-remote-desktop.service"
           echo "KERNEL_ARGS=${KERNEL_ARGS}" >> "$GITHUB_ENV"
 
           # Apply user + sshd config to ALL deployments in this stateroot.
@@ -337,6 +359,10 @@ jobs:
           done
           echo "ERROR: SSH never became ready after 15 minutes"
           ssh -v ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>&1 || true
+          echo "=== Tail of serial log at SSH timeout ==="
+          tail -100 "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
+          echo "=== dbus / ostree lines in serial log ==="
+          grep -i "dbus\|broker\|ostree-system\|composefs\|FAILED\|Error" "$(pwd)/vm-serial.log" 2>/dev/null | tail -40 || echo "(none found)"
           exit 1
 
       - name: Dump VM serial log
