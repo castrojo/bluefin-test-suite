@@ -11,7 +11,7 @@ Feature: GNOME Extensions smoke tests
   Scenario: At least one GNOME extension is enabled
     * At least one GNOME extension is enabled
 
-  @extensions
+  @extensions @sla_15s
   Scenario: GNOME Extensions preferences app launches
     * Launch Extensions preferences via command
     * Extensions window is accessible

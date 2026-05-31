@@ -36,7 +36,7 @@ Feature: GNOME Shell smoke tests
   # NOTE: uinput Super key (KEY_LEFTMETA) is unreliable on GNOME 50 Wayland —
   # Mutter does not route it from python-uinput devices. Use Shell.Eval instead.
 
-  @activities
+  @activities @sla_5s
   Scenario: Super key opens Activities overview
     * GNOME Shell is accessible via AT-SPI
     * Open Activities overview via Shell.Eval
@@ -65,7 +65,7 @@ Feature: GNOME Shell smoke tests
   # NOTE: Clock/System toggle buttons have AT-SPI position INT_MIN on GNOME 50.
   # Drive via Shell.Eval; verify via isOpen JS property.
 
-  @quick_settings
+  @quick_settings @sla_5s
   Scenario: Clicking System menu opens Quick Settings
     * GNOME Shell is accessible via AT-SPI
     * Open Quick Settings via Shell.Eval
@@ -101,7 +101,7 @@ Feature: GNOME Shell smoke tests
 
   # ── Calendar popup ────────────────────────────────────────────────────────
 
-  @calendar
+  @calendar @sla_5s
   Scenario: Clicking clock opens calendar popup
     * GNOME Shell is accessible via AT-SPI
     * Open date menu via Shell.Eval

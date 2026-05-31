@@ -3,11 +3,11 @@ Feature: System health smoke checks
   Validates the booted image is healthy, identifiable as Bluefin, and has
   enough free root filesystem space for normal operation.
 
-  @health @systemd
+  @health @systemd @sla_10s
   Scenario: No failed systemd units at boot
     * No failed systemd units at boot
 
-  @health @journal
+  @health @journal @sla_10s
   Scenario: No critical journal errors at boot
     * No critical kernel errors in journal
 
@@ -27,7 +27,7 @@ Feature: System health smoke checks
   Scenario: External DNS resolves external hosts
     * External DNS resolves external hosts
 
-  @system_health @ujust
+  @system_health @ujust @sla_10s
   Scenario: ujust is available and lists at least one task
     * ujust is on PATH and returns exit 0
     * ujust --list prints at least one task
