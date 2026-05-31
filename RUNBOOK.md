@@ -1,6 +1,6 @@
 # testsuite runbook
 
-> Last updated: 2026-05-29
+> Last updated: 2026-05-31
 
 This runbook covers **operational commands** for `projectbluefin/testsuite`.  
 Authoring rules, patterns, and skill docs live in `docs/skills/` — load from there.
@@ -21,6 +21,50 @@ If a change touches both repos, split into two PRs.
 just list-stubs
 ```
 
+## Nightly CI
+
+The nightly is driven by `.github/workflows/nightly.yml` (GitHub Actions, no self-hosted runners).
+
+```bash
+# Trigger a nightly run manually
+gh workflow run nightly.yml --repo projectbluefin/testsuite --ref main
+
+# Check latest nightly status
+gh run list --repo projectbluefin/testsuite --workflow nightly.yml --limit 3
+
+# View job-level results for a specific run
+gh run view <RUN_ID> --repo projectbluefin/testsuite
+
+# Tail logs for a failing job
+gh run view --job=<JOB_ID> --log-failed --repo projectbluefin/testsuite
+```
+
+**9 named jobs** (see `docs/skills/suite-map.md` for the full matrix):
+
+| Job | Image | Suites |
+|---|---|---|
+| `bluefin:latest/gts/lts` | `ghcr.io/ublue-os/bluefin:{tag}` | smoke, developer, common |
+| `bluefin-dx:latest/gts/lts` | `ghcr.io/ublue-os/bluefin-dx:{tag}` | smoke, developer, dx, common |
+| `bluefin-nvidia-open:latest` | `ghcr.io/ublue-os/bluefin-nvidia-open:latest` | smoke, common |
+| `bazzite-gnome:latest` | `ghcr.io/ublue-os/bazzite-gnome:latest` | bazzite |
+| `gnomeos-latest` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
+
+**Diagnosing failures** — check `docs/skills/ops.md` for the most common causes.
+
+## Merge queue
+
+PRs require 2 approvals + CI. Enqueue via GraphQL (the UI merge button is blocked):
+
+```bash
+PR_NODE_ID=$(gh api /repos/projectbluefin/testsuite/pulls/<NUMBER> --jq '.node_id')
+gh api graphql -f query="
+mutation {
+  enqueuePullRequest(input: { pullRequestId: \"${PR_NODE_ID}\" }) {
+    mergeQueueEntry { id position }
+  }
+}"
+```
+
 ## Vanilla GNOME baseline comparison
 
 The `vanilla-gnome` suite runs against an unmodified GNOME OS disk to establish
@@ -31,8 +75,8 @@ a comparison baseline:
 
 Currently this comparison is manual. Procedure:
 
-1. Wait for both nightly runs to complete (Argo Workflows in `testing-lab`)
-2. Compare results for the 7 overlapping scenarios between `smoke` and `vanilla-gnome`:
+1. Wait for the nightly run to complete (GitHub Actions — `nightly.yml`)
+2. Compare results for the overlapping scenarios between `smoke` and `vanilla-gnome`:
    - `gnome_calculator` — launch and basic interaction
    - `gnome_text_editor` — launch and typing
    - `gnome_files_browse_dir` — Nautilus directory listing
