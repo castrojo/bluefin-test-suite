@@ -29,7 +29,7 @@ permissions:
 jobs:
   test-latest:
     if: ${{ github.event.inputs.image_tag != 'lts' }}
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@051e8ccd2aff03f0dc2f91169ec85c9655ee2618 # main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
       suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
@@ -39,7 +39,7 @@ jobs:
 
   test-lts:
     if: ${{ github.event.inputs.image_tag != 'latest' }}
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@051e8ccd2aff03f0dc2f91169ec85c9655ee2618 # main
     with:
       image: ghcr.io/ublue-os/bluefin:lts
       suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
@@ -49,7 +49,7 @@ jobs:
 
   test-bazzite:
     if: ${{ github.event.inputs.image_tag != 'lts' }}
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@051e8ccd2aff03f0dc2f91169ec85c9655ee2618 # main
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:latest
       suites: bazzite,vanilla-gnome
@@ -59,7 +59,7 @@ jobs:
 
   test-dx:
     if: ${{ github.event.inputs.image_tag != 'lts' }}
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@051e8ccd2aff03f0dc2f91169ec85c9655ee2618 # main
     with:
       image: ghcr.io/ublue-os/bluefin-dx:latest
       suites: dx
