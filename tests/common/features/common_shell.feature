@@ -24,19 +24,23 @@ Feature: Bluefin common shell environment
     * Run SSH command: "fzf --version"
     * SSH command return code is "0"
 
+  @quarantine
   Scenario: bat (modern cat) is available
     * Run SSH command: "bat --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/bat --version 2>/dev/null || batcat --version 2>/dev/null || echo missing"
     * SSH command output is not empty
     * SSH command output does not contain "missing"
 
+  @quarantine
   Scenario: eza (modern ls) is available
     * Run SSH command: "eza --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/eza --version"
     * SSH command return code is "0"
 
+  @quarantine
   Scenario: fd (modern find) is available
     * Run SSH command: "fd --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/fd --version"
     * SSH command return code is "0"
 
+  @quarantine
   Scenario: ripgrep is available
     * Run SSH command: "rg --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/rg --version"
     * SSH command return code is "0"

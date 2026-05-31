@@ -447,17 +447,27 @@ jobs:
 
           $SSH "python3 -m ensurepip --user 2>/dev/null || true"
 
-          # python-uinput has no pre-built wheels. Build it natively in the VM
-          # so the resulting wheel matches Fedora's Python ABI (avoids
-          # "not a supported wheel on this platform" from cross-built Debian wheels).
+          # python-uinput has no pre-built wheels. Build it natively in the VM.
+          # On mutable images (Bluefin/Bazzite) use dnf. On immutable images
+          # (GNOME OS) dnf may be absent or read-only — fall back silently.
+          # Set CC=gcc to override cross-compiler names that Python may have
+          # baked in from the build toolchain (e.g. x86_64-unknown-linux-gnu-gcc).
           $SSH "sudo dnf install -y -q gcc python3-devel libudev-devel 2>/dev/null || true"
-          $SSH "python3 -m pip install -q --user --no-binary python-uinput python-uinput"
+          $SSH "CC=gcc python3 -m pip install -q --user --no-binary python-uinput python-uinput 2>&1 || echo 'WARNING: python-uinput install skipped — uinput keyboard simulation unavailable'"
           $SSH "sudo dnf remove -y -q gcc python3-devel libudev-devel 2>/dev/null || true"
 
           $SSH "python3 -m pip install -q --user --upgrade 'qecore>=4.12' behave dogtail"
           $SSH "for f in \$HOME/.local/bin/qecore_*; do sudo ln -sf \"\$f\" /usr/local/bin/\$(basename \"\$f\") 2>/dev/null; done || true"
           $SSH "sudo modprobe uinput 2>/dev/null || true"
           $SSH "sudo chmod 0666 /dev/uinput 2>/dev/null || true"
+
+          # Copy SSH private key into VM so DX @plain_ssh tests can SSH to localhost.
+          # The DX suite runs inside the VM via qecore-headless; @plain_ssh scenarios
+          # SSH from inside the VM to itself (loopback) to get a login shell with
+          # the full user environment (PATH, mise, etc.).
+          SCP_KEY="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlPath=/tmp/ssh-ctrl-%C -P 2222"
+          $SCP_KEY /tmp/vm_key bluefin-test@127.0.0.1:/home/bluefin-test/.ssh/id_ed25519
+          $SSH "chmod 600 /home/bluefin-test/.ssh/id_ed25519"
 
           $SSH "
             XDG=/run/user/1001
@@ -569,6 +579,9 @@ jobs:
               source /tmp/session.env
               export PATH=\$HOME/.local/bin:\$PATH
               export PYTHONPATH=/tmp/bluefin-tests
+              export VM_IP=127.0.0.1
+              export VM_USER=bluefin-test
+              export SSH_KEY=/home/bluefin-test/.ssh/id_ed25519
               BEHAVE_BIN=\$(which behave)
               BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \$HOME/.local/bin/qecore-headless \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}\"
             " || BEHAVE_RC=$?

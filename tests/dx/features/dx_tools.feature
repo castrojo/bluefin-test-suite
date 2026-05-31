@@ -7,15 +7,17 @@ Feature: Bluefin DX variant smoke tests
   # Requires: Bluefin DX golden disk (ghcr.io/ublue-os/bluefin-dx:latest).
   # See QA-REVIEW.md Epic E05 for full design.
 
-  @dx @vscode @launch
+  @quarantine @dx @vscode @launch
   Scenario: VS Code or Codium launches and window is accessible
     # AT-SPI app name is likely "code" or "codium".
+    # Quarantined: flatpak-preinstall.service is masked in CI; VS Code not installed.
     * Start application "code" via "command"
     * Wait until "Visual Studio Code" "frame" appears in "code"
     * Application "code" is running
 
-  @dx @vscode @close
+  @quarantine @dx @vscode @close
   Scenario: VS Code closes cleanly
+    # Quarantined: flatpak-preinstall.service is masked in CI; VS Code not installed.
     * Start application "code" via "command"
     * Wait until "Visual Studio Code" "frame" appears in "code"
     * Close application "code" via "shortcut"
@@ -52,19 +54,22 @@ Feature: Bluefin DX variant smoke tests
     * SSH command return code is "0"
     * Last command output does not contain "missing"
 
-  @dx @brew @plain_ssh
+  @quarantine @dx @brew @plain_ssh
   Scenario: Homebrew is available on the DX variant
+    # Quarantined: brew-setup.service is masked in CI.
     * Run DX SSH command: "brew --version 2>&1 | head -1"
     * SSH command return code is "0"
     * Last command output contains "Homebrew"
 
-  @dx @mise @plain_ssh
+  @quarantine @dx @mise @plain_ssh
   Scenario: mise is available for version management
+    # Quarantined: mise installed via brew which is masked in CI.
     * Run DX SSH command: "mise --version"
     * SSH command return code is "0"
 
-  @dx @mise @plain_ssh
+  @quarantine @dx @mise @plain_ssh
   Scenario: mise lists available runtimes
+    # Quarantined: mise installed via brew which is masked in CI.
     * Run DX SSH command: "mise ls 2>/dev/null | wc -l || echo 0"
     * SSH command return code is "0"
 
