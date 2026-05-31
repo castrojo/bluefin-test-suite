@@ -1,12 +1,19 @@
-"""Scenario timing helpers — write JSONL lines to /tmp/results/timings.jsonl."""
+"""Scenario timing helpers — write JSONL lines to the configured results directory."""
 
 import json
 import os
 import time
 
 
-RESULTS_DIR = "/tmp/results"
-TIMINGS_FILE = os.path.join(RESULTS_DIR, "timings.jsonl")
+def _results_dir(context=None) -> str:
+    """Resolve output dir: userdata > env var > default /tmp/results."""
+    if context is not None:
+        config = getattr(context, "config", None)
+        if config and hasattr(config, "userdata"):
+            value = config.userdata.get("results_dir")
+            if value:
+                return value
+    return os.environ.get("TESTSUITE_RESULTS_DIR", "/tmp/results")
 
 # SLA thresholds (seconds). Override via env: TIMING_SLA_SCENARIO=30
 SLA_SCENARIO_DEFAULT = int(os.environ.get("TIMING_SLA_SCENARIO", "30"))
@@ -28,7 +35,9 @@ def record_end(context, scenario):
     if start is None:
         return None
     elapsed = time.monotonic() - start
-    os.makedirs(RESULTS_DIR, exist_ok=True)
+    results_dir = _results_dir(context)
+    timings_file = os.path.join(results_dir, "timings.jsonl")
+    os.makedirs(results_dir, exist_ok=True)
     entry = {
         "scenario": scenario.name,
         "feature": getattr(getattr(scenario, "feature", None), "name", "unknown"),
@@ -38,7 +47,7 @@ def record_end(context, scenario):
         "sla_violated": elapsed > SLA_SCENARIO_DEFAULT,
     }
     try:
-        with open(TIMINGS_FILE, "a", encoding="utf-8") as file_obj:
+        with open(timings_file, "a", encoding="utf-8") as file_obj:
             file_obj.write(json.dumps(entry) + "\n")
     except OSError:
         pass
