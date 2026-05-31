@@ -104,7 +104,13 @@ def strip_reporter_args(args: list[str]) -> list[str]:
 def read_rerun_entries(rerun_path: Path) -> list[str]:
     if not rerun_path.exists():
         return []
-    lines = [line.strip() for line in rerun_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    # behave 1.3.x adds "# -- RERUN: N failing scenarios..." header comments.
+    # Strip them so they are not passed as feature file paths on retry.
+    lines = [
+        line.strip()
+        for line in rerun_path.read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    ]
     deduped: list[str] = []
     for line in lines:
         if line not in deduped:
