@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: "Image stream to test (latest | lts | both)"
+        description: "Image stream to test (latest | lts | bazzite | both)"
         required: false
         default: "both"
       suites:
@@ -43,6 +43,17 @@ jobs:
     with:
       image: ghcr.io/ublue-os/bluefin:lts
       suites: ${{ github.event.inputs.suites || 'smoke,developer,software,vanilla-gnome,common' }}
+    permissions:
+      contents: read
+      packages: write
+
+  test-bazzite:
+    if: ${{ github.event.inputs.image_tag != 'lts' }}
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    with:
+      image: ghcr.io/ublue-os/bazzite-gnome:latest
+      suites: bazzite,vanilla-gnome
+      image_tag: bazzite
     permissions:
       contents: read
       packages: write
