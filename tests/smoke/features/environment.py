@@ -230,6 +230,12 @@ def before_all(context) -> None:
 def before_scenario(context, scenario) -> None:
     from tests.shared.quarantine import skip_quarantine
 
+    # Initialize qecore command output attributes and screenshot context before
+    # any early-return paths so that after_scenario/after_step never sees missing attrs.
+    context.html_formatter = None
+    context.command_stdout = ""
+    context.last_command_output = ""
+
     if skip_quarantine(scenario):
         return
 
@@ -244,12 +250,7 @@ def before_scenario(context, scenario) -> None:
             return
 
     context.scenario = scenario
-    context.html_formatter = None
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
-    # Initialize qecore command output attributes (attribute name varies by version)
-    # qecore 4.16: command_stdout; older: last_command_output
-    context.command_stdout = ""
-    context.last_command_output = ""
     record_start(context)
     availability = getattr(context, "optional_scenario_availability", {})
     for tag, present in availability.items():

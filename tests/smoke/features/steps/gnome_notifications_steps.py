@@ -67,12 +67,18 @@ def notification_banner_no_longer_showing(context) -> None:
     import re
     # Wait up to 4 s for the banner to be dismissed from the message tray.
     # The banner ref becomes null once Shell finishes the dismiss animation.
+    # GNOME 50 changed the banner API — check both _banner property and banner visibility.
+    # Use a compound expression that returns 'false' when no banner is showing.
     banner_js = (
-        "(Main.messageTray._banner !== null && "
-        "Main.messageTray._banner !== undefined).toString()"
+        "((Main.messageTray._banner === null || "
+        "Main.messageTray._banner === undefined || "
+        "!Main.messageTray._banner.visible) && "
+        "(typeof Main.messageTray._bannerBin === 'undefined' || "
+        "Main.messageTray._bannerBin === null || "
+        "!Main.messageTray._bannerBin.visible)).toString()"
     )
     last_out = ""
-    for _ in range(8):
+    for _ in range(20):  # 10s — GNOME 50 banners can linger longer than 4s
         result = subprocess.run(
             ["gdbus", "call", "--session",
              "--dest", "org.gnome.Shell",
@@ -83,7 +89,7 @@ def notification_banner_no_longer_showing(context) -> None:
         )
         last_out = result.stdout
         m = re.search(r",\s*'\"?(true|false)\"?'\s*\)", last_out, re.IGNORECASE)
-        if m and m.group(1).lower() == "false":
+        if m and m.group(1).lower() == "true":
             return
         sleep(0.5)
     raise AssertionError(

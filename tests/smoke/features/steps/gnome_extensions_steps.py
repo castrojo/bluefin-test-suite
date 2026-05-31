@@ -86,9 +86,15 @@ def at_least_one_gnome_extension_is_enabled(context) -> None:
 
 @step("Launch Extensions preferences via command")
 def launch_extensions_preferences_via_command(context) -> None:
-    launch_attempts = [["gnome-extensions", "--launch-preferences"]]
+    launch_attempts = [
+        ["gtk-launch", "org.gnome.Extensions"],
+        ["gnome-extensions", "--launch-preferences"],
+    ]
     if os.path.exists(EXTENSIONS_DESKTOP_FILE):
         launch_attempts.append(["gio", "launch", EXTENSIONS_DESKTOP_FILE])
+
+    # Ensure AT-SPI bridge is active for GTK4 apps (required in GNOME 50)
+    launch_env = {**os.environ, "GTK_A11Y": "atk-bridge", "GNOME_ACCESSIBILITY": "1"}
 
     last_error = "no launch attempts were executed"
     for cmd in launch_attempts:
@@ -97,12 +103,14 @@ def launch_extensions_preferences_via_command(context) -> None:
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                env=launch_env,
             )
         except FileNotFoundError as exc:
             last_error = str(exc)
             continue
 
         context.extensions_launch_target = " ".join(cmd)
+        sleep(2)  # give the app extra time to initialize AT-SPI in GNOME 50
         for _ in range(6):
             try:
                 context.extensions_window = _extensions_window()
