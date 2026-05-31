@@ -30,9 +30,11 @@ def run_ssh(context, cmd, timeout=60):
         "ConnectTimeout=10",
         "-o",
         "LogLevel=ERROR",
-        f"{context.ssh_user}@{context.vm_ip}",
-        final_cmd,
     ]
+    if getattr(context, "ssh_port", None):
+        ssh_opts += ["-p", str(context.ssh_port)]
+    ssh_opts.append(f"{context.ssh_user}@{context.vm_ip}")
+    ssh_opts.append(final_cmd)
     result = subprocess.run(ssh_opts, capture_output=True, text=True, timeout=timeout)
     stdout = result.stdout.strip()
     context.command_stdout = stdout
