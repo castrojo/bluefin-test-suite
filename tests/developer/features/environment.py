@@ -58,10 +58,14 @@ def before_all(context) -> None:
         context.ptyxis.exit_shortcut = "<Alt>F4"
 
         # micro is launched via terminal, not registered as a standalone app
-        # Podman Desktop is a Flatpak — use get_flatpak for lifecycle management
-        context.podman_desktop = context.sandbox.get_flatpak(
-            flatpak_id="io.podman_desktop.PodmanDesktop",
-        )
+        # Podman Desktop is only present on bluefin-dx; skip gracefully on base images.
+        try:
+            context.podman_desktop = context.sandbox.get_flatpak(
+                flatpak_id="io.podman_desktop.PodmanDesktop",
+            )
+        except Exception as _pd_err:
+            print(f"INFO: Podman Desktop not installed ({_pd_err}) — @podman_desktop scenarios will be skipped")
+            context.podman_desktop = None
         configure_screenshot_context(context, SUITE_NAME)
     except Exception as error:
         print(f"Environment error: before_all: {error}")
@@ -72,6 +76,10 @@ def before_scenario(context, scenario) -> None:
     from tests.shared.quarantine import skip_quarantine
 
     if skip_quarantine(scenario):
+        return
+    # Podman Desktop is only on bluefin-dx; skip those scenarios on the base image.
+    if "podman_desktop" in scenario.tags and getattr(context, "podman_desktop", None) is None:
+        scenario.skip("Podman Desktop Flatpak not installed on this image")
         return
     context.scenario = scenario
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
