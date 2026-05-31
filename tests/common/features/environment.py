@@ -69,6 +69,12 @@ def before_all(context):
         + '| head -1 | xargs -r basename 2>/dev/null || true)}; '
         + '[ -n "$WAYLAND_DISPLAY" ] && export WAYLAND_DISPLAY="$WAYLAND_DISPLAY"'
     )
+    context.ssh_port = _first_value(
+        userdata.get("ssh_port", ""),
+        os.environ.get("SSH_PORT", ""),
+        os.environ.get("VM_PORT", ""),
+        os.environ.get("TMT_SSH_PORT", ""),
+    ) or None
     context.command_stdout = ""
     context.last_command_output = ""
     context.last_ssh_result = None

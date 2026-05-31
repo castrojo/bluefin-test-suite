@@ -492,6 +492,7 @@ jobs:
             VM_IP=127.0.0.1 \
             VM_USER=bluefin-test \
             SSH_KEY=/tmp/vm_key \
+            SSH_PORT=2222 \
             python3 tests/shared/behave_retry.py tests/${SUITE}/features/ \
               --format json.pretty --outfile results/results.json \
               --format pretty --outfile results/results.txt \
