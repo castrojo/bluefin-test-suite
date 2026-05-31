@@ -38,11 +38,13 @@ def record_end(context, scenario):
     results_dir = _results_dir(context)
     timings_file = os.path.join(results_dir, "timings.jsonl")
     os.makedirs(results_dir, exist_ok=True)
+    rounded_elapsed = round(elapsed, 3)
     entry = {
         "scenario": scenario.name,
         "feature": getattr(getattr(scenario, "feature", None), "name", "unknown"),
         "status": scenario.status.name,
-        "elapsed_s": round(elapsed, 3),
+        "elapsed": rounded_elapsed,
+        "elapsed_s": rounded_elapsed,
         "sla_s": SLA_SCENARIO_DEFAULT,
         "sla_violated": elapsed > SLA_SCENARIO_DEFAULT,
     }
