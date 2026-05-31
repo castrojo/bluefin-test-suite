@@ -499,17 +499,22 @@ jobs:
             SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
             SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlPath=/tmp/ssh-ctrl-%C -P 2222 -r"
 
-            $SSH "mkdir -p /tmp/bluefin-tests /tmp/results"
-            $SCP "tests/${SUITE}" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/"
+            # Copy into tests/ subdir so 'from tests.shared import ...' resolves.
+            # PYTHONPATH=/tmp/bluefin-tests exposes the tests package to behave.
+            $SSH "mkdir -p /tmp/bluefin-tests/tests /tmp/results"
+            $SCP "tests/${SUITE}" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/tests/"
             [[ -d "tests/shared" ]] && \
-              $SCP "tests/shared" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/" || true
+              $SCP "tests/shared" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/tests/" || true
+            [[ -f "tests/__init__.py" ]] && \
+              $SCP "tests/__init__.py" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/tests/__init__.py" || true
 
             $SSH "
               set -e
               source /tmp/session.env
               export PATH=\$HOME/.local/bin:\$PATH
+              export PYTHONPATH=/tmp/bluefin-tests
               BEHAVE_BIN=\$(which behave)
-              \$HOME/.local/bin/qecore-headless \"\$BEHAVE_BIN /tmp/bluefin-tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --format pretty --outfile /tmp/results/results.txt --no-capture\"
+              \$HOME/.local/bin/qecore-headless \"\$BEHAVE_BIN /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --format pretty --outfile /tmp/results/results.txt --no-capture\"
             " || BEHAVE_RC=$?
 
             $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
