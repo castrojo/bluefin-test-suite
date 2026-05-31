@@ -50,7 +50,7 @@ def _extensions_app():
 def _extensions_window():
     app = _extensions_app()
     last_children = []
-    for _ in range(20):
+    for _ in range(40):  # 20s — extensions-app can be slow to present its window
         windows = app.findChildren(
             lambda n: n.roleName in EXTENSIONS_WINDOW_ROLES and n.showing
         )

@@ -13,18 +13,34 @@ FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
 
 
 def _launch_app(app_id: str) -> None:
-    result = subprocess.run(
+    """Launch a GNOME app by ID, trying multiple invocation methods.
+
+    ``gio launch`` requires the full ``.desktop`` file ID (e.g.
+    ``org.gnome.Ptyxis.desktop``).  Older callers may pass the bare app ID
+    without the suffix, so we try several variants before giving up.
+    """
+    attempts = [
+        ["gtk-launch", app_id],
+        ["gio", "launch", f"{app_id}.desktop"],
         ["gio", "launch", app_id],
-        capture_output=True,
-        text=True,
-        timeout=10,
+    ]
+    last_cmd: list[str] = []
+    last_err = ""
+    for cmd in attempts:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        last_cmd = cmd
+        last_err = result.stderr.strip() or result.stdout.strip()
+        if result.returncode == 0:
+            sleep(1)
+            return
+    raise AssertionError(
+        f"Failed to launch {app_id!r}: last command {last_cmd!r} rc=1 — {last_err}"
     )
-    assert result.returncode == 0, (
-        f"gio launch {app_id} failed: rc={result.returncode}\n"
-        f"stdout: {result.stdout}\n"
-        f"stderr: {result.stderr}"
-    )
-    sleep(1)
 
 
 def _app(app_names: tuple[str, ...], label: str):

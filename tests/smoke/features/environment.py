@@ -14,9 +14,88 @@ import os
 import sys
 import traceback
 
+import re as _re
+import subprocess as _subprocess
+
 from qecore.sandbox import TestSandbox
 from qecore.common_steps import *  # noqa: F401,F403 — registers all common @step definitions
 from steps.app_support import launch_target_available
+
+# ── qecore keyboard key mapping patch ────────────────────────────────────────
+# qecore 4.16 keyboard_key_combo_input builds uinput key names as
+# f"KEY_{modifier.upper()}" — e.g. KEY_CONTROL, KEY_ALT — which don't exist in
+# python-uinput.  The valid evdev names are KEY_LEFTCTRL, KEY_LEFTALT, etc.
+# We normalise the combo string before it reaches qecore so qecore sees the
+# canonical modifier names it can translate correctly.
+_MODIFIER_ALIAS = {
+    "control": "ctrl",
+    "ctrl": "ctrl",
+    "alt": "alt",
+    "shift": "shift",
+    "super": "super",
+    "meta": "super",
+}
+_EVDEV_KEY_ALIAS = {
+    "control": "leftctrl",
+    "ctrl": "leftctrl",
+    "alt": "leftalt",
+    "shift": "leftshift",
+    "super": "leftmeta",
+    "meta": "leftmeta",
+}
+
+
+def _normalize_key_combo(combo: str) -> str:
+    """Rewrite a key combo string so qecore / python-uinput can resolve it.
+
+    Transforms e.g.  ``<Control><Shift>n``  →  ``<leftctrl><leftshift><n>``
+    so that qecore's ``KEY_{name.upper()}`` lookup hits ``KEY_LEFTCTRL`` etc.
+    Bare trailing keys that are not already wrapped in ``<>`` are wrapped.
+    """
+    # Replace each <modifier> with its evdev-canonical equivalent.
+    def _repl(m: _re.Match) -> str:
+        name = m.group(1).lower()
+        return f"<{_EVDEV_KEY_ALIAS.get(name, name)}>"
+
+    result = _re.sub(r"<([^>]+)>", _repl, combo)
+
+    # If there is a bare trailing character (not inside <>), wrap it.
+    # e.g. "<leftctrl><leftshift>n" → "<leftctrl><leftshift><n>"
+    if result and result[-1] != ">" and not result.endswith(">"):
+        tail = result.rstrip()
+        last_close = tail.rfind(">")
+        if last_close != -1:
+            prefix = tail[:last_close + 1]
+            bare = tail[last_close + 1:]
+            if bare:
+                result = prefix + "".join(f"<{c}>" for c in bare)
+    return result
+
+
+try:
+    import qecore.common_steps as _qecore_cs
+
+    if hasattr(_qecore_cs, "keyboard_key_combo_input"):
+        _orig_keyboard_key_combo_input = _qecore_cs.keyboard_key_combo_input
+
+        def _patched_keyboard_key_combo_input(combo):
+            return _orig_keyboard_key_combo_input(_normalize_key_combo(combo))
+
+        _qecore_cs.keyboard_key_combo_input = _patched_keyboard_key_combo_input
+except Exception as _e:  # noqa: BLE001
+    print(f"WARNING: could not patch qecore keyboard_key_combo_input: {_e}", flush=True)
+
+
+def _has_wifi_interface() -> bool:
+    """Return True if at least one wireless network interface is visible to the kernel."""
+    try:
+        r = _subprocess.run(
+            ["ip", "link", "show", "type", "wifi"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return bool(r.stdout.strip())
+    except Exception:  # noqa: BLE001
+        return False
 
 try:
     from tests.shared.timing import record_end, record_start
@@ -153,6 +232,17 @@ def before_scenario(context, scenario) -> None:
 
     if skip_quarantine(scenario):
         return
+
+    # Skip Wi-Fi tests when no wireless hardware is present (e.g. QEMU VMs).
+    if "wifi" in set(getattr(scenario, "effective_tags", scenario.tags)):
+        if not _has_wifi_interface():
+            try:
+                scenario.skip("No Wi-Fi interface detected — skipping @wifi scenario")
+            except TypeError:
+                scenario.skip()
+            print(f"Skipping {scenario.name}: no Wi-Fi interface detected", flush=True)
+            return
+
     context.scenario = scenario
     context.html_formatter = None
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
