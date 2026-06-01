@@ -8,12 +8,12 @@ Feature: Ptyxis terminal smoke tests
     * Start application "ptyxis" via "command"
     * Make sure window is focused for wayland testing
 
-  @quarantine @ptyxis @launch
+  @ptyxis @launch
   Scenario: Ptyxis launches and window is accessible
     * Application "ptyxis" is running
-    * Item "Ptyxis" "frame" is "showing" in "ptyxis"
+    * Ptyxis window is accessible
 
-  @quarantine @ptyxis @input
+  @ptyxis @input
   Scenario: Terminal accepts keyboard input
     * Type text: "echo bluefin-test" with uinput
     * Press key: "Return" with uinput
@@ -21,21 +21,22 @@ Feature: Ptyxis terminal smoke tests
 
   @quarantine @ptyxis @brew
   Scenario: brew is on PATH and returns version string
+    # Quarantined: e2e workflow masks brew-setup.service, so Homebrew is unavailable in CI.
     * Type text: "brew --version" with uinput
     * Press key: "Return" with uinput
     * Terminal output in ptyxis contains "Homebrew"
 
-  @quarantine @ptyxis @podman
+  @ptyxis @podman
   Scenario: podman is available in terminal
     * Type text: "podman --version" with uinput
     * Press key: "Return" with uinput
     * Terminal output in ptyxis contains "podman version"
 
-  @quarantine @ptyxis @regression @bluefin_4620
+  @ptyxis @regression @bluefin_4620
   Scenario: No Vulkan validation spam on terminal open (bluefin#4620)
     * No journal entries match "VUID-"
 
-  @quarantine @ptyxis @new_tab
+  @ptyxis @new_tab
   Scenario: New tab opens via keyboard shortcut
     * Key combo: "<Shift><Ctrl><T>" with uinput
     * Ptyxis has "2" tabs

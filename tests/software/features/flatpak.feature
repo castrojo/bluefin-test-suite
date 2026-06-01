@@ -1,6 +1,6 @@
 @software_suite
-Feature: gnome-software (Bazaar) smoke tests
-  Validates Bazaar launches and core UI elements are accessible.
+Feature: GNOME Software smoke tests
+  Validates GNOME Software launches and core UI elements are accessible.
   Regression coverage for bluefin#4062 and #4471.
 
   Background:
@@ -8,10 +8,12 @@ Feature: gnome-software (Bazaar) smoke tests
     * Wait until "Software" "frame" appears in "software"
 
   @software @launch
-  Scenario: Bazaar launches and main window is visible
+  Scenario: GNOME Software launches and main window is visible
     * Application "software" is running
     * Item "Software" "frame" is "showing" in "software"
 
+  # Quarantined on gnomeos/GNOME 50 pending re-validation of GNOME Software's
+  # AT-SPI roles and names after /org/a11y/atspi/cache errors tracked in #176.
   @quarantine @software @navigation
   Scenario: Explore tab is present and accessible
     * Item "Explore" "toggle button" is "showing" in "software"
@@ -25,13 +27,14 @@ Feature: gnome-software (Bazaar) smoke tests
     * Left click "Installed" "toggle button" in "software"
     * Wait until "Installed" "page tab" appears in "software"
 
-  @quarantine @software @search
+  @software @search
   Scenario: Search bar accepts input and returns results
-    # Quarantined: uinput (python-uinput) not available on gnomeos — no gcc in image.
     * Left click "Search" "toggle button" in "software"
     * Type text: "Firefox" with uinput
     * Wait until "Firefox" "label" appears in "software"
 
+  # These crash/close checks depend on the same GNOME 50 navigation widgets,
+  # so keep them quarantined until the UI structure is re-verified on gnomeos.
   @quarantine @software @regression @bluefin_4062
   Scenario: Flatpak updates section is reachable without crash (bluefin#4062)
     * Left click "Installed" "toggle button" in "software"
@@ -44,7 +47,7 @@ Feature: gnome-software (Bazaar) smoke tests
     * No coredump entries exist for "gnome-software"
 
   @quarantine @software @close
-  Scenario: Bazaar closes cleanly via shortcut
+  Scenario: GNOME Software closes cleanly via shortcut
     * Close application "software" via "shortcut"
     * Application "software" is no longer running
 
@@ -68,6 +71,8 @@ Feature: gnome-software (Bazaar) smoke tests
   Scenario: Flathub remote is configured and reachable
     * Flatpak remote "flathub" is configured
 
+  # Still quarantined until GNOME Software's gnomeos/GNOME 50 startup path is
+  # re-verified alongside the other #176 scenarios.
   @quarantine @software @flatpak_cli @nightly
   Scenario: flatpak install and uninstall round-trip succeeds
     # Apostrophe (~5 MB) is a small, stable Flatpak with no heavy runtimes.

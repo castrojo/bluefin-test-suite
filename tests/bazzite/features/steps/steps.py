@@ -140,28 +140,27 @@ def extension_is_installed(context, uuid: str) -> None:
 
 @step('Logo Menu button is present in panel')
 def logo_menu_button_present(context) -> None:
-    shell = tree.root.application("gnome-shell")
-    panels = shell.findChildren(GenericPredicate(roleName="panel"))
-    assert panels, "No panel found in gnome-shell AT-SPI tree"
-    # Logo Menu adds a button; its exact name varies by distro logo config.
-    # We check for a push button or menu button in the panel that is NOT
-    # the Activities toggle — Logo Menu replaces Activities entirely.
-    buttons = panels[0].findChildren(
-        lambda n: n.roleName in ("push button", "menu button") and n.showing
-    )
-    assert buttons, "No Logo Menu button found in panel"
+    _shell_eval("global.context.unsafe_mode = true")
+    assert _eval_bool(
+        "(() => { "
+        "const logo = Main.panel.statusArea['LogoMenu']; "
+        "if (!logo) return false; "
+        "return Boolean(logo.container?.visible ?? logo.visible ?? logo.actor?.visible ?? false); "
+        "})().toString()"
+    ), "Logo Menu button is not present in GNOME Shell statusArea"
 
 
 @step('Activities button is absent from panel')
 def activities_button_absent(context) -> None:
-    shell = tree.root.application("gnome-shell")
-    panels = shell.findChildren(GenericPredicate(roleName="panel"))
-    assert panels, "No panel found in gnome-shell AT-SPI tree"
-    activities = panels[0].findChildren(
-        lambda n: n.roleName == "toggle button" and n.name == "Activities"
-    )
-    assert not activities, (
-        "Activities toggle button is still present — "
+    _shell_eval("global.context.unsafe_mode = true")
+    assert _eval_bool(
+        "(() => { "
+        "const activities = Main.panel.statusArea['activities']; "
+        "if (!activities) return true; "
+        "return (!Boolean(activities.container?.visible ?? activities.visible ?? activities.actor?.visible ?? false)); "
+        "})().toString()"
+    ), (
+        "Activities button is still visible in GNOME Shell statusArea — "
         "Logo Menu should have replaced it"
     )
 

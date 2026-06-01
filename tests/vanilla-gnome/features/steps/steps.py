@@ -200,9 +200,11 @@ def _assert_any_app_present(label: str, commands: tuple[str, ...], flatpaks: tup
 
 @step('Do-not-disturb toggle is present in Quick Settings')
 def dnd_toggle_present(context) -> None:
-    # GNOME 47+ renamed _dnd to _do_not_disturb; try both for compatibility
+    # GNOME 50 exposes the Quick Settings indicator as _doNotDisturb.
     assert _eval_context_bool(
         context,
+        '(Main.panel.statusArea.quickSettings._doNotDisturb !== null && '
+        'Main.panel.statusArea.quickSettings._doNotDisturb !== undefined) || '
         '(Main.panel.statusArea.quickSettings._do_not_disturb !== null && '
         'Main.panel.statusArea.quickSettings._do_not_disturb !== undefined) || '
         '(Main.panel.statusArea.quickSettings._dnd !== null && '

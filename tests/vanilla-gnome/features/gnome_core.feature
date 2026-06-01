@@ -49,7 +49,7 @@ Feature: Vanilla GNOME baseline smoke tests
     * Open Quick Settings via Shell.Eval
     * Quick Settings panel is open via Shell.Eval
 
-  @gnome_core @quarantine
+  @gnome_core
   Scenario: Do-not-disturb toggle is accessible via Quick Settings
     * GNOME Shell is accessible via AT-SPI
     * Open Quick Settings via Shell.Eval

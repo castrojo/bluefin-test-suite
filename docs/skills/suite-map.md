@@ -14,7 +14,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour; `bazzite-gnome:latest` only |
 | `developer` | ✅ | ✅ | — | — | — | — | Homebrew/Ptyxis; DX adds extra tools |
-| `software` | — | — | — | — | ✅ | — | Bazaar/Flatpak; gnomeos only — Bluefin ships Warehouse, not GNOME Software |
+| `software` | — | — | — | — | ✅ | — | GNOME Software/Flatpak; gnomeos only — Bluefin ships Warehouse, not GNOME Software |
 | `common` | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
 | `lifecycle` | ✅ | ✅ | ✅ | — | — | — | bootc upgrade/rollback; SSH-mode |
 | `security` | ✅ | ✅ | ✅ | — | — | — | cosign + SELinux; SSH-mode |
@@ -69,13 +69,13 @@ The `nightly.yml` workflow runs 9 named jobs. Each job name is visible in the Ac
 
 ## Coverage snapshot
 
-255 scenarios across 29 feature files (last audit: 2026-05-31).
+255 scenarios across 29 feature files (last audit: 2026-06-01). 20 quarantined (down from 42), 235 active.
 
 | Suite | Scenarios | Status | Notes |
 |---|---|---|---|
 | smoke | 81 | ✅ active | dogtail 4.16 API correct throughout |
 | developer | 19 | ✅ active | brew, podman Desktop (+Containers/Images/Volumes), ptyxis |
-| software | 12 | ✅ active | Bazaar/gnome-software + Flathub + permissions DB |
+| software | 12 | ✅ active | GNOME Software + Flathub + permissions DB |
 | common | 32 | ✅ active | Bluefin common layer: dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
 | vanilla-gnome | 12 | ✅ active | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 13 | ✅ active | bootc upgrade / rollback / switch / version tracking / idempotence |

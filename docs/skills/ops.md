@@ -75,7 +75,7 @@ Should return nothing. Any hit must be replaced with `raise`.
 
 **Fix (now in place, two layers):**
 1. `behave_retry.py` calls `with_quarantine_filter()` which always appends `--tags ~@quarantine` to the behave invocation.
-2. `e2e.yml` sets `BEHAVE_TAG_ARGS="--tags ~quarantine"` before calling `behave_retry.py`.
+2. `e2e.yml` sets `BEHAVE_TAG_ARGS="--tags ~@quarantine"` before calling `behave_retry.py`.
 
 Both layers are required. Do not remove either.
 
@@ -96,20 +96,13 @@ bootc install to-disk $BOOTLOADER_ARG ...
 
 Always probe before using. Never hard-code `--bootloader`.
 
-## gnomeos: python-uinput build fails (no gcc)
+## python-uinput now builds in the runner image
 
-**Symptom:** `pip install python-uinput` fails with `x86_64-unknown-linux-gnu-gcc: not found` or `gcc: not found`.
+**Previous symptom:** `pip install python-uinput` failed with `x86_64-unknown-linux-gnu-gcc: not found` or `gcc: not found`.
 
-**Cause:** GNOME OS is compiled with a cross-toolchain. Python's build system looks for the cross-compiler, not the native `gcc`. Even setting `CC=gcc` only helps if `gcc` is present — on gnomeos it is not.
+**Current state:** PR #192 installs `gcc` and `python3-devel` before `pip install python-uinput`, so uinput-backed keyboard scenarios no longer need `@quarantine` for that reason alone.
 
-**Consequence:** Any scenario that uses `Type text: "X" with uinput` **cannot run on gnomeos** and must be `@quarantine`d.
-
-**Workaround in e2e.yml:**
-```bash
-CC=gcc pip install python-uinput || echo "WARNING: python-uinput unavailable — keyboard input scenarios will be skipped"
-```
-
-The step continues (not `set -e` fatal) so other scenarios proceed.
+**What to do now:** If a `Type text: "X" with uinput` scenario fails, treat it as a test or app regression and investigate the actual failure instead of assuming the runner image cannot build python-uinput.
 
 ## NVIDIA services always fail in QEMU
 
