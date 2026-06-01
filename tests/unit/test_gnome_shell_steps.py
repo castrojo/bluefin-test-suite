@@ -5,7 +5,7 @@ These functions parse Shell.Eval output and drive boolean assertions in
 the smoke and vanilla-gnome suites.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, mock_open, patch
 
 import pytest
 
@@ -161,3 +161,313 @@ class TestWaitEvalBool:
         with patch.object(self.mod, "_eval_bool", return_value=False):
             with patch("time.sleep"):
                 assert self.mod._wait_eval_bool("x", False, retries=3) is True
+
+
+# ---------------------------------------------------------------------------
+# Step function helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_node(role="panel", name="", showing=True, children=None):
+    node = MagicMock()
+    node.roleName = role
+    node.name = name
+    node.showing = showing
+    node.children = children or []
+    node.findChildren = lambda fn: [c for c in node.children if fn(c)]
+    return node
+
+
+def _make_context(shell):
+    context = MagicMock()
+    context.sandbox = MagicMock()
+    context.sandbox.shell = shell
+    return context
+
+
+# ---------------------------------------------------------------------------
+# AT-SPI step functions
+# ---------------------------------------------------------------------------
+
+
+class TestAtspiSteps:
+    def setup_method(self):
+        self.mod = _import_gnome_shell_steps()
+
+    def test_dump_panel_children_prints_tree(self, capsys):
+        toggle = _make_node(role="toggle button", name="7:14 PM")
+        panel = _make_node(role="panel", name="top-bar", children=[toggle])
+        shell = _make_node(role="application", name="gnome-shell", children=[panel])
+
+        self.mod.dump_panel_children(_make_context(shell))
+
+        out = capsys.readouterr().out
+        assert "=== GNOME-SHELL AT-SPI TREE ===" in out
+        assert "role='panel'" in out
+        assert "name='7:14 PM'" in out
+        assert "=== END AT-SPI TREE ===" in out
+
+    def test_dump_panel_children_swallows_exceptions(self, capsys):
+        context = MagicMock()
+        sandbox = MagicMock()
+        type(sandbox).shell = PropertyMock(side_effect=RuntimeError("boom"))
+        context.sandbox = sandbox
+
+        self.mod.dump_panel_children(context)
+
+        out = capsys.readouterr().out
+        assert "dump_panel_children failed: boom" in out
+
+    def test_dump_atspi_tree_writes_expected_content(self):
+        toggle = _make_node(role="toggle button", name="System")
+        panel = _make_node(role="panel", name="top-bar", children=[toggle])
+        shell = _make_node(role="application", name="gnome-shell", children=[panel])
+        context = _make_context(shell)
+
+        mocked_open = mock_open()
+        with patch("os.makedirs") as mock_makedirs, patch("builtins.open", mocked_open):
+            self.mod.dump_atspi_tree(context)
+
+        mock_makedirs.assert_called_once_with("/tmp/results", exist_ok=True)
+        mocked_open.assert_called_once_with("/tmp/results/atspi_tree.txt", "w")
+        written = "".join(call.args[0] for call in mocked_open().write.call_args_list)
+        assert "role='application'" in written
+        assert "name='gnome-shell'" in written
+        assert "role='panel'" in written
+        assert "name='System'" in written
+
+    def test_gnome_shell_is_accessible_succeeds_when_shell_exists(self):
+        shell = _make_node(role="application", name="gnome-shell")
+        context = MagicMock()
+        sandbox = MagicMock()
+        type(sandbox).shell = PropertyMock(return_value=shell)
+        context.sandbox = sandbox
+
+        with patch.object(self.mod, "sleep"):
+            self.mod.gnome_shell_is_accessible(context)
+
+    def test_gnome_shell_is_accessible_retries_then_raises(self):
+        context = MagicMock()
+        sandbox = MagicMock()
+        type(sandbox).shell = PropertyMock(return_value=None)
+        context.sandbox = sandbox
+
+        with patch.object(self.mod, "sleep") as mock_sleep:
+            with pytest.raises(AssertionError, match="gnome-shell not accessible via AT-SPI"):
+                self.mod.gnome_shell_is_accessible(context)
+
+        assert mock_sleep.call_count == 6
+
+    def test_panel_is_present_sets_context_panel(self):
+        panel = _make_node(role="panel", name="top-bar")
+        shell = _make_node(role="application", name="gnome-shell", children=[panel])
+        context = _make_context(shell)
+
+        self.mod.panel_is_present(context)
+
+        assert context.panel is panel
+
+    def test_panel_is_present_raises_without_panel(self):
+        child = _make_node(role="label", name="Activities")
+        shell = _make_node(role="application", name="gnome-shell", children=[child])
+        context = _make_context(shell)
+
+        with pytest.raises(AssertionError, match=r"Panel \(role='panel'\) not found"):
+            self.mod.panel_is_present(context)
+
+    def test_clock_toggle_visible_finds_clock_by_time_name(self):
+        clock = _make_node(role="toggle button", name="7:14 PM")
+        panel = _make_node(
+            role="panel",
+            children=[
+                _make_node(role="toggle button", name="Activities"),
+                clock,
+                _make_node(role="toggle button", name="System"),
+            ],
+        )
+        shell = _make_node(role="application", children=[panel])
+        context = _make_context(shell)
+
+        self.mod.clock_toggle_visible(context)
+
+        assert context.clock_toggle is clock
+
+    def test_clock_toggle_visible_excludes_non_clock_names(self):
+        fallback = _make_node(role="toggle button", name="Bluetooth")
+        panel = _make_node(
+            role="panel",
+            children=[
+                _make_node(role="toggle button", name="Activities"),
+                _make_node(role="toggle button", name="System"),
+                fallback,
+            ],
+        )
+        shell = _make_node(role="application", children=[panel])
+        context = _make_context(shell)
+
+        self.mod.clock_toggle_visible(context)
+
+        assert context.clock_toggle is fallback
+
+    def test_system_menu_toggle_visible_finds_system_toggle(self):
+        system = _make_node(role="toggle button", name="System")
+        panel = _make_node(
+            role="panel",
+            children=[
+                _make_node(role="toggle button", name="Activities"),
+                _make_node(role="toggle button", name="7:14 PM"),
+                system,
+            ],
+        )
+        shell = _make_node(role="application", children=[panel])
+        context = _make_context(shell)
+
+        self.mod.system_menu_toggle_visible(context)
+
+        assert context.system_toggle is system
+
+    def test_system_menu_toggle_visible_falls_back_to_nonstandard_name(self):
+        fallback = _make_node(role="toggle button", name="Sound")
+        panel = _make_node(
+            role="panel",
+            children=[
+                _make_node(role="toggle button", name="Activities"),
+                _make_node(role="toggle button", name="7:14 PM"),
+                fallback,
+            ],
+        )
+        shell = _make_node(role="application", children=[panel])
+        context = _make_context(shell)
+
+        self.mod.system_menu_toggle_visible(context)
+
+        assert context.system_toggle is fallback
+
+
+# ---------------------------------------------------------------------------
+# String comparison step
+# ---------------------------------------------------------------------------
+
+
+class TestLastCommandOutputStrippedIs:
+    def setup_method(self):
+        self.mod = _import_gnome_shell_steps()
+
+    def test_matches_stripped_command_stdout(self):
+        context = MagicMock(command_stdout=" expected\n")
+
+        self.mod.last_command_output_stripped_is(context, "expected")
+
+    def test_raises_on_mismatch(self):
+        context = MagicMock(last_command_output="actual\n")
+
+        with pytest.raises(AssertionError, match="Wanted output: 'expected'"):
+            self.mod.last_command_output_stripped_is(context, "expected")
+
+
+# ---------------------------------------------------------------------------
+# Shell.Eval step functions
+# ---------------------------------------------------------------------------
+
+
+class TestShellEvalSteps:
+    def setup_method(self):
+        self.mod = _import_gnome_shell_steps()
+
+    def test_close_overview_eval_calls_shell_eval(self):
+        with patch.object(self.mod, "_shell_eval") as mock_shell_eval, patch.object(self.mod, "sleep"):
+            self.mod.close_overview_eval(MagicMock())
+
+        mock_shell_eval.assert_called_once_with("Main.overview.hide()")
+
+    def test_open_quick_settings_eval_returns_when_open_first_try(self):
+        with patch.object(self.mod, "_shell_eval") as mock_shell_eval, patch.object(
+            self.mod, "_eval_bool", return_value=True
+        ) as mock_eval_bool, patch.object(self.mod, "sleep"):
+            self.mod.open_quick_settings_eval(MagicMock())
+
+        assert [call.args[0] for call in mock_shell_eval.call_args_list] == [
+            "global.context.unsafe_mode = true",
+            "if (!Main.panel.statusArea.quickSettings.menu.isOpen)"
+            " Main.panel.statusArea.quickSettings.menu.open(0)",
+        ]
+        mock_eval_bool.assert_called_once_with("Main.panel.statusArea.quickSettings.menu.isOpen.toString()")
+
+    def test_open_quick_settings_eval_retries_until_open(self):
+        with patch.object(self.mod, "_shell_eval") as mock_shell_eval, patch.object(
+            self.mod, "_eval_bool", side_effect=[False, False, True]
+        ) as mock_eval_bool, patch.object(self.mod, "sleep"):
+            self.mod.open_quick_settings_eval(MagicMock())
+
+        assert mock_shell_eval.call_count == 4
+        assert mock_eval_bool.call_count == 3
+
+    def test_quick_settings_closed_eval_passes_when_wait_succeeds(self):
+        with patch.object(self.mod, "_wait_eval_bool", return_value=True) as mock_wait_eval_bool:
+            self.mod.quick_settings_closed_eval(MagicMock())
+
+        mock_wait_eval_bool.assert_called_once_with(
+            "Main.panel.statusArea.quickSettings.menu.isOpen.toString()",
+            expected=False,
+            retries=8,
+            delay=0.5,
+        )
+
+    def test_quick_settings_closed_eval_raises_when_still_open(self):
+        with patch.object(self.mod, "_wait_eval_bool", return_value=False), patch.object(
+            self.mod, "_shell_eval", return_value="(true, 'true')"
+        ):
+            with pytest.raises(AssertionError, match="Quick Settings still open"):
+                self.mod.quick_settings_closed_eval(MagicMock())
+
+    def test_open_date_menu_eval_returns_when_open_first_try(self):
+        with patch.object(self.mod, "_shell_eval") as mock_shell_eval, patch.object(
+            self.mod, "_eval_bool", return_value=True
+        ) as mock_eval_bool, patch.object(self.mod, "sleep"):
+            self.mod.open_date_menu_eval(MagicMock())
+
+        assert [call.args[0] for call in mock_shell_eval.call_args_list] == [
+            "global.context.unsafe_mode = true",
+            "if (!Main.panel.statusArea.dateMenu.menu.isOpen)"
+            " Main.panel.statusArea.dateMenu.menu.open(0)",
+        ]
+        mock_eval_bool.assert_called_once_with("Main.panel.statusArea.dateMenu.menu.isOpen.toString()")
+
+    def test_open_date_menu_eval_retries_until_open(self):
+        with patch.object(self.mod, "_shell_eval") as mock_shell_eval, patch.object(
+            self.mod, "_eval_bool", side_effect=[False, False, True]
+        ) as mock_eval_bool, patch.object(self.mod, "sleep"):
+            self.mod.open_date_menu_eval(MagicMock())
+
+        assert mock_shell_eval.call_count == 4
+        assert mock_eval_bool.call_count == 3
+
+    def test_close_quick_settings_eval_calls_shell_eval(self):
+        with patch.object(self.mod, "_shell_eval") as mock_shell_eval, patch.object(self.mod, "sleep"):
+            self.mod.close_quick_settings_eval(MagicMock())
+
+        mock_shell_eval.assert_called_once_with("Main.panel.statusArea.quickSettings.menu.close(0)")
+
+    def test_close_date_menu_eval_calls_shell_eval(self):
+        with patch.object(self.mod, "_shell_eval") as mock_shell_eval, patch.object(self.mod, "sleep"):
+            self.mod.close_date_menu_eval(MagicMock())
+
+        mock_shell_eval.assert_called_once_with("Main.panel.statusArea.dateMenu.menu.close(0)")
+
+    def test_date_menu_closed_eval_passes_when_wait_succeeds(self):
+        with patch.object(self.mod, "_wait_eval_bool", return_value=True) as mock_wait_eval_bool:
+            self.mod.date_menu_closed_eval(MagicMock())
+
+        mock_wait_eval_bool.assert_called_once_with(
+            "Main.panel.statusArea.dateMenu.menu.isOpen.toString()",
+            expected=False,
+            retries=8,
+            delay=0.5,
+        )
+
+    def test_date_menu_closed_eval_raises_when_still_open(self):
+        with patch.object(self.mod, "_wait_eval_bool", return_value=False), patch.object(
+            self.mod, "_shell_eval", return_value="(true, 'true')"
+        ):
+            with pytest.raises(AssertionError, match="Date menu still open"):
+                self.mod.date_menu_closed_eval(MagicMock())
