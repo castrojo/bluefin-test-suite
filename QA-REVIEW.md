@@ -1,9 +1,9 @@
 # testsuite QA review
 
-> Last updated: 2026-05-31
+> Last updated: 2026-06-01
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 255 scenarios across 29 feature files (last audit: 2026-05-31).
+Current audit: 255 scenarios across 29 feature files (last audit: 2026-06-01).
 
 ## What this repo is responsible for
 
@@ -13,6 +13,21 @@ Current audit: 255 scenarios across 29 feature files (last audit: 2026-05-31).
 - reliable scenario-level validation logic
 
 What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan VM lifecycle → `projectbluefin/testing-lab`.
+
+## Unit test coverage
+
+`tests/unit/` covers shared helpers and step functions with mocked subprocess/AT-SPI.
+
+| File | Tests | Notes |
+|---|---|---|
+| `test_ssh_steps.py` | 26 | `run_ssh`, `vm_reachable_over_ssh`, + 5 step functions (PR #200) |
+| `test_gnome_shell_steps.py` | 28 | `_shell_eval/_eval_bool/_wait_eval_bool` + 12 step functions (PR #199) |
+| `test_screenshot.py` | 9 | Screenshot capture helpers |
+| `test_shared.py` | 9 | Shared utility helpers |
+| `test_timing.py` | 13 | SLA timing helpers |
+| `test_retry.py` | 2 | Behave retry logic |
+| `test_quarantine.py` | 6 | Quarantine tag helpers |
+| **Total** | **103** | 26→103 after #199 and #200 merge |
 
 ## Highest-risk test correctness areas
 
