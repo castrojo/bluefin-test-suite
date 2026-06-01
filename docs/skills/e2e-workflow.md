@@ -111,6 +111,14 @@ The testsuite is checked out sparse (`tests/<suite>` + `tests/shared` only). If 
 
 The install + configure step is the heaviest (~10–15 min depending on image size). If hitting the limit, reduce suite scope or check if the image pull is unusually large.
 
+## Consumer constraints — what you cannot do from the reusable action
+
+When calling this workflow from another repo, the following are explicitly banned:
+
+- **No RPM installs** — do not add `dnf install` or `rpm -i` steps to consumer workflows or to the action inputs (`setup_script`). The test VM is a fully-baked bootc image; package mutations break repeatability and may conflict with the image's ostree deployment. Use Flatpak installs or pre-bake packages into the image.
+- **No `apt install` in test steps** — the GHA runner uses `ubuntu-latest` for QEMU hosting only; apt installs in test steps (as opposed to the infrastructure setup) are not permitted.
+- **No VM tuning inputs** — do not request inputs for CPU/RAM/kernel params. The pipeline runs on GitHub-hosted runners; the VM spec is fixed.
+
 ## Known limitations
 
 - `bootupd` is expected to fail (not in bootc images by default) — the workflow catches this and uses direct kernel boot. This is intentional.

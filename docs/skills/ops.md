@@ -4,6 +4,19 @@ Load when: a VM boots to GDM greeter, or you're debugging infra-layer failures.
 
 These are testsuite-affecting infra issues. This doc records the symptoms and workarounds agents need mid-task.
 
+## Fedora version targets (where each Fedora version is used)
+
+Three different Fedora versions appear in this repo. They are not interchangeable:
+
+| Context | Fedora version | Why |
+|---|---|---|
+| **`behave --dry-run` CI container** (`pr-validate.yml`) | `fedora:41` (pinned digest) | qecore/dogtail/GObject ABI target; PyGObject from Ubuntu breaks |
+| **Test runner image** (`container/Containerfile.runner`) | `fedora-minimal:latest` (rebuilt weekly) | Base for the runner container shipped to the VM; needs Python + pip + GObject |
+| **OS under test (gnomeos)** | `gnomeos-latest` (≈ Fedora 44 / GNOME 50) | The actual GNOME upstream image from `quay.io/gnome_infrastructure/gnome-build-meta` |
+| **OS under test (Bluefin)** | Fedora 41 based (for stable/gts/lts) | Do NOT test against F42 — Bluefin does not ship it |
+
+**Never try F42**: there is no Bluefin or Bazzite image based on Fedora 42. If a test or workflow mentions F42, it is wrong.
+
 ## GDM autologin required
 
 **Symptom:** VM boots but all scenarios fail in `before_scenario` with `gnome-ponytail-daemon` D-Bus name not activatable. Zero tests run.
