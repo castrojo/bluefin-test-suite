@@ -191,3 +191,143 @@ class TestVmReachableOverSsh:
             with patch("time.sleep"):
                 with pytest.raises(Exception):
                     self.mod.vm_reachable_over_ssh(ctx)
+
+
+class TestSshOutputNotValues:
+    def setup_method(self):
+        self.mod = _import_ssh_steps()
+
+    def test_passes_when_output_is_neither_value(self):
+        ctx = _make_context()
+        ctx.command_stdout = " ready \n"
+
+        self.mod.ssh_output_not_values(ctx, "offline", "failed")
+
+    def test_raises_when_output_matches_forbidden_value(self):
+        ctx = _make_context()
+        ctx.command_stdout = "failed\n"
+
+        with pytest.raises(AssertionError, match="expected neither 'offline' nor 'failed'"):
+            self.mod.ssh_output_not_values(ctx, "offline", "failed")
+
+
+class TestSshOutputDoesNotContain:
+    def setup_method(self):
+        self.mod = _import_ssh_steps()
+
+    def test_passes_when_text_is_absent(self):
+        ctx = _make_context()
+        ctx.command_stdout = "all systems nominal\n"
+
+        self.mod.ssh_output_does_not_contain(ctx, "error")
+
+    def test_raises_when_text_is_present(self):
+        ctx = _make_context()
+        ctx.command_stdout = "fatal error: something broke\n"
+
+        with pytest.raises(AssertionError, match="contains 'error'"):
+            self.mod.ssh_output_does_not_contain(ctx, "error")
+
+
+class TestLastCommandOutputContains:
+    def setup_method(self):
+        self.mod = _import_ssh_steps()
+
+    def test_prefers_command_stdout_when_present(self):
+        ctx = _make_context()
+        ctx.command_stdout = "latest output"
+        ctx.last_command_output = "older output"
+        ctx.last_run_output = "oldest output"
+
+        self.mod.last_command_output_contains(ctx, "latest")
+
+    def test_falls_back_to_last_run_output(self):
+        ctx = _make_context()
+        ctx.command_stdout = ""
+        ctx.last_command_output = ""
+        ctx.last_run_output = "fallback output"
+
+        self.mod.last_command_output_contains(ctx, "fallback")
+
+    def test_raises_when_text_is_missing(self):
+        ctx = _make_context()
+        ctx.command_stdout = "hello world"
+
+        with pytest.raises(AssertionError, match="does not contain 'missing'"):
+            self.mod.last_command_output_contains(ctx, "missing")
+
+
+class TestNoJournalEntriesMatch:
+    def setup_method(self):
+        self.mod = _import_ssh_steps()
+
+    def test_passes_when_journalctl_finds_no_matches(self):
+        ctx = _make_context()
+        proc = _make_proc(stdout="", returncode=1)
+        proc.stderr = ""
+
+        with patch("subprocess.run", return_value=proc) as mock_run:
+            self.mod.no_journal_entries_match(ctx, "gnome-shell")
+
+        mock_run.assert_called_once_with(
+            ["journalctl", "-b", "--no-pager", "-g", "gnome-shell"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+
+    def test_raises_when_journal_entries_match(self):
+        ctx = _make_context()
+        proc = _make_proc(stdout="matched log line\n", returncode=0)
+        proc.stderr = ""
+
+        with patch("subprocess.run", return_value=proc):
+            with pytest.raises(AssertionError, match="Unexpected journal entries matched"):
+                self.mod.no_journal_entries_match(ctx, "gnome-shell")
+
+    def test_raises_when_journalctl_errors(self):
+        ctx = _make_context()
+        proc = _make_proc(stdout="", returncode=2)
+        proc.stderr = "permission denied"
+
+        with patch("subprocess.run", return_value=proc):
+            with pytest.raises(AssertionError, match="journalctl failed"):
+                self.mod.no_journal_entries_match(ctx, "gnome-shell")
+
+
+class TestNoCoredumpEntriesExist:
+    def setup_method(self):
+        self.mod = _import_ssh_steps()
+
+    def test_passes_when_coredumpctl_has_no_matching_entries(self):
+        ctx = _make_context()
+        proc = _make_proc(stdout="", returncode=1)
+        proc.stderr = ""
+
+        with patch("subprocess.run", return_value=proc) as mock_run:
+            self.mod.no_coredump_entries_exist(ctx, "gnome-shell")
+
+        mock_run.assert_called_once_with(
+            ["coredumpctl", "list", "gnome-shell", "--no-pager", "--lines=10"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+
+    def test_raises_when_named_coredump_entry_exists(self):
+        ctx = _make_context()
+        proc = _make_proc(stdout="Fri gnome-shell 1234\nFri another 5678\n", returncode=0)
+        proc.stderr = ""
+
+        with patch("subprocess.run", return_value=proc):
+            with pytest.raises(AssertionError, match="Unexpected coredump entries for gnome-shell"):
+                self.mod.no_coredump_entries_exist(ctx, "gnome-shell")
+
+    def test_raises_when_coredumpctl_errors(self):
+        ctx = _make_context()
+        proc = _make_proc(stdout="", returncode=2)
+        proc.stderr = "failed"
+
+        with patch("subprocess.run", return_value=proc):
+            with pytest.raises(AssertionError, match="coredumpctl failed"):
+                self.mod.no_coredump_entries_exist(ctx, "gnome-shell")
