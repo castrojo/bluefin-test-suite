@@ -141,7 +141,7 @@ For scenarios in the `developer` or `dx` suites, swap `bluefin:latest` for the a
 
 ## Merging PRs — merge queue required
 
-This repo uses a **merge queue**. `gh pr merge` and the GitHub UI "Merge" button are blocked. You must enqueue via GraphQL:
+This repo uses a **merge queue** (ruleset `main — merge queue`, id 17074591). `gh pr merge` and the GitHub UI "Merge" button are blocked until all required checks pass. You must enqueue via GraphQL:
 
 ```bash
 PR_NODE_ID=$(gh api /repos/projectbluefin/testsuite/pulls/<NUMBER> --jq '.node_id')
@@ -153,7 +153,17 @@ mutation {
 }"
 ```
 
-The merge queue runs all required CI checks (`Lint & syntax`, `pytest`, `Behave dry-run`) then merges automatically on green. Do not attempt `--admin` bypasses.
+The merge queue runs all three required CI checks on the merge commit before landing to `main`:
+
+| Check | Workflow | Trigger |
+|---|---|---|
+| `Lint & syntax` | `pr-validate.yml` | `pull_request`, `merge_group`, `push: main` |
+| `Behave dry-run` | `pr-validate.yml` | same |
+| `pytest` | `unit-tests.yml` | `pull_request`, `merge_group`, `push: main` |
+
+**Prerequisites before enqueueing:** all 3 checks must be green on the PR head. If the `enqueuePullRequest` mutation returns `"N of 3 required status checks are in progress"`, wait for them to complete and retry.
+
+Do not attempt `--admin` bypasses.
 
 ## After the PR merges
 
