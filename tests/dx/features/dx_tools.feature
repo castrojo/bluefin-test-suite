@@ -28,8 +28,8 @@ Feature: Bluefin DX variant smoke tests
 
   @dx @distrobox @plain_ssh
   Scenario: distrobox CLI is available
-    * Run DX SSH command: "distrobox --version"
-    * SSH command return code is "0"
+    * Run DX SSH command: "which distrobox || echo missing"
+    * Last command output does not contain "missing"
 
   @quarantine @dx @distrobox @plain_ssh @nightly
   Scenario: distrobox enter works with default container

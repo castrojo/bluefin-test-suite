@@ -34,10 +34,14 @@ def _shell_eval(js: str, timeout: int = 5) -> str:
 
 
 def _eval_bool(js: str) -> bool:
-    """Return True/False from a Shell.Eval JS expression."""
+    """Return True/False from a Shell.Eval JS expression.
+
+    GNOME 50 wraps the result in extra double-quotes: (true, '"true"').
+    Both single-quoted and double-quoted variants are handled here.
+    """
     import re
     out = _shell_eval(js)
-    m = re.search(r",\s*'?(true|false)'?\s*\)", out, re.IGNORECASE)
+    m = re.search(r',\s*\'"?(true|false)"?\'\s*\)', out, re.IGNORECASE)
     if m:
         return m.group(1).lower() == "true"
     raise AssertionError(f"Could not parse boolean from Shell.Eval output: {out}")
