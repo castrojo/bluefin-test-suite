@@ -421,6 +421,24 @@ def bootc_rollback_matches_source(context):
     print(f"Rollback deployment correctly preserves source digest: {rollback_digest!r}", flush=True)
 
 
+@step("Unified storage overlay directory is present on the VM")
+def unified_storage_overlay_present(context):
+    """Verify /var/lib/bootc/storage/overlay exists after a unified-storage switch.
+
+    This directory is the containers-storage backing store used by bootc's
+    experimental unified storage mode. Its presence confirms the migrated image
+    was placed in containers-storage (not the legacy ostree repo).
+    """
+    run_ssh(context, "test -d /var/lib/bootc/storage/overlay")
+    rc = getattr(context, "command_returncode", 1)
+    assert rc == 0, (
+        "Expected /var/lib/bootc/storage/overlay to exist after unified-storage "
+        "migration, but the directory was not found. "
+        "Check that the switch was issued with --experimental-unified-storage."
+    )
+    print("Confirmed: /var/lib/bootc/storage/overlay is present", flush=True)
+
+
 @step("ostree status shows two deployments")
 def ostree_two_deployments(context):
     """Verify ostree admin status reports at least 2 deployments.
