@@ -5,8 +5,6 @@ Identical setup to the smoke suite. Bazzite ships 11 enabled extensions;
 this environment enables unsafe_mode and waits for the full panel (including
 Logo Menu which replaces the Activities button) to be ready.
 """
-import os
-import re
 import subprocess
 import sys
 import traceback
@@ -14,24 +12,32 @@ import traceback
 from qecore.sandbox import TestSandbox
 from qecore.common_steps import *  # noqa: F401,F403
 
+try:
+    from tests.shared.screenshot import (
+        configure_screenshot_context,
+        take_fastfetch_screenshot,
+        take_screenshot,
+    )
+except Exception as exc:  # noqa: BLE001
+    print(f"WARNING: screenshot helpers unavailable: {exc}", flush=True)
 
-def _take_screenshot(scenario_name: str) -> None:
-    safe = re.sub(r"[^a-z0-9]+", "_", scenario_name.lower())[:60]
-    path = f"/tmp/results/screenshot_{safe}.png"
-    os.makedirs("/tmp/results", exist_ok=True)
-    try:
-        subprocess.run(
-            [
-                "gdbus", "call", "--session",
-                "--dest", "org.gnome.Shell.Screenshot",
-                "--object-path", "/org/gnome/Shell/Screenshot",
-                "--method", "org.gnome.Shell.Screenshot.Screenshot",
-                "true", "true", path,
-            ],
-            capture_output=True, text=True, timeout=8,
-        )
-    except Exception as exc:  # noqa: BLE001
-        print(f"Screenshot error: {exc}", flush=True)
+    def configure_screenshot_context(context, suite_name, scenario_name=None):
+        return None
+
+    def take_screenshot(label):
+        return None
+
+    def take_fastfetch_screenshot():
+        return None
+
+
+try:
+    from tests.shared.screenshot_steps import *  # noqa: F401,F403 — registers screenshot steps
+except Exception as exc:  # noqa: BLE001
+    print(f"WARNING: screenshot steps unavailable: {exc}", flush=True)
+
+
+SUITE_NAME = "bazzite"
 
 
 def before_all(context) -> None:
@@ -100,6 +106,7 @@ def before_scenario(context, scenario) -> None:
         return
     context.command_stdout = ""
     context.last_command_output = ""
+    configure_screenshot_context(context, SUITE_NAME, scenario.name)
     try:
         context.sandbox.before_scenario(context, scenario)
     except Exception:
@@ -109,8 +116,9 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, scenario) -> None:
-    if scenario.status.name == "failed":
-        _take_screenshot(scenario.name)
+    if scenario.status.name in ('passed', 'failed'):
+        configure_screenshot_context(context, SUITE_NAME, scenario.name)
+        take_screenshot(scenario.status.name)
     context.sandbox.after_scenario(context, scenario)
 
 
@@ -127,3 +135,9 @@ def after_step(context, step) -> None:
             step.exception.__traceback__,
             file=sys.stderr,
         )
+
+
+def after_all(context) -> None:
+    """Take a fastfetch desktop screenshot as end-of-run evidence."""
+    configure_screenshot_context(context, SUITE_NAME, "end_of_run")
+    take_fastfetch_screenshot()
