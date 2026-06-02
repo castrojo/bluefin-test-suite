@@ -283,6 +283,58 @@ def reboot_and_wait(context):
     )
 
 
+@step("Capture booted image reference as migration source")
+def capture_migration_source_ref(context):
+    """Store the currently booted image reference (expected: ublue-os/bluefin) so
+    post-rollback steps can verify the switch was fully reversed."""
+    run_ssh(context, "bootc status --format=json")
+    status = _parse_bootc_status(context)
+    booted = status.get("booted", {})
+    image_ref = booted.get("image", {}).get("image", {}).get("image", "")
+    assert image_ref, f"Could not read booted image reference from bootc status: {booted}"
+    context.migration_source_ref = image_ref
+    print(f"Captured migration source ref: {image_ref}", flush=True)
+
+
+@step("Migration source image reference is restored after rollback")
+def migration_source_restored(context):
+    """After rollback, verify the active image reference matches the pre-migration ref."""
+    source_ref = getattr(context, "migration_source_ref", None)
+    if not source_ref:
+        _skip_current_scenario(
+            context,
+            "migration_source_ref is not set — add "
+            "'Capture booted image reference as migration source' before the switch",
+        )
+        return
+    active_ref = (
+        _parse_bootc_status(context)
+        .get("booted", {})
+        .get("image", {})
+        .get("image", {})
+        .get("image", "")
+    )
+    assert active_ref == source_ref, (
+        f"Expected rollback to restore image ref {source_ref!r}, got {active_ref!r}"
+    )
+
+
+@step("bootc status shows deployment is compatible")
+def bootc_status_compatible(context):
+    """Verify the booted deployment is not marked incompatible.
+
+    bootc sets booted.incompatible=true when the deployment has in-place
+    modifications that diverge from the image (e.g. files written to /usr).
+    A clean migration should produce a compatible deployment.
+    """
+    booted = _parse_bootc_status(context).get("booted") or {}
+    incompatible = booted.get("incompatible", False)
+    assert not incompatible, (
+        f"Expected booted deployment to be compatible (incompatible=false), "
+        f"got incompatible={incompatible!r}: {booted}"
+    )
+
+
 @step("ostree status shows two deployments")
 def ostree_two_deployments(context):
     """Verify ostree admin status reports at least 2 deployments.
