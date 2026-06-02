@@ -450,7 +450,7 @@ jobs:
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           echo "Piping runner container into VM (this replaces in-VM pip install)..."
           sudo podman save ghcr.io/projectbluefin/testsuite:runner | \
-            ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 sudo podman load
+            ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman load
           echo "Runner container loaded in VM"
 
       - name: Install Python test stack
@@ -581,7 +581,7 @@ jobs:
               # --pid=host: qecore reads GNOME session env from /proc/<pid>/environ.
               # --privileged: AT-SPI socket access + uinput device passthrough.
               # --network host: D-Bus session bus traffic reaches ponytail daemon.
-              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} sudo podman run --rm \
+              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} podman run --rm \
                 --pid=host \
                 --privileged \
                 --network host \
