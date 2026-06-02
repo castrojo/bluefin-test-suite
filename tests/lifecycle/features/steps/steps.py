@@ -283,6 +283,162 @@ def reboot_and_wait(context):
     )
 
 
+@step("Capture booted image reference as migration source")
+def capture_migration_source_ref(context):
+    """Store the currently booted image reference (expected: ublue-os/bluefin) so
+    post-rollback steps can verify the switch was fully reversed."""
+    run_ssh(context, "bootc status --format=json")
+    status = _parse_bootc_status(context)
+    booted = status.get("booted", {})
+    image_ref = booted.get("image", {}).get("image", {}).get("image", "")
+    assert image_ref, f"Could not read booted image reference from bootc status: {booted}"
+    context.migration_source_ref = image_ref
+    print(f"Captured migration source ref: {image_ref}", flush=True)
+
+
+@step('Booted image is from the "{registry}" registry')
+def booted_image_from_registry(context, registry):
+    """Assert the active image reference contains the expected registry prefix.
+
+    Used as a pre-condition guard before cross-registry migration to confirm the
+    VM started on the intended source image and the switch will be a real migration,
+    not a no-op against the same registry.
+    """
+    run_ssh(context, "bootc status --format=json")
+    status = _parse_bootc_status(context)
+    active_ref = (
+        status.get("booted", {}).get("image", {}).get("image", {}).get("image", "")
+    )
+    assert registry in active_ref, (
+        f"Expected booted image to come from registry {registry!r}, "
+        f"got {active_ref!r}. "
+        f"This migration suite must start on the legacy source image."
+    )
+    print(f"Confirmed: booted image {active_ref!r} is from {registry!r}", flush=True)
+
+
+@step("Migration source image reference is restored after rollback")
+def migration_source_restored(context):
+    """After rollback, verify the active image digest matches the pre-migration original.
+
+    bootc rollback reorders existing ostree deployments; the digest is the reliable
+    identity. Exact ref-string equality is a weaker check — include it only as
+    informational output, not as the assertion.
+    """
+    source_ref = getattr(context, "migration_source_ref", None)
+    original_digest = getattr(context, "original_digest", None)
+    if not original_digest:
+        _skip_current_scenario(
+            context,
+            "original_digest is not set — add "
+            "'Capture booted image digest for rollback verification' before the switch",
+        )
+        return
+    status = _parse_bootc_status(context)
+    active_digest = status.get("booted", {}).get("image", {}).get("imageDigest", "")
+    active_ref = (
+        status.get("booted", {}).get("image", {}).get("image", {}).get("image", "")
+    )
+    assert active_digest == original_digest, (
+        f"Expected rollback digest {original_digest!r}, got {active_digest!r}"
+    )
+    if source_ref:
+        print(
+            f"Rollback restored digest {active_digest!r} "
+            f"(ref: {active_ref!r}, expected: {source_ref!r})",
+            flush=True,
+        )
+
+
+@step("bootc status shows deployment is compatible")
+def bootc_status_compatible(context):
+    """Verify the booted deployment is not marked incompatible.
+
+    bootc sets booted.incompatible=true when the deployment has in-place
+    modifications that diverge from the image (e.g. files written to /usr).
+    When the field is absent the deployment is compatible by default.
+    The assertion is printed explicitly so CI output shows whether the field
+    was present or absent.
+    """
+    booted = _parse_bootc_status(context).get("booted") or {}
+    incompatible = booted.get("incompatible", False)
+    field_present = "incompatible" in booted
+    print(
+        f"bootc booted.incompatible={'present' if field_present else 'absent (defaults to false)'}: "
+        f"{incompatible!r}",
+        flush=True,
+    )
+    assert not incompatible, (
+        f"Expected booted deployment to be compatible, "
+        f"got incompatible={incompatible!r}: {booted}"
+    )
+
+
+@step("bootc status shows rollback deployment is available")
+def bootc_status_rollback_available(context):
+    """Verify bootc status reports a rollback deployment (.status.rollback is not null).
+
+    After a migration switch + reboot, bootc should retain the previous deployment
+    as the rollback target. This is stronger than counting ostree deployments because
+    it tests the exact field bootc rollback uses.
+    """
+    status = _parse_bootc_status(context)
+    rollback = status.get("rollback")
+    assert rollback is not None, (
+        f"Expected .status.rollback to be present after migration, got null. "
+        f"status keys: {list(status.keys())}"
+    )
+    rollback_ref = rollback.get("image", {}).get("image", {}).get("image", "")
+    print(f"Rollback deployment available: {rollback_ref!r}", flush=True)
+
+
+@step("bootc status rollback deployment matches migration source digest")
+def bootc_rollback_matches_source(context):
+    """After migration, verify the rollback deployment has the original source digest.
+
+    This proves the legacy-rechunker deployment was preserved and can be recovered,
+    which is stronger than just checking that two ostree deployments exist.
+    """
+    original_digest = getattr(context, "original_digest", None)
+    if not original_digest:
+        _skip_current_scenario(
+            context,
+            "original_digest is not set — add "
+            "'Capture booted image digest for rollback verification' before the switch",
+        )
+        return
+    status = _parse_bootc_status(context)
+    rollback = status.get("rollback")
+    assert rollback is not None, (
+        "Expected .status.rollback to be present but it is null — "
+        "no rollback target was preserved after migration"
+    )
+    rollback_digest = rollback.get("image", {}).get("imageDigest", "")
+    assert rollback_digest == original_digest, (
+        f"Rollback deployment digest {rollback_digest!r} != "
+        f"original source digest {original_digest!r}"
+    )
+    print(f"Rollback deployment correctly preserves source digest: {rollback_digest!r}", flush=True)
+
+
+@step("Unified storage overlay directory is present on the VM")
+def unified_storage_overlay_present(context):
+    """Verify /var/lib/bootc/storage/overlay exists after a unified-storage switch.
+
+    This directory is the containers-storage backing store used by bootc's
+    experimental unified storage mode. Its presence confirms the migrated image
+    was placed in containers-storage (not the legacy ostree repo).
+    """
+    run_ssh(context, "test -d /var/lib/bootc/storage/overlay")
+    rc = getattr(context, "command_returncode", 1)
+    assert rc == 0, (
+        "Expected /var/lib/bootc/storage/overlay to exist after unified-storage "
+        "migration, but the directory was not found. "
+        "Check that the switch was issued with --experimental-unified-storage."
+    )
+    print("Confirmed: /var/lib/bootc/storage/overlay is present", flush=True)
+
+
 @step("ostree status shows two deployments")
 def ostree_two_deployments(context):
     """Verify ostree admin status reports at least 2 deployments.

@@ -27,6 +27,7 @@ def before_all(context):
     context.original_digest = None
     context.initial_version_id = None
     context.current_version_id = None
+    context.migration_source_ref = None
 
 
 def before_scenario(context, scenario):
@@ -42,6 +43,7 @@ def before_scenario(context, scenario):
     context.original_digest = None
     context.initial_version_id = None
     context.current_version_id = None
+    context.migration_source_ref = None
     record_start(context)
 
 
