@@ -159,6 +159,31 @@ The `--auto` flag enqueues the PR; the merge queue runs all required CI checks o
 
 Do not attempt `--admin` bypasses.
 
+## Dependency updates (Renovate / mergeraptor)
+
+Dependency updates for this repo and `projectbluefin/bluefin` are managed by Renovate (bot login: `app/mergeraptor`). No manual action is required from agents.
+
+**Automerge policy (configured in `renovate.json`):**
+
+| Update type | Action |
+|---|---|
+| `digest`, `pin`, `patch`, `minor` | Automerged when CI passes (squash) |
+| `major` | Opens a PR — requires manual review |
+
+**Triggering Renovate manually** (e.g. after config changes):
+
+1. Open the [Dependency Dashboard](https://github.com/projectbluefin/testsuite/issues) issue (titled "Dependency Dashboard")
+2. Check the **"rebase all open PRs"** checkbox — Renovate will pick up the updated config and rebase all open dep PRs
+
+Or edit the checkbox directly via gh:
+```bash
+gh issue view <dashboard-issue-number> --repo projectbluefin/testsuite --json body --jq '.body' | \
+  sed 's/ - \[ \] <!-- rebase-all-open-prs -->/ - [x] <!-- rebase-all-open-prs -->/' | \
+  gh issue edit <dashboard-issue-number> --repo projectbluefin/testsuite --body-file -
+```
+
+**bluefin-specific:** `renovate.json` in `projectbluefin/bluefin` sets `"baseBranches": ["testing"]` — all Renovate PRs there target the `testing` branch, not `main`.
+
 ## After the PR merges
 
 - If you changed `QA-REVIEW.md`, verify the scenario count is still accurate
