@@ -21,7 +21,7 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
   Background:
     * Bluefin VM is booted and reachable over SSH
 
-  @migration @switch
+@migration @switch
   Scenario: bootc switch migrates from ublue-os/bluefin to projectbluefin/bluefin
     # Pre-condition: confirm we're actually on the legacy source image before switching.
     # This guards against a no-op if the workflow was accidentally invoked on the
@@ -30,12 +30,12 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
+    * Reboot VM and wait for SSH after migration
     * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
     * Active image reference contains "projectbluefin/bluefin"
@@ -47,12 +47,12 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
+    * Reboot VM and wait for SSH after migration
     # Verify we landed on the migrated image before attempting rollback.
     * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
@@ -68,12 +68,12 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
   Scenario: System identity and health are correct after migration
     * Run SSH command: "bootc status --format=json"
     * Booted image is from the "ublue-os" registry
-    * Run SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
+    * Reboot VM and wait for SSH after migration
     * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
     * bootc status image reference starts with "ghcr.io/projectbluefin/"
@@ -90,14 +90,15 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     # lane of the bluespeed 4-lane migration matrix.
     * Run SSH command: "bootc status --format=json"
     * Booted image is from the "ublue-os" registry
+    * Check unified storage support and skip if unavailable
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run SSH command: "sudo bootc switch --experimental-unified-storage ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target with unified storage
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
+    * Reboot VM and wait for SSH after migration
     * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
     * Active image reference contains "projectbluefin/bluefin"
@@ -108,14 +109,15 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
   Scenario: Rolling back after unified storage migration returns to ublue-os/bluefin
     * Run SSH command: "bootc status --format=json"
     * Booted image is from the "ublue-os" registry
+    * Check unified storage support and skip if unavailable
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run SSH command: "sudo bootc switch --experimental-unified-storage ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target with unified storage
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
+    * Reboot VM and wait for SSH after migration
     # Confirm we landed on the migrated image (via unified storage) before rolling back.
     * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
@@ -137,11 +139,11 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
-    * Reboot VM and wait for SSH
+    * Reboot VM and wait for SSH after migration
     * Run SSH command: "bootc status --format=json"
     * Active image reference contains "projectbluefin/bluefin"
     * bootc status shows rollback deployment is available

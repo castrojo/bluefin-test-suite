@@ -260,12 +260,27 @@ def no_staged_deployment_present(context):
 @step("Reboot VM and wait for SSH")
 def reboot_and_wait(context):
     """Trigger VM reboot via SSH and wait up to 120s for the SSH port to come back."""
+    _do_reboot_and_wait(context, deadline_seconds=120)
+
+
+@step("Reboot VM and wait for SSH after migration")
+def reboot_and_wait_after_migration(context):
+    """Reboot and wait up to 300s — needed for rechunker-group-fix first-boot on migration.
+
+    The rechunker-group-fix service runs on first boot after a switch from ublue-os/bluefin
+    to projectbluefin/bluefin to reconcile /etc/gshadow vs /etc/group.  This adds ~60-90s
+    to the first-boot time compared to a plain upgrade reboot.
+    """
+    _do_reboot_and_wait(context, deadline_seconds=300)
+
+
+def _do_reboot_and_wait(context, deadline_seconds):
     try:
         run_ssh(context, "sudo reboot")
     except subprocess.TimeoutExpired:
         pass
 
-    deadline = time() + 120
+    deadline = time() + deadline_seconds
     last_error = "SSH never became reachable after reboot"
     sleep(10)
     while time() < deadline:
@@ -279,7 +294,7 @@ def reboot_and_wait(context):
         sleep(5)
 
     raise AssertionError(
-        f"VM at {context.vm_ip} did not come back over SSH within 120s: {last_error}"
+        f"VM at {context.vm_ip} did not come back over SSH within {deadline_seconds}s: {last_error}"
     )
 
 
@@ -459,4 +474,75 @@ def ostree_two_deployments(context):
     deployment_count = len(deployment_headers)
     assert deployment_count >= 2, (
         f"Expected at least 2 ostree deployments, found {deployment_count}\n{output}"
+    )
+
+
+@step("Switch to migration target")
+def switch_to_migration_target(context):
+    """Run bootc switch to the migration target with a 900s timeout.
+
+    The target image reference is read from context.migration_target, which is
+    populated from the MIGRATION_TARGET env var (default: ghcr.io/projectbluefin/bluefin:stable).
+    Pulling a remote image takes 5–15 minutes; the default 60s SSH timeout is too short.
+    """
+    import shlex as _shlex
+
+    target = getattr(context, "migration_target", "ghcr.io/projectbluefin/bluefin:stable")
+    run_ssh(context, f"sudo bootc switch {_shlex.quote(target)}", timeout=900)
+
+
+@step("Switch to migration target with unified storage")
+def switch_to_migration_target_unified_storage(context):
+    """Run bootc switch --experimental-unified-storage to the migration target (900s timeout)."""
+    import shlex as _shlex
+
+    target = getattr(context, "migration_target", "ghcr.io/projectbluefin/bluefin:stable")
+    run_ssh(
+        context,
+        f"sudo bootc switch --experimental-unified-storage {_shlex.quote(target)}",
+        timeout=900,
+    )
+
+
+@step("Check unified storage support and skip if unavailable")
+def check_unified_storage_support(context):
+    """Skip this scenario if bootc lacks the --experimental-unified-storage flag.
+
+    bootc 1.15.x (shipped in ublue-os/bluefin:stable as of 2026-06) does not have this flag.
+    Rather than failing with an opaque argument-parse error, skip gracefully.
+    """
+    stdout, _ = run_ssh(context, "bootc switch --help 2>&1", timeout=30)
+    if "--experimental-unified-storage" not in stdout:
+        _skip_current_scenario(
+            context,
+            "bootc on this VM does not support --experimental-unified-storage "
+            "(requires bootc >= 1.16). Skipping unified-storage scenario.",
+        )
+
+
+@step("Pull migration target via podman for zstd:chunked transport")
+def pull_migration_target_podman(context):
+    """Pull the migration target image via podman to populate containers-storage (900s timeout).
+
+    Required before using --transport containers-storage in a subsequent bootc switch.
+    """
+    import shlex as _shlex
+
+    target = getattr(context, "migration_target", "ghcr.io/projectbluefin/bluefin:stable")
+    run_ssh(context, f"sudo podman pull {_shlex.quote(target)}", timeout=900)
+
+
+@step("Switch to migration target via containers-storage transport")
+def switch_via_containers_storage(context):
+    """Run bootc switch --transport containers-storage for the zstd:chunked lane (120s timeout).
+
+    The image must already be in local containers-storage (pulled via podman pull first).
+    """
+    import shlex as _shlex
+
+    target = getattr(context, "migration_target", "ghcr.io/projectbluefin/bluefin:stable")
+    run_ssh(
+        context,
+        f"sudo bootc switch --transport containers-storage {_shlex.quote(target)}",
+        timeout=120,
     )

@@ -23,6 +23,9 @@ def before_all(context):
     context.vm_ip = os.environ.get("VM_IP", "")
     context.ssh_user = os.environ.get("VM_USER", "bluefin-test")
     context.ssh_key = os.environ.get("SSH_KEY", "/etc/ssh/test-key/id_ed25519")
+    context.migration_target = os.environ.get(
+        "MIGRATION_TARGET", "ghcr.io/projectbluefin/bluefin:stable"
+    )
     context.expected_upgrade_digest = None
     context.original_digest = None
     context.initial_version_id = None

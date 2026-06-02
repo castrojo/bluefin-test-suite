@@ -174,7 +174,7 @@ UEFI boot also requires:
 - `loader.conf timeout 0` in the ESP to skip interactive boot menu in headless mode
 - `/etc/selinux/config` and systemd service masks written as `/etc` symlinks (survives 3-way merge into new deployment)
 
-Tracked: spike issue #228 verifies the UEFI approach on `ubuntu-latest`. Epic #227.
+Tracked: spike issue #229 verifies the UEFI approach on `ubuntu-latest`. Epic #227.
 
 ## unified_storage lane requires bootc ≥ 1.16
 
@@ -203,7 +203,7 @@ rc = getattr(context, "command_returncode", 1)  # BUG
 rc = getattr(context, "ssh_rc", 1)
 ```
 
-Tracked: fix issue #229.
+Fixed in PR feat/lifecycle/ublue-os-to-projectbluefin-migration (closes #228).
 
 ## rechunker-group-fix required before migration (ublue-os → projectbluefin)
 
