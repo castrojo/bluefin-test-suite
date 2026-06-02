@@ -143,6 +143,21 @@ This is idempotent: it only appends if the entry is absent.
 
 Tracked: fixed in PR #224 (2026-06-02).
 
+## rechunker-group-fix required before migration (ublue-os → projectbluefin)
+
+**Symptom:** After `bootc switch` from `ghcr.io/ublue-os/bluefin` to `ghcr.io/projectbluefin/bluefin`, the first reboot shows a black screen (login manager never starts). The **second** reboot succeeds.
+
+**Cause:** The legacy `ublue-os/legacy-rechunker` build process moves `/etc/group` entries to `/usr/lib/group` for `nss-altfiles`. The new `projectbluefin/bluefin` image (chunkah) does not ship `nss-altfiles`, so on first boot `/etc/gshadow` desyncs from `/etc/group` and `systemd-sysusers` fails.
+
+**Fix:** `rechunker-group-fix` service + script, shipped in `projectbluefin/bluefin` (PR #18). This service runs once on first boot and reconciles gshadow. The second boot is always clean.
+
+**Impact on migration tests:** The e2e test workflow boots the VM into the **migrated** image, not the legacy source. If `rechunker-group-fix` is absent from the target image, the migration tests will fail on the post-switch reboot with a timeout waiting for SSH.
+
+References:
+- https://github.com/ublue-os/bluefin/issues/3852
+- https://github.com/ublue-os/bluefin-lts/issues/918
+- https://github.com/bootc-dev/bootc/issues/1179
+
 ## YAML orphan keys in e2e.yml break merge queue
 
 **Symptom:** PRs fail merge queue validation with 0 jobs (`{"total_count":0,"jobs":[]}`). The nightly run may still work (YAML's last-wins for duplicate keys makes the workflow _load_, but GHA schema validation rejects it for queue contexts).

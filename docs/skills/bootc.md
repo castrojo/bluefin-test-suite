@@ -70,7 +70,61 @@ assert count >= 2  # not == 2; multiple upgrades can produce more
 
 Assert `>= 2`, not `== 2` — after multiple upgrades there can be more than two deployment entries.
 
-## bootc pin / unpin
+## Cross-registry migration (ublue-os → projectbluefin)
+
+`tests/lifecycle/features/migration.feature` covers the user journey of migrating from the legacy `ghcr.io/ublue-os/bluefin` image (built with rpm-ostree / `ublue-os/legacy-rechunker`) to `ghcr.io/projectbluefin/bluefin` (built with chunkah OCI format).
+
+### Invoking migration tests
+
+```yaml
+uses: projectbluefin/actions/.github/workflows/upgrade-test.yml@v1
+with:
+  image: ghcr.io/ublue-os/bluefin:latest   # start on the legacy source
+  suites: lifecycle
+```
+
+The VM must start on the `ublue-os` registry image — every scenario has a registry guard step that fails fast if the wrong starting image is used.
+
+### 4 scenarios, 2 storage lanes
+
+| Scenario tags | Storage mode | Key assertion |
+|---|---|---|
+| `@switch` | standard bootc | Active ref contains `projectbluefin/bluefin`; digest matches staged |
+| `@switch @rollback` | standard bootc | Rollback returns to original `ublue-os` digest |
+| `@switch @unified_storage` | `--experimental-unified-storage` | `/var/lib/bootc/storage/overlay` present post-reboot |
+| `@switch @unified_storage @rollback` | `--experimental-unified-storage` | Rollback digest matches original `ublue-os` deployment |
+| `@health` | standard bootc | `booted.incompatible` absent; `/etc/os-release` reports Bluefin |
+| `@chunkah` | standard bootc | `.status.rollback.image.imageDigest` == original source digest |
+
+### Key step: rollback uses digest, not ref string
+
+```python
+# CORRECT: digest is the reliable identity after bootc rollback
+active_digest = status["booted"]["image"]["imageDigest"]
+assert active_digest == context.original_digest
+
+# WRONG: exact ref string may differ after rollback reordering
+assert "ublue-os" in active_ref  # informational only, not the assertion
+```
+
+### bootc status JSON path for rollback
+
+```
+.status.rollback.image.imageDigest   — SHA256 of the preserved deployment
+.status.rollback.image.image.image   — image ref string
+```
+
+After `bootc switch` + reboot, `.status.rollback` contains the pre-migration deployment. After `bootc rollback` + reboot, `.status.rollback` contains the post-migration deployment. Both are non-null as long as two deployments are present.
+
+### Unified storage overlay path
+
+After `bootc switch --experimental-unified-storage` + reboot:
+```
+/var/lib/bootc/storage/overlay   — containers-storage backing dir (must exist)
+```
+Standard bootc storage does NOT create this path. The testsuite asserts its presence to distinguish the two storage modes.
+
+
 
 `sudo bootc pin` sets `.status.booted.pinned = true` — the deployment is protected from auto-pruning.  
 `sudo bootc pin --unpin` clears it.
