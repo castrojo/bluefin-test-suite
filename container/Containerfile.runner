@@ -1,0 +1,74 @@
+# Test runner image for projectbluefin/testsuite
+#
+# Published to: ghcr.io/projectbluefin/testsuite:runner
+#
+# Used by .github/workflows/e2e.yml to avoid slow pip installs inside the QEMU VM.
+# The ubuntu runner pulls this image while the VM is booting, then pipes it into
+# the VM via `podman save | ssh podman load`. Tests run inside this container with
+# the host GNOME session's D-Bus/AT-SPI sockets mounted.
+#
+# Required mounts when running:
+#   -v /run/user/1001:/run/user/1001       (Wayland + D-Bus sockets)
+#   -v /dev/uinput:/dev/uinput             (input injection)
+#   -v /tmp/bluefin-tests:/tests:ro        (test files)
+#   -v /tmp/results:/tmp/results           (results output)
+#   --network host                         (AT-SPI D-Bus traffic)
+#
+# Required env vars:
+#   DBUS_SESSION_BUS_ADDRESS
+#   WAYLAND_DISPLAY
+#   XDG_RUNTIME_DIR=/run/user/1001
+#
+# Required podman flags when running inside the QEMU VM:
+#   --pid=host          (qecore reads GNOME session env from /proc/<pid>/environ)
+#   --privileged        (uinput + AT-SPI socket access)
+
+FROM registry.fedoraproject.org/fedora-minimal:latest@sha256:f15c3a333624bbe3e96eb3db63e74f69f3b25459b2d6c2d538fb90b19d4a4493
+
+LABEL org.opencontainers.image.source="https://github.com/projectbluefin/testsuite"
+LABEL org.opencontainers.image.description="qecore/behave/dogtail test runner for GNOME e2e tests"
+
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        python3 \
+        python3-pip \
+        python3-gobject \
+        at-spi2-core \
+        gtk3 \
+        gsettings-desktop-schemas \
+        dbus-libs \
+        glib2 \
+        curl \
+    && microdnf clean all
+
+# Install Python test stack — pinned so bumps are explicit and reviewed
+# Pinned 2026-05-30 — bump manually or via Renovate
+# python-uinput is a C extension and requires gcc + python3-devel to build from source;
+# remove build tools afterwards to keep the image lean.
+RUN microdnf install -y --setopt=install_weak_deps=0 gcc python3-devel \
+    && python3 -m pip install --no-cache-dir \
+        qecore==4.16 \
+        behave==1.3.3 \
+        dogtail==2.0.3 \
+        python-uinput==1.0.1 \
+    && python3 -m pip cache purge \
+    && microdnf remove -y gcc python3-devel \
+    && microdnf clean all
+
+# Install the pure-Python ponytail module (qecore imports it for input events via
+# gnome-ponytail-daemon). Not on PyPI — downloaded directly from the tagged release.
+ARG PONYTAIL_VERSION=0.0.11
+RUN PDIR="$(python3 -c 'import site; print(site.getsitepackages()[0])')/ponytail" && \
+    mkdir -p "$PDIR" && \
+    curl -sSfL "https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon/-/raw/${PONYTAIL_VERSION}/ponytail/__init__.py" \
+         -o "$PDIR/__init__.py" && \
+    curl -sSfL "https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon/-/raw/${PONYTAIL_VERSION}/ponytail/ponytail.py" \
+         -o "$PDIR/ponytail.py"
+
+# Symlink qecore helpers onto PATH
+RUN for f in /usr/local/bin/qecore_*; do \
+        [ -f "$f" ] && ln -sf "$f" "/usr/bin/$(basename "$f")"; \
+    done; \
+    ln -sf /usr/local/bin/qecore-headless /usr/bin/qecore-headless 2>/dev/null || true
+
+WORKDIR /tests
+ENTRYPOINT ["qecore-headless"]

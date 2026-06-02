@@ -1,0 +1,5 @@
+.env.test-pubkey
+__pycache__/
+*.pyc
+images.lock
+.coverage

@@ -1,0 +1,95 @@
+# PR Validation — lint & syntax checks
+#
+# Runs on every PR and push to main.  Two jobs:
+#
+#   lint      — ubuntu-latest, ruff + py_compile
+#   dry-run   — fedora container (has python3-gobject + AT-SPI natively), behave --dry-run
+#
+# The dry-run job uses a Fedora container because qecore/dogtail require
+# GObject + AT-SPI typelibs that are first-class citizens on Fedora (dnf
+# python3-gobject) but painful to set up on ubuntu-latest.
+
+name: PR Validation — lint & syntax checks
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Lint & syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.14"
+
+      - name: Install linting tools
+        run: pip install ruff
+
+      - name: Python lint (ruff)
+        run: ruff check tests/ --select E,F,W --ignore E501
+
+      - name: Python syntax check
+        run: |
+          python -m py_compile $(find tests/ -name '*.py' | tr '\n' ' ')
+          echo "All Python files compile cleanly."
+
+  dry-run:
+    name: Behave dry-run
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:41@sha256:893f7eeffce8e3e2bb2bc62786ba5603fb1e0bd6ba07091acb892266b95bafdf
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install test stack
+        run: |
+          dnf install -y --setopt=install_weak_deps=0 \
+            python3 \
+            python3-pip \
+            python3-gobject \
+            at-spi2-core \
+            dbus-daemon \
+            gtk3 \
+            gsettings-desktop-schemas
+          pip3 install --quiet behave qecore dogtail
+
+      - name: Behave dry-run (step definition coverage)
+        # Exits 1 if any step is undefined — catches broken imports and
+        # missing step patterns without booting a VM.
+        # GNOME suites (smoke/bazzite) import qecore.sandbox which connects
+        # to AT-SPI at module load time. Wrap the loop in dbus-run-session
+        # and start at-spi-bus-launcher so the AT-SPI connection succeeds.
+        run: |
+          cat > /tmp/dry-run.sh << 'DRYEOF'
+          /usr/libexec/at-spi-bus-launcher --launch-immediately &
+          sleep 1
+          FAIL=0
+          for suite in tests/*/features/; do
+            if ! ls "${suite}"*.feature >/dev/null 2>&1; then
+              echo "Skipping ${suite} — no .feature files yet"
+              continue
+            fi
+            suitename=$(echo "$suite" | cut -d/ -f2)
+            echo "::group::behave --dry-run $suitename"
+            PYTHONPATH="${GITHUB_WORKSPACE}" \
+              python3 -m behave "$suite" --dry-run --no-capture || FAIL=1
+            echo "::endgroup::"
+          done
+          [ "$FAIL" -eq 0 ] && echo "All suites: every step is defined." || \
+            { echo "One or more suites have undefined steps."; exit 1; }
+          DRYEOF
+          chmod +x /tmp/dry-run.sh
+          dbus-run-session -- bash /tmp/dry-run.sh
