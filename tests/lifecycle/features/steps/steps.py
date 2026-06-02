@@ -430,7 +430,7 @@ def unified_storage_overlay_present(context):
     was placed in containers-storage (not the legacy ostree repo).
     """
     run_ssh(context, "test -d /var/lib/bootc/storage/overlay")
-    rc = getattr(context, "command_returncode", 1)
+    rc = getattr(context, "ssh_rc", 1)
     assert rc == 0, (
         "Expected /var/lib/bootc/storage/overlay to exist after unified-storage "
         "migration, but the directory was not found. "
