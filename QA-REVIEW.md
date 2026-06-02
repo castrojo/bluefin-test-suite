@@ -31,6 +31,23 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 6. Are new pytest files being added? (Legacy pytest removed 2026-05-28 — all new tests must use behave.)
 7. If scenario count changed, is `docs/skills/suite-map.md` updated?
 
+## Unit test coverage
+
+67 unit tests across 8 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+
+| File | Tests | What it covers |
+|---|---|---|
+| `test_gnome_shell_steps.py` | 38 | Shell.Eval, AT-SPI step helpers, ShellEval bool variants |
+| `test_ssh_steps.py` | 26 | `run_ssh()`, journal/coredump matchers, output assertions |
+| `test_timing.py` | 13 | SLA tag thresholds and timing helpers |
+| `test_shared.py` | 9 | Shared step utilities |
+| `test_screenshot.py` | 9 | Screenshot capture helpers |
+| `test_quarantine.py` | 6 | `@quarantine` skip logic |
+| `test_retry.py` | 2 | Behave retry harness |
+| `test_parse_results.py` | 1 | `scripts/parse_results.py` JSONL output |
+
+The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue entry.
+
 ## Current stub posture
 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
