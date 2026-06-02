@@ -39,7 +39,7 @@ gh run view <RUN_ID> --repo projectbluefin/testsuite
 gh run view --job=<JOB_ID> --log-failed --repo projectbluefin/testsuite
 ```
 
-**9 named jobs** (see `docs/skills/suite-map.md` for the full matrix):
+**10 named jobs** (see `docs/skills/suite-map.md` for the full matrix):
 
 | Job | Image | Suites |
 |---|---|---|
@@ -48,6 +48,7 @@ gh run view --job=<JOB_ID> --log-failed --repo projectbluefin/testsuite
 | `bluefin-nvidia-open:latest` | `ghcr.io/ublue-os/bluefin-nvidia-open:latest` | smoke, common |
 | `bazzite-gnome:latest` | `ghcr.io/ublue-os/bazzite-gnome:latest` | bazzite |
 | `gnomeos-latest` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
+| `persist-results` | n/a | Downloads nightly result artifacts and publishes `data/results-YYYY-MM-DD.jsonl` to `gh-pages` |
 
 **Diagnosing failures** — check `docs/skills/ops.md` for the most common causes.
 
@@ -97,5 +98,5 @@ Future: automated diff via `just compare-results` (see #22).
 | `smoke=failed`, `vanilla-gnome=failed` | ↑ Upstream GNOME issue |
 | all other combinations | Informational |
 
-Results are visible in the GitHub Actions job summary and as 30-day artifacts.
+Results are visible in the GitHub Actions job summary, as 30-day artifacts, and as persisted JSONL snapshots on the `gh-pages` branch under `data/results-YYYY-MM-DD.jsonl`.
 

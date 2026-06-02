@@ -143,3 +143,98 @@ jobs:
     permissions:
       contents: read
       packages: write
+
+  persist-results:
+    name: persist-results
+    needs:
+      - test-latest
+      - test-gts
+      - test-lts
+      - test-dx
+      - test-dx-gts
+      - test-dx-lts
+      - test-nvidia
+      - test-bazzite
+      - test-gnomeos
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout testsuite
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download result artifacts
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4
+        with:
+          pattern: e2e-results-*
+          path: downloaded-results
+
+      - name: Build nightly JSONL bundle
+        id: bundle
+        run: |
+          set -euo pipefail
+          RUN_DATE="$(date -u +%F)"
+          OUTPUT_DIR="persisted-results"
+          OUTPUT_FILE="${OUTPUT_DIR}/results-${RUN_DATE}.jsonl"
+          mkdir -p "${OUTPUT_DIR}"
+          : > "${OUTPUT_FILE}"
+          shopt -s globstar nullglob
+
+          found_metadata=0
+          for metadata in downloaded-results/**/artifact-metadata.json; do
+            found_metadata=1
+            artifact_dir="$(dirname "${metadata}")"
+            image="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["image"])' "${metadata}")"
+            suite="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["suite"])' "${metadata}")"
+            if [[ -f "${artifact_dir}/results.json" ]]; then
+              python3 scripts/parse_results.py "${artifact_dir}/results.json" \
+                --image "${image}" \
+                --suite "${suite}" \
+                --date "${RUN_DATE}" >> "${OUTPUT_FILE}"
+            else
+              echo "::notice::Skipping ${image} / ${suite}: results.json missing"
+            fi
+          done
+
+          if [[ "${found_metadata}" -eq 0 ]]; then
+            echo "::warning::No result artifacts were downloaded"
+          fi
+
+          echo "run_date=${RUN_DATE}" >> "$GITHUB_OUTPUT"
+          echo "output_file=${OUTPUT_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish gh-pages data
+        env:
+          OUTPUT_FILE: ${{ steps.bundle.outputs.output_file }}
+          RUN_DATE: ${{ steps.bundle.outputs.run_date }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages || true
+
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add gh-pages-worktree origin/gh-pages
+            cd gh-pages-worktree
+            git checkout -B gh-pages origin/gh-pages
+          else
+            git worktree add --detach gh-pages-worktree HEAD
+            cd gh-pages-worktree
+            git checkout --orphan gh-pages
+            find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+
+          mkdir -p data
+          cp "../${OUTPUT_FILE}" "data/results-${RUN_DATE}.jsonl"
+          git add "data/results-${RUN_DATE}.jsonl"
+
+          if git diff --cached --quiet; then
+            echo "No gh-pages changes to commit"
+          else
+            git commit -m "chore(ci): persist nightly results for ${RUN_DATE}"
+            git push origin gh-pages
+          fi
+
+          cd ..
+          git worktree remove --force gh-pages-worktree

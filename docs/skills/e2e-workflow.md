@@ -64,7 +64,7 @@ with:
 10. **Install Python test stack** — pip installs `qecore behave dogtail python-uinput` inside the VM; captures `DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR` into `/tmp/session.env`
 11. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
 12. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
-13. **Upload artifacts** — `e2e-results-<suite>` (results JSON + text, 30 days) and `vm-serial-log-<suite>` (3 days)
+13. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
 
 ## Image requirements
 
@@ -81,8 +81,8 @@ The workflow injects the test user, SSH keys, and autologin config at disk-prep 
 
 | Artifact | Content | Retention |
 |----------|---------|-----------|
-| `e2e-results-<suite>` | `results.json` (behave JSON), `results.txt` (pretty output) | 30 days |
-| `vm-serial-log-<suite>` | QEMU serial console output | 3 days |
+| `e2e-results-<image-slug>-<suite>` | `results.json` (behave JSON), `results.txt` (pretty output), `artifact-metadata.json` (image + suite metadata) | 30 days |
+| `vm-serial-log-<image-slug>-<suite>` | QEMU serial console output | 3 days |
 
 The serial log is always uploaded (even on failure) — it's the primary debug tool when the VM doesn't boot or SSH never comes up.
 
