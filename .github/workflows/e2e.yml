@@ -28,6 +28,15 @@ on:
         description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
         type: boolean
         default: false
+      screenshot_flatpaks:
+        description: >
+          Comma-separated Flatpak app IDs to launch-and-screenshot after the test run.
+          Each app is started, held open for a few seconds, then captured via GNOME Shell.
+          Screenshots are uploaded in the results artifact and pushed to GHCR as
+          ghcr.io/projectbluefin/testsuite/desktop-screenshot:flatpak-<slug>-latest.
+          Example: "org.gnome.Calculator,io.github.kolunmi.Bazaar"
+        type: string
+        default: ""
 
 jobs:
   # Resolve comma-separated suite list into a JSON matrix
@@ -608,11 +617,57 @@ jobs:
 
           echo "behave_rc=${BEHAVE_RC}" >> "$GITHUB_OUTPUT"
 
-      - name: Promote desktop screenshot
+      - name: Screenshot requested Flatpaks
+        if: always() && inputs.screenshot_flatpaks != '' && env.SUITE != 'common'
+        continue-on-error: true
+        env:
+          SCREENSHOT_FLATPAKS: ${{ inputs.screenshot_flatpaks }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+          SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlPath=/tmp/ssh-ctrl-%C -P 2222 -r"
+
+          # Build a space-separated list of app IDs from the comma-separated input.
+          # Read from env var (not inline GHA expression) to avoid shell injection.
+          APP_IDS=$(python3 -c "
+          import os
+          ids = [a.strip() for a in os.environ.get('SCREENSHOT_FLATPAKS', '').split(',') if a.strip()]
+          print(' '.join(ids))
+          ")
+          echo "Capturing Flatpak screenshots for: ${APP_IDS}"
+
+          # screenshot_cli.py is already in /tmp/bluefin-tests/tests/shared/ (copied
+          # with the shared/ directory during the test run). Run it in the same
+          # runner container so it shares the same GNOME session access.
+          $SSH "
+            set -e
+            source /tmp/session.env
+            sudo podman run --rm \
+              --pid=host \
+              --privileged \
+              --network host \
+              -v /run/user/1001:/run/user/1001 \
+              -v /tmp/bluefin-tests:/tmp/bluefin-tests:ro \
+              -v /tmp/results:/tmp/results \
+              -v /home/bluefin-test/.ssh/id_ed25519:/home/bluefin-test/.ssh/id_ed25519:ro \
+              -e DBUS_SESSION_BUS_ADDRESS=\"\${DBUS_SESSION_BUS_ADDRESS}\" \
+              -e WAYLAND_DISPLAY=\"\${WAYLAND_DISPLAY}\" \
+              -e XDG_RUNTIME_DIR=/run/user/1001 \
+              -e AT_SPI_BUS_ADDRESS=\"\${AT_SPI_BUS_ADDRESS}\" \
+              -e SUITE=${SUITE} \
+              -e PYTHONPATH=/tmp/bluefin-tests \
+              ghcr.io/projectbluefin/testsuite:runner \
+              \"python3 /tmp/bluefin-tests/tests/shared/screenshot_cli.py ${APP_IDS}\"
+          " || echo "WARNING: Flatpak screenshot step exited non-zero — partial results may exist"
+
+          mkdir -p results
+          $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
+
+
         if: always()
         id: desktop-screenshot
         run: |
-          # The smoke suite's after_all takes a fastfetch screenshot; find it
+          # Every GUI suite's after_all takes a fastfetch screenshot; find it
           # under results/ regardless of exact filename timestamp fragments.
           SHOT=$(find results/ -name "screenshot_*fastfetch*.png" 2>/dev/null | head -1)
           if [[ -n "$SHOT" ]]; then
@@ -639,8 +694,13 @@ jobs:
           echo "${{ github.token }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
 
           SHORT_SHA="${GITHUB_SHA::8}"
-          # Tag with short SHA (immutable) and :latest (always current)
+          # Tag with short SHA (immutable), suite-stable tag, and :latest (always current)
           oras push "${SCREENSHOT_IMAGE}:${SHORT_SHA}" \
+            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
+            desktop-screenshot.png:image/png
+          oras push "${SCREENSHOT_IMAGE}:${SUITE}-latest" \
             --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
@@ -652,13 +712,38 @@ jobs:
             desktop-screenshot.png:image/png
 
           echo "ref=${SCREENSHOT_IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA} and :latest"
+          echo "suite_tag=${SCREENSHOT_IMAGE}:${SUITE}-latest" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA}, :${SUITE}-latest, and :latest"
+
+          # Push any per-Flatpak screenshots captured by the "Screenshot requested Flatpaks" step.
+          # Filename pattern: screenshot_<suite>_<app_slug>_flatpak_gallery.png
+          # GHCR tag: flatpak-<app_slug_with_dashes>-latest
+          FLATPAK_REFS=""
+          for f in results/screenshot_*_flatpak_gallery.png; do
+            [[ -f "$f" ]] || continue
+            bname=$(basename "$f" .png)
+            # Strip leading "screenshot_${SUITE}_" and trailing "_flatpak_gallery"
+            inner="${bname#screenshot_${SUITE}_}"
+            inner="${inner%_flatpak_gallery}"
+            tag_slug=$(echo "$inner" | tr '_' '-')
+            tag="flatpak-${tag_slug}-latest"
+            oras push "${SCREENSHOT_IMAGE}:${tag}" \
+              --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+              --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
+              --annotation "org.opencontainers.image.description=Flatpak screenshot: ${inner} (suite: ${SUITE})" \
+              "$f:image/png"
+            echo "Pushed ${SCREENSHOT_IMAGE}:${tag}"
+            FLATPAK_REFS="${FLATPAK_REFS}${SCREENSHOT_IMAGE}:${tag} "
+          done
+          echo "flatpak_refs=${FLATPAK_REFS}" >> "$GITHUB_OUTPUT"
 
       - name: Write job summary
         if: always()
         continue-on-error: true
         env:
           SCREENSHOT_REF: ${{ steps.upload-screenshot.outputs.ref }}
+          SCREENSHOT_SUITE_TAG: ${{ steps.upload-screenshot.outputs.suite_tag }}
+          SCREENSHOT_FLATPAK_REFS: ${{ steps.upload-screenshot.outputs.flatpak_refs }}
           SCREENSHOT_IMAGE: ${{ env.SCREENSHOT_IMAGE }}
         run: |
           if [[ -f results/results.json ]]; then
@@ -696,20 +781,39 @@ jobs:
 
           # Desktop screenshot — pushed to GHCR, pull with oras from any org workflow
           screenshot_ref = os.environ.get('SCREENSHOT_REF', '').strip()
+          screenshot_suite_tag = os.environ.get('SCREENSHOT_SUITE_TAG', '').strip()
           screenshot_image = os.environ.get('SCREENSHOT_IMAGE', '').strip()
           if screenshot_ref:
             lines += [
               '',
               '### 🖥️ Desktop Screenshot',
               '',
-              f'```',
+              f'```sh',
+              f'# Suite-stable tag (recommended):',
+              f'oras pull {screenshot_suite_tag}',
+              f'# Immutable (this run):',
               f'oras pull {screenshot_ref}',
-              f'# or always-latest:',
-              f'oras pull {screenshot_image}:latest',
               f'```',
               '',
               '_Desktop screenshot (fastfetch open) pushed to GHCR as an OCI artifact. '
               'Pull from any org workflow for release notes or visual regression._',
+            ]
+
+          # Flatpak gallery — one entry per requested app
+          flatpak_refs_raw = os.environ.get('SCREENSHOT_FLATPAK_REFS', '').strip()
+          if flatpak_refs_raw:
+            refs = flatpak_refs_raw.split()
+            lines += ['', '### 📦 Flatpak Screenshot Gallery', '']
+            lines += ['| App | Pull command |', '|-----|-------------|']
+            for ref in refs:
+              # ref: ghcr.io/.../desktop-screenshot:flatpak-org-gnome-calculator-latest
+              tag = ref.split(':')[-1]           # flatpak-org-gnome-calculator-latest
+              slug = tag[len('flatpak-'):-len('-latest')]    # org-gnome-calculator
+              app_id = slug.replace('-', '.', slug.count('-') - slug.count('_'))
+              lines.append(f'| `{slug}` | `oras pull {ref}` |')
+            lines += [
+              '',
+              '_Each Flatpak was launched, held open, and screenshotted at end of the test run._',
             ]
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:

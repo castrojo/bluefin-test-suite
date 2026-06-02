@@ -46,6 +46,16 @@ GNOME behaviour without Bluefin customisation, then compare against downstream s
 - `gnome-ponytail-daemon` must be in the image
 - Image must be a bootc/ostree image
 
+## Desktop Screenshot
+
+After every run, a fastfetch screenshot is pushed to GHCR as an OCI artifact:
+
+```sh
+oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:vanilla-gnome-latest
+```
+
+This is the canonical example desktop screenshot for upstream GNOME images tested by this suite.
+
 ## Tracking
 
 Epic: projectbluefin/testsuite#41

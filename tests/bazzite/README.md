@@ -55,6 +55,16 @@ compiz-windows-effect@hermes83.github.com
 block-caribou-36@lxylxy123456.ercli.dev
 ```
 
+## Desktop Screenshot
+
+After every run, a fastfetch screenshot is pushed to GHCR as an OCI artifact:
+
+```sh
+oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:bazzite-latest
+```
+
+This is the canonical example desktop screenshot for Bazzite images tested by this suite.
+
 ## Tracking
 
 Epic: projectbluefin/testsuite#42

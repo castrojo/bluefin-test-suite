@@ -26,7 +26,11 @@ except Exception:  # noqa: BLE001
         return None
 
 try:
-    from tests.shared.screenshot import configure_screenshot_context, take_screenshot
+    from tests.shared.screenshot import (
+        configure_screenshot_context,
+        take_fastfetch_screenshot,
+        take_screenshot,
+    )
 except Exception as exc:  # noqa: BLE001
     print(f"WARNING: screenshot helpers unavailable: {exc}", flush=True)
 
@@ -34,6 +38,9 @@ except Exception as exc:  # noqa: BLE001
         return None
 
     def take_screenshot(label):
+        return None
+
+    def take_fastfetch_screenshot():
         return None
 
 
@@ -158,10 +165,10 @@ def after_step(context, step) -> None:
 
 
 def after_all(context) -> None:
-    """Dump gnome-shell AT-SPI tree to results for node name discovery.
-    Runs after the last scenario while the session is still active enough
-    for the sandbox to have a valid shell handle.
-    """
+    """Take a fastfetch desktop screenshot, then dump gnome-shell AT-SPI tree."""
+    configure_screenshot_context(context, SUITE_NAME, "end_of_run")
+    take_fastfetch_screenshot()
+
     try:
         import os
         if os.path.exists("/tmp/results/atspi_tree.txt"):
