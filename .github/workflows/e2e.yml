@@ -457,6 +457,12 @@ jobs:
         if: ${{ env.SUITE != 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          # Ensure bluefin-test has subuid/subgid mappings so rootless podman can
+          # unpack image layers that contain non-root uid/gid ownership (e.g. gid 12
+          # for /var/spool/mail in the Fedora 44 base layer).
+          ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 \
+            "sudo bash -c 'grep -q bluefin-test /etc/subuid || echo \"bluefin-test:100000:65536\" >> /etc/subuid; grep -q bluefin-test /etc/subgid || echo \"bluefin-test:100000:65536\" >> /etc/subgid'"
+          ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman system migrate 2>/dev/null || true
           echo "Piping runner container into VM (this replaces in-VM pip install)..."
           sudo podman save ghcr.io/projectbluefin/testsuite:runner | \
             ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman load
@@ -663,7 +669,7 @@ jobs:
           mkdir -p results
           $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
 
-
+      - name: Promote desktop screenshot
         if: always()
         id: desktop-screenshot
         run: |
