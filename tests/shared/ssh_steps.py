@@ -51,7 +51,7 @@ def vm_reachable_over_ssh(context):
     for attempt in range(1, 6):
         try:
             stdout, returncode = run_ssh(context, "echo ok", timeout=20)
-            if returncode == 0 and stdout == "ok":
+            if returncode == 0 and stdout.strip().split("\n")[-1] == "ok":
                 return
             last_error = f"rc={returncode}, stdout={stdout!r}"
         except subprocess.TimeoutExpired as exc:
