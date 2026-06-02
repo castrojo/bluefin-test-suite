@@ -23,7 +23,11 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
 
   @migration @switch
   Scenario: bootc switch migrates from ublue-os/bluefin to projectbluefin/bluefin
-    # Confirms the core migration path: legacy-rechunker → chunkah image.
+    # Pre-condition: confirm we're actually on the legacy source image before switching.
+    # This guards against a no-op if the workflow was accidentally invoked on the
+    # wrong starting image, which would silently pass without testing the boundary.
+    * Run SSH command: "bootc status --format=json"
+    * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
     * Run SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
@@ -38,15 +42,20 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
 
   @migration @switch @rollback
   Scenario: Rolling back after migration returns to ublue-os/bluefin
-    # Confirms users are not stranded if they need to revert.
+    # Pre-condition: assert source registry before switching.
+    * Run SSH command: "bootc status --format=json"
+    * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
     * Run SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
+    * Capture staged image digest as upgrade target
     * Reboot VM and wait for SSH
+    # Verify we landed on the migrated image before attempting rollback.
     * Run SSH command: "bootc status --format=json"
+    * Active deployment matches upgrade target digest
     * Active image reference contains "projectbluefin/bluefin"
     * Run SSH command: "sudo bootc rollback"
     * SSH command return code is "0"
@@ -57,8 +66,8 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
 
   @migration @switch @health
   Scenario: System identity and health are correct after migration
-    # After switching to chunkah image the OS must still report Fedora Bluefin
-    # identity and bootc must see a clean, pinnable deployment.
+    * Run SSH command: "bootc status --format=json"
+    * Booted image is from the "ublue-os" registry
     * Run SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
@@ -75,18 +84,20 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * os-release reports Fedora Bluefin identity
 
   @migration @chunkah
-  Scenario: Two deployments are present after chunkah migration — rollback is available
-    # ostree must keep both the legacy-rechunker deployment and the new chunkah
-    # deployment so the rollback path above is always available immediately
-    # after migration without requiring a second boot.
+  Scenario: Rollback deployment is preserved and matches legacy source after chunkah migration
+    # Uses bootc status .rollback — stronger than counting ostree deployments because
+    # it tests the exact field bootc rollback uses, and asserts the legacy digest is
+    # correctly preserved across the rechunker format boundary.
+    * Run SSH command: "bootc status --format=json"
+    * Booted image is from the "ublue-os" registry
+    * Capture booted image digest for rollback verification
+    * Capture booted image reference as migration source
     * Run SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
     * SSH command return code is "0"
     * Run SSH command: "bootc status --format=json"
     * Staged deployment is present in bootc status
     * Reboot VM and wait for SSH
-    * Run SSH command: "sudo ostree admin status"
-    * SSH command return code is "0"
-    * ostree status shows two deployments
     * Run SSH command: "bootc status --format=json"
     * Active image reference contains "projectbluefin/bluefin"
-    * bootc status shows deployment is compatible
+    * bootc status shows rollback deployment is available
+    * bootc status rollback deployment matches migration source digest
