@@ -131,7 +131,7 @@ jobs:
   e2e:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@<your-branch>
     with:
-      image: ghcr.io/ublue-os/bluefin:latest
+      image: ghcr.io/projectbluefin/bluefin:testing
       suites: smoke
 ```
 
