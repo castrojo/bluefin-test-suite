@@ -62,7 +62,7 @@ with:
 7. **Boot VM** — `qemu-system-x86_64` with KVM, 4 GB RAM, 4 vCPUs, `virtio-gpu`, forwarded SSH on port 2222; daemonized
 8. **Wait for SSH** — polls port 2222 up to 5 minutes
 9. **Wait for GNOME session** — polls `/run/user/1001/wayland-0` up to 3 minutes
-10. **Install Python test stack** — pip installs `qecore behave dogtail python-uinput` inside the VM; captures `DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR` into `/tmp/session.env`
+10. **Load runner container + install test stack** — pipes the pre-built `ghcr.io/projectbluefin/testsuite:runner` container into the VM via `podman save | ssh podman load` (rootless, as `bluefin-test`). Before loading, ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid` entries and runs `podman system migrate`. Then: loads kernel module (`uinput`), sets device permissions, copies SSH key for @plain_ssh scenarios, captures GNOME session environment (`DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, etc.) into `/tmp/session.env`.
 11. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
 12. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
 13. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
@@ -128,6 +128,14 @@ See [`docs/flatpak-screenshots.md`](../flatpak-screenshots.md) for full document
 The serial log is always uploaded (even on failure) — it's the primary debug tool when the VM doesn't boot or SSH never comes up.
 
 ## Debugging failures
+
+### podman load exits 125 (all GUI suites fail at "Load runner container into VM")
+
+**Root cause:** `bluefin-test` lacks `/etc/subuid`/`/etc/subgid` entries. The Fedora 44 runner base image has a layer with `gid=12` (mail group) for `/var/spool/mail`. Rootless podman can't map this gid without subgid entries.
+
+**Evidence:** Look for `lchown /var/spool/mail: invalid argument` in the "Load runner container into VM" step log.
+
+**Fix:** The `e2e.yml` "Load runner container into VM" step now adds the entries and runs `podman system migrate` before loading. If you see this on an older branch, cherry-pick PR #224.
 
 ### SSH never became ready
 
