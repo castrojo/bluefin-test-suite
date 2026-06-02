@@ -725,11 +725,38 @@ jobs:
             echo "</details>" >> "$GITHUB_STEP_SUMMARY"
           fi
 
+      - name: Prepare artifact metadata
+        if: always()
+        id: artifact-metadata
+        run: |
+          mkdir -p results
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          image = os.environ["IMAGE"]
+          suite = os.environ["SUITE"]
+          artifact_suffix = re.sub(r"[^A-Za-z0-9._-]+", "-", image).strip("-").lower()
+          metadata = {
+              "image": image,
+              "suite": suite,
+              "artifact_suffix": artifact_suffix,
+          }
+          Path("results/artifact-metadata.json").write_text(
+              json.dumps(metadata, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output_file:
+              output_file.write(f"artifact_suffix={artifact_suffix}\n")
+          PY
+
       - name: Upload results artifact
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: e2e-results-${{ env.SUITE }}
+          name: e2e-results-${{ steps.artifact-metadata.outputs.artifact_suffix }}-${{ env.SUITE }}
           path: results/
           retention-days: 30
           if-no-files-found: ignore
@@ -738,7 +765,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: vm-serial-log-${{ env.SUITE }}
+          name: vm-serial-log-${{ steps.artifact-metadata.outputs.artifact_suffix }}-${{ env.SUITE }}
           path: vm-serial.log
           retention-days: 3
           if-no-files-found: ignore

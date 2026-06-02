@@ -35,7 +35,7 @@ SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA act
 
 ## Nightly CI job matrix
 
-The `nightly.yml` workflow runs 9 named jobs. Each job name is visible in the Actions UI:
+The `nightly.yml` workflow runs 10 named jobs. Each job name is visible in the Actions UI:
 
 | Job name | Image | Suites |
 |---|---|---|
@@ -48,6 +48,7 @@ The `nightly.yml` workflow runs 9 named jobs. Each job name is visible in the Ac
 | `bluefin-nvidia-open:latest` | `ghcr.io/ublue-os/bluefin-nvidia-open:latest` | smoke, common |
 | `bazzite-gnome:latest` | `ghcr.io/ublue-os/bazzite-gnome:latest` | bazzite |
 | `gnomeos-latest` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
+| `persist-results` | n/a | Downloads nightly result artifacts and publishes `data/results-YYYY-MM-DD.jsonl` to `gh-pages` |
 
 **Why these assignments:**
 - `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → software suite is gnomeos-only
