@@ -8,20 +8,20 @@ Load when: deciding which suite to add a test to, checking existing coverage, or
 
 Which suites run on which image. Any bootc/ostree GNOME image can run via the GitHub Action.
 
-| Suite | `bluefin` (latest/gts/lts) | `bluefin-dx` (latest/gts/lts) | `bluefin-nvidia` | `bazzite` | `gnomeos` | `flatcar` | Notes |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| `smoke` | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; all Bluefin variants |
-| `vanilla-gnome` | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
-| `bazzite` | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour; `bazzite-gnome:latest` only |
-| `developer` | ✅ | ✅ | — | — | — | — | Homebrew/Ptyxis; DX adds extra tools |
-| `software` | — | — | — | — | ✅ | — | GNOME Software/Flatpak; gnomeos only — Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software |
-| `common` | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
-| `lifecycle` | ✅ | ✅ | ✅ | — | — | — | bootc upgrade/rollback; SSH-mode |
-| `security` | ✅ | ✅ | ✅ | — | — | — | cosign + SELinux; SSH-mode |
-| `hardware` | ✅ | — | — | — | — | — | Emulated peripherals; SSH-mode |
-| `dx` | — | ✅ | — | — | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
-| `nvidia` | — | — | ✅ | — | — | — | GPU driver validation; NVIDIA variant only |
-| `flatcar` | — | — | — | — | — | ✅ | Flatcar OS boot and lifecycle |
+| Suite | `bluefin` | `bluefin-gdx` | `bluefin-nvidia-open` | `dakota` | `bazzite` | `gnomeos` | `flatcar` | Notes |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| `smoke` | ✅ | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; all Bluefin variants |
+| `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
+| `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
+| `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
+| `software` | — | — | — | — | — | ✅ | — | GNOME Software/Flatpak; gnomeos only — Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software |
+| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
+| `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
+| `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
+| `hardware` | ✅ | — | — | — | — | — | — | Emulated peripherals; SSH-mode |
+| `dx` | — | ✅ | — | — | — | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
+| `nvidia` | — | — | ✅ | — | — | — | — | GPU driver validation; NVIDIA variant only |
+| `flatcar` | — | — | — | — | — | — | ✅ | Flatcar OS boot and lifecycle |
 
 **GitHub Action consumers**:
 ```yaml
@@ -35,26 +35,37 @@ SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA act
 
 ## Nightly CI job matrix
 
-The `nightly.yml` workflow runs 10 named jobs. Each job name is visible in the Actions UI:
+The `nightly.yml` workflow runs 13 named jobs (plus `persist-results`). Each job name is visible in the Actions UI.
 
 | Job name | Image | Suites |
 |---|---|---|
-| `bluefin:latest` | `ghcr.io/ublue-os/bluefin:latest` | smoke, developer, common |
-| `bluefin:gts` | `ghcr.io/ublue-os/bluefin:gts` | smoke, developer, common |
-| `bluefin:lts` | `ghcr.io/ublue-os/bluefin:lts` | smoke, developer, common |
-| `bluefin-dx:latest` | `ghcr.io/ublue-os/bluefin-dx:latest` | smoke, developer, dx, common |
-| `bluefin-dx:gts` | `ghcr.io/ublue-os/bluefin-dx:gts` | smoke, developer, dx, common |
-| `bluefin-dx:lts` | `ghcr.io/ublue-os/bluefin-dx:lts` | smoke, developer, dx, common |
-| `bluefin-nvidia-open:latest` | `ghcr.io/ublue-os/bluefin-nvidia-open:latest` | smoke, common |
-| `bazzite-gnome:latest` | `ghcr.io/ublue-os/bazzite-gnome:latest` | bazzite |
-| `gnomeos-latest` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
+| `bluefin:testing` | `ghcr.io/projectbluefin/bluefin:testing` | smoke, developer, common |
+| `bluefin:stable` | `ghcr.io/projectbluefin/bluefin:stable` | smoke, developer, common |
+| `bluefin:lts-testing` | `ghcr.io/projectbluefin/bluefin:lts-testing` | smoke, developer, common |
+| `bluefin:lts` | `ghcr.io/projectbluefin/bluefin:lts` | smoke, developer, common |
+| `bluefin-gdx:stream10-testing` | `ghcr.io/ublue-os/bluefin-gdx:stream10-testing` | smoke, developer, dx, common |
+| `bluefin-gdx:stream10` | `ghcr.io/ublue-os/bluefin-gdx:stream10` | smoke, developer, dx, common |
+| `bluefin-nvidia-open:testing` | `ghcr.io/projectbluefin/bluefin-nvidia-open:testing` | smoke, common |
+| `bluefin-nvidia-open:stable` | `ghcr.io/projectbluefin/bluefin-nvidia-open:stable` | smoke, common |
+| `dakota:testing` | `ghcr.io/projectbluefin/dakota:testing` | smoke, common |
+| `dakota:latest` | `ghcr.io/projectbluefin/dakota:latest` | smoke, common |
+| `bazzite-gnome:testing` | `ghcr.io/ublue-os/bazzite-gnome:testing` | bazzite |
+| `bazzite-gnome:stable` | `ghcr.io/ublue-os/bazzite-gnome:stable` | bazzite |
+| `gnomeos` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
 | `persist-results` | n/a | Downloads nightly result artifacts and publishes `data/results-YYYY-MM-DD.jsonl` to `gh-pages` |
+
+**Registry split:** `bluefin`, `bluefin-nvidia-open`, `dakota` → `ghcr.io/projectbluefin`. `bluefin-gdx`, `bazzite-gnome` → `ghcr.io/ublue-os`.
+
+**Tag notes:**
+- `bluefin`: `testing` (pre-release) + `stable` + `lts-testing` + `lts`
+- `bluefin-gdx`: `stream10` = lts equivalent; `stream10-testing` = pre-release
+- `bluefin-nvidia-open` / `bazzite-gnome`: `testing` + `stable`
+- `dakota`: `testing` + `latest`
 
 **Why these assignments:**
 - `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → software suite is gnomeos-only
 - `bazzite` is not vanilla GNOME → only the bazzite suite runs against it (no vanilla-gnome)
-- `bluefin-nvidia-open` is used instead of `bluefin-nvidia` because nvidia-open is built daily; `bluefin-nvidia:latest` (Oct 2025) ships bootc too old to support `--bootloader`
-- nvidia services (`nvidia-persistenced`, `ublue-nvctk-cdi`) are in the `IGNORED_FAILED_UNITS_IN_VM` allowlist because they always fail in QEMU without a physical GPU
+- `bluefin-nvidia-open` is used because nvidia-open is built daily; nvidia services (`nvidia-persistenced`, `ublue-nvctk-cdi`) are in `IGNORED_FAILED_UNITS_IN_VM` — they always fail in QEMU without a physical GPU
 
 ## Scenario tags
 

@@ -34,6 +34,7 @@ jobs:
 | `image` | string | `ghcr.io/projectbluefin/dakota:latest` | OCI image to test (must be a bootc/ostree image) |
 | `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common` |
 | `skip_native_apps` | boolean | `false` | When `true`, skips `@native_app` scenarios (Flatpak apps that may not be installed in all variants) |
+| `screenshot_flatpaks` | string | `""` | Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See [Flatpak screenshot gallery](../flatpak-screenshots.md) for full details. |
 
 Multiple suites run as a matrix (parallel jobs):
 
@@ -76,6 +77,46 @@ The OCI image under test **must**:
 - Have `python3` available for pip bootstrap
 
 The workflow injects the test user, SSH keys, and autologin config at disk-prep time — nothing needs to be baked into the image for those.
+
+## Screenshots and GHCR artifacts
+
+Every e2e run produces a fastfetch desktop screenshot at end-of-run as visual proof of a working GNOME session.
+
+### Desktop screenshot (fastfetch)
+
+After the behave suite finishes, `take_fastfetch_screenshot()` is called in `after_all` for every GUI suite. The screenshot is:
+
+1. Uploaded to the `e2e-results-*` artifact (as `desktop_screenshot.png`)
+2. Rendered inline in the **GitHub Actions job summary**
+3. Pushed to GHCR as an OCI artifact:
+
+| Tag | Meaning |
+|-----|---------|
+| `ghcr.io/projectbluefin/testsuite/desktop-screenshot:latest` | Most recent run (any suite) |
+| `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<suite>-latest` | Most recent run for that suite, e.g. `:smoke-latest` |
+| `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<short-sha>` | Immutable per-commit tag |
+
+Pull the latest screenshot locally:
+```bash
+oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:smoke-latest
+```
+
+### Flatpak screenshot gallery
+
+Set `screenshot_flatpaks` to capture per-app screenshots useful for app authors:
+
+```yaml
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+with:
+  image: ghcr.io/projectbluefin/bluefin:testing
+  suites: smoke
+  screenshot_flatpaks: "org.gnome.Calculator,io.github.kolunmi.Bazaar"
+```
+
+Each app is launched, held for 3 seconds, then captured. Results pushed to:
+`ghcr.io/projectbluefin/testsuite/desktop-screenshot:flatpak-<slug>-latest`
+
+See [`docs/flatpak-screenshots.md`](../flatpak-screenshots.md) for full documentation.
 
 ## Artifacts
 
