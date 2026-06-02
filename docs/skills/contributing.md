@@ -141,19 +141,13 @@ For scenarios in the `developer` or `dx` suites, swap `bluefin:latest` for the a
 
 ## Merging PRs — merge queue required
 
-This repo uses a **merge queue** (ruleset `main — merge queue`, id 17074591). `gh pr merge` and the GitHub UI "Merge" button are blocked until all required checks pass. You must enqueue via GraphQL:
+This repo uses a **merge queue** (ruleset `main — merge queue`, id 17074591). Enqueue with:
 
 ```bash
-PR_NODE_ID=$(gh api /repos/projectbluefin/testsuite/pulls/<NUMBER> --jq '.node_id')
-gh api graphql -f query="
-mutation {
-  enqueuePullRequest(input: { pullRequestId: \"${PR_NODE_ID}\" }) {
-    mergeQueueEntry { id position }
-  }
-}"
+gh pr merge <NUMBER> --repo projectbluefin/testsuite --squash --auto
 ```
 
-The merge queue runs all three required CI checks on the merge commit before landing to `main`:
+The `--auto` flag enqueues the PR; the merge queue runs all required CI checks on the merge commit and lands to `main` automatically on green.
 
 | Check | Workflow | Trigger |
 |---|---|---|
@@ -161,7 +155,7 @@ The merge queue runs all three required CI checks on the merge commit before lan
 | `Behave dry-run` | `pr-validate.yml` | same |
 | `pytest` | `unit-tests.yml` | `pull_request`, `merge_group`, `push: main` |
 
-**Prerequisites before enqueueing:** all 3 checks must be green on the PR head. If the `enqueuePullRequest` mutation returns `"N of 3 required status checks are in progress"`, wait for them to complete and retry.
+**Prerequisites before enqueueing:** all 3 checks must be green on the PR head. If checks are still running, `--auto` will wait and enqueue once they pass.
 
 Do not attempt `--admin` bypasses.
 
