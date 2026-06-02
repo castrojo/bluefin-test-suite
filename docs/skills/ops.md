@@ -143,6 +143,68 @@ This is idempotent: it only appends if the entry is absent.
 
 Tracked: fixed in PR #224 (2026-06-02).
 
+## Direct kernel boot blocks migration VM reboots
+
+**Symptom:** After `bootc switch` + `sudo reboot` inside the VM, the new deployment never takes effect — SSH reconnects to the **old** image.
+
+**Cause:** `e2e.yml` launches QEMU with `-kernel vmlinuz -initrd initramfs.img -append KERNEL_ARGS`. The kernel args include an `ostree=` path pointing to the initial deployment hash. When QEMU restarts after `sudo reboot`, it re-uses the same command-line args and boots the **old** deployment unconditionally. systemd-boot is never consulted.
+
+This is why `lifecycle/migration.feature` is listed in `suite-map.md` as "SSH-mode suites not yet in the GHA action" — the existing workflow cannot support migration testing.
+
+**Fix:** Replace direct kernel boot with UEFI boot via OVMF pflash:
+```yaml
+- name: Install OVMF
+  run: sudo apt-get install -y ovmf
+
+- name: Launch QEMU (UEFI)
+  run: |
+    cp /usr/share/OVMF/OVMF_VARS.fd ./OVMF_VARS.fd
+    sudo qemu-system-x86_64 \
+      -machine q35,accel=kvm -cpu host -m 4096 -smp 4 \
+      -drive if=pflash,format=raw,unit=0,readonly=on,file=/usr/share/OVMF/OVMF_CODE.fd \
+      -drive if=pflash,format=raw,unit=1,file=./OVMF_VARS.fd \
+      ...
+```
+
+After `bootc switch` + reboot, systemd-boot reads the **new** deployment's BLS entry and boots the migrated image.
+
+UEFI boot also requires:
+- `bootc install to-disk --bootloader systemd` (not `grub2`) to populate BLS entries
+- CI kernel args written to **all** BLS entries in the ESP (not as QEMU kernel args)
+- `loader.conf timeout 0` in the ESP to skip interactive boot menu in headless mode
+- `/etc/selinux/config` and systemd service masks written as `/etc` symlinks (survives 3-way merge into new deployment)
+
+Tracked: spike issue #228 verifies the UEFI approach on `ubuntu-latest`. Epic #227.
+
+## unified_storage lane requires bootc ≥ 1.16
+
+**Symptom:** `bootc switch --experimental-unified-storage <target>` fails with `error: unexpected argument '--experimental-unified-storage'`.
+
+**Cause:** The `--experimental-unified-storage` flag is not present in bootc 1.15.x. Both `ghcr.io/ublue-os/bluefin:stable` (bootc 1.15.1) and `ghcr.io/projectbluefin/bluefin:stable` (bootc 1.15.2) as of 2026-06 lack this flag.
+
+**Fix:** Always probe before using:
+```bash
+bootc switch --help 2>&1 | grep -q -- '--experimental-unified-storage'
+```
+If the flag is absent, skip the scenario gracefully. The `Check unified storage support and skip if unavailable` step in `tests/lifecycle/features/steps/steps.py` (#230) does this automatically.
+
+## `unified_storage_overlay_present` step reads wrong context attribute
+
+**Symptom:** The `unified_storage_overlay_present` behave step always evaluates the SSH return code as 1 (failed) even when the command succeeds.
+
+**Cause (line 433 of `tests/lifecycle/features/steps/steps.py`):**
+```python
+rc = getattr(context, "command_returncode", 1)  # BUG
+```
+`run_ssh()` in `tests/shared/ssh_steps.py` sets `context.ssh_rc`, not `context.command_returncode`. The `getattr` default of `1` always fires.
+
+**Fix:**
+```python
+rc = getattr(context, "ssh_rc", 1)
+```
+
+Tracked: fix issue #229.
+
 ## rechunker-group-fix required before migration (ublue-os → projectbluefin)
 
 **Symptom:** After `bootc switch` from `ghcr.io/ublue-os/bluefin` to `ghcr.io/projectbluefin/bluefin`, the first reboot shows a black screen (login manager never starts). The **second** reboot succeeds.
