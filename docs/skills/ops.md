@@ -114,6 +114,47 @@ Always probe before using. Never hard-code `--bootloader`.
 
 **Fix:** Both services are in `IGNORED_FAILED_UNITS_IN_VM` in `tests/smoke/features/steps/system_health_steps.py`. Do not remove them.
 
+## Rootless podman load fails in VM (exit 125)
+
+**Symptom:** "Load runner container into VM" step exits 125. Error in the step log:
+
+```
+lchown /var/spool/mail: invalid argument
+potentially insufficient UIDs or GIDs available in user namespace (requested 0:12 ...)
+Check /etc/subuid and /etc/subgid if configured locally and run "podman system migrate"
+```
+
+**Cause:** The Fedora 44 `fedora-minimal` base image (used in the runner container since PR #218) has a layer that sets `/var/spool/mail` ownership to `root:mail` (uid=0, gid=12). Rootless podman needs `bluefin-test` to have `/etc/subuid`/`/etc/subgid` entries to map this gid — but the BIB-built golden disk may not include them.
+
+The old Fedora 42 runner base did not have this layer so the issue was invisible until the base was pinned to Fedora 44.
+
+**Fix (in e2e.yml):** Before calling `podman load`, ensure the mappings exist and migrate:
+
+```bash
+ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 \
+  "sudo bash -c 'grep -q bluefin-test /etc/subuid || echo \"bluefin-test:100000:65536\" >> /etc/subuid; \
+   grep -q bluefin-test /etc/subgid || echo \"bluefin-test:100000:65536\" >> /etc/subgid'"
+ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman system migrate 2>/dev/null || true
+```
+
+This is idempotent: it only appends if the entry is absent.
+
+**DO NOT** try to fix this by switching to `sudo podman load` — that puts the image in root storage, but all `podman run` calls inside the VM run as `bluefin-test`. Keep the load rootless and fix subuid/subgid instead.
+
+Tracked: fixed in PR #224 (2026-06-02).
+
+## YAML orphan keys in e2e.yml break merge queue
+
+**Symptom:** PRs fail merge queue validation with 0 jobs (`{"total_count":0,"jobs":[]}`). The nightly run may still work (YAML's last-wins for duplicate keys makes the workflow _load_, but GHA schema validation rejects it for queue contexts).
+
+**Cause:** Any step block that is missing its `- name: StepName` header will have its `if:`, `id:`, and `run:` keys treated as duplicate/orphan keys on the prior step. `yaml.safe_load` silently uses last-wins. GHA's schema checker is stricter and rejects the file.
+
+**How to spot:** Run `python3 -c "import yaml; yaml.safe_load(open('.github/workflows/e2e.yml'))"` — it passes even on broken files. Instead, visually scan for any `if:` / `id:` / `run:` that appears at the 8-space indent level _without_ a preceding `- name:` on the same level.
+
+**Fix:** Always add `      - name: My Step Name` before each step's `if:`/`id:`/`run:`.
+
+Tracked: fixed in PR #224 (2026-06-02).
+
 ## Running behave --dry-run for GNOME suites in CI
 
 **Problem:** GNOME suites (smoke, bazzite, developer, dx, software, vanilla-gnome) import `qecore.sandbox` which loads `gi.repository.Atspi` at module import time. Without a real AT-SPI bus, `libatspi` calls `g_error()` → `SIGTRAP` (core dump). This happens even during `behave --dry-run`.
