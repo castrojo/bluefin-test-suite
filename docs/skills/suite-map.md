@@ -16,7 +16,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
 | `software` | — | — | — | — | — | ✅ | — | GNOME Software/Flatpak; gnomeos only — Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
-| `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
+| `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode. Migration (ublue-os→projectbluefin) 3-lane epic: #227 |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
 | `hardware` | ✅ | — | — | — | — | — | — | Emulated peripherals; SSH-mode |
 | `dx` | — | ✅ | — | — | — | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
@@ -32,6 +32,7 @@ with:
 ```
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`) run on `ubuntu-latest`.
 SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA action (epics #43/#44).
+`lifecycle/migration` specifically requires UEFI boot (OVMF pflash) because `e2e.yml` uses direct kernel boot which cannot handle VM reboots after `bootc switch` (see `ops.md` — "Direct kernel boot blocks migration VM reboots"). A standalone `migration-test.yml` workflow is planned in epic #227.
 
 ## Nightly CI job matrix
 
