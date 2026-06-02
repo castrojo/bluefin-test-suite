@@ -1,5 +1,5 @@
 """
-Software test environment — qecore TestSandbox for gnome-software (Bazaar).
+Software test environment — qecore TestSandbox for gnome-software.
 
 Regressions: bluefin#4062, #4471.
 """

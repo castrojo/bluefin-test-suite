@@ -8,7 +8,7 @@ Feature: Bazzite GNOME shell behaviour
     * GNOME Shell is accessible via AT-SPI
     * Dump panel children to log
 
-  @bazzite_suite @quarantine
+  @bazzite_suite
   Scenario: Activities button is replaced by Logo Menu
     * GNOME Shell is accessible via AT-SPI
     * Activities button is absent from panel

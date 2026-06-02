@@ -2,6 +2,7 @@
 @brew
 Feature: Homebrew package management
   Validates Homebrew package operations through Ptyxis terminal interaction.
+  # Quarantined in CI while e2e.yml masks brew-setup.service.
 
   Background:
     * Start application "ptyxis" via "command"

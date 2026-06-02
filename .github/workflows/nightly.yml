@@ -6,7 +6,7 @@
 #                    bluefin-nvidia-open         → smoke,common
 # Bazzite:          bazzite-gnome:latest  → bazzite suite only
 # GNOME OS:         gnomeos-latest        → vanilla-gnome,software
-#   (gnome-software / Bazaar is only present on vanilla GNOME OS, not Bluefin)
+#   (GNOME Software is only present on vanilla GNOME OS, not Bluefin)
 #
 # No self-hosted runners. No secrets required.
 #

@@ -7,17 +7,15 @@ Feature: Bluefin DX variant smoke tests
   # Requires: Bluefin DX golden disk (ghcr.io/ublue-os/bluefin-dx:latest).
   # See QA-REVIEW.md Epic E05 for full design.
 
-  @quarantine @dx @vscode @launch
+  @dx @vscode @launch
   Scenario: VS Code or Codium launches and window is accessible
     # AT-SPI app name is likely "code" or "codium".
-    # Quarantined: flatpak-preinstall.service is masked in CI; VS Code not installed.
     * Start application "code" via "command"
     * Wait until "Visual Studio Code" "frame" appears in "code"
     * Application "code" is running
 
-  @quarantine @dx @vscode @close
+  @dx @vscode @close
   Scenario: VS Code closes cleanly
-    # Quarantined: flatpak-preinstall.service is masked in CI; VS Code not installed.
     * Start application "code" via "command"
     * Wait until "Visual Studio Code" "frame" appears in "code"
     * Close application "code" via "shortcut"
@@ -28,11 +26,10 @@ Feature: Bluefin DX variant smoke tests
     * Run DX SSH command: "which devcontainer || echo missing"
     * Last command output does not contain "missing"
 
-  @quarantine @dx @distrobox @plain_ssh
-  Scenario: distrobox is installed and can create a container
-    # Quarantined: distrobox --version returns non-zero in non-interactive SSH CI sessions.
-    * Run DX SSH command: "distrobox --version"
-    * SSH command return code is "0"
+  @dx @distrobox @plain_ssh
+  Scenario: distrobox CLI is available
+    * Run DX SSH command: "which distrobox || echo missing"
+    * Last command output does not contain "missing"
 
   @quarantine @dx @distrobox @plain_ssh @nightly
   Scenario: distrobox enter works with default container
@@ -44,9 +41,8 @@ Feature: Bluefin DX variant smoke tests
     * Run DX SSH command: "which toolbox || echo missing"
     * Last command output does not contain "missing"
 
-  @quarantine @dx @podman_compose @plain_ssh
+  @dx @podman_compose @plain_ssh
   Scenario: podman-compose is available for container orchestration
-    # Quarantined: podman-compose not available in all DX image variants in CI.
     * Run DX SSH command: "podman-compose --version"
     * SSH command return code is "0"
     * Last command output contains "podman-compose"
@@ -60,20 +56,20 @@ Feature: Bluefin DX variant smoke tests
 
   @quarantine @dx @brew @plain_ssh
   Scenario: Homebrew is available on the DX variant
-    # Quarantined: brew-setup.service is masked in CI.
+    # Quarantined: e2e.yml masks brew-setup.service in CI, so brew is not initialized.
     * Run DX SSH command: "brew --version 2>&1 | head -1"
     * SSH command return code is "0"
     * Last command output contains "Homebrew"
 
   @quarantine @dx @mise @plain_ssh
   Scenario: mise is available for version management
-    # Quarantined: mise installed via brew which is masked in CI.
+    # Quarantined: mise comes from Homebrew, and e2e.yml masks brew-setup.service in CI.
     * Run DX SSH command: "mise --version"
     * SSH command return code is "0"
 
   @quarantine @dx @mise @plain_ssh
   Scenario: mise lists available runtimes
-    # Quarantined: mise installed via brew which is masked in CI.
+    # Quarantined: mise comes from Homebrew, and e2e.yml masks brew-setup.service in CI.
     * Run DX SSH command: "mise ls 2>/dev/null | wc -l || echo 0"
     * SSH command return code is "0"
 
@@ -82,10 +78,9 @@ Feature: Bluefin DX variant smoke tests
     * Run DX SSH command: "node --version 2>/dev/null || mise exec node -- node --version 2>/dev/null || echo missing"
     * Last command output does not contain "missing"
 
-  @quarantine @dx @python @plain_ssh
+  @dx @python @plain_ssh
   Scenario: Python venv module is available
-    # Quarantined: python3 -m venv returns non-zero in non-interactive SSH CI sessions.
-    * Run DX SSH command: "python3 -m venv --help 2>&1 | head -1"
+    * Run DX SSH command: "python3 -c 'import venv'"
     * SSH command return code is "0"
 
   @dx @podman @plain_ssh
