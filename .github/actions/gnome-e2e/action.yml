@@ -345,8 +345,123 @@ runs:
           export PATH=\$HOME/.local/bin:\$PATH
           export PYTHONPATH=/tmp/gnome_e2e
           BEHAVE_BIN=\$(which behave)
-          \$HOME/.local/bin/qecore-headless \"\$BEHAVE_BIN /tmp/gnome_e2e/tests/${GNOME_E2E_SUITE}/features/ --format json.pretty --outfile /tmp/gnome_e2e/results/results.json --format pretty --outfile /tmp/gnome_e2e/results/results.txt --no-capture\"
+          \$HOME/.local/bin/qecore-headless \"\$BEHAVE_BIN /tmp/gnome_e2e/tests/${GNOME_E2E_SUITE}/features/ --format json.pretty --outfile /tmp/gnome_e2e/results/results.json --format pretty --outfile /tmp/gnome_e2e/results/results.txt --format progress --no-capture\"
         " || BEHAVE_RC=$?
 
         $SCP "bluefin-test@127.0.0.1:/tmp/gnome_e2e/results/." ./results/ 2>/dev/null || true
         echo "behave_rc=${BEHAVE_RC}" >> "$GITHUB_OUTPUT"
+
+    # ── Summarise results to CI log + job summary ─────────────────────────────
+    - name: Summarise results
+      if: always()
+      shell: bash
+      env:
+        GNOME_E2E_SUITE: ${{ inputs.suite }}
+      run: |
+        python3 - <<'PYEOF'
+        import json, os, sys
+        from pathlib import Path
+
+        results_file = Path("results/results.json")
+        timings_file = Path("results/timings.jsonl")
+        suite        = os.environ.get("GNOME_E2E_SUITE", "smoke")
+
+        if not results_file.exists():
+            print("No results.json found — summary unavailable", flush=True)
+            sys.exit(0)
+
+        data = json.loads(results_file.read_text())
+
+        passed = failed = skipped = 0
+        failures = []
+        for feature in data:
+            feature_name = feature.get("name", "unknown feature")
+            for element in feature.get("elements", []):
+                if element.get("type") == "background":
+                    continue
+                status = element.get("status", "")
+                if status == "passed":
+                    passed += 1
+                elif status == "failed":
+                    failed += 1
+                    scenario_name = element.get("name", "")
+                    failed_step = error_msg = ""
+                    for step in element.get("steps", []):
+                        result = step.get("result", {})
+                        if result.get("status") == "failed":
+                            failed_step = step.get("name", "")
+                            error_msg  = result.get("error_message", "")
+                            break
+                    failures.append((feature_name, scenario_name, failed_step, error_msg))
+                elif status == "skipped":
+                    skipped += 1
+
+        sla_violations = []
+        if timings_file.exists():
+            for line in timings_file.read_text().splitlines():
+                try:
+                    entry = json.loads(line)
+                    if entry.get("sla_violated") and entry.get("status") != "skipped":
+                        sla_violations.append(entry)
+                except Exception:
+                    pass
+
+        # ── Compact summary in CI log ──────────────────────────────────────
+        total       = passed + failed + skipped
+        status_word = "PASSED" if failed == 0 else "FAILED"
+        sep = "=" * 64
+        print(f"\n{sep}", flush=True)
+        print(f"E2E {status_word}: {passed} passed / {failed} failed / {skipped} skipped (total {total})", flush=True)
+
+        if failures:
+            print("\nFailed scenarios:", flush=True)
+            for feat, scen, step, err in failures:
+                print(f"  ❌  [{feat}] {scen}", flush=True)
+                if step:
+                    print(f"       step : {step}", flush=True)
+                if err:
+                    first_line = err.split("\n")[0][:200]
+                    print(f"       error: {first_line}", flush=True)
+
+        if sla_violations:
+            print("\nSLA violations:", flush=True)
+            for v in sla_violations:
+                print(f"  ⚠️   {v['scenario']}: {v['elapsed_s']:.1f}s (SLA {v['sla_s']}s)", flush=True)
+
+        print(f"{sep}\n", flush=True)
+
+        # ── GitHub job summary ─────────────────────────────────────────────
+        summary_file = os.environ.get("GITHUB_STEP_SUMMARY", "")
+        if not summary_file:
+            sys.exit(0)
+
+        icon  = "✅" if failed == 0 else "❌"
+        lines = [f"## {icon} E2E Results — `{suite}`", ""]
+        lines += [
+            "| ✅ Passed | ❌ Failed | ⏭️ Skipped | Total |",
+            "|----------|----------|-----------|-------|",
+            f"| {passed} | **{failed}** | {skipped} | {total} |",
+            "",
+        ]
+
+        if failures:
+            lines += ["### ❌ Failures", "",
+                      "| Feature | Scenario | Failed Step | Error |",
+                      "|---------|----------|-------------|-------|"]
+            for feat, scen, step, err in failures:
+                first_line = (err.split("\n")[0] if err else "")[:150]
+                first_line = first_line.replace("|", "\\|").replace("`", "'")
+                lines.append(f"| {feat} | {scen} | `{step}` | {first_line} |")
+            lines.append("")
+
+        if sla_violations:
+            lines += ["### ⚠️ SLA Violations", "",
+                      "| Scenario | Duration | SLA |",
+                      "|----------|----------|-----|"]
+            for v in sla_violations:
+                lines.append(f"| {v['scenario']} | {v['elapsed_s']:.1f}s | {v['sla_s']}s |")
+            lines.append("")
+
+        with open(summary_file, "a") as fh:
+            fh.write("\n".join(lines) + "\n")
+        PYEOF
