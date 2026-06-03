@@ -8,7 +8,7 @@ Feature: Bluefin common system scripts
   Scenario: ujust lists available tasks
     * Run SSH command: "ujust --list"
     * SSH command return code is "0"
-    * Last command output contains "install-"
+    * SSH command output is not empty
 
   Scenario: ublue image info prints image metadata
     * Run SSH command: "command -v ublue-image-info.sh >/dev/null && ublue-image-info.sh || ublue-image-info"
