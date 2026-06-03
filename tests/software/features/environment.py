@@ -72,6 +72,9 @@ def before_scenario(context, scenario) -> None:
 
     if skip_quarantine(scenario):
         return
+    if hasattr(context, 'failed_setup'):
+        context.scenario.skip(reason=context.failed_setup)
+        return
     context.scenario = scenario
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
     record_start(context)
@@ -91,7 +94,8 @@ def after_scenario(context, scenario) -> None:
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
-    context.sandbox.after_scenario(context, scenario)
+    if hasattr(context, 'sandbox'):
+        context.sandbox.after_scenario(context, scenario)
 
 
 def after_all(context) -> None:
