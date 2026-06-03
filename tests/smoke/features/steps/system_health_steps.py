@@ -1,5 +1,6 @@
 """Custom step definitions for system health smoke checks."""
 import json
+import os
 import re
 import subprocess
 
@@ -25,20 +26,39 @@ IGNORED_FAILED_UNITS_IN_VM = {
     "ublue-nvctk-cdi.service",
 }
 
+# When behave runs inside the runner container (--pid=host --privileged), system
+# commands like systemctl, bootc, and ujust are not in the container image. Use
+# nsenter to run them in the host VM's mount namespace via /proc/1/ns/mnt.
+_IN_CONTAINER = os.path.isfile("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
 
-def _run(cmd: str):
+
+def _run(cmd: str, timeout: int = 30):
     result = subprocess.run(
         cmd,
         shell=True,
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=timeout,
     )
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
+def _run_host(cmd: str, timeout: int = 30):
+    """Run cmd in the host VM's mount namespace when inside the runner container."""
+    if _IN_CONTAINER:
+        result = subprocess.run(
+            ["nsenter", "--mount=/proc/1/ns/mnt", "--", "bash", "-c", cmd],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    else:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    return result.stdout.strip(), result.returncode, result.stderr.strip()
+
+
 def _running_in_vm() -> bool:
-    _, returncode, _ = _run("systemd-detect-virt --quiet")
+    _, returncode, _ = _run_host("systemd-detect-virt --quiet")
     return returncode == 0
 
 
@@ -54,7 +74,7 @@ def _has_image_reference(value) -> bool:
 
 @step("No failed systemd units at boot")
 def no_failed_systemd_units_at_boot(context) -> None:
-    output, returncode, stderr = _run("systemctl list-units --failed --no-pager --plain")
+    output, returncode, stderr = _run_host("systemctl list-units --failed --no-pager --plain")
     assert returncode == 0, f"systemctl failed: {stderr or output}"
 
     failed_units = []
@@ -75,21 +95,21 @@ def no_failed_systemd_units_at_boot(context) -> None:
 
 @step("No critical kernel errors in journal")
 def no_critical_kernel_errors_in_journal(context) -> None:
-    output, returncode, stderr = _run("journalctl -b -p 0..2 --no-pager -q")
+    output, returncode, stderr = _run_host("journalctl -b -p 0..2 --no-pager -q")
     assert returncode == 0, f"journalctl failed: {stderr or output}"
     assert not output, f"Critical journal entries found:\n{output}"
 
 
 @step("Bluefin image identity is present in os-release")
 def bluefin_image_identity_is_present_in_os_release(context) -> None:
-    output, returncode, stderr = _run("grep -i bluefin /etc/os-release")
+    output, returncode, stderr = _run_host("grep -i bluefin /etc/os-release")
     assert returncode == 0, f"Bluefin identity missing from /etc/os-release: {stderr or output}"
     assert output, "Expected non-empty Bluefin match in /etc/os-release"
 
 
 @step("bootc status shows a valid image reference")
 def bootc_status_shows_a_valid_image_reference(context) -> None:
-    output, returncode, stderr = _run("sudo bootc status --format=json")
+    output, returncode, stderr = _run_host("bootc status --format=json")
     combined_err = (stderr or output or "").lower()
     # In CI QEMU VMs, bootc may fail to open /boot (no bootupd, bare kernel boot).
     # Treat this as a known VM limitation — skip the assertion rather than fail.
@@ -115,7 +135,7 @@ def external_dns_resolves_external_hosts(context) -> None:
 
 @step('Writable system storage has at least "{percent}" percent free space')
 def writable_system_storage_has_at_least_percent_free_space(context, percent: str) -> None:
-    output, returncode, stderr = _run("df -P /var")
+    output, returncode, stderr = _run_host("df -P /var")
     assert returncode == 0, f"df failed: {stderr or output}"
 
     lines = [line for line in output.splitlines() if line.strip()]
@@ -134,15 +154,15 @@ def writable_system_storage_has_at_least_percent_free_space(context, percent: st
 
 @step("ujust is on PATH and returns exit 0")
 def ujust_on_path(context) -> None:
-    import shutil
-    assert shutil.which("ujust"), "ujust is not on PATH"
-    _, returncode, stderr = _run("ujust --version 2>/dev/null || ujust --help 2>/dev/null")
+    which_out, which_rc, _ = _run_host("which ujust 2>/dev/null")
+    assert which_rc == 0 and which_out, "ujust is not on PATH"
+    _, returncode, stderr = _run_host("ujust --version 2>/dev/null || ujust --help 2>/dev/null")
     assert returncode == 0, f"ujust exited non-zero: {stderr}"
 
 
 @step("ujust --list prints at least one task")
 def ujust_list_has_tasks(context) -> None:
-    output, returncode, stderr = _run("ujust --list")
+    output, returncode, stderr = _run_host("ujust --list")
     # just 1.x may fail with a parse error on newer Justfile syntax used by Bluefin.
     # Treat this as a known compatibility issue — warn but don't fail the suite.
     if returncode != 0:
@@ -160,13 +180,13 @@ def ujust_list_has_tasks(context) -> None:
 
 @step("ujust report --confirm rejects non-integer issue number")
 def ujust_report_confirm_invalid(context) -> None:
-    output, returncode, stderr = _run("ujust report --confirm abc 2>&1")
+    output, returncode, stderr = _run_host("ujust report --confirm abc 2>&1")
     assert returncode == 1, f"Expected exit code 1, got {returncode}. Output: {output}"
     assert "positive integer" in output, f"Expected validation error, got: {output}"
 
 
 @step("ujust report --confirm without issue number prints error")
 def ujust_report_confirm_missing_number(context) -> None:
-    output, returncode, stderr = _run("ujust report --confirm 2>&1")
+    output, returncode, stderr = _run_host("ujust report --confirm 2>&1")
     assert returncode == 1, f"Expected exit code 1, got {returncode}. Output: {output}"
     assert "requires an issue number" in output, f"Expected parameter error, got: {output}"
