@@ -17,8 +17,18 @@ import traceback
 import re as _re
 import subprocess as _subprocess
 
-from qecore.sandbox import TestSandbox
-from qecore.common_steps import *  # noqa: F401,F403 — registers all common @step definitions
+try:
+    from qecore.sandbox import TestSandbox
+    from qecore.common_steps import *  # noqa: F401,F403 — registers all common @step definitions
+    _QECORE_AVAILABLE = True
+except Exception as _qecore_exc:  # noqa: BLE001
+    # Runner containers based on fedora-minimal lack the GTK/dogtail typelibs
+    # needed by qecore. Smoke tests run headless CLI checks via nsenter/SSH and
+    # do not need AT-SPI — allow behave to load without a GNOME environment.
+    print(f"WARNING: qecore unavailable ({_qecore_exc}); sandbox disabled", flush=True)
+    TestSandbox = None  # type: ignore[assignment,misc]
+    _QECORE_AVAILABLE = False
+
 from steps.app_support import launch_target_available
 
 # ── qecore keyboard key mapping patch ────────────────────────────────────────
@@ -233,7 +243,13 @@ def before_all(context) -> None:
     else:
         print("WARNING: clock/system toggles not found after 15s — proceeding anyway", flush=True)
 
-    # Initialize sandbox
+    # Initialize sandbox (only when qecore/dogtail are available)
+    if TestSandbox is None:
+        print("Sandbox disabled: qecore/dogtail not available in this environment", flush=True)
+        context.optional_scenario_availability = {}
+        configure_screenshot_context(context, SUITE_NAME)
+        return
+
     try:
         context.optional_scenario_availability = {
             tag: launch_target_available(targets)
@@ -292,8 +308,11 @@ def before_scenario(context, scenario) -> None:
                 scenario.skip()
             print(f"Skipping {scenario.name}: {tag} app is not installed in this image", flush=True)
             return
+    sandbox = getattr(context, "sandbox", None)
+    if sandbox is None:
+        return
     try:
-        context.sandbox.before_scenario(context, scenario)
+        sandbox.before_scenario(context, scenario)
     except Exception:
         tb = traceback.format_exc()
         print(f"HOOK_ERROR in before_scenario:\n{tb}", flush=True)
@@ -305,7 +324,9 @@ def after_scenario(context, scenario) -> None:
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
-    context.sandbox.after_scenario(context, scenario)
+    sandbox = getattr(context, "sandbox", None)
+    if sandbox is not None:
+        sandbox.after_scenario(context, scenario)
 
 
 def after_step(context, step) -> None:
