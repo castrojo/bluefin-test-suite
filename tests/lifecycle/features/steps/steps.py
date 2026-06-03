@@ -487,6 +487,7 @@ def active_image_layers_zstd_chunked(context):
 
 
 
+@step("ostree status shows two deployments")
 def ostree_two_deployments(context):
     """Verify ostree admin status reports at least 2 deployments.
 
