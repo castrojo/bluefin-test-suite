@@ -83,6 +83,9 @@ def before_scenario(context, scenario) -> None:
 
     if skip_quarantine(scenario):
         return
+    if hasattr(context, 'failed_setup'):
+        context.scenario.skip(reason=context.failed_setup)
+        return
     # Podman Desktop is only on bluefin-dx; skip those scenarios on the base image.
     if "podman_desktop" in scenario.tags and getattr(context, "podman_desktop", None) is None:
         scenario.skip("Podman Desktop Flatpak not installed on this image")
@@ -106,7 +109,8 @@ def after_scenario(context, scenario) -> None:
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
-    context.sandbox.after_scenario(context, scenario)
+    if hasattr(context, 'sandbox'):
+        context.sandbox.after_scenario(context, scenario)
 
 
 def after_all(context) -> None:
