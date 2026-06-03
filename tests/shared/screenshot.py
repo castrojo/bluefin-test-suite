@@ -192,7 +192,10 @@ def take_fastfetch_screenshot(context: Any | None = None) -> str | None:
                     pass
 
     if not attempted:
-        print('Fastfetch screenshot: no terminal emulator found', flush=True)
-    else:
-        print('Fastfetch screenshot: all terminal attempts failed', flush=True)
+        # No terminal emulator in PATH (e.g. inside the runner container which uses
+        # fedora-minimal). Fall back to a plain desktop screenshot so the Promote
+        # step still finds a screenshot_*fastfetch*.png artifact.
+        print('Fastfetch screenshot: no terminal emulator — taking plain desktop screenshot', flush=True)
+        return take_screenshot('fastfetch', context)
+    print('Fastfetch screenshot: all terminal attempts failed', flush=True)
     return None
