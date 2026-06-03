@@ -28,6 +28,8 @@ IGNORED_FAILED_UNITS_IN_VM = {
     # NVIDIA services require physical GPU hardware — always fail in QEMU
     "nvidia-persistenced.service",
     "ublue-nvctk-cdi.service",
+    # systemd-oomd needs memory pressure files that QEMU VMs don't expose
+    "systemd-oomd.service",
 }
 
 # When behave runs inside the runner container (--pid=host --privileged), system
