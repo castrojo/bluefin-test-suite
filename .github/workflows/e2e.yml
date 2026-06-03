@@ -477,12 +477,12 @@ jobs:
         if: ${{ env.SUITE != 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
-          # Ensure bluefin-test has subuid/subgid mappings so rootless podman can
-          # unpack image layers that contain non-root uid/gid ownership (e.g. gid 12
-          # for /var/spool/mail in the Fedora 44 base layer).
+          # Ensure subuid/subgid mappings exist for bluefin-test so rootless podman
+          # can unpack image layers with non-root ownership (e.g. gid 12 for
+          # /var/spool/mail in the Fedora 44 base layer inside the runner image).
           ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 \
             "sudo bash -c 'grep -q bluefin-test /etc/subuid || echo \"bluefin-test:100000:65536\" >> /etc/subuid; grep -q bluefin-test /etc/subgid || echo \"bluefin-test:100000:65536\" >> /etc/subgid'"
-          ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman system migrate 2>/dev/null || true
+          ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman system migrate
           echo "Piping runner container into VM (this replaces in-VM pip install)..."
           sudo podman save ghcr.io/projectbluefin/testsuite:runner | \
             ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman load
@@ -575,6 +575,7 @@ jobs:
 
       - name: Run behave suite
         id: run
+        timeout-minutes: 80
         env:
           BEHAVE_RETRIES: 2
           SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
@@ -619,7 +620,7 @@ jobs:
               # --pid=host: qecore reads GNOME session env from /proc/<pid>/environ.
               # --privileged: AT-SPI socket access + uinput device passthrough.
               # --network host: D-Bus session bus traffic reaches ponytail daemon.
-              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} podman run --rm \
+              podman run --userns=keep-id --rm \
                 --pid=host \
                 --privileged \
                 --network host \
@@ -715,7 +716,7 @@ jobs:
           $SSH "
             set -e
             source /tmp/session.env
-            sudo podman run --rm \
+            podman run --userns=keep-id --rm \
               --pid=host \
               --privileged \
               --network host \
@@ -750,7 +751,11 @@ jobs:
             echo "Desktop screenshot found: $SHOT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No fastfetch screenshot in results/ — skipping promotion"
+            if [[ "${SUITE}" != "common" && "${SUITE}" != "lifecycle" ]]; then
+              echo "::error::No desktop screenshot found for suite=${SUITE} — runner container may not have loaded or behave exited before after_all"
+              exit 1
+            fi
+            echo "No desktop screenshot in results/ — skipping promotion"
           fi
 
       - name: Push desktop screenshot to GHCR
