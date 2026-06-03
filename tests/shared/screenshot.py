@@ -104,8 +104,10 @@ def _take_screenshot_via_ssh(path: str) -> bool:
     if r.returncode == 0:
         print(f"Screenshot via grim: {path}", flush=True)
         return True
-    if "command not found" not in r.stderr and "No such file" not in r.stderr:
-        print(f"grim failed (rc={r.returncode}): {r.stderr.strip()!r}", flush=True)
+    if "command not found" in r.stderr or "No such file" in r.stderr:
+        print(f"grim not available: {r.stderr.strip()!r}", flush=True)
+    else:
+        print(f"grim failed (rc={r.returncode}): stderr={r.stderr.strip()!r} stdout={r.stdout.strip()!r}", flush=True)
 
     # --- 2. gnome-screenshot CLI ---
     gnome_ss_cmd = f"{env_prefix}gnome-screenshot -f {shlex.quote(path)}"
@@ -113,8 +115,10 @@ def _take_screenshot_via_ssh(path: str) -> bool:
     if r.returncode == 0:
         print(f"Screenshot via gnome-screenshot: {path}", flush=True)
         return True
-    if "command not found" not in r.stderr and "No such file" not in r.stderr:
-        print(f"gnome-screenshot failed (rc={r.returncode}): {r.stderr.strip()!r}", flush=True)
+    if "command not found" in r.stderr or "No such file" in r.stderr:
+        print(f"gnome-screenshot not available: {r.stderr.strip()!r}", flush=True)
+    else:
+        print(f"gnome-screenshot failed (rc={r.returncode}): stderr={r.stderr.strip()!r}", flush=True)
 
     # --- 3. gdbus org.gnome.Shell.Screenshot (requires unsafe_mode=true) ---
     # Try SetUnsafeMode (GNOME 43+, polkit-gated) then Shell.Eval as fallback.
