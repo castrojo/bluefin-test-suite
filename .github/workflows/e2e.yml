@@ -529,7 +529,7 @@ jobs:
             [[ -z \"\${SESSION_BUS}\" ]] && SESSION_BUS=\"unix:path=\${XDG}/bus\"
             WAYLAND_DISP=\$(ls /run/user/1001/wayland-* 2>/dev/null \
               | head -1 | xargs basename 2>/dev/null || echo wayland-0)
-            printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\nexport PATH=%s\n' \
+            printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\nexport PATH=%s\nexport XDG_SESSION_TYPE=wayland\nexport XDG_SESSION_DESKTOP=gnome\n' \
               \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${SESSION_BUS}\" \"\$HOME/.local/bin:\$PATH\" \
               > /tmp/session.env
             cat /tmp/session.env
@@ -697,6 +697,8 @@ jobs:
                 -e DBUS_SESSION_BUS_ADDRESS=\"\${DBUS_SESSION_BUS_ADDRESS}\" \
                 -e WAYLAND_DISPLAY=\"\${WAYLAND_DISPLAY}\" \
                 -e XDG_RUNTIME_DIR=/run/user/1001 \
+                -e XDG_SESSION_TYPE=wayland \
+                -e XDG_SESSION_DESKTOP=gnome \
                 -e AT_SPI_BUS_ADDRESS=\"\${AT_SPI_BUS_ADDRESS}\" \
                 -e VM_IP=127.0.0.1 \
                 -e VM_USER=bluefin-test \
@@ -793,6 +795,8 @@ jobs:
               -e DBUS_SESSION_BUS_ADDRESS=\"\${DBUS_SESSION_BUS_ADDRESS}\" \
               -e WAYLAND_DISPLAY=\"\${WAYLAND_DISPLAY}\" \
               -e XDG_RUNTIME_DIR=/run/user/1001 \
+              -e XDG_SESSION_TYPE=wayland \
+              -e XDG_SESSION_DESKTOP=gnome \
               -e AT_SPI_BUS_ADDRESS=\"\${AT_SPI_BUS_ADDRESS}\" \
               -e SUITE=${SUITE} \
               -e PYTHONPATH=/tmp/bluefin-tests \
