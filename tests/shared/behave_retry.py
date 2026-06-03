@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -121,8 +122,12 @@ def read_rerun_entries(rerun_path: Path) -> list[str]:
 def run_behave(args: list[str], rerun_path: Path) -> tuple[int, list[str]]:
     if rerun_path.exists():
         rerun_path.unlink()
+    # sys.executable can be empty inside podman containers with --pid=host because
+    # the kernel path seen via /proc/self/exe doesn't exist in the container FS.
+    # Fall back to PATH lookup so behave can always be launched.
+    python = sys.executable or shutil.which("python3") or "python3"
     command = [
-        sys.executable,
+        python,
         "-m",
         "behave",
         *args,
@@ -138,7 +143,7 @@ def run_behave(args: list[str], rerun_path: Path) -> tuple[int, list[str]]:
 def main(argv: list[str] | None = None) -> int:
     retries, behave_args = parse_cli_args(list(sys.argv[1:] if argv is None else argv))
     base_args = with_quarantine_filter(behave_args)
-    rerun_path = Path.cwd() / RERUN_FILENAME
+    rerun_path = Path("/tmp") / RERUN_FILENAME
 
     rc, failed_entries = run_behave(base_args, rerun_path)
     if rc == 0:
