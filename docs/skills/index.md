@@ -30,10 +30,11 @@ New suites → this repo. New infra (VM specs, manifests) → testing-lab. PRs t
 |---|---|
 | Writing behave tests, scaffolding suites, debugging step resolution | `docs/skills/behave.md` |
 | GNOME Shell / AT-SPI / dogtail interactions | `docs/skills/gnome.md` |
-| bootc lifecycle, upgrade, rollback tests | `docs/skills/bootc.md` |
+| bootc lifecycle, upgrade, rollback, migration tests | `docs/skills/bootc.md` |
 | Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |
 | Infra gotchas (GDM autologin) | `docs/skills/ops.md` |
 | Reusable e2e workflow (calling from another repo, debugging QEMU pipeline) | `docs/skills/e2e-workflow.md` |
+| Running or debugging migration tests (ublue-os → projectbluefin, UEFI workflow) | `docs/skills/bootc.md` + `docs/skills/ops.md` |
 | Flatpak screenshot gallery (screenshot_flatpaks input, GHCR artifact tags) | `docs/flatpak-screenshots.md` |
 | Submitting improvements, PRs, doc updates | `docs/skills/contributing.md` |
 | Full PR review gate, coverage posture | `QA-REVIEW.md` |

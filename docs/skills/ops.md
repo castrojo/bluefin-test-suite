@@ -174,7 +174,9 @@ UEFI boot also requires:
 - `loader.conf timeout 0` in the ESP to skip interactive boot menu in headless mode
 - `/etc/selinux/config` and systemd service masks written as `/etc` symlinks (survives 3-way merge into new deployment)
 
-Tracked: spike issue #229 verifies the UEFI approach on `ubuntu-latest`. Epic #227.
+**This is now implemented** — see `.github/workflows/migration-test.yml` which handles all of the above (BLS entry patching, loader.conf timeout 0, /etc/selinux/config, service mask symlinks).
+
+**Resolved:** `.github/workflows/migration-test.yml` implements UEFI boot (OVMF pflash). Closed #229, #232. Epic #227.
 
 ## unified_storage lane requires bootc ≥ 1.16
 

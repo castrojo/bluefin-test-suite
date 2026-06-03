@@ -76,22 +76,31 @@ Assert `>= 2`, not `== 2` — after multiple upgrades there can be more than two
 
 ### Invoking migration tests
 
+Migration tests run via `.github/workflows/migration-test.yml` (standalone `workflow_dispatch`):
+
 ```yaml
-uses: projectbluefin/actions/.github/workflows/upgrade-test.yml@v1
-with:
-  image: ghcr.io/ublue-os/bluefin:latest   # start on the legacy source
-  suites: lifecycle
+# Trigger manually from GitHub Actions UI or via gh CLI:
+gh workflow run migration-test.yml \
+  --repo projectbluefin/testsuite \
+  -f source_image=ghcr.io/ublue-os/bluefin:stable \
+  -f target_image=ghcr.io/projectbluefin/bluefin:stable \
+  -f lanes=rechunker,zstd_chunked,unified_storage
 ```
+
+The workflow uses **UEFI boot (OVMF pflash)** — required because `e2e.yml` uses direct kernel boot which cannot pick up the new deployment after `bootc switch` + reboot. See `ops.md` → "Direct kernel boot blocks migration VM reboots".
 
 The VM must start on the `ublue-os` registry image — every scenario has a registry guard step that fails fast if the wrong starting image is used.
 
-### 6 scenarios, 2 storage lanes
+Set `MIGRATION_TARGET` env var to override the default target (`ghcr.io/projectbluefin/bluefin:stable`). Set `MIGRATION_LANE` to one of `rechunker`, `zstd_chunked`, `unified_storage` to run a specific lane.
+
+### 7 scenarios, 3 migration lanes
 
 | Scenario tags | Storage mode | Key assertion |
 |---|---|---|
-| `@switch` | standard bootc | Active ref contains `projectbluefin/bluefin`; digest matches staged |
-| `@switch @rollback` | standard bootc | Rollback returns to original `ublue-os` digest |
-| `@switch @health` | standard bootc | `booted.incompatible` absent; `/etc/os-release` reports Bluefin |
+| `@switch` | standard bootc (rechunker) | Active ref contains `projectbluefin/bluefin`; digest matches staged |
+| `@switch @rollback` | standard bootc (rechunker) | Rollback returns to original `ublue-os` digest |
+| `@switch @health` | standard bootc (rechunker) | `booted.incompatible` absent; `/etc/os-release` reports Bluefin |
+| `@zstd_chunked` | podman pull → containers-storage | `bootc switch --transport containers-storage`; digest matches staged |
 | `@switch @unified_storage` | `--experimental-unified-storage` | `/var/lib/bootc/storage/overlay` present post-reboot |
 | `@switch @unified_storage @rollback` | `--experimental-unified-storage` | Rollback digest matches original `ublue-os` deployment |
 | `@chunkah` | standard bootc | `.status.rollback.image.imageDigest` == original source digest |
@@ -101,11 +110,13 @@ The VM must start on the `ublue-os` registry image — every scenario has a regi
 Migration steps use `MIGRATION_TARGET` env var (default: `ghcr.io/projectbluefin/bluefin:stable`):
 
 ```
-* Switch to migration target                        # 900s timeout — image pull takes 5-15 min
+* Switch to migration target                        # lane-aware: rechunker=remote bootc switch (900s); zstd_chunked=podman pull + containers-storage switch
 * Switch to migration target with unified storage   # 900s + --experimental-unified-storage
 * Check unified storage support and skip if unavailable  # graceful skip on bootc < 1.16
 * Reboot VM and wait for SSH after migration        # 300s deadline (rechunker-group-fix first-boot)
 ```
+
+Set `MIGRATION_LANE` env var to `rechunker` (default), `zstd_chunked`, or `unified_storage` — controls which transport `Switch to migration target` uses.
 
 Do NOT use `Run SSH command: "sudo bootc switch ..."` for migration — the default 60s SSH timeout will fire before the pull completes.
 

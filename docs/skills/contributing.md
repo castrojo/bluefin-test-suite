@@ -139,6 +139,26 @@ Or use the composite action directly for full control over artifact names and fa
 
 For scenarios in the `developer` or `dx` suites, swap `bluefin:latest` for the appropriate DX image.
 
+### Testing migration scenarios
+
+Migration scenarios (`tests/lifecycle/features/migration.feature`) require the UEFI-boot workflow — they cannot run via `e2e.yml` because direct kernel boot prevents VM reboots from picking up the new deployment.
+
+Trigger manually:
+```bash
+gh workflow run migration-test.yml \
+  --repo projectbluefin/testsuite \
+  -f source_image=ghcr.io/ublue-os/bluefin:stable \
+  -f target_image=ghcr.io/projectbluefin/bluefin:stable \
+  -f lanes=rechunker
+```
+
+Or from the Actions UI: **Actions → Migration Test — ublue-os → projectbluefin → Run workflow**.
+
+Each lane runs as a separate job. Artifacts per lane:
+- `migration-results-<lane>` — behave JSON results
+- `migration-screenshot-<lane>` — QEMU framebuffer PNG (visual proof)
+- `migration-serial-log-<lane>` — serial console output (debug)
+
 ## Merging PRs — merge queue required
 
 This repo uses a **merge queue** (ruleset `main — merge queue`, id 17074591). Enqueue with:
