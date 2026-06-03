@@ -89,5 +89,38 @@ RUN printf '#!/bin/sh\nexec "$@"\n' > /usr/local/bin/sudo && \
     chmod +x /usr/local/bin/sudo && \
     ln -sf /usr/local/bin/sudo /usr/bin/sudo
 
+# Patch qecore-headless for container-in-VM operation:
+#
+# 1. Permission Denied on /proc/<gnome-session-pid>/environ: the container
+#    runs with --userns=keep-id (child user namespace) so it cannot read
+#    /proc entries for processes in the VM's initial user namespace even though
+#    both sides use UID 1001.  qecore-headless treats this as a fatal
+#    fail_and_propagate error that causes TestSandbox to terminate all scenarios.
+#    Change it to a non-fatal warning so tests can run.
+#
+# 2. XDG_SESSION_TYPE / XDG_SESSION_DESKTOP are passed via `podman run -e` but
+#    qecore-headless overwrites os.environ from /proc/<pid>/environ and only
+#    preserves a fixed allowlist (ENVIRONMENT_VARIABLES_TO_PRESERVE).  Add both
+#    vars to that list so they survive the env reset even when proc read fails.
+RUN python3 - <<'PYEOF'
+with open('/usr/local/bin/qecore-headless', 'r') as f:
+    src = f.read()
+
+# 1. Make Permission Denied on proc/environ non-fatal
+src = src.replace(
+    "print_fail(f\"Environment file manipulation failed on: '{error}'\", recoverable=False)",
+    "print_fail(f\"Environment file manipulation failed on: '{error}'\")",
+)
+
+# 2. Add XDG session vars to the preserve list
+src = src.replace(
+    'ENVIRONMENT_VARIABLES_TO_PRESERVE = [',
+    'ENVIRONMENT_VARIABLES_TO_PRESERVE = [\n    "XDG_SESSION_TYPE",\n    "XDG_SESSION_DESKTOP",',
+)
+
+with open('/usr/local/bin/qecore-headless', 'w') as f:
+    f.write(src)
+PYEOF
+
 WORKDIR /tests
 ENTRYPOINT ["qecore-headless"]
