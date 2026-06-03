@@ -196,6 +196,19 @@ jobs:
       contents: read
       packages: write
 
+  # ── bluefin lifecycle — ublue-os → projectbluefin migration, zstd:chunked ────
+
+  test-bluefin-lifecycle:
+    name: bluefin:lifecycle (ublue-os→projectbluefin, zstd:chunked)
+    uses: projectbluefin/actions/.github/workflows/upgrade-test.yml@a88ffb30e0c33767cac04ca48bddac94f821a27c # feat/lifecycle-chunked-input
+    with:
+      image: ghcr.io/ublue-os/bluefin:latest
+      suites: lifecycle
+      chunked_enabled: true
+    permissions:
+      contents: read
+      packages: write
+
   persist-results:
     name: persist-results
     needs:
@@ -212,6 +225,7 @@ jobs:
       - test-bazzite-testing
       - test-bazzite
       - test-gnomeos
+      - test-bluefin-lifecycle
     if: always()
     runs-on: ubuntu-latest
     permissions:
