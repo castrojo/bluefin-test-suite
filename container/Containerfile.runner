@@ -32,6 +32,7 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         python3 \
         python3-pip \
         python3-gobject \
+        gobject-introspection \
         at-spi2-core \
         at-spi2-atk \
         atk \
@@ -43,6 +44,7 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         curl \
         util-linux-core \
         openssh-clients \
+        procps-ng \
     && microdnf clean all
 
 # Install Python test stack — pinned so bumps are explicit and reviewed
