@@ -113,8 +113,8 @@ jobs:
 
 | Tag | Image |
 |---|---|
-| `latest` | `ghcr.io/ublue-os/bluefin:latest` |
-| `lts` | `ghcr.io/ublue-os/bluefin:lts` |
+| `latest` | `ghcr.io/projectbluefin/bluefin:latest` |
+| `lts` | `ghcr.io/projectbluefin/bluefin:lts` |
 
 `gts` and `lts-hwe` are invalid for Bluefin.
 
