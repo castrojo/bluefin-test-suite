@@ -1,31 +1,20 @@
-# Manual test trigger — run any suite against any bootc image from the
-# Actions UI. No self-hosted runners required.
-#
-# Supported suites: smoke, developer, dx, software, vanilla-gnome, bazzite, lifecycle
-
 name: Manual Test Run
 
 on:
   workflow_dispatch:
     inputs:
       image:
-        description: "Full OCI image reference (e.g. ghcr.io/ublue-os/bluefin:latest)"
+        description: "Full OCI image reference"
         required: true
         default: "ghcr.io/ublue-os/bluefin:latest"
       suites:
         description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,lifecycle"
         required: true
         default: "smoke"
-      chunked_enabled:
-        description: "Enable @zstd_chunked scenarios in the lifecycle suite"
-        required: false
-        default: "false"
 
 jobs:
   test:
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    uses: ./.github/workflows/e2e.yml
     with:
       image: ${{ github.event.inputs.image }}
       suites: ${{ github.event.inputs.suites }}
-      chunked_enabled: ${{ github.event.inputs.chunked_enabled == 'true' }}
-
