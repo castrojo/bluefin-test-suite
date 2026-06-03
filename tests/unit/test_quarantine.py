@@ -76,6 +76,15 @@ def test_empty_tags_are_not_quarantined():
     assert not scenario.skipped
 
 
+def test_pending_scenario_is_skipped_with_message():
+    """@pending placeholder scenarios are skipped with a clear reason."""
+    scenario = _FakeScenario(tags=["pending", "bazaar"])
+    result = skip_quarantine(scenario)
+    assert result is True
+    assert scenario.skipped
+    assert scenario.skip_message == "@pending — placeholder coverage, skipping"
+
+
 def test_quarantine_tag_mixed_with_others():
     """@quarantine alongside other tags still triggers skip."""
     scenario = _FakeScenario(tags=["smoke", "quarantine", "sla_10s"])

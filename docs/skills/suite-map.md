@@ -14,7 +14,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
-| `software` | — | — | — | — | — | ✅ | — | GNOME Software/Flatpak; gnomeos only — Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software |
+| `software` | — | — | — | — | — | ✅ | — | Quarantined GNOME Software suite for gnomeos plus one `@pending` Bazaar placeholder; Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
 | `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
@@ -74,7 +74,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 - `dakota`: `testing` + `latest`
 
 **Why these assignments:**
-- `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → software suite is gnomeos-only
+- `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → the GNOME Software suite stays quarantined and Bazaar coverage is tracked separately until issue #419 is implemented
 - `bazzite` is not vanilla GNOME → only the bazzite suite runs against it (no vanilla-gnome)
 - `bluefin-nvidia-open` is used because nvidia-open is built daily; nvidia services (`nvidia-persistenced`, `ublue-nvctk-cdi`) are in `IGNORED_FAILED_UNITS_IN_VM` — they always fail in QEMU without a physical GPU
 
@@ -88,17 +88,18 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | `@flatcar_suite` | Flatcar OS only |
 | `@hardware_emulation` | Requires full-hw VM spec (TPM, audio, watchdog) |
 | `@nightly` | Runs nightly; may be slow or destructive |
+| `@pending` | Placeholder coverage gap; intentionally skipped until a valid harness exists |
 | `@future` | Not yet implemented or blocked on infra |
 
 ## Coverage snapshot
 
-262 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 242 active.
+263 scenarios across 31 feature files (last audit: 2026-06-02). 24 quarantined (down from 42), 238 active.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
 | smoke | 81 | 81 | 0 | dogtail 4.16 API correct throughout |
 | developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI |
-| software | 12 | 4 | 8 | 4 navigation/regression/close scenarios need live gnomeos run to verify GNOME 50 AT-SPI names |
+| software | 13 | 0 | 12 | GNOME Software scenarios are quarantined because Bluefin uses Bazaar; one `@pending` Bazaar placeholder tracks issue #419 |
 | common | 32 | 32 | 0 | dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 20 | 20 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default, unified-storage, and zstd:chunked lanes) |
@@ -121,15 +122,13 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | distrobox enter | dx | pulls `fedora:latest`; no pre-pull in CI, times out |
 | JupyterLab | dx | not preinstalled in DX image |
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
-| software navigation (Explore/Installed tabs) | software | GNOME 50 AT-SPI element names in gnome-software changed; needs live gnomeos run |
-| software regressions (×2) | software | same |
-| software close | software | same |
-| software flatpak CLI (×2) | software | same |
+| software GNOME Software scenarios (×12) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
 
 ## Known coverage gaps
 
 | Area | Priority | Status | Notes |
 |---|---|---|---|
+| Bazaar / Flatpak management on Bluefin | High | Open | `@pending` placeholder exists; current `common` suite is SSH-only with no GNOME session (issue #419) |
 | Flatpak permission management | Low | Open | Flatseal / per-app permissions not exercised |
 | OOBE / first-boot | Low | Open | Initial user setup flow not covered |
 
