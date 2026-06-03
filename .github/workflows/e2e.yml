@@ -479,35 +479,6 @@ jobs:
           $SSH "journalctl -u gdm --no-pager -n 50" 2>/dev/null || true
           exit 1
 
-      - name: Enable GNOME Shell unsafe mode
-        if: ${{ env.SUITE != 'common' }}
-        run: |
-          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
-          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
-
-          # Grant bluefin-test permission to call SetUnsafeMode without interactive auth.
-          # Covers both the hyphenated and camelCase action IDs seen across GNOME versions.
-          printf '%s\n' \
-            'polkit.addRule(function(action, subject) {' \
-            '    if ((action.id === "org.gnome.shell.unsafe-mode" ||' \
-            '         action.id === "org.gnome.Shell.UnsafeMode") &&' \
-            '        subject.local === true) {' \
-            '        return polkit.Result.YES;' \
-            '    }' \
-            '});' \
-          | $SSH "sudo tee /etc/polkit-1/rules.d/10-e2e-unsafe-mode.rules > /dev/null"
-
-          $SSH "
-            source /tmp/session.env
-            gdbus call --session \
-              --dest org.gnome.Shell \
-              --object-path /org/gnome/Shell \
-              --method org.gnome.Shell.SetUnsafeMode \
-              true \
-            && echo 'GNOME Shell unsafe_mode enabled via SetUnsafeMode' \
-            || echo 'WARNING: SetUnsafeMode failed — screenshot calls may be denied'
-          "
-
       - name: Load runner container into VM
         if: ${{ env.SUITE != 'common' }}
         run: |
@@ -553,6 +524,31 @@ jobs:
               \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${SESSION_BUS}\" \"\$HOME/.local/bin:\$PATH\" \
               > /tmp/session.env
             cat /tmp/session.env
+          "
+
+          # Write a polkit rule that grants bluefin-test permission to call
+          # SetUnsafeMode without interactive auth, then enable unsafe_mode.
+          # This must run after session.env is created so DBUS_SESSION_BUS_ADDRESS
+          # is the correct GDM-started session bus (not the systemd user socket).
+          printf '%s\n' \
+            'polkit.addRule(function(action, subject) {' \
+            '    if ((action.id === "org.gnome.shell.unsafe-mode" ||' \
+            '         action.id === "org.gnome.Shell.UnsafeMode") &&' \
+            '        subject.local === true) {' \
+            '        return polkit.Result.YES;' \
+            '    }' \
+            '});' \
+          | $SSH "sudo tee /etc/polkit-1/rules.d/10-e2e-unsafe-mode.rules > /dev/null"
+
+          $SSH "
+            source /tmp/session.env
+            gdbus call --session \
+              --dest org.gnome.Shell \
+              --object-path /org/gnome/Shell \
+              --method org.gnome.Shell.SetUnsafeMode \
+              true \
+            && echo 'GNOME Shell unsafe_mode enabled via SetUnsafeMode' \
+            || echo 'WARNING: SetUnsafeMode failed — screenshot calls may be denied'
           "
 
       - name: Install gnome-ponytail-daemon
