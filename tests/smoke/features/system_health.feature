@@ -32,7 +32,11 @@ Feature: System health smoke checks
     * ujust is on PATH and returns exit 0
     * ujust --list prints at least one task
 
-  @system_health @ujust @ujust_report
+  # ujust report --confirm is not yet implemented in any current image variant.
+  # The skip logic misdetects the "wrong argument count" error from just as a
+  # missing-recipe skip, causing false failures. Re-enable when --confirm mode lands.
+  # See: https://github.com/projectbluefin/bluefin/issues/240
+  @system_health @ujust @ujust_report @quarantine
   Scenario: ujust report confirm validation rejects invalid inputs
     * ujust is on PATH and returns exit 0
     * ujust report --confirm rejects non-integer issue number
