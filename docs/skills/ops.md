@@ -215,13 +215,20 @@ Go to [projectbluefin/actions → Actions → bootc Upgrade and Rollback Test �
 
 ## manual.yml startup_failure (same-repo reusable workflow bug)
 
-**Symptom:** `manual.yml` workflow_dispatch runs always fail immediately with `startup_failure`. No jobs start. No log available.
+**Symptom:** `manual.yml` workflow_dispatch runs fail immediately with `startup_failure`. No jobs start.
 
-**Cause:** GitHub Actions returns `startup_failure` when a `workflow_dispatch` workflow calls a reusable workflow in the **same repository** via either `uses: ./.github/workflows/e2e.yml` or `uses: projectbluefin/testsuite/.github/workflows/e2e.yml@ref`. Cross-repo reusable workflow calls (like `nightly.yml → upgrade-test.yml → e2e.yml`) work fine.
+**Cause:** GitHub Actions returns `startup_failure` when a `workflow_dispatch` workflow calls a same-repo reusable workflow with an **explicit ref**: `uses: ./.github/workflows/e2e.yml@main` or `uses: ./.github/workflows/e2e.yml@<sha>`. A bare local-ref call works fine.
 
-**Workaround:** Use `upgrade-test.yml` in `projectbluefin/actions` for manual lifecycle runs — it calls `e2e.yml` cross-repo and has `workflow_dispatch` support.
+**Fix (PR #245):** Use the bare local path — no `@ref`:
+```yaml
+uses: ./.github/workflows/e2e.yml    # works
+# NOT:
+# uses: ./.github/workflows/e2e.yml@main   # startup_failure
+```
 
-**Do not attempt to fix** `manual.yml` by changing the ref format or adding `permissions:`. The failure is a GitHub platform limitation with same-repo reusable workflow calls from `workflow_dispatch`.
+Cross-repo reusable workflow calls (`projectbluefin/testsuite/.github/workflows/e2e.yml@<sha>`) always work — that is how `nightly.yml → upgrade-test.yml → e2e.yml` runs.
+
+**For lifecycle manual runs:** dispatch `upgrade-test.yml` in `projectbluefin/actions` — it calls `e2e.yml` cross-repo which supports `workflow_dispatch` with all lifecycle inputs.
 
 ---
 
@@ -236,3 +243,110 @@ gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
 The screenshot is saved to `results/screenshot_lifecycle_upgrade_final.png` and promoted to the `desktop-screenshot` workflow artifact. The step uses `ControlMaster=no` because the VM may have rebooted during the lifecycle suite, invalidating any existing SSH multiplex socket.
 
 The step waits up to 60 s for the Wayland socket (`/run/user/1001/wayland-0`) before attempting the screenshot.
+
+---
+
+## Python 3.14: sys.executable is empty in --pid=host containers
+
+**Symptom:** All behave scenarios fail with `PermissionError: [Errno 13] Permission denied: ''` at `behave_retry.py` line ~134. The traceback ends at `subprocess.run(['', '-m', 'behave', ...])`.
+
+**Cause:** Python 3.14 sets `sys.executable = ''` inside podman containers launched with `--pid=host`. `behave_retry.py` previously used `sys.executable` directly to re-invoke behave. An empty string causes subprocess to try to open a file named `''`, which fails with EACCES.
+
+**Fix (in `tests/shared/behave_retry.py`):** `_find_python()` function probes `sys.executable`, then `shutil.which("python3")`, then known absolute paths. Always resolves to a real interpreter before invoking behave as a subprocess.
+
+**Containerfile does not need to change** — this is a Python runtime issue. The fix is entirely in `behave_retry.py`.
+
+## gobject-introspection and procps-ng required in Containerfile.runner
+
+**Symptom (gobject-introspection):** Runner container load succeeds but behave immediately crashes:
+```
+gi.RepositoryError: Typelib file for namespace 'xlib', version '2.0' not found
+```
+
+**Cause:** Fedora 44 / `fedora-minimal` with `--setopt=install_weak_deps=0` does NOT install `gobject-introspection` as a weak dep of `python3-gobject`, even though it owns `/usr/lib64/girepository-1.0/xlib-2.0.typelib` (and many others). This typelib is required by dogtail/qecore at import time.
+
+**Fix:** Explicitly add `gobject-introspection` to the `microdnf install` block in `container/Containerfile.runner`.
+
+---
+
+**Symptom (procps-ng):** `qecore-headless` wrapper exits immediately with:
+```
+bash: pgrep: command not found
+```
+
+**Cause:** `procps-ng` provides `pgrep`/`pkill`. `fedora-minimal` + `install_weak_deps=0` does not include it.
+
+**Fix:** Explicitly add `procps-ng` to the `microdnf install` block.
+
+After changing `Containerfile.runner`, dispatch the `build-runner.yml` workflow to rebuild and push the runner image before dispatching any test run that uses it.
+
+## XDG_SESSION_TYPE and XDG_SESSION_DESKTOP must be forwarded to runner container
+
+**Symptom:** behave starts but qecore raises `KeyError('XDG_SESSION_TYPE')` or sets `XDG_SESSION_TYPE=__unavailable__`, causing all AT-SPI calls to fail silently.
+
+**Cause:** qecore-headless tries to read `XDG_SESSION_TYPE` and `XDG_SESSION_DESKTOP` from `/proc/<gnome-session-pid>/environ`. Inside `--pid=host` containers the proc read fails (permission denied), so qecore falls back to `__unavailable__` — a mode that bypasses all GNOME session setup.
+
+**Fix (in e2e.yml):** Two places must be updated:
+1. When writing `session.env`, add:
+   ```bash
+   printf 'export XDG_SESSION_TYPE=wayland\nexport XDG_SESSION_DESKTOP=gnome\n' >> /tmp/session.env
+   ```
+2. When invoking `podman run`, pass:
+   ```bash
+   -e XDG_SESSION_TYPE=wayland \
+   -e XDG_SESSION_DESKTOP=gnome \
+   ```
+
+Both are required — `session.env` is sourced for the qecore boot path; `-e` flags cover any direct env lookup before sourcing.
+
+## environment.py: guard before_scenario and after_scenario for failed_setup
+
+**Symptom:** If `before_all` fails (e.g. `TestSandbox` init raises), all scenarios crash with `AttributeError: 'Context' object has no attribute 'sandbox'`, and each crash appears as a test failure rather than a setup skip.
+
+**Cause:** `before_scenario` calls `context.sandbox.before_scenario(...)` unconditionally; `after_scenario` calls `context.sandbox.after_scenario(...)` unconditionally. If `before_all` raised before assigning `context.sandbox`, both hooks fail for every scenario.
+
+**Fix pattern** (applies to every suite's `environment.py`):
+
+```python
+def before_scenario(context, scenario) -> None:
+    from tests.shared.quarantine import skip_quarantine
+    if skip_quarantine(scenario):
+        return
+    if hasattr(context, 'failed_setup'):          # GUARD: skip if before_all failed
+        context.scenario.skip(reason=context.failed_setup)
+        return
+    ...
+
+def after_scenario(context, scenario) -> None:
+    record_end(context, scenario)
+    if scenario.status.name in ('passed', 'failed'):
+        ...
+    if hasattr(context, 'sandbox'):               # GUARD: sandbox may not exist
+        context.sandbox.after_scenario(context, scenario)
+```
+
+All current suites (smoke, developer, software, dx, bazzite, lifecycle) must have both guards. Verify with:
+```bash
+grep -L "failed_setup" tests/*/features/environment.py
+```
+
+## test_ref and github.ref_name in workflow_call vs workflow_dispatch
+
+**Symptom:** Tests always run from `main` even when dispatching `manual.yml` from a feature branch. The `test_ref` input shows `main` in the run inputs despite the branch being something else.
+
+**Cause:** `github.ref_name` inside a `workflow_call` reusable workflow resolves to the **default branch** (`main`), not the caller's branch. This is a GitHub Actions platform behavior.
+
+**Fix:** Set `test_ref` in `manual.yml` (the `workflow_dispatch` side), where `github.ref_name` DOES correctly reflect the dispatched branch:
+
+```yaml
+# manual.yml
+jobs:
+  test:
+    uses: ./.github/workflows/e2e.yml
+    with:
+      test_ref: ${{ github.event.inputs.test_ref || github.ref_name }}
+```
+
+The fallback chain is: user-supplied override → dispatched branch name → (never) empty. The old `|| 'main'` fallback was wrong and caused all dispatch runs to pull tests from main.
+
+**Rule:** Never use `github.ref_name` as a test-checkout ref inside `e2e.yml` itself — it always gives `main` there. Pass `test_ref` through from the caller.
