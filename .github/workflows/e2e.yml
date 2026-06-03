@@ -551,15 +551,15 @@ jobs:
             || echo 'WARNING: SetUnsafeMode not available — will rely on grim for screenshots'
           "
 
-          # Introspect GNOME Shell D-Bus interface for debugging screenshot APIs.
+          # Introspect GNOME Shell D-Bus interfaces to identify available screenshot APIs.
           $SSH "
             source /tmp/session.env
-            echo '=== GNOME Shell D-Bus methods ==='
+            echo '=== org.gnome.Shell methods ==='
             gdbus introspect --session --dest org.gnome.Shell \
-              --object-path /org/gnome/Shell 2>&1 | grep -E 'method|signal|property|interface' | head -40
-            echo '=== Screenshot interface ==='
+              --object-path /org/gnome/Shell 2>&1 | head -60
+            echo '=== org.gnome.Shell.Screenshot methods ==='
             gdbus introspect --session --dest org.gnome.Shell \
-              --object-path /org/gnome/Shell/Screenshot 2>&1 | grep -E 'method|signal|property|interface' | head -20
+              --object-path /org/gnome/Shell/Screenshot 2>&1 | head -40
           " || true
 
           # Install grim for Wayland screenshots via wlr-screencopy.
