@@ -102,6 +102,7 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Active deployment matches upgrade target digest
     * Active image reference contains "projectbluefin/bluefin"
     * Unified storage overlay directory is present on the VM
+    * Run SSH command: "sudo bootc status --format=json"
     * bootc status shows deployment is compatible
 
   @migration @switch @unified_storage @rollback
@@ -170,5 +171,6 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Active deployment matches upgrade target digest
     * Active image reference contains "projectbluefin/bluefin"
     * Unified storage overlay directory is present on the VM
+    * Run SSH command: "sudo bootc status --format=json"
     * bootc status shows deployment is compatible
     * Active image layers use zstd:chunked compression
