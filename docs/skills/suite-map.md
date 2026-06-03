@@ -28,10 +28,15 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
 with:
   image: <your-bootc-image>
-  suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software, common
+  suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software, common, lifecycle
 ```
-GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`) run on `ubuntu-latest`.
-SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA action (epics #43/#44).
+GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
+`security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
+
+**Migration test** (ublue-os → projectbluefin, manually triggered):
+Go to **Actions → Migration Test — ublue-os → projectbluefin** → Run workflow.
+Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
+Or invoke via `e2e.yml` with `suites: lifecycle` and `chunked_enabled: true/false`.
 
 ## Nightly CI job matrix
 
@@ -81,7 +86,7 @@ The `nightly.yml` workflow runs 13 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-261 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 241 active.
+262 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 242 active.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
@@ -90,7 +95,7 @@ The `nightly.yml` workflow runs 13 named jobs (plus `persist-results`). Each job
 | software | 12 | 4 | 8 | 4 navigation/regression/close scenarios need live gnomeos run to verify GNOME 50 AT-SPI names |
 | common | 32 | 32 | 0 | dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 19 | 19 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default + unified-storage lanes) |
+| lifecycle | 20 | 20 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default, unified-storage, and zstd:chunked lanes) |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
 | security/image_provenance | 10 | 10 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |

@@ -33,6 +33,13 @@ on:
         description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
         type: boolean
         default: false
+      chunked_enabled:
+        description: >
+          Enable @zstd_chunked scenarios in the lifecycle suite.
+          Set to true once projectbluefin/bluefin ships with zstd:chunked layer
+          compression. Defaults to false so CI stays green until the image is ready.
+        type: boolean
+        default: false
       screenshot_flatpaks:
         description: >
           Comma-separated Flatpak app IDs to launch-and-screenshot after the test run.
@@ -572,19 +579,21 @@ jobs:
           BEHAVE_RETRIES: 2
           SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
           TARGET_IMAGE: ${{ inputs.target-image }}
+          ZSTD_CHUNKED: ${{ inputs.chunked_enabled && 'true' || 'false' }}
         run: |
           mkdir -p results
           BEHAVE_RC=0
           BEHAVE_TAG_ARGS="--tags ~quarantine"
           [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ~native_app"
 
-          if [[ "${SUITE}" == "common" ]]; then
+          if [[ "${SUITE}" == "common" || "${SUITE}" == "lifecycle" ]]; then
             python3 -m pip install -q --user behave
             PYTHONPATH="$(pwd)" \
             VM_IP=127.0.0.1 \
             VM_USER=bluefin-test \
             SSH_KEY=/tmp/vm_key \
             SSH_PORT=2222 \
+            ZSTD_CHUNKED="${ZSTD_CHUNKED}" \
             python3 tests/shared/behave_retry.py tests/${SUITE}/features/ \
               --format json.pretty --outfile results/results.json \
               --no-capture ${BEHAVE_TAG_ARGS} || BEHAVE_RC=$?
@@ -638,7 +647,50 @@ jobs:
 
           echo "behave_rc=${BEHAVE_RC}" >> "$GITHUB_OUTPUT"
 
-      - name: Screenshot requested Flatpaks
+      - name: Capture post-upgrade desktop screenshot
+        if: always() && env.SUITE == 'lifecycle'
+        continue-on-error: true
+        run: |
+          # Use a fresh connection without ControlMaster — the VM may have rebooted
+          # during the lifecycle suite, invalidating any existing SSH multiplex socket.
+          SSH_CLEAN="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=no -o ConnectTimeout=30"
+          SSH="ssh ${SSH_CLEAN} -p 2222 bluefin-test@127.0.0.1"
+          SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlMaster=no -P 2222"
+          mkdir -p results
+
+          # Wait up to 60 s for the GNOME Wayland socket — the session may still be
+          # starting after the last upgrade reboot in the lifecycle suite.
+          DEADLINE=$((SECONDS + 60))
+          while [ $SECONDS -lt $DEADLINE ]; do
+            if $SSH "test -S /run/user/1001/wayland-0" 2>/dev/null; then
+              echo "GNOME session ready for screenshot"
+              break
+            fi
+            sleep 3
+          done
+
+          $SSH "
+            XDG=/run/user/1001
+            SESSION_BUS=\$(systemctl --user show-environment 2>/dev/null \
+              | grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 | cut -d= -f2-)
+            [[ -z \"\${SESSION_BUS}\" ]] && SESSION_BUS=\"unix:path=\${XDG}/bus\"
+            # Full-screen screenshot via GNOME Shell Eval — same mechanism as
+            # tests/shared/screenshot.py but invoked over plain SSH.
+            DBUS_SESSION_BUS_ADDRESS=\"\${SESSION_BUS}\" \
+            XDG_RUNTIME_DIR=\"\${XDG}\" \
+            gdbus call --session \
+              --dest org.gnome.Shell \
+              --object-path /org/gnome/Shell \
+              --method org.gnome.Shell.Eval \
+              \"const Shell = imports.gi.Shell; const s = new Shell.Screenshot(); s.screenshot(false, false, '/tmp/upgrade_screenshot.png', () => {}); 'ok'\" \
+            && sleep 4
+          " || echo "WARNING: gdbus screenshot call failed — screenshot may be missing"
+
+          ${SCP} "bluefin-test@127.0.0.1:/tmp/upgrade_screenshot.png" \
+            results/screenshot_lifecycle_upgrade_final.png 2>/dev/null \
+            || echo "WARNING: could not retrieve screenshot from VM"
+
+
         if: always() && inputs.screenshot_flatpaks != '' && env.SUITE != 'common'
         continue-on-error: true
         env:
@@ -688,9 +740,10 @@ jobs:
         if: always()
         id: desktop-screenshot
         run: |
-          # Every GUI suite's after_all takes a fastfetch screenshot; find it
-          # under results/ regardless of exact filename timestamp fragments.
-          SHOT=$(find results/ -name "screenshot_*fastfetch*.png" 2>/dev/null | head -1)
+          # GUI suites produce a fastfetch screenshot in after_all; the lifecycle
+          # suite produces a post-upgrade screenshot named screenshot_*upgrade*.png.
+          # Find whichever is present.
+          SHOT=$(find results/ \( -name "screenshot_*fastfetch*.png" -o -name "screenshot_*upgrade*.png" \) 2>/dev/null | head -1)
           if [[ -n "$SHOT" ]]; then
             cp "$SHOT" desktop-screenshot.png
             echo "found=true" >> "$GITHUB_OUTPUT"
