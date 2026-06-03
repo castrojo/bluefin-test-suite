@@ -291,6 +291,9 @@ def before_scenario(context, scenario) -> None:
             print(f"Skipping {scenario.name}: no Wi-Fi interface detected", flush=True)
             return
 
+    if hasattr(context, 'failed_setup'):
+        context.scenario.skip(reason=context.failed_setup)
+        return
     context.scenario = scenario
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
     record_start(context)
@@ -312,6 +315,13 @@ def before_scenario(context, scenario) -> None:
         return
     try:
         sandbox.before_scenario(context, scenario)
+    except SystemExit:
+        # qecore-headless detected unrecoverable AT-SPI errors (e.g. GNOME 50
+        # removed SetUnsafeMode).  Mark setup as failed so all remaining
+        # scenarios are skipped and after_scenario doesn't call the broken sandbox.
+        context.failed_setup = "qecore-headless startup failed: unrecoverable headless errors"
+        context.scenario.skip(reason=context.failed_setup)
+        return
     except Exception:
         tb = traceback.format_exc()
         print(f"HOOK_ERROR in before_scenario:\n{tb}", flush=True)
@@ -319,13 +329,18 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, scenario) -> None:
+    if hasattr(context, 'failed_setup'):
+        return
     record_end(context, scenario)
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
     sandbox = getattr(context, "sandbox", None)
     if sandbox is not None:
-        sandbox.after_scenario(context, scenario)
+        try:
+            sandbox.after_scenario(context, scenario)
+        except (RuntimeError, SystemExit) as e:
+            print(f"WARNING: sandbox.after_scenario failed: {e}", flush=True)
 
 
 def after_step(context, step) -> None:
@@ -347,6 +362,8 @@ def after_step(context, step) -> None:
 
 def after_all(context) -> None:
     """Take a fastfetch desktop screenshot, then dump gnome-shell AT-SPI tree."""
+    if hasattr(context, 'failed_setup'):
+        return
     configure_screenshot_context(context, SUITE_NAME, "end_of_run")
     take_fastfetch_screenshot()
 
