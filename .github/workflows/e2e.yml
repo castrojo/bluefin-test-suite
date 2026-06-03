@@ -20,6 +20,11 @@ on:
         description: "OCI image to test"
         type: string
         default: "ghcr.io/projectbluefin/dakota:latest"
+      target-image:
+        description: "Full OCI ref to upgrade TO (optional). When set and lifecycle suite is running, stages this image via bootc switch before the test suite."
+        type: string
+        default: ""
+        required: false
       suites:
         description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common"
         type: string
@@ -430,6 +435,14 @@ jobs:
           grep -i "dbus\|broker\|ostree-system\|composefs\|FAILED\|Error" "$(pwd)/vm-serial.log" 2>/dev/null | tail -40 || echo "(none found)"
           exit 1
 
+      - name: Pre-stage target image via bootc switch
+        if: ${{ inputs.target-image != '' && contains(inputs.suites, 'lifecycle') && env.SUITE == 'lifecycle' }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          echo "Pre-staging target image ${{ inputs.target-image }} via bootc switch..."
+          timeout 900 ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 \
+            "sudo bootc switch '${{ inputs.target-image }}'"
+
       - name: Dump VM serial log
         if: always()
         run: |
@@ -552,6 +565,7 @@ jobs:
         env:
           BEHAVE_RETRIES: 2
           SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
+          TARGET_IMAGE: ${{ inputs.target-image }}
         run: |
           mkdir -p results
           BEHAVE_RC=0
@@ -607,6 +621,7 @@ jobs:
                 -e SSH_KEY=/home/bluefin-test/.ssh/id_ed25519 \
                 -e SSH_PORT=22 \
                 -e BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \
+                -e TARGET_IMAGE=\"${TARGET_IMAGE}\" \
                 -e PYTHONPATH=/tmp/bluefin-tests \
                 ghcr.io/projectbluefin/testsuite:runner \
                 \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}\"
