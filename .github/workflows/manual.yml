@@ -1,9 +1,7 @@
-# Manual test trigger — run any GUI suite against any bootc image from the
+# Manual test trigger — run any suite against any bootc image from the
 # Actions UI. No self-hosted runners required.
 #
-# Supported suites: smoke, developer, dx, software, vanilla-gnome, bazzite
-# SSH-mode suites (lifecycle, security, hardware) are not yet in the GHA
-# action — tracked in epics #43 and #44.
+# Supported suites: smoke, developer, dx, software, vanilla-gnome, bazzite, lifecycle
 
 name: Manual Test Run
 
@@ -15,9 +13,13 @@ on:
         required: true
         default: "ghcr.io/ublue-os/bluefin:latest"
       suites:
-        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite"
+        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,lifecycle"
         required: true
         default: "smoke"
+      chunked_enabled:
+        description: "Enable @zstd_chunked scenarios in the lifecycle suite"
+        required: false
+        default: "false"
 
 jobs:
   test:
@@ -25,3 +27,5 @@ jobs:
     with:
       image: ${{ github.event.inputs.image }}
       suites: ${{ github.event.inputs.suites }}
+      chunked_enabled: ${{ github.event.inputs.chunked_enabled == 'true' }}
+
