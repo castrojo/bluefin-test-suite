@@ -566,17 +566,17 @@ jobs:
           # session.  Setting toolkit-accessibility here (directly in the GDM session)
           # causes GTK4 apps to register with at-spi2-registryd when they start, so
           # dogtail/pyatspi2 can enumerate them in the AT-SPI tree.
+          # Also kill any gnome-control-center daemon that started before toolkit-
+          # accessibility was set — it would never register with AT-SPI.  The Settings
+          # test will launch a fresh instance via `gio launch` which registers correctly.
           $SSH "
             source /tmp/session.env
             gsettings set org.gnome.desktop.interface toolkit-accessibility true \
               && echo 'AT-SPI toolkit-accessibility enabled' \
               || echo 'WARNING: toolkit-accessibility not set (gsettings failed)'
+            pkill -f gnome-control-center 2>/dev/null || true
+            echo 'gnome-control-center daemon terminated (will relaunch via gio launch)'
           "
-
-          # Kill any gnome-control-center daemon that started before toolkit-accessibility
-          # was set — it would never register with AT-SPI.  The Settings test will launch
-          # a fresh instance via `gio launch` which will register correctly.
-          $SSH "pkill -f gnome-control-center 2>/dev/null || true"
 
           # Introspect GNOME Shell D-Bus interfaces to identify available screenshot APIs.
           $SSH "
