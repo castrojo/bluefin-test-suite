@@ -326,6 +326,12 @@ def before_scenario(context, scenario) -> None:
         context.failed_setup = "qecore-headless startup failed: unrecoverable headless errors"
         context.scenario.skip(reason=context.failed_setup)
         return
+    except RuntimeError as e:
+        # sandbox.before_scenario calls overview_action("hide") which needs ponytail
+        # (dogtail window_id lookup).  In a container without a live
+        # gnome-ponytail-daemon connection this raises RuntimeError.  Log and
+        # continue — steps that genuinely need ponytail will fail individually.
+        print(f"WARNING: sandbox.before_scenario RuntimeError (ponytail unavailable): {e}", flush=True)
     except Exception:
         tb = traceback.format_exc()
         print(f"HOOK_ERROR in before_scenario:\n{tb}", flush=True)

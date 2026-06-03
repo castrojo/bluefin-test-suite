@@ -163,18 +163,8 @@ with open('/usr/local/bin/qecore-headless', 'w') as f:
     f.write(src)
 PYEOF
 
-# Patch qecore sandbox.py for container operation:
-#
-# 1. headless errors: sandbox.py TestSandbox.__init__ sets context.headless_errors
-#    when the JSON written by qecore-headless contains any fail_and_propagate=True entry.
-#    before_scenario then calls sys.exit(1), causing ALL scenarios to skip.
-#    We already made all qecore-headless print_fail calls recoverable, but also patch
-#    sandbox.py to never assign context.headless_errors as belt-and-suspenders.
-#
-# 2. ponytail RuntimeError: sandbox.before_scenario raises RuntimeError when ponytail
-#    fails to connect.  In a container without a live gnome-ponytail-daemon, ponytail
-#    init always fails, making every scenario a hook_error.  Suppress the raise so
-#    tests that don't need ponytail (SSH-based, AT-SPI-only) can still run.
+# Patch qecore sandbox.py: prevent context.headless_errors assignment so
+# headless startup errors don't cause sys.exit(1) in before_scenario.
 RUN python3 - <<'SANDBOXEOF'
 import re, site, os
 
@@ -184,21 +174,42 @@ for p in site.getsitepackages():
         continue
     with open(path) as f:
         src = f.read()
-    # Patch 1: headless errors non-fatal
     src = src.replace(
         'context.headless_errors = headless_errors',
         'pass  # patched: headless errors non-fatal in container',
-    )
-    # Patch 2: ponytail RuntimeError non-fatal
-    src = src.replace(
-        'raise RuntimeError(self.error_message)',
-        'print(f"WARNING: suppressed ponytail RuntimeError: {self.error_message}", flush=True)',
     )
     with open(path, 'w') as f:
         f.write(src)
     print(f"Patched {path}")
     break
 SANDBOXEOF
+
+# Patch dogtail ponytail_helper so get_ponytail_interface() returns None instead
+# of raising RuntimeError when gnome-ponytail-daemon is unavailable.
+# sandbox.before_scenario calls overview_action("hide") → click() → window_id →
+# ponytail_helper.get_ponytail_interface() → RuntimeError, turning every scenario
+# into a hook_error.  Returning None lets dogtail fall back to AT-SPI actions.
+RUN python3 - <<'PONYTAILEOF'
+import site, os
+
+for p in site.getsitepackages():
+    path = os.path.join(p, 'dogtail', 'ponytail_helper.py')
+    if not os.path.exists(path):
+        continue
+    with open(path) as f:
+        src = f.read()
+    patched = src.replace(
+        'raise RuntimeError(self.error_message)',
+        'print(f"WARNING: ponytail unavailable: {self.error_message}", flush=True); return None',
+    )
+    if patched == src:
+        print(f"WARNING: ponytail_helper.py patch string not found in {path}")
+    else:
+        with open(path, 'w') as f:
+            f.write(patched)
+        print(f"Patched {path}")
+    break
+PONYTAILEOF
 
 # Create dummy desktop files so qecore's get_application() desktop-file lookup
 # succeeds in the container (which lacks /usr/share/applications/).
