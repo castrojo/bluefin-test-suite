@@ -573,6 +573,11 @@ jobs:
               || echo 'WARNING: toolkit-accessibility not set (gsettings failed)'
           "
 
+          # Kill any gnome-control-center daemon that started before toolkit-accessibility
+          # was set — it would never register with AT-SPI.  The Settings test will launch
+          # a fresh instance via `gio launch` which will register correctly.
+          $SSH "pkill -f gnome-control-center 2>/dev/null || true"
+
           # Introspect GNOME Shell D-Bus interfaces to identify available screenshot APIs.
           $SSH "
             source /tmp/session.env

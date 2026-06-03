@@ -26,8 +26,12 @@ def _skip_if_no_atspi(context) -> bool:
 
 SETTINGS_APP_NAMES = ("gnome-control-center", "Settings")
 SETTINGS_LAUNCH_TARGETS = (
-    ("command", "gnome-control-center"),
+    # Desktop entry first: `gio launch` goes through D-Bus activation which
+    # properly registers the app with AT-SPI. The direct command fallback works
+    # as a last resort but the running daemon may have started before
+    # toolkit-accessibility was set and therefore won't appear in the AT-SPI tree.
     ("desktop", "org.gnome.Settings.desktop"),
+    ("command", "gnome-control-center"),
 )
 TEXT_ROLES = {"heading", "label", "static", "text", "description", "paragraph"}
 INFO_TOKENS = ("bluefin", "fedora", "linux", "version", "os")
@@ -59,6 +63,18 @@ def _settings_window():
 def launch_settings_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
+    # Kill any pre-running daemon — it may have started before toolkit-accessibility
+    # was enabled and therefore won't be registered with AT-SPI. The fresh launch
+    # via gio will start a new instance that properly registers.
+    from app_support import _IN_CONTAINER, _ssh_run
+    if _IN_CONTAINER:
+        _ssh_run("pkill -f gnome-control-center 2>/dev/null; sleep 0.5 || true", timeout=5)
+    else:
+        subprocess.run(
+            ["pkill", "-f", "gnome-control-center"],
+            capture_output=True, text=True,
+        )
+        sleep(0.5)
     context.settings_launch_target = launch_background(SETTINGS_LAUNCH_TARGETS)
     sleep(1)
 

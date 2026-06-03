@@ -67,18 +67,23 @@ def _shell_eval(js: str) -> str:
     you need to check a JS boolean result — do NOT use ``'true' in out`` on
     the raw string because gdbus always includes the success flag ``true`` as
     the first tuple element even when the JS result is ``false``.
+
+    Routes via SSH when running inside the runner container — the container
+    cannot connect to the VM's systemd user session bus directly.
     """
-    import subprocess
-    r = subprocess.run(
-        ['gdbus', 'call', '--session',
-         '--dest', 'org.gnome.Shell',
-         '--object-path', '/org/gnome/Shell',
-         '--method', 'org.gnome.Shell.Eval',
-         js],
-        capture_output=True, text=True, timeout=5,
+    import shlex
+    cmd = (
+        "source /tmp/session.env 2>/dev/null; "
+        "gdbus call --session "
+        "--dest org.gnome.Shell "
+        "--object-path /org/gnome/Shell "
+        "--method org.gnome.Shell.Eval "
+        + shlex.quote(js)
     )
-    print(f"Shell.Eval({js!r}) → {r.stdout.strip()}", flush=True)
-    return r.stdout
+    stdout, rc, stderr = _run_host(cmd)
+    assert rc == 0, f"Shell.Eval({js!r}) failed (rc={rc}): {stderr}"
+    print(f"Shell.Eval({js!r}) → {stdout}", flush=True)
+    return stdout
 
 
 def _eval_bool(js: str) -> bool:
@@ -115,37 +120,28 @@ def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.
 
 
 def _gsettings_set_bool(schema: str, key: str, value: bool) -> None:
-    result = subprocess.run(
-        ["gsettings", "set", schema, key, "true" if value else "false"],
-        capture_output=True,
-        text=True,
-        timeout=10,
+    val = "true" if value else "false"
+    stdout, rc, stderr = _run_host(
+        f"source /tmp/session.env 2>/dev/null; gsettings set {schema} {key} {val}"
     )
-    assert result.returncode == 0, (
-        f"gsettings set {schema} {key} failed: rc={result.returncode}\n"
-        f"stdout: {result.stdout}\n"
-        f"stderr: {result.stderr}"
+    assert rc == 0, (
+        f"gsettings set {schema} {key} failed: rc={rc}\n{stderr}"
     )
 
 
 def _gsettings_get_bool(schema: str, key: str) -> bool:
-    result = subprocess.run(
-        ["gsettings", "get", schema, key],
-        capture_output=True,
-        text=True,
-        timeout=10,
+    stdout, rc, stderr = _run_host(
+        f"source /tmp/session.env 2>/dev/null; gsettings get {schema} {key}"
     )
-    assert result.returncode == 0, (
-        f"gsettings get {schema} {key} failed: rc={result.returncode}\n"
-        f"stdout: {result.stdout}\n"
-        f"stderr: {result.stderr}"
+    assert rc == 0, (
+        f"gsettings get {schema} {key} failed: rc={rc}\n{stderr}"
     )
-    value = result.stdout.strip().lower()
+    value = stdout.strip().lower()
     if value == "true":
         return True
     if value == "false":
         return False
-    raise AssertionError(f"Unexpected gsettings value for {schema} {key}: {result.stdout!r}")
+    raise AssertionError(f"Unexpected gsettings value for {schema} {key}: {stdout!r}")
 
 
 def _set_dnd_enabled(expected: bool) -> None:
@@ -347,89 +343,59 @@ def set_overview_search_eval(context, text) -> None:
 @step("Lock screen via Shell.Eval")
 def lock_screen_via_shell_eval(context) -> None:
     """Lock the GNOME session via gdbus ScreenSaver D-Bus call."""
-    result = subprocess.run(
-        [
-            "gdbus", "call", "--session",
-            "--dest", "org.gnome.ScreenSaver",
-            "--object-path", "/org/gnome/ScreenSaver",
-            "--method", "org.gnome.ScreenSaver.Lock",
-        ],
-        capture_output=True, text=True, timeout=10,
+    stdout, rc, stderr = _run_host(
+        "source /tmp/session.env 2>/dev/null; "
+        "gdbus call --session "
+        "--dest org.gnome.ScreenSaver "
+        "--object-path /org/gnome/ScreenSaver "
+        "--method org.gnome.ScreenSaver.Lock"
     )
-    assert result.returncode == 0, (
-        f"gdbus ScreenSaver.Lock failed: {result.stderr.strip()}"
-    )
+    assert rc == 0, f"gdbus ScreenSaver.Lock failed: {stderr}"
 
 
 @step("Session is locked")
 def session_is_locked(context) -> None:
     """Assert the current session is in a locked state via loginctl."""
-    import os
-
-    session_id = os.environ.get("XDG_SESSION_ID", "")
-    if not session_id:
-        result = subprocess.run(
-            ["loginctl", "list-sessions", "--no-legend"],
-            capture_output=True, text=True, timeout=10,
-        )
-        lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-        assert lines, "No active loginctl sessions found"
-        session_id = lines[0].split()[0]
-
     for _ in range(10):
-        result = subprocess.run(
-            ["loginctl", "show-session", session_id, "--property=LockedHint"],
-            capture_output=True, text=True, timeout=10,
+        stdout, rc, _ = _run_host(
+            "loginctl list-sessions --no-legend 2>/dev/null | head -1"
         )
-        if "LockedHint=yes" in result.stdout:
+        if not stdout.strip():
+            sleep(1)
+            continue
+        session_id = stdout.strip().split()[0]
+        locked_out, _, _ = _run_host(
+            f"loginctl show-session {session_id} --property=LockedHint 2>/dev/null"
+        )
+        if "LockedHint=yes" in locked_out:
             return
         sleep(1)
-    raise AssertionError(
-        f"Session {session_id} is not locked after 10s: {result.stdout.strip()}"
-    )
+    raise AssertionError("Session is not locked after 10s")
 
 
 @step("Unlock screen via Shell.Eval")
 def unlock_screen_via_shell_eval(context) -> None:
     """Unlock the GNOME session via gdbus ScreenSaver SetActive(false)."""
-    result = subprocess.run(
-        [
-            "gdbus", "call", "--session",
-            "--dest", "org.gnome.ScreenSaver",
-            "--object-path", "/org/gnome/ScreenSaver",
-            "--method", "org.gnome.ScreenSaver.SetActive",
-            "false",
-        ],
-        capture_output=True, text=True, timeout=10,
+    stdout, rc, stderr = _run_host(
+        "source /tmp/session.env 2>/dev/null; "
+        "gdbus call --session "
+        "--dest org.gnome.ScreenSaver "
+        "--object-path /org/gnome/ScreenSaver "
+        "--method org.gnome.ScreenSaver.SetActive "
+        "false"
     )
-    assert result.returncode == 0, (
-        f"gdbus ScreenSaver.SetActive(false) failed: {result.stderr.strip()}"
-    )
-
-    import os
-
-    session_id = os.environ.get("XDG_SESSION_ID", "")
-    if not session_id:
-        session_result = subprocess.run(
-            ["loginctl", "list-sessions", "--no-legend"],
-            capture_output=True, text=True, timeout=10,
-        )
-        lines = [line.strip() for line in session_result.stdout.splitlines() if line.strip()]
-        assert lines, "No active loginctl sessions found while unlocking"
-        session_id = lines[0].split()[0]
+    assert rc == 0, f"gdbus ScreenSaver.SetActive(false) failed: {stderr}"
 
     for _ in range(10):
-        locked_hint = subprocess.run(
-            ["loginctl", "show-session", session_id, "--property=LockedHint"],
-            capture_output=True, text=True, timeout=10,
+        locked_out, _, _ = _run_host(
+            "loginctl list-sessions --no-legend 2>/dev/null | head -1 | "
+            "awk '{print $1}' | xargs -I{} loginctl show-session {} --property=LockedHint 2>/dev/null"
         )
-        if "LockedHint=no" in locked_hint.stdout:
+        if "LockedHint=no" in locked_out:
             return
         sleep(1)
 
-    raise AssertionError(
-        f"Session {session_id} is still locked after unlock attempt: {locked_hint.stdout.strip()}"
-    )
+    raise AssertionError("Session is still locked after unlock attempt")
 
 
 @step("Active workspace index is noted")
