@@ -200,7 +200,7 @@ jobs:
 
   test-bluefin-lifecycle:
     name: bluefin:lifecycle (ublue-os→projectbluefin, zstd:chunked)
-    uses: projectbluefin/actions/.github/workflows/upgrade-test.yml@801179228819ac88fe3e05d71b9a381c6a76bd29 # main
+    uses: projectbluefin/actions/.github/workflows/upgrade-test.yml@b6f0e6c968038984652b4594f5d182a80de2b8e2 # main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
       suites: lifecycle
