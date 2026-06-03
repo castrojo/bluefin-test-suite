@@ -33,10 +33,15 @@ with:
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
 `security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
 
-**Migration test** (ublue-os → projectbluefin, manually triggered):
-Go to **Actions → Migration Test — ublue-os → projectbluefin** → Run workflow.
+**Trigger a lifecycle run manually** (preferred — same code path as nightly):
+Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml)**.
+Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
 Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
-Or invoke via `e2e.yml` with `suites: lifecycle` and `chunked_enabled: true/false`.
+
+> **Do NOT use `manual.yml` in testsuite for lifecycle runs.** `manual.yml` calls
+> `e2e.yml` as a same-repo reusable workflow — GitHub always returns `startup_failure`
+> for this pattern. `upgrade-test.yml` in the actions repo calls `e2e.yml` cross-repo
+> (which works) and is the canonical manual trigger.
 
 ## Nightly CI job matrix
 
@@ -57,6 +62,7 @@ The `nightly.yml` workflow runs 13 named jobs (plus `persist-results`). Each job
 | `bazzite-gnome:testing` | `ghcr.io/ublue-os/bazzite-gnome:testing` | bazzite |
 | `bazzite-gnome:stable` | `ghcr.io/ublue-os/bazzite-gnome:stable` | bazzite |
 | `gnomeos` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
+| `bluefin:lifecycle` | `ghcr.io/ublue-os/bluefin:latest` | lifecycle (via `upgrade-test.yml`) |
 | `persist-results` | n/a | Downloads nightly result artifacts and publishes `data/results-YYYY-MM-DD.jsonl` to `gh-pages` |
 
 **Registry split:** `bluefin`, `bluefin-nvidia-open`, `dakota` → `ghcr.io/projectbluefin`. `bluefin-gdx`, `bazzite-gnome` → `ghcr.io/ublue-os`.

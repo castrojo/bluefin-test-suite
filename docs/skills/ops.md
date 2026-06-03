@@ -206,6 +206,33 @@ It is **skipped** (not failed) when disabled.
 **Enable once** `ghcr.io/projectbluefin/bluefin:latest` ships with `tar+zstd` OCI layers.
 Verify via `skopeo inspect --raw docker://ghcr.io/projectbluefin/bluefin:latest | jq '.layers[0].mediaType'`.
 
-**Run the migration test manually** (Actions → Migration Test — ublue-os → projectbluefin):
-- Default: runs all migration scenarios except `@zstd_chunked`
+**Run the lifecycle test manually:**
+Go to [projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml).
+- Default: runs lifecycle suite without `@zstd_chunked`
 - With `chunked_enabled: true`: also tests zstd:chunked lane
+
+---
+
+## manual.yml startup_failure (same-repo reusable workflow bug)
+
+**Symptom:** `manual.yml` workflow_dispatch runs always fail immediately with `startup_failure`. No jobs start. No log available.
+
+**Cause:** GitHub Actions returns `startup_failure` when a `workflow_dispatch` workflow calls a reusable workflow in the **same repository** via either `uses: ./.github/workflows/e2e.yml` or `uses: projectbluefin/testsuite/.github/workflows/e2e.yml@ref`. Cross-repo reusable workflow calls (like `nightly.yml → upgrade-test.yml → e2e.yml`) work fine.
+
+**Workaround:** Use `upgrade-test.yml` in `projectbluefin/actions` for manual lifecycle runs — it calls `e2e.yml` cross-repo and has `workflow_dispatch` support.
+
+**Do not attempt to fix** `manual.yml` by changing the ref format or adding `permissions:`. The failure is a GitHub platform limitation with same-repo reusable workflow calls from `workflow_dispatch`.
+
+---
+
+## Post-upgrade desktop screenshot
+
+After a lifecycle suite run, `e2e.yml` captures a full-screen GNOME screenshot via:
+```bash
+gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
+  --method org.gnome.Shell.Eval \
+  "const Shell = imports.gi.Shell; const s = new Shell.Screenshot(); s.screenshot(false, false, '/tmp/upgrade_screenshot.png', () => {}); 'ok'"
+```
+The screenshot is saved to `results/screenshot_lifecycle_upgrade_final.png` and promoted to the `desktop-screenshot` workflow artifact. The step uses `ControlMaster=no` because the VM may have rebooted during the lifecycle suite, invalidating any existing SSH multiplex socket.
+
+The step waits up to 60 s for the Wayland socket (`/run/user/1001/wayland-0`) before attempting the screenshot.
