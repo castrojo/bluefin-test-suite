@@ -32,9 +32,10 @@ jobs:
 | Input | Type | Default | Description |
 |-------|------|---------|-------------|
 | `image` | string | `ghcr.io/projectbluefin/dakota:latest` | OCI image to test (must be a bootc/ostree image) |
-| `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common` |
+| `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common`, `lifecycle` |
 | `skip_native_apps` | boolean | `false` | When `true`, skips `@native_app` scenarios (Flatpak apps that may not be installed in all variants) |
 | `screenshot_flatpaks` | string | `""` | Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See [Flatpak screenshot gallery](../flatpak-screenshots.md) for full details. |
+| `chunked_enabled` | boolean | `false` | When `true`, sets `ZSTD_CHUNKED=true` so `@zstd_chunked` lifecycle scenarios run. Enable once the image ships `tar+zstd` OCI layers. |
 
 Multiple suites run as a matrix (parallel jobs):
 
@@ -43,6 +44,21 @@ with:
   image: ghcr.io/projectbluefin/myimage:pr-123
   suites: smoke,developer
 ```
+
+### Lifecycle suite — special execution model
+
+The `lifecycle` suite does **not** run inside the VM container. It runs from the GHA runner via SSH, so the test process survives the VM reboot that happens mid-upgrade. The pipeline branches at the "Run behave suite" step:
+
+```
+if [[ "${SUITE}" == "lifecycle" ]]
+  → ssh bluefin-test@localhost -p 2222 behave ...   (from runner)
+else
+  → podman exec runner-container behave ...          (inside VM)
+```
+
+After the lifecycle suite finishes, a separate "Capture post-upgrade screenshot" step re-SSHes with `ControlMaster=no` (fresh connection after reboot), waits up to 60 s for the Wayland socket at `/run/user/1001/wayland-0`, and calls `org.gnome.Shell.Screenshot` via gdbus. The screenshot is saved to `results/screenshot_lifecycle_upgrade_final.png` and uploaded in the `e2e-results-*` artifact.
+
+**Preferred manual trigger:** dispatch `upgrade-test.yml` in `projectbluefin/actions` — it calls `e2e.yml` cross-repo (which works). Do NOT dispatch `manual.yml` in this repo for lifecycle runs (see ops.md "manual.yml startup_failure").
 
 ## Pipeline stages
 
@@ -122,7 +138,7 @@ See [`docs/flatpak-screenshots.md`](../flatpak-screenshots.md) for full document
 
 | Artifact | Content | Retention |
 |----------|---------|-----------|
-| `e2e-results-<image-slug>-<suite>` | `results.json` (behave JSON), `results.txt` (pretty output), `artifact-metadata.json` (image + suite metadata) | 30 days |
+| `e2e-results-<image-slug>-<suite>` | `results.json` (behave JSON), `results.txt` (pretty output), `artifact-metadata.json` (image + suite metadata), `screenshot_lifecycle_upgrade_final.png` (lifecycle only) | 30 days |
 | `vm-serial-log-<image-slug>-<suite>` | QEMU serial console output | 3 days |
 
 The serial log is always uploaded (even on failure) — it's the primary debug tool when the VM doesn't boot or SSH never comes up.
