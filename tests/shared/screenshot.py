@@ -3,6 +3,7 @@
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import time
@@ -63,63 +64,109 @@ def _screenshot_path(label: str, context: Any | None = None) -> str:
     return os.path.join(_results_dir(context), f"screenshot_{suite}_{safe_label}_{scenario}.png")
 
 
-def _gdbus_screenshot(path: str) -> bool:
-    """Ask GNOME Shell to take a screenshot, running gdbus on the right host.
+def _ssh_run(cmd: str, timeout: int = 15) -> "subprocess.CompletedProcess[str]":
+    """Run a shell command on the VM via SSH (used when inside the runner container)."""
+    ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+    vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+    vm_user = os.environ.get("VM_USER", "bluefin-test")
+    ssh_port = os.environ.get("SSH_PORT", "22")
+    return subprocess.run(
+        [
+            "ssh", "-i", ssh_key,
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "ConnectTimeout=10",
+            "-p", ssh_port,
+            f"{vm_user}@{vm_ip}",
+            cmd,
+        ],
+        capture_output=True, text=True, timeout=timeout,
+    )
 
-    When behave runs inside the runner container, GNOME Shell's D-Bus policy
-    rejects screenshot requests from containerized callers. Run the gdbus
-    command via SSH on the VM (where gnome-shell is) instead.
 
-    GVariant text format for strings is double-quoted (json.dumps produces this).
-    For the SSH path, wrap the double-quoted value in shell single quotes so bash
-    passes the double-quote characters literally to gdbus without stripping them.
+def _take_screenshot_via_ssh(path: str) -> bool:
+    """Take a screenshot on the VM using the best available method.
+
+    Tries in order:
+    1. grim  — Wayland screencopy; bypasses GNOME Shell permission check entirely.
+    2. gnome-screenshot — fallback for older GNOME versions.
+    3. org.gnome.Shell.Screenshot D-Bus — last resort; requires unsafe_mode=true.
+
+    All methods run on the VM (via SSH) since screencapture tools must have
+    access to the Wayland/X11 display, not the container's namespaced environment.
     """
-    # json.dumps produces a valid GVariant text-format string: "double-quoted"
-    gvariant_path = json.dumps(path)
+    # session.env provides WAYLAND_DISPLAY, XDG_RUNTIME_DIR, DBUS_SESSION_BUS_ADDRESS
+    env_prefix = "source /tmp/session.env && "
 
+    # --- 1. grim (wlr-screencopy, no GNOME Shell involvement) ---
+    grim_cmd = f"{env_prefix}grim {shlex.quote(path)}"
+    r = _ssh_run(grim_cmd)
+    if r.returncode == 0:
+        print(f"Screenshot via grim: {path}", flush=True)
+        return True
+    if "command not found" not in r.stderr and "No such file" not in r.stderr:
+        print(f"grim failed (rc={r.returncode}): {r.stderr.strip()!r}", flush=True)
+
+    # --- 2. gnome-screenshot CLI ---
+    gnome_ss_cmd = f"{env_prefix}gnome-screenshot -f {shlex.quote(path)}"
+    r = _ssh_run(gnome_ss_cmd)
+    if r.returncode == 0:
+        print(f"Screenshot via gnome-screenshot: {path}", flush=True)
+        return True
+    if "command not found" not in r.stderr and "No such file" not in r.stderr:
+        print(f"gnome-screenshot failed (rc={r.returncode}): {r.stderr.strip()!r}", flush=True)
+
+    # --- 3. gdbus org.gnome.Shell.Screenshot (requires unsafe_mode=true) ---
+    # Set unsafe_mode first so GNOME Shell permits the call.
+    _ssh_run(
+        f"{env_prefix}gdbus call --session "
+        "--dest org.gnome.Shell "
+        "--object-path /org/gnome/Shell "
+        "--method org.gnome.Shell.Eval "
+        "'global.context.unsafe_mode = true'"
+    )
+    gvariant_path = json.dumps(path)
+    gdbus_cmd = (
+        f"{env_prefix}"
+        "gdbus call --session "
+        "--dest org.gnome.Shell "
+        "--object-path /org/gnome/Shell/Screenshot "
+        "--method org.gnome.Shell.Screenshot.Screenshot "
+        f"true false '{gvariant_path}'"
+    )
+    r = _ssh_run(gdbus_cmd)
+    if r.returncode == 0:
+        print(f"Screenshot via gdbus Shell.Screenshot: {path}", flush=True)
+        return True
+    print(
+        f"All screenshot methods failed. gdbus: rc={r.returncode} "
+        f"stderr={r.stderr.strip()!r}",
+        flush=True,
+    )
+    return False
+
+
+def _gdbus_screenshot(path: str) -> bool:
+    """Take a screenshot, routing to the right host depending on environment."""
     if _IN_CONTAINER:
-        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
-        vm_user = os.environ.get("VM_USER", "bluefin-test")
-        ssh_port = os.environ.get("SSH_PORT", "22")
-        # Single quotes around gvariant_path preserve the double-quote characters
-        # so gdbus receives: "/tmp/results/foo.png" (with surrounding double quotes).
-        remote_cmd = (
-            "source /tmp/session.env && "
-            "gdbus call --session "
-            "--dest org.gnome.Shell "
-            "--object-path /org/gnome/Shell/Screenshot "
-            "--method org.gnome.Shell.Screenshot.Screenshot "
-            f"true false '{gvariant_path}'"
-        )
-        result = subprocess.run(
-            [
-                "ssh", "-i", ssh_key,
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "ConnectTimeout=10",
-                "-p", ssh_port,
-                f"{vm_user}@{vm_ip}",
-                remote_cmd,
-            ],
-            capture_output=True, text=True, timeout=15,
-        )
-    else:
-        # subprocess list: gvariant_path is passed directly, no shell quoting needed
-        result = subprocess.run(
-            [
-                'gdbus', 'call', '--session',
-                '--dest', 'org.gnome.Shell',
-                '--object-path', '/org/gnome/Shell/Screenshot',
-                '--method', 'org.gnome.Shell.Screenshot.Screenshot',
-                'true', 'false', gvariant_path,
-            ],
-            capture_output=True, text=True, timeout=10,
-        )
+        return _take_screenshot_via_ssh(path)
+
+    # Running directly on the VM — use subprocess list form (no shell quoting needed)
+    gvariant_path = json.dumps(path)
+    result = subprocess.run(
+        [
+            'gdbus', 'call', '--session',
+            '--dest', 'org.gnome.Shell',
+            '--object-path', '/org/gnome/Shell/Screenshot',
+            '--method', 'org.gnome.Shell.Screenshot.Screenshot',
+            'true', 'false', gvariant_path,
+        ],
+        capture_output=True, text=True, timeout=10,
+    )
     if result.returncode != 0:
         print(
             f"Screenshot gdbus failed (rc={result.returncode}): "
-            f"stderr={result.stderr.strip()!r} stdout={result.stdout.strip()!r}",
+            f"stderr={result.stderr.strip()!r}",
             flush=True,
         )
     return result.returncode == 0
