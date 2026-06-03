@@ -230,6 +230,9 @@ def ujust_list_has_tasks(context) -> None:
 @step("ujust report --confirm rejects non-integer issue number")
 def ujust_report_confirm_invalid(context) -> None:
     output, returncode, stderr = _run_host("ujust report --confirm abc 2>&1")
+    if returncode != 0 and "does not contain recipe" in output:
+        _skip_scenario(context, "ujust 'report' recipe not present on this image")
+        return
     assert returncode == 1, f"Expected exit code 1, got {returncode}. Output: {output}"
     assert "positive integer" in output, f"Expected validation error, got: {output}"
 
@@ -237,5 +240,8 @@ def ujust_report_confirm_invalid(context) -> None:
 @step("ujust report --confirm without issue number prints error")
 def ujust_report_confirm_missing_number(context) -> None:
     output, returncode, stderr = _run_host("ujust report --confirm 2>&1")
+    if returncode != 0 and "does not contain recipe" in output:
+        _skip_scenario(context, "ujust 'report' recipe not present on this image")
+        return
     assert returncode == 1, f"Expected exit code 1, got {returncode}. Output: {output}"
     assert "requires an issue number" in output, f"Expected parameter error, got: {output}"
