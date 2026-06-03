@@ -47,6 +47,7 @@ _APP_WM_CLASS_HINTS: dict[str, str] = {
 
 def _shell_eval_force_close(app_names: tuple[str, ...]) -> None:
     """Force-close via mutter any windows matching app_names WM class fragments."""
+    import shlex
     wm_hints: set[str] = set()
     for name in app_names:
         for key, hint in _APP_WM_CLASS_HINTS.items():
@@ -56,6 +57,7 @@ def _shell_eval_force_close(app_names: tuple[str, ...]) -> None:
         return
     checks = " || ".join(f"wc.includes('{h}')" for h in wm_hints)
     js = (
+        "global.context.unsafe_mode = true; "
         "global.get_window_actors().forEach(a => {"
         "  try {"
         f"    const wc = (a.meta_window.get_wm_class() || '').toLowerCase();"
@@ -63,14 +65,26 @@ def _shell_eval_force_close(app_names: tuple[str, ...]) -> None:
         "  } catch(e) {}"
         "});"
     )
-    subprocess.run(
-        ["gdbus", "call", "--session",
-         "--dest", "org.gnome.Shell",
-         "--object-path", "/org/gnome/Shell",
-         "--method", "org.gnome.Shell.Eval",
-         js],
-        capture_output=True, text=True, timeout=5,
-    )
+    if _IN_CONTAINER:
+        # Must route via SSH — container cannot connect to the VM's session bus.
+        cmd = (
+            "source /tmp/session.env 2>/dev/null; "
+            "gdbus call --session "
+            "--dest org.gnome.Shell "
+            "--object-path /org/gnome/Shell "
+            "--method org.gnome.Shell.Eval "
+            + shlex.quote(js)
+        )
+        subprocess.run(_ssh_args() + [cmd], capture_output=True, text=True, timeout=5)
+    else:
+        subprocess.run(
+            ["gdbus", "call", "--session",
+             "--dest", "org.gnome.Shell",
+             "--object-path", "/org/gnome/Shell",
+             "--method", "org.gnome.Shell.Eval",
+             js],
+            capture_output=True, text=True, timeout=5,
+        )
     sleep(1)
 
 

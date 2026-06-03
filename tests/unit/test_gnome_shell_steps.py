@@ -68,7 +68,8 @@ class TestShellEval:
              patch.object(self.mod, "_IN_CONTAINER", False):
             self.mod._shell_eval("Main.overview.visible")
         call_args = mock_run.call_args[0][0]
-        assert "Main.overview.visible" in call_args
+        # JS is now prefixed with unsafe_mode; check it appears in the last arg.
+        assert any("Main.overview.visible" in str(a) for a in call_args)
 
     def test_uses_gdbus_call(self):
         proc = self._make_completed(stdout="(true, 'true')\n")

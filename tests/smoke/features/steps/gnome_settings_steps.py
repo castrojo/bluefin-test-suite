@@ -68,7 +68,13 @@ def launch_settings_via_command(context) -> None:
     # via gio will start a new instance that properly registers.
     from app_support import _IN_CONTAINER, _ssh_run
     if _IN_CONTAINER:
-        _ssh_run("pkill -f gnome-control-center 2>/dev/null; sleep 0.5 || true", timeout=5)
+        # Use exact-name pgrep to avoid killing unrelated processes.
+        # pkill -f with a broad pattern can crash the GNOME session on GNOME 50.
+        _ssh_run(
+            "pid=$(pgrep -x gnome-control-center 2>/dev/null); "
+            "[ -n \"$pid\" ] && kill -TERM \"$pid\" 2>/dev/null; sleep 0.5; true",
+            timeout=5,
+        )
     else:
         subprocess.run(
             ["pkill", "-f", "gnome-control-center"],

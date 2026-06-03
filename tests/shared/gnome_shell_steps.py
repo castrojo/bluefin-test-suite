@@ -33,9 +33,13 @@ def _ssh_args() -> list[str]:
 def _shell_eval(js: str, timeout: int = 5) -> str:
     """Run JS in GNOME Shell via gdbus and return raw stdout.
 
+    Always re-enables unsafe_mode before evaluation — GNOME 50 resets it
+    after UI interactions (modal dialogs, overview open/close, etc.).
     When running inside the runner container, forwards the gdbus call via SSH
     to the host VM where the session bus is directly accessible.
     """
+    # Prepend unsafe_mode enable — GNOME 50 resets it after UI events.
+    js = f'global.context.unsafe_mode = true; {js}'
     if _IN_CONTAINER:
         gdbus_cmd = (
             "source /tmp/session.env 2>/dev/null; "

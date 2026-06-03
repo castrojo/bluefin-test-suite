@@ -62,16 +62,17 @@ def _run_host(cmd: str, timeout: int = 30):
 def _shell_eval(js: str) -> str:
     """Run JS in GNOME Shell via gdbus and return raw stdout.
 
-    Requires unsafe_mode=true (set in before_all).  Returns the raw gdbus
-    output string, e.g. ``(true, 'some value')\\n``.  Use _eval_bool() when
-    you need to check a JS boolean result — do NOT use ``'true' in out`` on
-    the raw string because gdbus always includes the success flag ``true`` as
-    the first tuple element even when the JS result is ``false``.
+    Always re-enables unsafe_mode before evaluation — GNOME 50 resets it
+    after UI interactions (modal dialogs, overview open/close, etc.).
+    Returns the raw gdbus output string, e.g. ``(true, 'some value')\\n``.
+    Use _eval_bool() when you need to check a JS boolean result.
 
     Routes via SSH when running inside the runner container — the container
     cannot connect to the VM's systemd user session bus directly.
     """
     import shlex
+    # Prepend unsafe_mode enable — GNOME 50 resets it after UI events.
+    js = f'global.context.unsafe_mode = true; {js}'
     cmd = (
         "source /tmp/session.env 2>/dev/null; "
         "gdbus call --session "
@@ -342,15 +343,9 @@ def set_overview_search_eval(context, text) -> None:
 
 @step("Lock screen via Shell.Eval")
 def lock_screen_via_shell_eval(context) -> None:
-    """Lock the GNOME session via gdbus ScreenSaver D-Bus call."""
-    stdout, rc, stderr = _run_host(
-        "source /tmp/session.env 2>/dev/null; "
-        "gdbus call --session "
-        "--dest org.gnome.ScreenSaver "
-        "--object-path /org/gnome/ScreenSaver "
-        "--method org.gnome.ScreenSaver.Lock"
-    )
-    assert rc == 0, f"gdbus ScreenSaver.Lock failed: {stderr}"
+    """Lock the GNOME session via loginctl lock-sessions (more reliable than ScreenSaver D-Bus)."""
+    stdout, rc, stderr = _run_host("loginctl lock-sessions 2>/dev/null")
+    assert rc == 0, f"loginctl lock-sessions failed (rc={rc}): {stderr}"
 
 
 @step("Session is locked")
