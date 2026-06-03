@@ -13,6 +13,16 @@ except Exception:  # noqa: BLE001
 from app_support import launch_background
 
 
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
+
+
 CALCULATOR_APP_NAMES = ("gnome-calculator", "Calculator")
 CALCULATOR_LAUNCH_TARGETS = (
     ("command", "gnome-calculator"),
@@ -45,6 +55,8 @@ def _calculator_app():
 
 @step("Launch Calculator via command")
 def launch_calculator_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     context.calculator_launch_target = launch_background(CALCULATOR_LAUNCH_TARGETS)
     sleep(1)
 

@@ -14,6 +14,16 @@ except Exception:  # noqa: BLE001
 from app_support import launch_background
 
 
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
+
+
 FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
 FILES_LAUNCH_TARGETS = (
     ("command", "nautilus"),
@@ -33,6 +43,8 @@ def _nautilus_app():
 
 @step("Launch Files via command")
 def launch_files_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     context.files_launch_target = launch_background(FILES_LAUNCH_TARGETS)
     sleep(1)
 
