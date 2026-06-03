@@ -125,7 +125,8 @@ def bluefin_image_identity_is_present_in_os_release(context) -> None:
 
 @step("bootc status shows a valid image reference")
 def bootc_status_shows_a_valid_image_reference(context) -> None:
-    output, returncode, stderr = _run_host("bootc status --format=json")
+    # Try privileged first (sudo); fall back to unprivileged for read-only status.
+    output, returncode, stderr = _run_host("sudo bootc status --format=json 2>&1 || bootc status --format=json 2>&1")
     combined_err = (stderr or output or "").lower()
     # In CI QEMU VMs, bootc may fail to open /boot (no bootupd, bare kernel boot).
     # Treat this as a known VM limitation — skip the assertion rather than fail.
@@ -134,6 +135,10 @@ def bootc_status_shows_a_valid_image_reference(context) -> None:
     # bootc not installed on this image — skip gracefully
     if returncode != 0 and ("not found" in combined_err or "no such file" in combined_err or "command not found" in combined_err):
         _skip_scenario(context, "bootc not found on this image")
+        return
+    # Non-root access denied without --sysroot — skip rather than fail
+    if returncode != 0 and ("not root" in combined_err or "sysroot" in combined_err):
+        _skip_scenario(context, "bootc status requires root — skipping on non-root runner")
         return
     assert returncode == 0, f"bootc status failed: {stderr or output}"
 
