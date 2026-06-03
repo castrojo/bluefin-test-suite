@@ -566,17 +566,27 @@ jobs:
           # session.  Setting toolkit-accessibility here (directly in the GDM session)
           # causes GTK4 apps to register with at-spi2-registryd when they start, so
           # dogtail/pyatspi2 can enumerate them in the AT-SPI tree.
-          # Also kill any gnome-control-center daemon that started before toolkit-
-          # accessibility was set — it would never register with AT-SPI.  The Settings
-          # test will launch a fresh instance via `gio launch` which registers correctly.
           $SSH "
             source /tmp/session.env
             gsettings set org.gnome.desktop.interface toolkit-accessibility true \
               && echo 'AT-SPI toolkit-accessibility enabled' \
               || echo 'WARNING: toolkit-accessibility not set (gsettings failed)'
-            pkill -f gnome-control-center 2>/dev/null || true
-            echo 'gnome-control-center daemon terminated (will relaunch via gio launch)'
           "
+
+          # Gracefully terminate gnome-control-center if it started before toolkit-
+          # accessibility was set (it would never register with AT-SPI).  The Settings
+          # test launches a fresh instance via gio launch (D-Bus activation) which
+          # registers correctly.  Use pgrep + kill -TERM by PID — broad signal-by-name
+          # commands can unexpectedly drop the GNOME user session on GNOME 50.
+          $SSH "
+            if pid=\$(pgrep -x gnome-control-center 2>/dev/null); then
+              kill -TERM \"\$pid\" 2>/dev/null \
+                && echo \"gnome-control-center (PID \$pid) sent SIGTERM\" \
+                || echo \"SIGTERM to gnome-control-center failed (OK)\"
+            else
+              echo 'gnome-control-center not running (OK)'
+            fi
+          " || true
 
           # Introspect GNOME Shell D-Bus interfaces to identify available screenshot APIs.
           $SSH "
