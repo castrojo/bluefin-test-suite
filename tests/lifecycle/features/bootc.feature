@@ -35,6 +35,7 @@ Feature: bootc upgrade and rollback lifecycle
     * Capture booted image digest for rollback verification
     * Run SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
+    * bootc upgrade output indicates image was staged
     * Run SSH command: "sudo bootc status --format=json"
     * Staged deployment is present in bootc status
 
