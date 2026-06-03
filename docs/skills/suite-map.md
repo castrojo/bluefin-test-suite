@@ -45,7 +45,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Nightly CI job matrix
 
-The `nightly.yml` workflow runs 13 named jobs (plus `persist-results`). Each job name is visible in the Actions UI.
+The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job name is visible in the Actions UI.
 
 | Job name | Image | Suites |
 |---|---|---|
