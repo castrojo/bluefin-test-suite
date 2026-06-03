@@ -186,7 +186,7 @@ Tracked: spike issue #229 verifies the UEFI approach on `ubuntu-latest`. Epic #2
 ```bash
 bootc switch --help 2>&1 | grep -q -- '--experimental-unified-storage'
 ```
-If the flag is absent, skip the scenario gracefully. The `Check unified storage support and skip if unavailable` step in `tests/lifecycle/features/steps/steps.py` (#230) does this automatically.
+If the flag is absent, skip the scenario gracefully. The `Check unified storage support and skip if unavailable` step in `tests/lifecycle/features/steps/steps.py` does this automatically (implemented in PR #235, closes #230).
 
 ## `unified_storage_overlay_present` step reads wrong context attribute
 

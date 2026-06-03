@@ -53,5 +53,5 @@ The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
 - `security/selinux`: still `@future` until Bluefin test images stop booting with `selinux=0`.
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
-- `lifecycle/migration` (3-lane: rechunker, zstd_chunked, unified_storage): scenarios exist and pass lint, but the GHA workflow to run them doesn't exist yet. `e2e.yml` direct kernel boot prevents VM reboots after `bootc switch` — requires UEFI boot (OVMF pflash). Tracked: epic #227 (spike #228 unblocks the workflow implementation).
+- `lifecycle/migration` (3-lane: rechunker, zstd_chunked, unified_storage): scenarios exist and pass lint, but the GHA workflow to run them doesn't exist yet. `e2e.yml` direct kernel boot prevents VM reboots after `bootc switch` — requires UEFI boot (OVMF pflash). Tracked: epic #227 (spike #229 unblocks the workflow implementation). Steps use 900s timeout and graceful `Check unified storage support and skip if unavailable` via PR #235.
 

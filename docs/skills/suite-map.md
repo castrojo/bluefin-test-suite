@@ -32,7 +32,7 @@ with:
 ```
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`) run on `ubuntu-latest`.
 SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA action (epics #43/#44).
-`lifecycle/migration` specifically requires UEFI boot (OVMF pflash) because `e2e.yml` uses direct kernel boot which cannot handle VM reboots after `bootc switch` (see `ops.md` — "Direct kernel boot blocks migration VM reboots"). A standalone `migration-test.yml` workflow is planned in epic #227.
+`lifecycle/migration` specifically requires UEFI boot (OVMF pflash) because `e2e.yml` uses direct kernel boot which cannot handle VM reboots after `bootc switch` (see `ops.md` — "Direct kernel boot blocks migration VM reboots"). A standalone `migration-test.yml` workflow is planned in epic #227. Migration steps use 900s timeout (`Switch to migration target`), 300s post-migration reboot wait, and `Check unified storage support and skip if unavailable` for graceful bootc < 1.16 skips (spike #229 unblocks the workflow).
 
 ## Nightly CI job matrix
 

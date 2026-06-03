@@ -85,16 +85,29 @@ with:
 
 The VM must start on the `ublue-os` registry image — every scenario has a registry guard step that fails fast if the wrong starting image is used.
 
-### 4 scenarios, 2 storage lanes
+### 6 scenarios, 2 storage lanes
 
 | Scenario tags | Storage mode | Key assertion |
 |---|---|---|
 | `@switch` | standard bootc | Active ref contains `projectbluefin/bluefin`; digest matches staged |
 | `@switch @rollback` | standard bootc | Rollback returns to original `ublue-os` digest |
+| `@switch @health` | standard bootc | `booted.incompatible` absent; `/etc/os-release` reports Bluefin |
 | `@switch @unified_storage` | `--experimental-unified-storage` | `/var/lib/bootc/storage/overlay` present post-reboot |
 | `@switch @unified_storage @rollback` | `--experimental-unified-storage` | Rollback digest matches original `ublue-os` deployment |
-| `@health` | standard bootc | `booted.incompatible` absent; `/etc/os-release` reports Bluefin |
 | `@chunkah` | standard bootc | `.status.rollback.image.imageDigest` == original source digest |
+
+### Parameterized target and timeouts
+
+Migration steps use `MIGRATION_TARGET` env var (default: `ghcr.io/projectbluefin/bluefin:stable`):
+
+```
+* Switch to migration target                        # 900s timeout — image pull takes 5-15 min
+* Switch to migration target with unified storage   # 900s + --experimental-unified-storage
+* Check unified storage support and skip if unavailable  # graceful skip on bootc < 1.16
+* Reboot VM and wait for SSH after migration        # 300s deadline (rechunker-group-fix first-boot)
+```
+
+Do NOT use `Run SSH command: "sudo bootc switch ..."` for migration — the default 60s SSH timeout will fire before the pull completes.
 
 ### Key step: rollback uses digest, not ref string
 
