@@ -8,6 +8,11 @@ import subprocess
 import time
 from typing import Any
 
+# Detect when behave runs inside the runner container (not on the host VM).
+# Screenshots must be triggered via SSH so GNOME Shell (on the VM) can write
+# to the file — containerized gdbus calls are rejected by Shell's D-Bus policy.
+_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
+
 
 def _results_dir(context: Any | None = None) -> str:
     """Resolve output dir: userdata > env var > default /tmp/results."""
@@ -58,6 +63,53 @@ def _screenshot_path(label: str, context: Any | None = None) -> str:
     return os.path.join(_results_dir(context), f"screenshot_{suite}_{safe_label}_{scenario}.png")
 
 
+def _gdbus_screenshot(path: str) -> bool:
+    """Ask GNOME Shell to take a screenshot, running gdbus on the right host.
+
+    When behave runs inside the runner container, GNOME Shell's D-Bus policy
+    rejects screenshot requests from containerized callers. Run the gdbus
+    command via SSH on the VM (where gnome-shell is) instead.
+    """
+    # GVariant text format: strings are single-quoted.
+    gdbus_cmd = (
+        "gdbus call --session "
+        "--dest org.gnome.Shell "
+        "--object-path /org/gnome/Shell/Screenshot "
+        "--method org.gnome.Shell.Screenshot.Screenshot "
+        f"true false '{path}'"
+    )
+    if _IN_CONTAINER:
+        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+        vm_user = os.environ.get("VM_USER", "bluefin-test")
+        ssh_port = os.environ.get("SSH_PORT", "22")
+        # source session.env so DBUS_SESSION_BUS_ADDRESS is set on the VM side
+        remote_cmd = f"source /tmp/session.env && {gdbus_cmd}"
+        result = subprocess.run(
+            [
+                "ssh", "-i", ssh_key,
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "ConnectTimeout=10",
+                "-p", ssh_port,
+                f"{vm_user}@{vm_ip}",
+                remote_cmd,
+            ],
+            capture_output=True, text=True, timeout=15,
+        )
+    else:
+        result = subprocess.run(
+            gdbus_cmd, shell=True, capture_output=True, text=True, timeout=10,
+        )
+    if result.returncode != 0:
+        print(
+            f"Screenshot gdbus failed (rc={result.returncode}): "
+            f"{result.stderr.strip() or result.stdout.strip()}",
+            flush=True,
+        )
+    return result.returncode == 0
+
+
 def take_screenshot(label: str, context: Any | None = None) -> str | None:
     """Capture a PNG via the org.gnome.Shell.Screenshot D-Bus interface.
 
@@ -74,23 +126,7 @@ def take_screenshot(label: str, context: Any | None = None) -> str | None:
         except OSError:
             pass
 
-    try:
-        subprocess.run(
-            [
-                'gdbus', 'call', '--session',
-                '--dest', 'org.gnome.Shell',
-                '--object-path', '/org/gnome/Shell/Screenshot',
-                '--method', 'org.gnome.Shell.Screenshot.Screenshot',
-                'true',    # include_cursor (GVariant boolean)
-                'false',   # flash (GVariant boolean)
-                json.dumps(path),  # filename as GVariant string (double-quoted)
-            ],
-            capture_output=True,
-            timeout=10,
-            check=True,
-        )
-    except Exception as exc:  # noqa: BLE001
-        print(f"Screenshot error: {exc}", flush=True)
+    if not _gdbus_screenshot(path):
         return None
 
     deadline = time.monotonic() + _CAPTURE_WAIT_SECONDS
