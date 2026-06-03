@@ -34,6 +34,8 @@ jobs:
 | `image` | string | `ghcr.io/projectbluefin/dakota:latest` | OCI image to test (must be a bootc/ostree image) |
 | `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common` |
 | `skip_native_apps` | boolean | `false` | When `true`, skips `@native_app` scenarios (Flatpak apps that may not be installed in all variants) |
+| `screenshot_flatpaks` | string | `""` | Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See [Flatpak screenshot gallery](../flatpak-screenshots.md) for full details. |
+| `target-image` | string | `""` | Full OCI ref to upgrade TO (optional). When set and `lifecycle` is in the suites list, pre-stages this image via `bootc switch` (900 s timeout) after SSH is ready but before the behave suite. When empty, `bootc upgrade` in the suite resolves naturally against the booted tag. |
 
 Multiple suites run as a matrix (parallel jobs):
 
@@ -65,6 +67,26 @@ with:
 11. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
 12. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
 13. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
+
+## Explicit upgrade target (`target-image`)
+
+When `target-image` is set and `lifecycle` is in the suite list, the workflow runs:
+
+```bash
+sudo bootc switch '<target-image>'
+```
+
+on the VM immediately after SSH is ready. The lifecycle scenarios then reboot into the staged image and verify the digest.
+
+**When to set it:**
+- Release gating: validate an exact new build (`ghcr.io/projectbluefin/bluefin@sha256:…`) against the current stable base
+- Cross-stream upgrades: test an explicit ref switch without waiting for the mutable tag to advance
+
+**When to leave it empty:**
+- Smoke / developer / dx / common suites — those don't use bootc upgrade steps
+- Lifecycle tests where any available upgrade is acceptable (nightly drift checks)
+
+> **Note:** `bootc upgrade output indicates image was staged` now fails hard (not skips) when `bootc upgrade` is a no-op. If the booted image is already at the latest digest, set `target-image` to a pinned ref so an actual upgrade occurs.
 
 ## Image requirements
 
