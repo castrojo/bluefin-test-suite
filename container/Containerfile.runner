@@ -163,5 +163,10 @@ RUN mkdir -p /usr/share/applications && \
     printf '[Desktop Entry]\nName=Software\nExec=gnome-software\nType=Application\n' \
         > /usr/share/applications/org.gnome.Software.desktop
 
-WORKDIR /tests
+# With --userns=keep-id, the container runs as UID 1001 (no passwd entry in this
+# Fedora-minimal image).  GLib/gsettings falls back to WORKDIR as HOME when no
+# passwd entry exists, and WORKDIR=/tests is owned by root so writes fail.
+# Setting HOME=/tmp ensures GLib can create its settings keyfile backend.
+ENV HOME=/tmp
+WORKDIR /tmp
 ENTRYPOINT ["qecore-headless"]
