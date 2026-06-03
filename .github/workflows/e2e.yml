@@ -818,26 +818,17 @@ jobs:
           fi
           echo "No in-VM screenshot found; capturing via QEMU monitor screendump..."
           mkdir -p results
-          python3 tests/shared/qemu_screendump.py || true
-          # QEMU writes the PPM as root (via sudo); fix permissions before reading.
-          sudo chmod 644 /tmp/qemu-desktop.ppm 2>/dev/null || true
-          # Convert PPM to PNG.  On ubuntu-24.04, ImageMagick 7 uses 'magick';
-          # fall back to ffmpeg (always available on GHA runners) if 'magick' is absent.
-          PPM=/tmp/qemu-desktop.ppm
+          # Pass the PNG output path directly; the script handles PPM capture and
+          # conversion using Python stdlib (no ImageMagick or ffmpeg required).
           OUT="results/screenshot_${SUITE}_fastfetch_endofrun.png"
-          if [[ -f "$PPM" ]]; then
-            if command -v magick &>/dev/null; then
-              magick "$PPM" "$OUT" 2>&1 && echo "QEMU screendump captured (magick): $OUT"
-            elif command -v convert &>/dev/null; then
-              convert "$PPM" "$OUT" 2>&1 && echo "QEMU screendump captured (convert): $OUT"
-            elif command -v ffmpeg &>/dev/null; then
-              ffmpeg -y -i "$PPM" "$OUT" 2>&1 && echo "QEMU screendump captured (ffmpeg): $OUT"
-            else
-              echo "WARNING: no PPM->PNG converter found (tried magick, convert, ffmpeg)"
-            fi
-          else
-            echo "WARNING: screendump did not produce $PPM"
-          fi
+          # QEMU runs as root (sudo); the screendump socket is accessible because
+          # we chmod 666'd it at boot, but the PPM it writes is also root-owned.
+          # Run the script as root so it can read/chmod the output file.
+          sudo python3 tests/shared/qemu_screendump.py "$OUT" \
+            && echo "QEMU screendump captured: $OUT" \
+            || echo "WARNING: QEMU screendump/conversion failed"
+          # The PNG was written as root; make it readable by the runner user.
+          sudo chmod 644 "$OUT" 2>/dev/null || true
 
       - name: Promote desktop screenshot
         if: always()
