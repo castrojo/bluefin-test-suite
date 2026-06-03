@@ -1,8 +1,6 @@
-@software_suite @quarantine
-Feature: GNOME Software smoke tests (upstream-only)
-  Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software.
-  Keep these upstream GNOME OS scenarios quarantined until issue #419 is
-  replaced by Bluefin-valid Bazaar coverage.
+@software_suite
+Feature: Bazaar (GNOME Software) smoke tests
+  Validates Bazaar (`io.github.kolunmi.Bazaar`) launches and core UI elements are accessible.
   Regression coverage for bluefin#4062 and #4471.
 
   Background:
@@ -10,11 +8,11 @@ Feature: GNOME Software smoke tests (upstream-only)
     * Wait until "Software" "frame" appears in "software"
 
   @software @launch
-  Scenario: GNOME Software launches and main window is visible
+  Scenario: Bazaar launches and main window is visible
     * Application "software" is running
     * Item "Software" "frame" is "showing" in "software"
 
-  # Quarantined on gnomeos/GNOME 50 pending re-validation of GNOME Software's
+  # Quarantined on gnomeos/GNOME 50 pending re-validation of Bazaar's
   # AT-SPI roles and names after /org/a11y/atspi/cache errors tracked in #176.
   @quarantine @software @navigation
   Scenario: Explore tab is present and accessible
@@ -49,7 +47,7 @@ Feature: GNOME Software smoke tests (upstream-only)
     * No coredump entries exist for "gnome-software"
 
   @quarantine @software @close
-  Scenario: GNOME Software closes cleanly via shortcut
+  Scenario: Bazaar closes cleanly via shortcut
     * Close application "software" via "shortcut"
     * Application "software" is no longer running
 
