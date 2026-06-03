@@ -49,16 +49,25 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         procps-ng \
     && microdnf clean all
 
+# Generate a stable machine-id so D-Bus (and ponytail) work inside the container.
+# Fedora-minimal ships /etc/machine-id as an empty file; dbus-uuidgen fills it.
+# Also symlink /var/lib/dbus/machine-id which some D-Bus implementations expect.
+RUN dbus-uuidgen > /etc/machine-id && \
+    mkdir -p /var/lib/dbus && \
+    ln -sf /etc/machine-id /var/lib/dbus/machine-id
+
 # Install Python test stack — pinned so bumps are explicit and reviewed
 # Pinned 2026-05-30 — bump manually or via Renovate
 # python-uinput is a C extension and requires gcc + python3-devel to build from source;
 # remove build tools afterwards to keep the image lean.
+# setuptools provides pkg_resources (used by qecore sandbox._attach_version_status_to_report)
 RUN microdnf install -y --setopt=install_weak_deps=0 gcc python3-devel \
     && python3 -m pip install --no-cache-dir \
         qecore==4.16 \
         behave==1.3.3 \
         dogtail==2.0.3 \
         python-uinput==1.0.1 \
+        setuptools \
     && python3 -m pip cache purge \
     && microdnf remove -y gcc python3-devel \
     && microdnf clean all
@@ -154,16 +163,18 @@ with open('/usr/local/bin/qecore-headless', 'w') as f:
     f.write(src)
 PYEOF
 
-# Patch qecore sandbox.py so headless errors don't terminate the test run.
+# Patch qecore sandbox.py for container operation:
 #
-# sandbox.py TestSandbox.__init__ sets context.headless_errors when the JSON
-# written by qecore-headless contains any fail_and_propagate=True entry.
-# before_scenario then calls sys.exit(1), causing ALL scenarios to skip.
+# 1. headless errors: sandbox.py TestSandbox.__init__ sets context.headless_errors
+#    when the JSON written by qecore-headless contains any fail_and_propagate=True entry.
+#    before_scenario then calls sys.exit(1), causing ALL scenarios to skip.
+#    We already made all qecore-headless print_fail calls recoverable, but also patch
+#    sandbox.py to never assign context.headless_errors as belt-and-suspenders.
 #
-# In a container we've already made all qecore-headless print_fail calls
-# recoverable, but as a belt-and-suspenders fix we also patch sandbox.py to
-# never assign context.headless_errors — so sys.exit(1) in before_scenario
-# is never reached even if a positional-False print_fail call slipped through.
+# 2. ponytail RuntimeError: sandbox.before_scenario raises RuntimeError when ponytail
+#    fails to connect.  In a container without a live gnome-ponytail-daemon, ponytail
+#    init always fails, making every scenario a hook_error.  Suppress the raise so
+#    tests that don't need ponytail (SSH-based, AT-SPI-only) can still run.
 RUN python3 - <<'SANDBOXEOF'
 import re, site, os
 
@@ -173,10 +184,15 @@ for p in site.getsitepackages():
         continue
     with open(path) as f:
         src = f.read()
-    # Remove the line that propagates headless errors to context
+    # Patch 1: headless errors non-fatal
     src = src.replace(
         'context.headless_errors = headless_errors',
         'pass  # patched: headless errors non-fatal in container',
+    )
+    # Patch 2: ponytail RuntimeError non-fatal
+    src = src.replace(
+        'raise RuntimeError(self.error_message)',
+        'print(f"WARNING: suppressed ponytail RuntimeError: {self.error_message}", flush=True)',
     )
     with open(path, 'w') as f:
         f.write(src)
