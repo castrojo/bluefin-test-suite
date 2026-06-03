@@ -32,11 +32,13 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         python3 \
         python3-pip \
         python3-gobject \
+        python3-dbus \
         gobject-introspection \
         at-spi2-core \
         at-spi2-atk \
         atk \
         dbus-glib \
+        dbus-tools \
         gtk3 \
         gsettings-desktop-schemas \
         dbus-libs \
@@ -85,32 +87,52 @@ RUN for f in /usr/local/bin/qecore_*; do \
 # qecore-headless skips the dconf-reset path and writes no fatal headless errors.
 # All other sudo calls (mv/rm of gnome-shell service configs) are no-ops because
 # gnome-shell is not installed in the container.
-RUN printf '#!/bin/sh\nexec "$@"\n' > /usr/local/bin/sudo && \
-    chmod +x /usr/local/bin/sudo && \
+#
+# The shim must strip sudo flags (-H, -u user, -n, -E, etc.) that qecore passes
+# before exec-ing the real command.  Shell's exec builtin rejects unknown flags.
+RUN cat > /usr/local/bin/sudo <<'SUDOEOF'
+#!/bin/sh
+# Strip sudo flags/options, then exec the remaining command directly.
+while [ $# -gt 0 ]; do
+    case "$1" in
+        # Options that take a value: skip flag + next arg
+        -u|-g|-C|-r|-t|-T|-p|-c|-s|-l|-h|-v|-k|-K) shift 2 2>/dev/null || shift ;;
+        # Single-char flags that take no argument
+        -[HEinbAPSl]) shift ;;
+        # -- end of sudo options
+        --) shift; break ;;
+        # Anything else: treat as start of command
+        *) break ;;
+    esac
+done
+[ $# -eq 0 ] && exit 0
+exec "$@"
+SUDOEOF
+RUN chmod +x /usr/local/bin/sudo && \
     ln -sf /usr/local/bin/sudo /usr/bin/sudo
 
 # Patch qecore-headless for container-in-VM operation:
 #
-# 1. Permission Denied on /proc/<gnome-session-pid>/environ: the container
-#    runs with --userns=keep-id (child user namespace) so it cannot read
-#    /proc entries for processes in the VM's initial user namespace even though
-#    both sides use UID 1001.  qecore-headless treats this as a fatal
-#    fail_and_propagate error that causes TestSandbox to terminate all scenarios.
-#    Change it to a non-fatal warning so tests can run.
+# 1. ALL recoverable=False calls: the container runs with --userns=keep-id and
+#    lacks a live GNOME session, so many qecore-headless checks legitimately fail
+#    (pgrep gnome-session, /proc/<pid>/environ reads, sudo stat on dconf).  Any
+#    fail_and_propagate=True entry in /tmp/qecore_headless_data.json causes
+#    TestSandbox to call sys.exit(1) in before_scenario for every scenario, making
+#    the entire suite show 0 passed / 0 failed / N skipped.  Make all print_fail
+#    calls recoverable so headless errors become warnings, not fatal terminations.
 #
 # 2. XDG_SESSION_TYPE / XDG_SESSION_DESKTOP are passed via `podman run -e` but
 #    qecore-headless overwrites os.environ from /proc/<pid>/environ and only
 #    preserves a fixed allowlist (ENVIRONMENT_VARIABLES_TO_PRESERVE).  Add both
 #    vars to that list so they survive the env reset even when proc read fails.
 RUN python3 - <<'PYEOF'
+import re
+
 with open('/usr/local/bin/qecore-headless', 'r') as f:
     src = f.read()
 
-# 1. Make Permission Denied on proc/environ non-fatal
-src = src.replace(
-    "print_fail(f\"Environment file manipulation failed on: '{error}'\", recoverable=False)",
-    "print_fail(f\"Environment file manipulation failed on: '{error}'\")",
-)
+# 1. Make ALL print_fail calls recoverable (remove recoverable=False everywhere)
+src = re.sub(r',\s*recoverable\s*=\s*False', '', src)
 
 # 2. Add XDG session vars to the preserve list
 src = src.replace(
@@ -121,6 +143,15 @@ src = src.replace(
 with open('/usr/local/bin/qecore-headless', 'w') as f:
     f.write(src)
 PYEOF
+
+# Create dummy desktop files so qecore's get_application() desktop-file lookup
+# succeeds in the container (which lacks /usr/share/applications/).
+# The files only need [Desktop Entry] + Name + Exec to satisfy the parser.
+RUN mkdir -p /usr/share/applications && \
+    printf '[Desktop Entry]\nName=Ptyxis\nExec=ptyxis\nType=Application\n' \
+        > /usr/share/applications/org.gnome.Ptyxis.desktop && \
+    printf '[Desktop Entry]\nName=Software\nExec=gnome-software\nType=Application\n' \
+        > /usr/share/applications/org.gnome.Software.desktop
 
 WORKDIR /tests
 ENTRYPOINT ["qecore-headless"]
