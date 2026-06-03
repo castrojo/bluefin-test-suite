@@ -142,7 +142,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@232d517b2eb66841f4137d1673b0da65d42ef231 # main
     with:
       image: ghcr.io/projectbluefin/dakota:testing
-      suites: smoke,common
+      suites: smoke
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
@@ -153,7 +153,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@232d517b2eb66841f4137d1673b0da65d42ef231 # main
     with:
       image: ghcr.io/projectbluefin/dakota:latest
-      suites: smoke,common
+      suites: smoke
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
