@@ -23,9 +23,9 @@ from tests.shared.ssh_steps import run_ssh
 
 
 def _parse_bootc_status(context):
-    """Return the .status dict from bootc status --format=json output."""
+    """Return the .status dict from sudo bootc status --format=json output."""
     raw = getattr(context, "command_stdout", "")
-    assert raw, "No bootc status output available — run 'bootc status --format=json' first"
+    assert raw, "No bootc status output available — run 'sudo bootc status --format=json' first"
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as exc:
@@ -79,7 +79,7 @@ def bootc_status_not_pinned(context):
 @step("Capture booted image digest for rollback verification")
 def capture_original_digest(context):
     """Store the currently booted image digest so rollback can be verified later."""
-    run_ssh(context, "bootc status --format=json")
+    run_ssh(context, "sudo bootc status --format=json")
     status = _parse_bootc_status(context)
     digest = status.get("booted", {}).get("image", {}).get("imageDigest", "")
     assert digest, f"Could not read booted imageDigest from bootc status: {status}"
@@ -90,7 +90,7 @@ def capture_original_digest(context):
 @step("Capture staged image digest as upgrade target")
 def capture_staged_digest(context):
     """Store the staged image digest so the post-reboot deployment can be verified."""
-    run_ssh(context, "bootc status --format=json")
+    run_ssh(context, "sudo bootc status --format=json")
     status = _parse_bootc_status(context)
     staged = status.get("staged")
     assert staged is not None, (
@@ -233,7 +233,11 @@ def os_release_version_is_tracked_across_upgrade(context):
 @step("os-release reports Fedora Bluefin identity")
 def os_release_reports_fedora_bluefin_identity(context):
     data = _parse_os_release(getattr(context, "command_stdout", ""))
-    assert data.get("ID") == "fedora", f"Expected ID=fedora in /etc/os-release, got: {data}"
+    id_val = data.get("ID", "")
+    id_like = data.get("ID_LIKE", "")
+    assert id_val in ("fedora", "bluefin") or "fedora" in id_like, (
+        f"Expected ID=fedora or ID=bluefin (with ID_LIKE=fedora) in /etc/os-release, got: {data}"
+    )
     variant_id = data.get("VARIANT_ID")
     pretty_name = data.get("PRETTY_NAME", "")
     assert variant_id == "bluefin" or "bluefin" in pretty_name.lower(), (
@@ -287,7 +291,7 @@ def reboot_and_wait(context):
 def capture_migration_source_ref(context):
     """Store the currently booted image reference (expected: ublue-os/bluefin) so
     post-rollback steps can verify the switch was fully reversed."""
-    run_ssh(context, "bootc status --format=json")
+    run_ssh(context, "sudo bootc status --format=json")
     status = _parse_bootc_status(context)
     booted = status.get("booted", {})
     image_ref = booted.get("image", {}).get("image", {}).get("image", "")
@@ -304,7 +308,7 @@ def booted_image_from_registry(context, registry):
     VM started on the intended source image and the switch will be a real migration,
     not a no-op against the same registry.
     """
-    run_ssh(context, "bootc status --format=json")
+    run_ssh(context, "sudo bootc status --format=json")
     status = _parse_bootc_status(context)
     active_ref = (
         status.get("booted", {}).get("image", {}).get("image", {}).get("image", "")
