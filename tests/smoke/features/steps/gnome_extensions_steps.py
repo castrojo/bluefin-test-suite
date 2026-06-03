@@ -5,8 +5,14 @@ import subprocess
 from time import sleep
 
 from behave import step
-from dogtail import tree
-from qecore.common_steps import *  # noqa: F401,F403
+try:
+    from dogtail import tree
+except Exception:  # noqa: BLE001
+    tree = None  # type: ignore[assignment]
+try:
+    from qecore.common_steps import *  # noqa: F401,F403
+except Exception:  # noqa: BLE001
+    pass
 
 
 EXTENSIONS_APP_NAMES = (

@@ -20,7 +20,10 @@ import subprocess
 from time import sleep
 
 from behave import step
-from qecore.common_steps import *  # noqa: F401,F403
+try:
+    from qecore.common_steps import *  # noqa: F401,F403
+except Exception:  # noqa: BLE001
+    pass
 from tests.shared.gnome_shell_steps import *  # noqa: F401,F403
 
 
