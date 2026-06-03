@@ -586,7 +586,13 @@ jobs:
             meson setup /src/build /src --prefix=/usr -Dsystemd_user_unit_dir=/usr/lib/systemd/user -Dponytail_python=false
             ninja -C /src/build
             cp /src/build/src/gnome-ponytail-daemon /out/
-            # Build grim
+            # Build wayland-protocols >=1.37 from source (bookworm ships 1.31,
+            # grim 1.4+ needs 1.37 for ext-image-copy-capture-v1).
+            git clone --quiet --depth 1 --branch 1.37 \
+              https://gitlab.freedesktop.org/wayland/wayland-protocols.git /wp
+            meson setup /wp/build /wp --prefix=/usr
+            ninja -C /wp/build install
+            # Build grim (uses ext-image-copy-capture-v1, supported by mutter 47+)
             git clone --quiet --depth 1 https://git.sr.ht/~emersion/grim /grim
             meson setup /grim/build /grim --prefix=/usr
             ninja -C /grim/build
