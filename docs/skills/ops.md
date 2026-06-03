@@ -312,12 +312,18 @@ def before_scenario(context, scenario) -> None:
     from tests.shared.quarantine import skip_quarantine
     if skip_quarantine(scenario):
         return
-    if hasattr(context, 'failed_setup'):          # GUARD: skip if before_all failed
-        context.scenario.skip(reason=context.failed_setup)
+    if getattr(context, 'failed_setup', None):    # GUARD: skip if before_all failed
+        try:
+            scenario.skip(reason=context.failed_setup)
+        except TypeError:
+            scenario.skip()
         return
+    context.scenario = scenario
     ...
 
 def after_scenario(context, scenario) -> None:
+    if getattr(context, 'failed_setup', None):    # GUARD: skip cleanup on failure
+        return
     record_end(context, scenario)
     if scenario.status.name in ('passed', 'failed'):
         ...
@@ -325,10 +331,11 @@ def after_scenario(context, scenario) -> None:
         context.sandbox.after_scenario(context, scenario)
 ```
 
-All current suites (smoke, developer, software, dx, bazzite, lifecycle) must have both guards. Verify with:
-```bash
-grep -L "failed_setup" tests/*/features/environment.py
-```
+All current suites (smoke, developer, software, dx, bazzite, lifecycle) must have both guards.
+
+**⚠️ CRITICAL:** Use `getattr(context, 'failed_setup', None)` (truthiness check), NOT `hasattr(context, 'failed_setup')`. `TestSandbox.__init__` sets `context.failed_setup = None` on **every** run (even success), so `hasattr()` is always `True` and causes ALL scenarios to skip immediately. This was the root cause of 82/82 scenarios skipping in PR #255 debugging (commit f5647b2).
+
+Also use `scenario.skip()` (the argument), NOT `context.scenario.skip()` — `context.scenario` is not set yet at this guard point.
 
 ## test_ref and github.ref_name in workflow_call vs workflow_dispatch
 
@@ -350,3 +357,103 @@ jobs:
 The fallback chain is: user-supplied override → dispatched branch name → (never) empty. The old `|| 'main'` fallback was wrong and caused all dispatch runs to pull tests from main.
 
 **Rule:** Never use `github.ref_name` as a test-checkout ref inside `e2e.yml` itself — it always gives `main` there. Pass `test_ref` through from the caller.
+
+---
+
+## machine-id empty in Fedora-minimal (D-Bus / ponytail fails)
+
+**Symptom:** Container starts but every test shows:
+```
+org.freedesktop.DBus.Error.InvalidFileContent: D-Bus library appears to be incorrectly
+set up … UUID file '/etc/machine-id' should contain a hex string of length 32, not length 0
+```
+Ponytail init fails; `sandbox.before_scenario` → `overview_action("hide")` → RuntimeError/AttributeError in every scenario.
+
+**Cause:** `fedora-minimal` ships `/etc/machine-id` as a **zero-length file**. D-Bus refuses to initialize without a valid 32-hex-char UUID in that file.
+
+**Fix (in `container/Containerfile.runner`)** — add after the `microdnf install` block (requires `dbus-tools`):
+```dockerfile
+RUN dbus-uuidgen > /etc/machine-id && \
+    mkdir -p /var/lib/dbus && \
+    ln -sf /etc/machine-id /var/lib/dbus/machine-id
+```
+
+Fixed in PR #255 commit ea14b33. Always rebuild the runner image after this change.
+
+---
+
+## ponytail hook_error: overview_action → click → window_id chain
+
+**Symptom:** Every non-skipped scenario shows `hook_error` in behave JSON. Log shows:
+```
+HOOK_ERROR in before_scenario:
+  overview_action(action="hide")
+  → activities_toggle_button.click()
+  → dogtail tree.py: window_id
+  → ponytail_helper.get_window_id()
+  → RuntimeError / AttributeError: 'NoneType' has no attribute 'window_list'
+```
+
+**Cause:** `sandbox.before_scenario` calls `overview_action("hide")` to reset GNOME Shell state. This requires ponytail (input injection) to click the Activities button. In a container where gnome-ponytail-daemon is unreachable, the chain raises.
+
+**Two-layer fix:**
+
+1. **Containerfile** — patch `dogtail/ponytail_helper.py` in the runner image:
+```python
+# get_ponytail_interface(): return None instead of raising RuntimeError
+src = src.replace(
+    'raise RuntimeError(self.error_message)',
+    'print(f"WARNING: ponytail unavailable: {self.error_message}", flush=True); return None',
+)
+# get_window_id(): add None-guard after get_ponytail_interface() call
+src = re.sub(
+    r'(ponytail_interface\s*=\s*self\.get_ponytail_interface\(\))',
+    r'\1\n        if ponytail_interface is None:\n            return None',
+    src,
+)
+```
+
+2. **environment.py** — catch the exception from `sandbox.before_scenario` and continue:
+```python
+try:
+    sandbox.before_scenario(context, scenario)
+except (RuntimeError, AttributeError) as e:
+    # ponytail unavailable — overview_action failed; steps run anyway
+    print(f"WARNING: sandbox.before_scenario ponytail error: {type(e).__name__}: {e}", flush=True)
+except Exception:
+    tb = traceback.format_exc()
+    print(f"HOOK_ERROR in before_scenario:\n{tb}", flush=True)
+    raise
+```
+
+Both layers are needed: the Containerfile patch eliminates the error at source; the environment.py catch is belt-and-suspenders for any ponytail path not yet patched.
+
+Fixed in PR #255 commits f0e5259 + 4f54fcf.
+
+---
+
+## results.json artifact captures first-pass only
+
+**Symptom:** You download the `e2e-results-*` artifact and see all scenarios as `hook_error` or `failed`, but the job log text says "N scenarios passed".
+
+**Cause:** `behave_retry.py` runs behave up to 3 times. The `results.json` artifact is written after the **first pass** and is not overwritten by retries. Only the text summary lines in the job log reflect the true final state.
+
+**Rule:** Always grep the job log for the last `scenarios passed` line to get true counts:
+```bash
+gh api "repos/org/repo/actions/jobs/$JOB_ID/logs" | grep "scenarios passed" | tail -3
+```
+Three lines appear (one per pass). The last line is the final result.
+
+---
+
+## setuptools / pkg_resources missing in Python 3.14
+
+**Symptom:** Traceback spam per scenario during behave run:
+```
+ModuleNotFoundError: No module named 'pkg_resources'
+  File ".../qecore/sandbox.py", line NNN, in _attach_version_status_to_report
+```
+
+**Cause:** `pkg_resources` is part of `setuptools`, which is not installed by default in Python 3.14. qecore's `_attach_version_status_to_report` uses it to report installed package versions in test reports.
+
+**Fix:** Add `setuptools` to the pip install in `container/Containerfile.runner`. Fixed in PR #255 commit ea14b33.
