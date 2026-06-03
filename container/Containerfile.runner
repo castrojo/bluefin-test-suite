@@ -42,6 +42,7 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         glib2 \
         curl \
         util-linux-core \
+        openssh-clients \
     && microdnf clean all
 
 # Install Python test stack — pinned so bumps are explicit and reviewed
