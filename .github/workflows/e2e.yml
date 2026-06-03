@@ -819,13 +819,22 @@ jobs:
           echo "No in-VM screenshot found; capturing via QEMU monitor screendump..."
           mkdir -p results
           python3 tests/shared/qemu_screendump.py || true
-          # Convert PPM to PNG (ImageMagick is pre-installed on ubuntu-24.04 runners).
+          # QEMU writes the PPM as root (via sudo); fix permissions before reading.
+          sudo chmod 644 /tmp/qemu-desktop.ppm 2>/dev/null || true
+          # Convert PPM to PNG.  On ubuntu-24.04, ImageMagick 7 uses 'magick';
+          # fall back to ffmpeg (always available on GHA runners) if 'magick' is absent.
           PPM=/tmp/qemu-desktop.ppm
           OUT="results/screenshot_${SUITE}_fastfetch_endofrun.png"
           if [[ -f "$PPM" ]]; then
-            convert "$PPM" "$OUT" 2>&1 \
-              && echo "QEMU screendump captured: $OUT" \
-              || echo "WARNING: PPM to PNG conversion failed"
+            if command -v magick &>/dev/null; then
+              magick "$PPM" "$OUT" 2>&1 && echo "QEMU screendump captured (magick): $OUT"
+            elif command -v convert &>/dev/null; then
+              convert "$PPM" "$OUT" 2>&1 && echo "QEMU screendump captured (convert): $OUT"
+            elif command -v ffmpeg &>/dev/null; then
+              ffmpeg -y -i "$PPM" "$OUT" 2>&1 && echo "QEMU screendump captured (ffmpeg): $OUT"
+            else
+              echo "WARNING: no PPM->PNG converter found (tried magick, convert, ffmpeg)"
+            fi
           else
             echo "WARNING: screendump did not produce $PPM"
           fi

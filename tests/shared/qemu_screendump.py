@@ -27,14 +27,14 @@ def main():
         time.sleep(5)  # wait for QEMU to flush the framebuffer to disk
         s.close()
         print('screendump command sent to QEMU monitor', flush=True)
+        # File is written by QEMU (root); permissions are fixed by the caller.
         if os.path.exists(PPM_PATH):
-            os.chmod(PPM_PATH, 0o644)
             print('screendump size: ' + str(os.path.getsize(PPM_PATH)) + ' bytes', flush=True)
         else:
             print('WARNING: ' + PPM_PATH + ' not found after screendump', flush=True)
             sys.exit(1)
     except Exception as exc:
-        print('QEMU monitor error: ' + str(exc), flush=True)
+        print('QEMU monitor connect/send error: ' + str(exc), flush=True)
         sys.exit(1)
 
 
