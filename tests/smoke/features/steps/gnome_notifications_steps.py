@@ -1,4 +1,5 @@
 """Custom step definitions for GNOME notification smoke tests."""
+import os
 import re
 import subprocess
 from time import sleep
@@ -9,6 +10,8 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
+_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
+
 
 def _run(cmd: str):
     result = subprocess.run(
@@ -18,6 +21,17 @@ def _run(cmd: str):
         text=True,
         timeout=30,
     )
+    return result.stdout.strip(), result.returncode, result.stderr.strip()
+
+
+def _run_host(cmd: str):
+    if _IN_CONTAINER:
+        result = subprocess.run(
+            ["nsenter", "--mount=/proc/1/ns/mnt", "--", "bash", "-c", cmd],
+            capture_output=True, text=True, timeout=30,
+        )
+    else:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
@@ -142,7 +156,7 @@ def notification_banner_no_longer_showing(context) -> None:
 
 @step("No gnome-shell notification journal errors are present")
 def no_gnome_shell_notification_journal_errors(context) -> None:
-    output, returncode, stderr = _run("journalctl --no-pager -b -p err..emerg --lines=200")
+    output, returncode, stderr = _run_host("journalctl --no-pager -b -p err..emerg --lines=200")
     assert returncode == 0, f"journalctl failed: {stderr or output}"
 
     pattern = re.compile(r"gnome-shell.*notif", re.IGNORECASE)

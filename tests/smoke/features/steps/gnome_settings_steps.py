@@ -14,6 +14,16 @@ except Exception:  # noqa: BLE001
 from app_support import launch_background
 
 
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
+
+
 SETTINGS_APP_NAMES = ("gnome-control-center", "Settings")
 SETTINGS_LAUNCH_TARGETS = (
     ("command", "gnome-control-center"),
@@ -47,6 +57,8 @@ def _settings_window():
 
 @step("Launch Settings via command")
 def launch_settings_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     context.settings_launch_target = launch_background(SETTINGS_LAUNCH_TARGETS)
     sleep(1)
 
