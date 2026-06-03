@@ -184,13 +184,13 @@ for p in site.getsitepackages():
     break
 SANDBOXEOF
 
-# Patch dogtail ponytail_helper so get_ponytail_interface() returns None instead
-# of raising RuntimeError when gnome-ponytail-daemon is unavailable.
-# sandbox.before_scenario calls overview_action("hide") → click() → window_id →
-# ponytail_helper.get_ponytail_interface() → RuntimeError, turning every scenario
-# into a hook_error.  Returning None lets dogtail fall back to AT-SPI actions.
+# Patch dogtail ponytail_helper for container operation (no gnome-ponytail-daemon):
+# 1. get_ponytail_interface(): return None instead of raising RuntimeError
+# 2. get_window_id(): return None when ponytail_interface is None (avoids AttributeError)
+# This prevents sandbox.before_scenario's overview_action("hide") from hook_erroring
+# every scenario via the click() → window_id → ponytail chain.
 RUN python3 - <<'PONYTAILEOF'
-import site, os
+import site, os, re
 
 for p in site.getsitepackages():
     path = os.path.join(p, 'dogtail', 'ponytail_helper.py')
@@ -198,16 +198,24 @@ for p in site.getsitepackages():
         continue
     with open(path) as f:
         src = f.read()
-    patched = src.replace(
+
+    # Patch 1: get_ponytail_interface returns None instead of raising
+    src = src.replace(
         'raise RuntimeError(self.error_message)',
         'print(f"WARNING: ponytail unavailable: {self.error_message}", flush=True); return None',
     )
-    if patched == src:
-        print(f"WARNING: ponytail_helper.py patch string not found in {path}")
-    else:
-        with open(path, 'w') as f:
-            f.write(patched)
-        print(f"Patched {path}")
+
+    # Patch 2: get_window_id returns None when ponytail_interface is None
+    # Insert a None-guard right after the get_ponytail_interface() call
+    src = re.sub(
+        r'(ponytail_interface\s*=\s*self\.get_ponytail_interface\(\))',
+        r'\1\n        if ponytail_interface is None:\n            return None',
+        src,
+    )
+
+    with open(path, 'w') as f:
+        f.write(src)
+    print(f"Patched {path}")
     break
 PONYTAILEOF
 
