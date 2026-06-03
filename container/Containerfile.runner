@@ -38,6 +38,7 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         dbus-libs \
         glib2 \
         curl \
+        util-linux-core \
     && microdnf clean all
 
 # Install Python test stack — pinned so bumps are explicit and reviewed
