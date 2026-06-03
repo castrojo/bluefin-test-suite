@@ -75,11 +75,8 @@ def _shell_screenshot_js(path: str) -> str:
 def take_screenshot(label: str, context: Any | None = None) -> str | None:
     """Capture a PNG via GNOME Shell's Screenshot API through gdbus Shell.Eval."""
     context = context or _CURRENT_CONTEXT
-    sandbox = getattr(context, "sandbox", None) if context is not None else None
-    if sandbox is None:
-        print("Screenshot skipped: sandbox context is unavailable", flush=True)
-        return None
-
+    # Do not require context.sandbox — the runner container has glib2 (gdbus) and
+    # qecore-headless sets DBUS_SESSION_BUS_ADDRESS pointing at the host session bus.
     results_dir = _results_dir(context)
     path = _screenshot_path(label, context)
     os.makedirs(results_dir, exist_ok=True)

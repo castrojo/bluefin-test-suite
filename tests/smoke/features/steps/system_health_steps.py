@@ -38,7 +38,7 @@ IGNORED_FAILED_UNITS_IN_VM = {
 # When behave runs inside the runner container (--pid=host --privileged), system
 # commands like systemctl, bootc, and ujust are not in the container image. Use
 # nsenter to run them in the host VM's mount namespace via /proc/1/ns/mnt.
-_IN_CONTAINER = os.path.isfile("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
+_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
 
 
 def _run(cmd: str, timeout: int = 30):
