@@ -1,4 +1,5 @@
 """Custom step definitions for GNOME app launch smoke tests."""
+import os
 import subprocess
 from time import sleep
 
@@ -11,6 +12,8 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
+
+_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -71,14 +74,45 @@ def _shell_eval_force_close(app_names: tuple[str, ...]) -> None:
     sleep(1)
 
 
+def _ssh_args() -> list[str]:
+    return [
+        "ssh",
+        "-i", os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519"),
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "ConnectTimeout=10",
+        "-p", os.environ.get("SSH_PORT", "22"),
+        f"{os.environ.get('VM_USER', 'bluefin-test')}@{os.environ.get('VM_IP', '127.0.0.1')}",
+    ]
+
+
 def _launch_app(app_id: str) -> None:
     """Launch a GNOME app by ID, trying multiple invocation methods.
 
-    GNOME 50 / GLib 2.82+ changed ``gio launch`` to require an absolute path
-    to the ``.desktop`` file rather than resolving by application ID via
-    XDG_DATA_DIRS.  We try the absolute /usr/share path first, then fall back
-    to older invocation styles.
+    When running inside the runner container, desktop files are absent from the
+    container filesystem.  Forward the launch to the VM via SSH so gio/gtk-launch
+    can resolve the .desktop file from /usr/share/applications/.
+
+    GNOME 50 / GLib 2.82+ requires an absolute path to the .desktop file rather
+    than resolving by application ID via XDG_DATA_DIRS.
     """
+    if _IN_CONTAINER:
+        desktop = f"/usr/share/applications/{app_id}.desktop"
+        cmd = (
+            f"source /tmp/session.env 2>/dev/null; "
+            f"nohup gio launch {desktop} </dev/null &>/dev/null & disown"
+        )
+        result = subprocess.run(
+            _ssh_args() + [cmd],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode == 0:
+            sleep(1)
+            return
+        raise AssertionError(
+            f"Failed to launch {app_id!r} via SSH: {result.stderr.strip() or result.stdout.strip()}"
+        )
+
     attempts = [
         ["gio", "launch", f"/usr/share/applications/{app_id}.desktop"],
         ["gtk-launch", app_id],
