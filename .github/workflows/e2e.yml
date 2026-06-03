@@ -554,21 +554,10 @@ jobs:
           # Introspect GNOME Shell D-Bus interfaces to identify available screenshot APIs.
           $SSH "
             source /tmp/session.env
-            echo '=== org.gnome.Shell methods ==='
+            echo '=== org.gnome.Shell.Screenshot interface ==='
             gdbus introspect --session --dest org.gnome.Shell \
-              --object-path /org/gnome/Shell 2>&1 | head -60
-            echo '=== org.gnome.Shell.Screenshot methods ==='
-            gdbus introspect --session --dest org.gnome.Shell \
-              --object-path /org/gnome/Shell/Screenshot 2>&1 | head -40
+              --object-path /org/gnome/Shell/Screenshot 2>&1
           " || true
-
-          # Install grim for Wayland screenshots via wlr-screencopy.
-          # grim bypasses GNOME Shell permission checks entirely — it talks directly
-          # to the compositor's screencopy protocol, no unsafe_mode required.
-          # GNOME 50 (mutter 50) supports wlr-screencopy-unstable-v1.
-          $SSH "sudo rpm-ostree install --apply-live --idempotent grim 2>&1 | tail -3" \
-            && echo "grim installed on VM" \
-            || echo "INFO: grim install via rpm-ostree skipped — screenshot.py will fall back to gdbus"
 
       - name: Install gnome-ponytail-daemon
         if: ${{ env.SUITE != 'common' }}
@@ -581,23 +570,35 @@ jobs:
           # gnome-ponytail-daemon is not yet baked into the image (PR #618).
           # Build it without libei on debian:bookworm (glibc 2.36 < VM glibc 2.42).
           # Without libei the daemon uses the Mutter D-Bus fallback for input events.
+          # Also build grim (wlr-screencopy client) for permission-free screenshots.
+          # grim includes its own copy of wlr-screencopy-unstable-v1.xml so no
+          # external wlr-protocols package is needed.
           mkdir -p /tmp/ponytail-build
           podman run --rm -v /tmp/ponytail-build:/out:Z debian:bookworm bash -c "
             set -e
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
-            apt-get install -y -qq build-essential meson ninja-build pkg-config libglib2.0-dev git
+            apt-get install -y -qq build-essential meson ninja-build pkg-config \
+              libglib2.0-dev libwayland-dev wayland-protocols libcairo2-dev libpng-dev git
             git clone --quiet --depth 1 --branch 0.0.11 https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon.git /src
             # systemd dep is only used to find systemduserunitdir; we provide it directly
             sed -i \"s/dependency('systemd')/dependency('systemd', required: false)/\" /src/meson.build
             meson setup /src/build /src --prefix=/usr -Dsystemd_user_unit_dir=/usr/lib/systemd/user -Dponytail_python=false
             ninja -C /src/build
             cp /src/build/src/gnome-ponytail-daemon /out/
+            # Build grim
+            git clone --quiet --depth 1 https://git.sr.ht/~emersion/grim /grim
+            meson setup /grim/build /grim --prefix=/usr
+            ninja -C /grim/build
+            cp /grim/build/grim /out/
           "
 
-          $SSH "mkdir -p \$HOME/.local/libexec"
+          $SSH "mkdir -p \$HOME/.local/libexec \$HOME/.local/bin"
           scp ${SCP_OPTS} /tmp/ponytail-build/gnome-ponytail-daemon \
             bluefin-test@127.0.0.1:/home/bluefin-test/.local/libexec/gnome-ponytail-daemon
+          scp ${SCP_OPTS} /tmp/ponytail-build/grim \
+            bluefin-test@127.0.0.1:/home/bluefin-test/.local/bin/grim
+          $SSH "chmod +x \$HOME/.local/bin/grim && echo 'grim deployed to ~/.local/bin/'"
 
           $SSH "
             set -e
