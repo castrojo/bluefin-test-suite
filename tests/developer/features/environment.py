@@ -105,6 +105,8 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, scenario) -> None:
+    if hasattr(context, 'failed_setup'):
+        return
     record_end(context, scenario)
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
@@ -115,5 +117,7 @@ def after_scenario(context, scenario) -> None:
 
 def after_all(context) -> None:
     """Take a fastfetch desktop screenshot as end-of-run evidence."""
+    if hasattr(context, 'failed_setup'):
+        return
     configure_screenshot_context(context, SUITE_NAME, "end_of_run")
     take_fastfetch_screenshot()
