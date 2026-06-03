@@ -47,13 +47,14 @@ with:
 
 ### Lifecycle suite — special execution model
 
-The `lifecycle` suite does **not** run inside the VM container. It runs from the GHA runner via SSH, so the test process survives the VM reboot that happens mid-upgrade. The pipeline branches at the "Run behave suite" step:
+The `lifecycle` and `common` suites do **not** run inside the VM container. They run from the GHA runner via SSH — `lifecycle` because the test process must survive the mid-upgrade reboot; `common` because it only needs dconf/shell access, not a full AT-SPI bus. The pipeline branches at the "Run behave suite" step:
 
 ```
-if [[ "${SUITE}" == "lifecycle" ]]
-  → ssh bluefin-test@localhost -p 2222 behave ...   (from runner)
+if [[ "${SUITE}" == "common" || "${SUITE}" == "lifecycle" ]]
+  → ssh bluefin-test@localhost -p 2222 python3 behave_retry.py ...   (from runner)
 else
-  → podman exec runner-container behave ...          (inside VM)
+  → podman run --rm ghcr.io/projectbluefin/testsuite:runner \
+      "python3 behave_retry.py ..."                                   (inside VM)
 ```
 
 After the lifecycle suite finishes, a separate "Capture post-upgrade screenshot" step re-SSHes with `ControlMaster=no` (fresh connection after reboot), waits up to 60 s for the Wayland socket at `/run/user/1001/wayland-0`, and calls `org.gnome.Shell.Screenshot` via gdbus. The screenshot is saved to `results/screenshot_lifecycle_upgrade_final.png` and uploaded in the `e2e-results-*` artifact.
@@ -96,13 +97,23 @@ The workflow injects the test user, SSH keys, and autologin config at disk-prep 
 
 ## Screenshots and GHCR artifacts
 
-Every e2e run produces a fastfetch desktop screenshot at end-of-run as visual proof of a working GNOME session.
+Every e2e run produces a desktop screenshot at end-of-run as visual proof of a working GNOME session.
 
-### Desktop screenshot (fastfetch)
+### Desktop screenshot — two capture paths
 
-After the behave suite finishes, `take_fastfetch_screenshot()` is called in `after_all` for every GUI suite. The screenshot is:
+**Primary path (in-VM):** `take_fastfetch_screenshot()` is called in `after_all` for every GUI suite. It uses `gnome-screenshot` or `grim` inside the VM and writes to `results/desktop_screenshot.png`.
 
-1. Uploaded to the `e2e-results-*` artifact (as `desktop_screenshot.png`)
+**Fallback path (QEMU monitor screendump):** If no in-VM screenshot lands (behave crashed, container never started, AT-SPI unavailable), `e2e.yml` captures the QEMU VGA framebuffer directly via the monitor socket at `/tmp/qemu-monitor.sock`. QEMU maintains this framebuffer internally even with `-display none` because mutter uses bochs-drm (card1) as the KMS device, which maps to the VGA framebuffer. The screendump is converted PPM→PNG via Python stdlib (`tests/shared/qemu_screendump.py`).
+
+If **both** paths fail (QEMU monitor socket missing or empty framebuffer), the "Promote desktop screenshot" step fails loud — a missing screenshot from a non-`common` suite is treated as a job failure, not a silent pass.
+
+### Desktop screenshot distribution
+
+After the behave suite finishes, `take_fastfetch_screenshot()` is called in `after_all` for every GUI suite. The screenshot is taken in-VM via AT-SPI/Wayland. If `after_all` was not reached (e.g. the runner container failed to start), the GHA runner falls back to a QEMU monitor screendump: `sudo python3 tests/shared/qemu_screendump.py` sends a `screendump` command to `/tmp/qemu-monitor.sock` (opened at QEMU boot) and converts the PPM output to PNG using the Python stdlib. The "Promote desktop screenshot" step fails loud with `::error::` if neither source produces a file — that failure is intentional and means the container never loaded or behave exited before `after_all`.
+
+The screenshot is:
+
+1. Uploaded to the `e2e-results-*` artifact (as `desktop_screenshot.png` or `screenshot_<suite>_fastfetch_endofrun.png`)
 2. Rendered inline in the **GitHub Actions job summary**
 3. Pushed to GHCR as an OCI artifact:
 
@@ -152,6 +163,38 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 **Evidence:** Look for `lchown /var/spool/mail: invalid argument` in the "Load runner container into VM" step log.
 
 **Fix:** The `e2e.yml` "Load runner container into VM" step now adds the entries and runs `podman system migrate` before loading. If you see this on an older branch, cherry-pick PR #224.
+
+### behave crashes with PermissionError: [Errno 13] at ''
+
+**Root cause:** Python 3.14 sets `sys.executable = ''` inside podman containers with `--pid=host`. Old `behave_retry.py` passed `sys.executable` directly to `subprocess.run`.
+
+**Evidence:** Traceback in the "Run behave suite" step log ending at `subprocess.run(['', '-m', 'behave', ...])`.
+
+**Fix:** `_find_python()` in `tests/shared/behave_retry.py` resolves a real interpreter via `shutil.which`. If you see this, the tests are being checked out from `main` (which lacks the fix) rather than the fix branch. Check `test_ref` in the run inputs.
+
+### behave crashes with gi.RepositoryError: Typelib file for namespace 'xlib' not found
+
+**Root cause:** `gobject-introspection` is not installed in the runner container. Fedora 44 + `--setopt=install_weak_deps=0` skips it even though `python3-gobject` depends on it weakly.
+
+**Fix:** Rebuild the runner container after adding `gobject-introspection` to `container/Containerfile.runner`. Dispatch `build-runner.yml` to push a new `ghcr.io/projectbluefin/testsuite:runner`.
+
+### qecore-headless exits with "pgrep: command not found"
+
+**Root cause:** `procps-ng` is not in the runner container.
+
+**Fix:** Same as above — add `procps-ng` to `Containerfile.runner` and rebuild.
+
+### All AT-SPI calls silently fail / KeyError('XDG_SESSION_TYPE')
+
+**Root cause:** `XDG_SESSION_TYPE` and `XDG_SESSION_DESKTOP` are not forwarded to the podman container. qecore-headless can't read them from `/proc/<pid>/environ` inside the container (permission denied), so it enters `__unavailable__` mode.
+
+**Fix:** Add `-e XDG_SESSION_TYPE=wayland -e XDG_SESSION_DESKTOP=gnome` to the `podman run` call in `e2e.yml`, and write those same vars into `/tmp/session.env` before starting the container.
+
+### Tests always run from main regardless of dispatched branch
+
+**Root cause:** `github.ref_name` inside a `workflow_call` reusable workflow always resolves to the default branch (`main`). If `e2e.yml` uses it directly as the test checkout ref, it always pulls from `main`.
+
+**Fix:** Pass `test_ref` through `manual.yml`'s dispatch inputs using `github.ref_name` on the **workflow_dispatch** side (where it correctly reflects the dispatched branch), then forward it as an input to `e2e.yml`. See ops.md "test_ref and github.ref_name" for the exact pattern.
 
 ### SSH never became ready
 

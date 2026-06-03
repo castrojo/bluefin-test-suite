@@ -49,6 +49,12 @@ on:
           Example: "org.gnome.Calculator,io.github.kolunmi.Bazaar"
         type: string
         default: ""
+      test_ref:
+        description: >
+          Git ref (branch, SHA, or tag) from which to check out the tests/ directory.
+          Defaults to main. Set to a PR branch to test unreleased test-code changes.
+        type: string
+        default: "main"
 
 jobs:
   # Resolve comma-separated suite list into a JSON matrix
@@ -97,7 +103,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: projectbluefin/testsuite
-          ref: main
+          ref: ${{ inputs.test_ref || github.ref_name || 'main' }}
           sparse-checkout: |
             tests/${{ matrix.suite }}
             tests/shared
@@ -352,8 +358,6 @@ jobs:
           # deployment's etc/ssh/ci-authorized-keys (read by our AuthorizedKeysCommand).
           sudo mkdir -p "${VAR}/home/bluefin-test/.ssh"
           sudo tee "${VAR}/home/bluefin-test/.ssh/authorized_keys" < /tmp/vm_key.pub
-          sudo mkdir -p "${VAR}/home/bluefin-test/.config"
-          sudo touch "${VAR}/home/bluefin-test/.config/no-show-user-motd"
 
           # Ensure ~/.local/bin is in the GNOME session PATH.
           # qecore-headless reads the GNOME session environment from
@@ -416,10 +420,19 @@ jobs:
             -device   virtio-net-pci,netdev=net0 \
             -device   virtio-gpu-pci \
             -display  none \
+            -monitor  unix:/tmp/qemu-monitor.sock,server,nowait \
             -serial   file:$(pwd)/vm-serial.log \
             -daemonize \
             -pidfile  /tmp/qemu.pid
           echo "VM booting (pid=$(sudo cat /tmp/qemu.pid))"
+          # Make the monitor socket accessible to the runner user for screendump.
+          # QEMU creates the socket immediately on startup; wait up to 5s.
+          for i in $(seq 1 10); do
+            [[ -S /tmp/qemu-monitor.sock ]] && sudo chmod 666 /tmp/qemu-monitor.sock && break
+            sleep 0.5
+          done
+          [[ -S /tmp/qemu-monitor.sock ]] && echo "QEMU monitor socket ready." \
+            || echo "WARNING: QEMU monitor socket not found after 5s"
 
       # selinux=0 + pre-generated host keys + masked slow services = SSH ready in ~90s
       - name: Wait for SSH
@@ -479,12 +492,12 @@ jobs:
         if: ${{ env.SUITE != 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
-          # Ensure bluefin-test has subuid/subgid mappings so rootless podman can
-          # unpack image layers that contain non-root uid/gid ownership (e.g. gid 12
-          # for /var/spool/mail in the Fedora 44 base layer).
+          # Ensure subuid/subgid mappings exist for bluefin-test so rootless podman
+          # can unpack image layers with non-root ownership (e.g. gid 12 for
+          # /var/spool/mail in the Fedora 44 base layer inside the runner image).
           ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 \
             "sudo bash -c 'grep -q bluefin-test /etc/subuid || echo \"bluefin-test:100000:65536\" >> /etc/subuid; grep -q bluefin-test /etc/subgid || echo \"bluefin-test:100000:65536\" >> /etc/subgid'"
-          ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman system migrate 2>/dev/null || true
+          ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman system migrate
           echo "Piping runner container into VM (this replaces in-VM pip install)..."
           sudo podman save ghcr.io/projectbluefin/testsuite:runner | \
             ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman load
@@ -516,11 +529,57 @@ jobs:
             [[ -z \"\${SESSION_BUS}\" ]] && SESSION_BUS=\"unix:path=\${XDG}/bus\"
             WAYLAND_DISP=\$(ls /run/user/1001/wayland-* 2>/dev/null \
               | head -1 | xargs basename 2>/dev/null || echo wayland-0)
-            printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\nexport PATH=%s\n' \
+            printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\nexport PATH=%s\nexport XDG_SESSION_TYPE=wayland\nexport XDG_SESSION_DESKTOP=gnome\n' \
               \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${SESSION_BUS}\" \"\$HOME/.local/bin:\$PATH\" \
               > /tmp/session.env
             cat /tmp/session.env
           "
+
+          # Write a polkit rule that grants bluefin-test permission to call
+          # SetUnsafeMode without interactive auth, then enable unsafe_mode.
+          # This must run after session.env is created so DBUS_SESSION_BUS_ADDRESS
+          # is the correct GDM-started session bus (not the systemd user socket).
+          printf '%s\n' \
+            'polkit.addRule(function(action, subject) {' \
+            '    if ((action.id === "org.gnome.shell.unsafe-mode" ||' \
+            '         action.id === "org.gnome.Shell.UnsafeMode") &&' \
+            '        subject.local === true) {' \
+            '        return polkit.Result.YES;' \
+            '    }' \
+            '});' \
+          | $SSH "sudo tee /etc/polkit-1/rules.d/10-e2e-unsafe-mode.rules > /dev/null"
+
+          $SSH "
+            source /tmp/session.env
+            gdbus call --session \
+              --dest org.gnome.Shell \
+              --object-path /org/gnome/Shell \
+              --method org.gnome.Shell.SetUnsafeMode \
+              true \
+            && echo 'GNOME Shell unsafe_mode enabled via SetUnsafeMode' \
+            || echo 'WARNING: SetUnsafeMode not available — will rely on grim for screenshots'
+          "
+
+          # Enable AT-SPI accessibility for GTK4 apps (gnome-control-center, etc.).
+          # qecore-headless tries to do this with `dbus-run-session gsettings set ...`
+          # but that creates a new D-Bus session and does not affect the running GNOME
+          # session.  Setting toolkit-accessibility here (directly in the GDM session)
+          # causes GTK4 apps to register with at-spi2-registryd when they start, so
+          # dogtail/pyatspi2 can enumerate them in the AT-SPI tree.
+          $SSH "
+            source /tmp/session.env
+            gsettings set org.gnome.desktop.interface toolkit-accessibility true \
+              && echo 'AT-SPI toolkit-accessibility enabled' \
+              || echo 'WARNING: toolkit-accessibility not set (gsettings failed)'
+          "
+
+          # Introspect GNOME Shell D-Bus interfaces to identify available screenshot APIs.
+          $SSH "
+            source /tmp/session.env
+            echo '=== org.gnome.Shell.Screenshot interface ==='
+            gdbus introspect --session --dest org.gnome.Shell \
+              --object-path /org/gnome/Shell/Screenshot 2>&1
+          " || true
 
       - name: Install gnome-ponytail-daemon
         if: ${{ env.SUITE != 'common' }}
@@ -533,23 +592,41 @@ jobs:
           # gnome-ponytail-daemon is not yet baked into the image (PR #618).
           # Build it without libei on debian:bookworm (glibc 2.36 < VM glibc 2.42).
           # Without libei the daemon uses the Mutter D-Bus fallback for input events.
+          # Also build grim (wlr-screencopy client) for permission-free screenshots.
+          # grim includes its own copy of wlr-screencopy-unstable-v1.xml so no
+          # external wlr-protocols package is needed.
           mkdir -p /tmp/ponytail-build
           podman run --rm -v /tmp/ponytail-build:/out:Z debian:bookworm bash -c "
             set -e
             export DEBIAN_FRONTEND=noninteractive
             apt-get update -qq
-            apt-get install -y -qq build-essential meson ninja-build pkg-config libglib2.0-dev git
+            apt-get install -y -qq build-essential meson ninja-build pkg-config \
+              libglib2.0-dev libwayland-dev wayland-protocols libcairo2-dev libpng-dev git
             git clone --quiet --depth 1 --branch 0.0.11 https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon.git /src
             # systemd dep is only used to find systemduserunitdir; we provide it directly
             sed -i \"s/dependency('systemd')/dependency('systemd', required: false)/\" /src/meson.build
             meson setup /src/build /src --prefix=/usr -Dsystemd_user_unit_dir=/usr/lib/systemd/user -Dponytail_python=false
             ninja -C /src/build
             cp /src/build/src/gnome-ponytail-daemon /out/
+            # Build wayland-protocols >=1.37 from source (bookworm ships 1.31,
+            # grim 1.4+ needs 1.37 for ext-image-copy-capture-v1).
+            git clone --quiet --depth 1 --branch 1.37 \
+              https://gitlab.freedesktop.org/wayland/wayland-protocols.git /wp
+            meson setup /wp/build /wp --prefix=/usr
+            ninja -C /wp/build install
+            # Build grim (uses ext-image-copy-capture-v1, supported by mutter 47+)
+            git clone --quiet --depth 1 https://git.sr.ht/~emersion/grim /grim
+            meson setup /grim/build /grim --prefix=/usr
+            ninja -C /grim/build
+            cp /grim/build/grim /out/
           "
 
-          $SSH "mkdir -p \$HOME/.local/libexec"
+          $SSH "mkdir -p \$HOME/.local/libexec \$HOME/.local/bin"
           scp ${SCP_OPTS} /tmp/ponytail-build/gnome-ponytail-daemon \
             bluefin-test@127.0.0.1:/home/bluefin-test/.local/libexec/gnome-ponytail-daemon
+          scp ${SCP_OPTS} /tmp/ponytail-build/grim \
+            bluefin-test@127.0.0.1:/home/bluefin-test/.local/bin/grim
+          $SSH "chmod +x \$HOME/.local/bin/grim && echo 'grim deployed to ~/.local/bin/'"
 
           $SSH "
             set -e
@@ -577,6 +654,7 @@ jobs:
 
       - name: Run behave suite
         id: run
+        timeout-minutes: 80
         env:
           BEHAVE_RETRIES: 2
           SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
@@ -621,7 +699,7 @@ jobs:
               # --pid=host: qecore reads GNOME session env from /proc/<pid>/environ.
               # --privileged: AT-SPI socket access + uinput device passthrough.
               # --network host: D-Bus session bus traffic reaches ponytail daemon.
-              BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} podman run --rm \
+              podman run --userns=keep-id --rm \
                 --pid=host \
                 --privileged \
                 --network host \
@@ -632,11 +710,14 @@ jobs:
                 -e DBUS_SESSION_BUS_ADDRESS=\"\${DBUS_SESSION_BUS_ADDRESS}\" \
                 -e WAYLAND_DISPLAY=\"\${WAYLAND_DISPLAY}\" \
                 -e XDG_RUNTIME_DIR=/run/user/1001 \
+                -e XDG_SESSION_TYPE=wayland \
+                -e XDG_SESSION_DESKTOP=gnome \
                 -e AT_SPI_BUS_ADDRESS=\"\${AT_SPI_BUS_ADDRESS}\" \
                 -e VM_IP=127.0.0.1 \
                 -e VM_USER=bluefin-test \
                 -e SSH_KEY=/home/bluefin-test/.ssh/id_ed25519 \
                 -e SSH_PORT=22 \
+                -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
                 -e BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \
                 -e TARGET_IMAGE=\"${TARGET_IMAGE}\" \
                 -e PYTHONPATH=/tmp/bluefin-tests \
@@ -717,7 +798,7 @@ jobs:
           $SSH "
             set -e
             source /tmp/session.env
-            sudo podman run --rm \
+            podman run --userns=keep-id --rm \
               --pid=host \
               --privileged \
               --network host \
@@ -728,7 +809,10 @@ jobs:
               -e DBUS_SESSION_BUS_ADDRESS=\"\${DBUS_SESSION_BUS_ADDRESS}\" \
               -e WAYLAND_DISPLAY=\"\${WAYLAND_DISPLAY}\" \
               -e XDG_RUNTIME_DIR=/run/user/1001 \
+              -e XDG_SESSION_TYPE=wayland \
+              -e XDG_SESSION_DESKTOP=gnome \
               -e AT_SPI_BUS_ADDRESS=\"\${AT_SPI_BUS_ADDRESS}\" \
+              -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
               -e SUITE=${SUITE} \
               -e PYTHONPATH=/tmp/bluefin-tests \
               ghcr.io/projectbluefin/testsuite:runner \
@@ -737,6 +821,33 @@ jobs:
 
           mkdir -p results
           $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
+
+      - name: Capture desktop screenshot (QEMU screendump fallback)
+        if: always() && env.SUITE != 'common' && env.SUITE != 'lifecycle'
+        continue-on-error: true
+        run: |
+          # If the in-VM screenshot path (grim/gdbus inside the container) produced
+          # nothing, capture the QEMU virtual framebuffer directly from the runner.
+          # mutter renders the GNOME desktop to bochs-drm (card1 / primary VGA),
+          # which QEMU maintains internally even with -display none.  The monitor
+          # socket was opened at VM boot; screendump writes a PPM to the runner host.
+          if find results/ -name "screenshot_*fastfetch*.png" 2>/dev/null | grep -q .; then
+            echo "In-VM screenshot already present -- skipping QEMU screendump fallback."
+            exit 0
+          fi
+          echo "No in-VM screenshot found; capturing via QEMU monitor screendump..."
+          mkdir -p results
+          # Pass the PNG output path directly; the script handles PPM capture and
+          # conversion using Python stdlib (no ImageMagick or ffmpeg required).
+          OUT="results/screenshot_${SUITE}_fastfetch_endofrun.png"
+          # QEMU runs as root (sudo); the screendump socket is accessible because
+          # we chmod 666'd it at boot, but the PPM it writes is also root-owned.
+          # Run the script as root so it can read/chmod the output file.
+          sudo python3 tests/shared/qemu_screendump.py "$OUT" \
+            && echo "QEMU screendump captured: $OUT" \
+            || echo "WARNING: QEMU screendump/conversion failed"
+          # The PNG was written as root; make it readable by the runner user.
+          sudo chmod 644 "$OUT" 2>/dev/null || true
 
       - name: Promote desktop screenshot
         if: always()
@@ -752,7 +863,11 @@ jobs:
             echo "Desktop screenshot found: $SHOT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            echo "No fastfetch screenshot in results/ — skipping promotion"
+            if [[ "${SUITE}" != "common" && "${SUITE}" != "lifecycle" ]]; then
+              echo "::error::No desktop screenshot found for suite=${SUITE} — runner container may not have loaded or behave exited before after_all"
+              exit 1
+            fi
+            echo "No desktop screenshot in results/ — skipping promotion"
           fi
 
       - name: Push desktop screenshot to GHCR

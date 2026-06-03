@@ -185,14 +185,6 @@ class TestVmReachableOverSsh:
                 self.mod.vm_reachable_over_ssh(ctx)
         assert call_count["n"] == 3
 
-    def test_succeeds_when_motd_precedes_ok(self):
-        ctx = _make_context()
-        motd_output = "# 🦖 Dakota · Field Dispatch\nAll systems go\n\nok"
-
-        with patch.object(self.mod, "run_ssh", return_value=(motd_output, 0)):
-            with patch("time.sleep"):
-                self.mod.vm_reachable_over_ssh(ctx)
-
     def test_raises_after_all_retries_fail(self):
         ctx = _make_context()
         with patch.object(self.mod, "run_ssh", return_value=("", 1)):

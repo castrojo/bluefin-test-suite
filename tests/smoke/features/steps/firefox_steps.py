@@ -1,9 +1,25 @@
 from time import sleep
 
 from behave import step
-from dogtail import tree
-from qecore.common_steps import *  # noqa: F401,F403
+try:
+    from dogtail import tree
+except Exception:  # noqa: BLE001
+    tree = None  # type: ignore[assignment]
+try:
+    from qecore.common_steps import *  # noqa: F401,F403
+except Exception:  # noqa: BLE001
+    pass
 from app_support import launch_background
+
+
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
 
 
 FIREFOX_APP_NAMES = ("firefox", "Firefox", "Mozilla Firefox")
@@ -30,6 +46,8 @@ def _firefox_app(context):
 
 @step("Launch Firefox via command")
 def launch_firefox_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     context.firefox_launch_target = launch_background(FIREFOX_LAUNCH_TARGETS)
     sleep(1)
 

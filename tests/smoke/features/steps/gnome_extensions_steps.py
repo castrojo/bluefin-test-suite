@@ -5,8 +5,56 @@ import subprocess
 from time import sleep
 
 from behave import step
-from dogtail import tree
-from qecore.common_steps import *  # noqa: F401,F403
+try:
+    from dogtail import tree
+except Exception:  # noqa: BLE001
+    tree = None  # type: ignore[assignment]
+try:
+    from qecore.common_steps import *  # noqa: F401,F403
+except Exception:  # noqa: BLE001
+    pass
+
+_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
+
+
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
+
+
+def _run_host(cmd: list[str] | str):
+    """Run cmd on the host VM via SSH when inside the runner container."""
+    import shlex
+    cmd_str = cmd if isinstance(cmd, str) else " ".join(shlex.quote(a) for a in cmd)
+    if _IN_CONTAINER:
+        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+        vm_user = os.environ.get("VM_USER", "bluefin-test")
+        ssh_port = os.environ.get("SSH_PORT", "22")
+        result = subprocess.run(
+            [
+                "ssh",
+                "-i", ssh_key,
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "ConnectTimeout=10",
+                "-p", ssh_port,
+                f"{vm_user}@{vm_ip}",
+                cmd_str,
+            ],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+    else:
+        if isinstance(cmd, list):
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+        else:
+            result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=30, check=False)
+    return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
 EXTENSIONS_APP_NAMES = (
@@ -79,7 +127,8 @@ def _extensions_window(allow_process_fallback: bool = False):
 
 @step("At least one GNOME extension is installed")
 def at_least_one_gnome_extension_is_installed(context) -> None:
-    output, returncode, stderr = _run(["gnome-extensions", "list"])
+    # Use nsenter so gnome-extensions (from the host gnome-shell package) is available.
+    output, returncode, stderr = _run_host(["gnome-extensions", "list"])
     assert returncode == 0, f"gnome-extensions list failed: {stderr or output}"
 
     extensions = [line.strip() for line in output.splitlines() if line.strip()]
@@ -89,7 +138,8 @@ def at_least_one_gnome_extension_is_installed(context) -> None:
 
 @step("At least one GNOME extension is enabled")
 def at_least_one_gnome_extension_is_enabled(context) -> None:
-    output, returncode, stderr = _run(["gnome-extensions", "list", "--enabled"])
+    # Use nsenter so gnome-extensions (from the host gnome-shell package) is available.
+    output, returncode, stderr = _run_host(["gnome-extensions", "list", "--enabled"])
     assert returncode == 0, f"gnome-extensions list --enabled failed: {stderr or output}"
 
     enabled_extensions = [line.strip() for line in output.splitlines() if line.strip()]
@@ -99,6 +149,42 @@ def at_least_one_gnome_extension_is_enabled(context) -> None:
 
 @step("Launch Extensions preferences via command")
 def launch_extensions_preferences_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+
+    if _IN_CONTAINER:
+        # Inside the runner container the desktop file is absent from the container
+        # filesystem — launch via SSH on the VM where the session is running.
+        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+        vm_user = os.environ.get("VM_USER", "bluefin-test")
+        ssh_port = os.environ.get("SSH_PORT", "22")
+        cmd = (
+            "source /tmp/session.env 2>/dev/null; "
+            f"nohup gio launch {EXTENSIONS_DESKTOP_FILE} </dev/null &>/dev/null & disown"
+        )
+        result = subprocess.run(
+            ["ssh", "-i", ssh_key, "-o", "StrictHostKeyChecking=no",
+             "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10",
+             "-p", ssh_port, f"{vm_user}@{vm_ip}", cmd],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode != 0:
+            raise AssertionError(
+                f"Unable to launch GNOME Extensions via SSH: {result.stderr.strip() or result.stdout.strip()}"
+            )
+        context.extensions_launch_target = f"ssh:gio launch {EXTENSIONS_DESKTOP_FILE}"
+        sleep(2)
+        for _ in range(6):
+            try:
+                window = _extensions_window(allow_process_fallback=True)
+                context.extensions_window = window
+                context.extensions_at_spi_available = window is not None
+                return
+            except AssertionError as exc:
+                sleep(0.5)
+        raise AssertionError("GNOME Extensions window not found via AT-SPI after SSH launch")
+
     launch_attempts = [
         ["gtk-launch", "org.gnome.Extensions"],
         ["gnome-extensions", "--launch-preferences"],
@@ -139,6 +225,8 @@ def launch_extensions_preferences_via_command(context) -> None:
 
 @step("Extensions window is accessible")
 def extensions_window_is_accessible(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     if not getattr(context, "extensions_at_spi_available", True):
         print(
             "WARNING: Extensions AT-SPI window not available in headless GNOME 50 — skipping check",
@@ -195,7 +283,7 @@ def extensions_is_no_longer_running(context) -> None:
 
 @step("No gnome-shell extension load journal errors exist")
 def no_gnome_shell_extension_load_journal_errors_exist(context) -> None:
-    output, returncode, stderr = _run(
+    output, returncode, stderr = _run_host(
         ["journalctl", "--no-pager", "-b", "-p", "err..emerg", "--lines=200", "-q"]
     )
     assert returncode == 0, f"journalctl failed: {stderr or output}"

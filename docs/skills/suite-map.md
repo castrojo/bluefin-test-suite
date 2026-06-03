@@ -13,8 +13,8 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `smoke` | ✅ | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; all Bluefin variants |
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
-| `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew, Ptyxis, Podman Desktop |
-| `software` | — | — | — | — | — | ✅ | — | All 12 GNOME Software scenarios quarantined via feature-level `@quarantine` tag (Bluefin ships Bazaar `io.github.kolunmi.Bazaar`, not GNOME Software); 1 `@pending` Bazaar placeholder (bazaar.feature) tracks issue #419 |
+| `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
+| `software` | — | — | — | — | — | ✅ | — | Quarantined GNOME Software suite for gnomeos plus one `@pending` Bazaar placeholder; Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
 | `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
@@ -38,10 +38,12 @@ Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test 
 Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
 Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
 
-> **Do NOT use `manual.yml` in testsuite for lifecycle runs.** `manual.yml` calls
-> `e2e.yml` as a same-repo reusable workflow — GitHub always returns `startup_failure`
-> for this pattern. `upgrade-test.yml` in the actions repo calls `e2e.yml` cross-repo
-> (which works) and is the canonical manual trigger.
+> **For lifecycle runs, use `upgrade-test.yml` in `projectbluefin/actions`** — it
+> calls `e2e.yml` cross-repo and exposes the lifecycle-specific inputs (`chunked_enabled`,
+> `test_ref`). `manual.yml` in this repo works for non-lifecycle suites (startup_failure
+> was fixed in PR #245 by removing the `@main` ref suffix from the `uses:` line — the
+> bare local path `uses: ./.github/workflows/e2e.yml` is fine). For lifecycle, prefer
+> `upgrade-test.yml` because it has the richer input set lifecycle needs.
 
 ## Nightly CI job matrix
 
@@ -93,14 +95,14 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-263 scenarios across 31 feature files (last audit: 2026-06-03). 33 quarantined, 230 active.
+263 scenarios across 31 feature files (last audit: 2026-06-02). 24 quarantined (down from 42), 238 active.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 82 | 81 | 1 | ujust report --confirm quarantined pending implementation (#419) |
-| developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI; 6 Podman Desktop scenarios (podman.feature) are active |
-| software | 13 | 0 | 12 | All 12 flatpak.feature scenarios quarantined via feature-level `@quarantine` tag; 1 `@pending` Bazaar placeholder (bazaar.feature) tracks issue #419 |
-| common | 32 | 24 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209) |
+| smoke | 81 | 81 | 0 | dogtail 4.16 API correct throughout |
+| developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI |
+| software | 13 | 0 | 12 | GNOME Software scenarios are quarantined because Bluefin uses Bazaar; one `@pending` Bazaar placeholder tracks issue #419 |
+| common | 32 | 32 | 0 | dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 20 | 20 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default, unified-storage, and zstd:chunked lanes) |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
@@ -108,7 +110,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
 | flatcar/boot | 7 | 7 | 0 | systemd, containerd, networking |
-| flatcar/lifecycle | 6 | 3 | 0 | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
+| flatcar/lifecycle | 6 | 4 | 0 | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
 | security/selinux | 5 | 0 | 0 | `@future` — needs `selinux=0` removed from golden disk (Epic E04) |
 | nvidia | 12 | 0 | 0 | `@future`/`@hardware_blocked` — needs GPU passthrough (Epic E08) |
 
@@ -122,17 +124,13 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | distrobox enter | dx | pulls `fedora:latest`; no pre-pull in CI, times out |
 | JupyterLab | dx | not preinstalled in DX image |
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
-| zsh, fish | common | installed as RPMs but not on `PATH` for `bluefin-test` user in CI (issue #209) |
-| fzf, bat, eza, fd, ripgrep, starship (×6) | common | installed by `brew-setup.service` (cli.Brewfile) which is masked in CI (issue #209) |
-| ujust report --confirm | smoke | not yet implemented upstream |
-| software GNOME Software scenarios (×12) | software | All 12 flatpak.feature scenarios quarantined — feature-level `@quarantine` tag applies to the whole feature (8 have explicit scenario-level `@quarantine`; 4 inherit it from the feature). Quarantined until issue #419 lands Bazaar coverage |
+| software GNOME Software scenarios (×12) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
 
 ## Known coverage gaps
 
 | Area | Priority | Status | Notes |
 |---|---|---|---|
 | Bazaar / Flatpak management on Bluefin | High | Open | `@pending` placeholder exists; current `common` suite is SSH-only with no GNOME session (issue #419) |
-| Common shell tools (zsh, fish, fzf, bat, eza, fd, ripgrep, starship) | Medium | Open | 8 scenarios quarantined — `brew-setup.service` masked in CI and PATH issue for RPM-installed shells (issue #209) |
 | Flatpak permission management | Low | Open | Flatseal / per-app permissions not exercised |
 | OOBE / first-boot | Low | Open | Initial user setup flow not covered |
 

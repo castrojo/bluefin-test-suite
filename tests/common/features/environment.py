@@ -26,8 +26,18 @@ def _first_value(*values: str) -> str:
     return ""
 
 
+def _is_bluefin_image(image: str) -> bool:
+    """Return True if the image reference looks like a Bluefin image."""
+    lower = image.lower()
+    return "bluefin" in lower or "bazzite" in lower
+
+
 def before_all(context):
     userdata = context.config.userdata
+    # When IMAGE env var is set (GHA runner), auto-detect image family so
+    # @bluefin scenarios can be skipped gracefully on non-Bluefin images.
+    image_ref = os.environ.get("IMAGE", userdata.get("image", ""))
+    context.is_bluefin_image = _is_bluefin_image(image_ref) if image_ref else True
     context.vm_ip = _first_value(
         userdata.get("vm_ip", ""),
         userdata.get("host", ""),
@@ -93,6 +103,15 @@ def before_scenario(context, scenario):
     from tests.shared.quarantine import skip_quarantine
 
     if skip_quarantine(scenario):
+        return
+    # Skip @bluefin scenarios when running against a non-Bluefin image (e.g. Dakota).
+    # Feature-level @bluefin tags are inherited by all scenarios in those features.
+    is_bluefin = getattr(context, "is_bluefin_image", True)
+    if not is_bluefin and "bluefin" in scenario.effective_tags:
+        scenario.skip(
+            f"Skipping @bluefin scenario on non-Bluefin image "
+            f"(IMAGE={os.environ.get('IMAGE', 'unknown')})"
+        )
         return
     context.command_stdout = ""
     context.last_command_output = ""

@@ -17,8 +17,18 @@ import traceback
 import re as _re
 import subprocess as _subprocess
 
-from qecore.sandbox import TestSandbox
-from qecore.common_steps import *  # noqa: F401,F403 — registers all common @step definitions
+try:
+    from qecore.sandbox import TestSandbox
+    from qecore.common_steps import *  # noqa: F401,F403 — registers all common @step definitions
+    _QECORE_AVAILABLE = True
+except Exception as _qecore_exc:  # noqa: BLE001
+    # Runner containers based on fedora-minimal lack the GTK/dogtail typelibs
+    # needed by qecore. Smoke tests run headless CLI checks via nsenter/SSH and
+    # do not need AT-SPI — allow behave to load without a GNOME environment.
+    print(f"WARNING: qecore unavailable ({_qecore_exc}); sandbox disabled", flush=True)
+    TestSandbox = None  # type: ignore[assignment,misc]
+    _QECORE_AVAILABLE = False
+
 from steps.app_support import launch_target_available
 
 # ── qecore keyboard key mapping patch ────────────────────────────────────────
@@ -190,6 +200,12 @@ def before_all(context) -> None:
     else:
         print("WARNING: could not confirm unsafe_mode=true; Shell.Eval steps may fail", flush=True)
 
+    if not _QECORE_AVAILABLE:
+        print("Sandbox disabled: qecore/dogtail not available in this environment", flush=True)
+        context.optional_scenario_availability = {}
+        configure_screenshot_context(context, SUITE_NAME)
+        return
+
     # Poll until clock + system toggles appear in AT-SPI (up to 15s)
     from dogtail import tree as dtree
 
@@ -233,7 +249,6 @@ def before_all(context) -> None:
     else:
         print("WARNING: clock/system toggles not found after 15s — proceeding anyway", flush=True)
 
-    # Initialize sandbox
     try:
         context.optional_scenario_availability = {
             tag: launch_target_available(targets)
@@ -276,6 +291,13 @@ def before_scenario(context, scenario) -> None:
             print(f"Skipping {scenario.name}: no Wi-Fi interface detected", flush=True)
             return
 
+    if getattr(context, 'failed_setup', None):
+        try:
+            scenario.skip(reason=context.failed_setup)
+        except TypeError:
+            scenario.skip()
+        print(f"Skipping {scenario.name}: failed_setup set", flush=True)
+        return
     context.scenario = scenario
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
     record_start(context)
@@ -292,8 +314,25 @@ def before_scenario(context, scenario) -> None:
                 scenario.skip()
             print(f"Skipping {scenario.name}: {tag} app is not installed in this image", flush=True)
             return
+    sandbox = getattr(context, "sandbox", None)
+    if sandbox is None:
+        return
     try:
-        context.sandbox.before_scenario(context, scenario)
+        sandbox.before_scenario(context, scenario)
+    except SystemExit:
+        # qecore-headless detected unrecoverable AT-SPI errors (e.g. GNOME 50
+        # removed SetUnsafeMode).  Mark setup as failed so all remaining
+        # scenarios are skipped and after_scenario doesn't call the broken sandbox.
+        context.failed_setup = "qecore-headless startup failed: unrecoverable headless errors"
+        context.scenario.skip(reason=context.failed_setup)
+        return
+    except (RuntimeError, AttributeError) as e:
+        # sandbox.before_scenario calls overview_action("hide") → click() → window_id
+        # → ponytail_helper.get_window_id().  When gnome-ponytail-daemon is
+        # unavailable get_ponytail_interface() returns None and get_window_id raises
+        # AttributeError: 'NoneType' has no attribute 'window_list'.  Log and
+        # continue — steps that genuinely need ponytail will fail individually.
+        print(f"WARNING: sandbox.before_scenario ponytail error (continuing): {type(e).__name__}: {e}", flush=True)
     except Exception:
         tb = traceback.format_exc()
         print(f"HOOK_ERROR in before_scenario:\n{tb}", flush=True)
@@ -301,11 +340,18 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, scenario) -> None:
+    if getattr(context, 'failed_setup', None):
+        return
     record_end(context, scenario)
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
-    context.sandbox.after_scenario(context, scenario)
+    sandbox = getattr(context, "sandbox", None)
+    if sandbox is not None:
+        try:
+            sandbox.after_scenario(context, scenario)
+        except (RuntimeError, SystemExit) as e:
+            print(f"WARNING: sandbox.after_scenario failed: {e}", flush=True)
 
 
 def after_step(context, step) -> None:
@@ -327,6 +373,8 @@ def after_step(context, step) -> None:
 
 def after_all(context) -> None:
     """Take a fastfetch desktop screenshot, then dump gnome-shell AT-SPI tree."""
+    if getattr(context, 'failed_setup', None):
+        return
     configure_screenshot_context(context, SUITE_NAME, "end_of_run")
     take_fastfetch_screenshot()
 

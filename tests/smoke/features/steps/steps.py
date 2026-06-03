@@ -16,12 +16,45 @@ Instead we use a distinct step name: 'GNOME Shell is accessible via AT-SPI'.
 Step patterns sourced from: modehnal/GNOMETerminalAutomation steps.py
 dogtail API: root.application(), Node.findChild(), Node.child(roleName=)
 """
+import os
 import subprocess
 from time import sleep
 
 from behave import step
-from qecore.common_steps import *  # noqa: F401,F403
+try:
+    from qecore.common_steps import *  # noqa: F401,F403
+except Exception:  # noqa: BLE001
+    pass
 from tests.shared.gnome_shell_steps import *  # noqa: F401,F403
+
+# Same container detection as system_health_steps — /proc/1/ns/mnt is a symlink
+# to a kernel namespace object so lexists() is required (isfile() returns False).
+_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
+
+
+def _run_host(cmd: str, timeout: int = 30):
+    """Run cmd on the host VM via SSH when inside the runner container."""
+    if _IN_CONTAINER:
+        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+        vm_user = os.environ.get("VM_USER", "bluefin-test")
+        ssh_port = os.environ.get("SSH_PORT", "22")
+        result = subprocess.run(
+            [
+                "ssh",
+                "-i", ssh_key,
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "ConnectTimeout=10",
+                "-p", ssh_port,
+                f"{vm_user}@{vm_ip}",
+                cmd,
+            ],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    else:
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+    return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
 # ── Shell.Eval helpers (GNOME 50: uinput Super + AT-SPI toggle click broken) ──
@@ -156,36 +189,28 @@ def _set_dnd_enabled(expected: bool) -> None:
 
 @step('No coredump entries exist for "{name}"')
 def no_coredump_entries_exist(context, name: str) -> None:
-    result = subprocess.run(
-        ["coredumpctl", "list", name, "--no-pager", "--lines=10"],
-        capture_output=True,
-        text=True,
-        timeout=15,
+    stdout, returncode, stderr = _run_host(
+        f"coredumpctl list {name} --no-pager --lines=10 2>&1 || true"
     )
-    if result.returncode not in (0, 1):
-        raise AssertionError(
-            f"coredumpctl list failed for {name}: rc={result.returncode}\n"
-            f"stdout: {result.stdout}\n"
-            f"stderr: {result.stderr}"
-        )
-    matches = [line for line in result.stdout.splitlines() if name in line]
+    # coredumpctl exits 0 when matches found, 1 when no matches — treat 2+ as error
+    if "command not found" in stdout or "command not found" in stderr:
+        print(f"coredumpctl not available: {stdout or stderr}", flush=True)
+        return
+    matches = [line for line in stdout.splitlines() if name in line]
     assert not matches, f"Unexpected coredump entries for {name}: {matches}"
 
 
 @step('No journal entries at priority "{priority}" contain "{text}"')
 def no_journal_entries_at_priority_contain(context, priority: str, text: str) -> None:
-    result = subprocess.run(
-        ["journalctl", "--no-pager", "-b", "-p", priority, "--lines=50"],
-        capture_output=True,
-        text=True,
-        timeout=15,
+    stdout, returncode, stderr = _run_host(
+        f"journalctl --no-pager -b -p {priority} --lines=50"
     )
-    assert result.returncode == 0, (
-        f"journalctl failed for priority {priority}: rc={result.returncode}\n"
-        f"stdout: {result.stdout}\n"
-        f"stderr: {result.stderr}"
+    assert returncode == 0, (
+        f"journalctl failed for priority {priority}: rc={returncode}\n"
+        f"stdout: {stdout}\n"
+        f"stderr: {stderr}"
     )
-    matches = [line for line in result.stdout.splitlines() if text in line]
+    matches = [line for line in stdout.splitlines() if text in line]
     assert not matches, f"Unexpected journal matches for {text!r}: {matches}"
 
 

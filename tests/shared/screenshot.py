@@ -3,10 +3,16 @@
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import time
 from typing import Any
+
+# Detect when behave runs inside the runner container (not on the host VM).
+# Screenshots must be triggered via SSH so GNOME Shell (on the VM) can write
+# to the file — containerized gdbus calls are rejected by Shell's D-Bus policy.
+_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
 
 
 def _results_dir(context: Any | None = None) -> str:
@@ -58,28 +64,131 @@ def _screenshot_path(label: str, context: Any | None = None) -> str:
     return os.path.join(_results_dir(context), f"screenshot_{suite}_{safe_label}_{scenario}.png")
 
 
-def _shell_screenshot_js(path: str) -> str:
-    quoted_path = json.dumps(path)
-    return (
-        "const Shell = imports.gi.Shell; "
-        f"const path = {quoted_path}; "
-        "const screenshot = new Shell.Screenshot(); "
-        "screenshot.screenshot(true, true, path, (_obj, res) => { "
-        "try { screenshot.screenshot_finish(res); } "
-        "catch (e) { logError(e, 'Shared screenshot failed'); } "
-        "}); "
-        "'started';"
+def _ssh_run(cmd: str, timeout: int = 15) -> "subprocess.CompletedProcess[str]":
+    """Run a shell command on the VM via SSH (used when inside the runner container)."""
+    ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+    vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+    vm_user = os.environ.get("VM_USER", "bluefin-test")
+    ssh_port = os.environ.get("SSH_PORT", "22")
+    return subprocess.run(
+        [
+            "ssh", "-i", ssh_key,
+            "-o", "StrictHostKeyChecking=no",
+            "-o", "UserKnownHostsFile=/dev/null",
+            "-o", "ConnectTimeout=10",
+            "-p", ssh_port,
+            f"{vm_user}@{vm_ip}",
+            cmd,
+        ],
+        capture_output=True, text=True, timeout=timeout,
     )
 
 
-def take_screenshot(label: str, context: Any | None = None) -> str | None:
-    """Capture a PNG via GNOME Shell's Screenshot API through gdbus Shell.Eval."""
-    context = context or _CURRENT_CONTEXT
-    sandbox = getattr(context, "sandbox", None) if context is not None else None
-    if sandbox is None:
-        print("Screenshot skipped: sandbox context is unavailable", flush=True)
-        return None
+def _take_screenshot_via_ssh(path: str) -> bool:
+    """Take a screenshot on the VM using the best available method.
 
+    Tries in order:
+    1. grim  — Wayland screencopy; bypasses GNOME Shell permission check entirely.
+    2. gnome-screenshot — fallback for older GNOME versions.
+    3. org.gnome.Shell.Screenshot D-Bus — last resort; requires unsafe_mode=true.
+
+    All methods run on the VM (via SSH) since screencapture tools must have
+    access to the Wayland/X11 display, not the container's namespaced environment.
+    """
+    # session.env provides WAYLAND_DISPLAY, XDG_RUNTIME_DIR, DBUS_SESSION_BUS_ADDRESS
+    env_prefix = "source /tmp/session.env && "
+
+    # --- 1. grim (wlr-screencopy, no GNOME Shell involvement) ---
+    grim_cmd = f"{env_prefix}grim {shlex.quote(path)}"
+    r = _ssh_run(grim_cmd)
+    if r.returncode == 0:
+        print(f"Screenshot via grim: {path}", flush=True)
+        return True
+    if "command not found" in r.stderr or "No such file" in r.stderr:
+        print(f"grim not available: {r.stderr.strip()!r}", flush=True)
+    else:
+        print(f"grim failed (rc={r.returncode}): stderr={r.stderr.strip()!r} stdout={r.stdout.strip()!r}", flush=True)
+
+    # --- 2. gnome-screenshot CLI ---
+    gnome_ss_cmd = f"{env_prefix}gnome-screenshot -f {shlex.quote(path)}"
+    r = _ssh_run(gnome_ss_cmd)
+    if r.returncode == 0:
+        print(f"Screenshot via gnome-screenshot: {path}", flush=True)
+        return True
+    if "command not found" in r.stderr or "No such file" in r.stderr:
+        print(f"gnome-screenshot not available: {r.stderr.strip()!r}", flush=True)
+    else:
+        print(f"gnome-screenshot failed (rc={r.returncode}): stderr={r.stderr.strip()!r}", flush=True)
+
+    # --- 3. gdbus org.gnome.Shell.Screenshot (requires unsafe_mode=true) ---
+    # Try SetUnsafeMode (GNOME 43+, polkit-gated) then Shell.Eval as fallback.
+    # The workflow pre-installs a polkit rule so SetUnsafeMode succeeds without
+    # interactive auth.
+    for _unsafe_cmd in [
+        (f"{env_prefix}gdbus call --session --dest org.gnome.Shell "
+         "--object-path /org/gnome/Shell "
+         "--method org.gnome.Shell.SetUnsafeMode true"),
+        (f"{env_prefix}gdbus call --session --dest org.gnome.Shell "
+         "--object-path /org/gnome/Shell "
+         "--method org.gnome.Shell.Eval "
+         "'global.context.unsafe_mode = true'"),
+    ]:
+        if _ssh_run(_unsafe_cmd).returncode == 0:
+            break
+    gvariant_path = json.dumps(path)
+    gdbus_cmd = (
+        f"{env_prefix}"
+        "gdbus call --session "
+        "--dest org.gnome.Shell "
+        "--object-path /org/gnome/Shell/Screenshot "
+        "--method org.gnome.Shell.Screenshot.Screenshot "
+        f"true false '{gvariant_path}'"
+    )
+    r = _ssh_run(gdbus_cmd)
+    if r.returncode == 0:
+        print(f"Screenshot via gdbus Shell.Screenshot: {path}", flush=True)
+        return True
+    print(
+        f"All screenshot methods failed. gdbus: rc={r.returncode} "
+        f"stderr={r.stderr.strip()!r}",
+        flush=True,
+    )
+    return False
+
+
+def _gdbus_screenshot(path: str) -> bool:
+    """Take a screenshot, routing to the right host depending on environment."""
+    if _IN_CONTAINER:
+        return _take_screenshot_via_ssh(path)
+
+    # Running directly on the VM — use subprocess list form (no shell quoting needed)
+    gvariant_path = json.dumps(path)
+    result = subprocess.run(
+        [
+            'gdbus', 'call', '--session',
+            '--dest', 'org.gnome.Shell',
+            '--object-path', '/org/gnome/Shell/Screenshot',
+            '--method', 'org.gnome.Shell.Screenshot.Screenshot',
+            'true', 'false', gvariant_path,
+        ],
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        print(
+            f"Screenshot gdbus failed (rc={result.returncode}): "
+            f"stderr={result.stderr.strip()!r}",
+            flush=True,
+        )
+    return result.returncode == 0
+
+
+def take_screenshot(label: str, context: Any | None = None) -> str | None:
+    """Capture a PNG via the org.gnome.Shell.Screenshot D-Bus interface.
+
+    Uses the native Screenshot DBus method (not Shell.Eval which is restricted
+    in GNOME 48+). The screenshot is written synchronously by GNOME Shell.
+    """
+    context = context or _CURRENT_CONTEXT
     results_dir = _results_dir(context)
     path = _screenshot_path(label, context)
     os.makedirs(results_dir, exist_ok=True)
@@ -89,21 +198,7 @@ def take_screenshot(label: str, context: Any | None = None) -> str | None:
         except OSError:
             pass
 
-    try:
-        subprocess.run(
-            [
-                'gdbus', 'call', '--session',
-                '--dest', 'org.gnome.Shell',
-                '--object-path', '/org/gnome/Shell',
-                '--method', 'org.gnome.Shell.Eval',
-                _shell_screenshot_js(path),
-            ],
-            capture_output=True,
-            timeout=10,
-            check=True,
-        )
-    except Exception as exc:  # noqa: BLE001
-        print(f"Screenshot error: {exc}", flush=True)
+    if not _gdbus_screenshot(path):
         return None
 
     deadline = time.monotonic() + _CAPTURE_WAIT_SECONDS
@@ -192,7 +287,10 @@ def take_fastfetch_screenshot(context: Any | None = None) -> str | None:
                     pass
 
     if not attempted:
-        print('Fastfetch screenshot: no terminal emulator found', flush=True)
-    else:
-        print('Fastfetch screenshot: all terminal attempts failed', flush=True)
+        # No terminal emulator in PATH (e.g. inside the runner container which uses
+        # fedora-minimal). Fall back to a plain desktop screenshot so the Promote
+        # step still finds a screenshot_*fastfetch*.png artifact.
+        print('Fastfetch screenshot: no terminal emulator — taking plain desktop screenshot', flush=True)
+        return take_screenshot('fastfetch', context)
+    print('Fastfetch screenshot: all terminal attempts failed', flush=True)
     return None

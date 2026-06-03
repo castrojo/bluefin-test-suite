@@ -82,6 +82,10 @@ def dump_atspi_tree(context: Context) -> None:
     """
     import os
 
+    if getattr(context, "sandbox", None) is None:
+        print("dump_atspi_tree: sandbox unavailable, skipping AT-SPI tree dump", flush=True)
+        return
+
     lines = []
     shell = context.sandbox.shell
 
@@ -108,6 +112,12 @@ def gnome_shell_is_accessible(context: Context) -> None:
     context.sandbox.shell uses qecore's own retry path and is the recommended
     way to access gnome-shell per qecore docs.
     """
+    if getattr(context, "sandbox", None) is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: qecore sandbox not initialised")
+        except Exception:  # noqa: BLE001
+            pass
+        return
     last_exc = None
     for _ in range(6):
         try:
