@@ -818,7 +818,7 @@ jobs:
           fi
           echo "No in-VM screenshot found; capturing via QEMU monitor screendump..."
           mkdir -p results
-          python3 scripts/qemu_screendump.py || true
+          python3 tests/shared/qemu_screendump.py || true
           # Convert PPM to PNG (ImageMagick is pre-installed on ubuntu-24.04 runners).
           PPM=/tmp/qemu-desktop.ppm
           OUT="results/screenshot_${SUITE}_fastfetch_endofrun.png"
