@@ -17,6 +17,10 @@ IGNORED_FAILED_UNITS_IN_VM = {
     "cups.browsed.service",
     "podman-auto-update.timer",
     "malcontent-control.service",
+    # malcontent-webd-update.timer requires network access to fetch parental-controls
+    # blocklists; fails in isolated QEMU VMs (Dakota, CentOS Stream based images)
+    "malcontent-webd-update.timer",
+    "malcontent-webd-update.service",
     "blueman-mechanism.service",
     "gnome-remote-desktop.service",
     # bootupd cannot update the bootloader inside a QEMU VM (no EFI vars/bootctl)
