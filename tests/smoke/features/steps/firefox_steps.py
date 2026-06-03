@@ -12,6 +12,16 @@ except Exception:  # noqa: BLE001
 from app_support import launch_background
 
 
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
+
+
 FIREFOX_APP_NAMES = ("firefox", "Firefox", "Mozilla Firefox")
 FIREFOX_LAUNCH_TARGETS = (
     ("command", "firefox"),
@@ -36,6 +46,8 @@ def _firefox_app(context):
 
 @step("Launch Firefox via command")
 def launch_firefox_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     context.firefox_launch_target = launch_background(FIREFOX_LAUNCH_TARGETS)
     sleep(1)
 

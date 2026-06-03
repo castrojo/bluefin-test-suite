@@ -14,6 +14,30 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
+_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
+
+
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
+
+
+def _run_host(cmd: list[str]):
+    """Run cmd in the host VM's mount namespace when inside the runner container."""
+    if _IN_CONTAINER:
+        result = subprocess.run(
+            ["nsenter", "--mount=/proc/1/ns/mnt", "--", *cmd],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+    else:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+    return result.stdout.strip(), result.returncode, result.stderr.strip()
+
 
 EXTENSIONS_APP_NAMES = (
     "Extensions",
@@ -85,7 +109,8 @@ def _extensions_window(allow_process_fallback: bool = False):
 
 @step("At least one GNOME extension is installed")
 def at_least_one_gnome_extension_is_installed(context) -> None:
-    output, returncode, stderr = _run(["gnome-extensions", "list"])
+    # Use nsenter so gnome-extensions (from the host gnome-shell package) is available.
+    output, returncode, stderr = _run_host(["gnome-extensions", "list"])
     assert returncode == 0, f"gnome-extensions list failed: {stderr or output}"
 
     extensions = [line.strip() for line in output.splitlines() if line.strip()]
@@ -95,7 +120,8 @@ def at_least_one_gnome_extension_is_installed(context) -> None:
 
 @step("At least one GNOME extension is enabled")
 def at_least_one_gnome_extension_is_enabled(context) -> None:
-    output, returncode, stderr = _run(["gnome-extensions", "list", "--enabled"])
+    # Use nsenter so gnome-extensions (from the host gnome-shell package) is available.
+    output, returncode, stderr = _run_host(["gnome-extensions", "list", "--enabled"])
     assert returncode == 0, f"gnome-extensions list --enabled failed: {stderr or output}"
 
     enabled_extensions = [line.strip() for line in output.splitlines() if line.strip()]
@@ -145,6 +171,8 @@ def launch_extensions_preferences_via_command(context) -> None:
 
 @step("Extensions window is accessible")
 def extensions_window_is_accessible(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     if not getattr(context, "extensions_at_spi_available", True):
         print(
             "WARNING: Extensions AT-SPI window not available in headless GNOME 50 — skipping check",
@@ -201,7 +229,7 @@ def extensions_is_no_longer_running(context) -> None:
 
 @step("No gnome-shell extension load journal errors exist")
 def no_gnome_shell_extension_load_journal_errors_exist(context) -> None:
-    output, returncode, stderr = _run(
+    output, returncode, stderr = _run_host(
         ["journalctl", "--no-pager", "-b", "-p", "err..emerg", "--lines=200", "-q"]
     )
     assert returncode == 0, f"journalctl failed: {stderr or output}"

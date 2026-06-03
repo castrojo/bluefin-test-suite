@@ -13,6 +13,17 @@ except Exception:  # noqa: BLE001
     pass
 
 
+def _skip_if_no_atspi(context) -> bool:
+    """Skip the current scenario if AT-SPI (dogtail) is unavailable. Returns True if skipped."""
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
+
+
 FRAME_ROLES = {"frame", "filler"}
 PTYXIS_APP_NAMES = ("ptyxis", "Ptyxis")
 # GNOME 50 changed the Ptyxis window title from "Ptyxis" to "Terminal"
@@ -187,6 +198,8 @@ def _launch_assert_and_close(
 
 @step("the Ptyxis terminal launches successfully")
 def ptyxis_terminal_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     _launch_assert_and_close(
         context,
         "org.gnome.Ptyxis",
@@ -198,6 +211,8 @@ def ptyxis_terminal_launches_successfully(context) -> None:
 
 @step("the Files file manager launches successfully")
 def files_file_manager_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     _launch_assert_and_close(
         context,
         "org.gnome.Nautilus",
