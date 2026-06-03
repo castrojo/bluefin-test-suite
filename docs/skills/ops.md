@@ -236,3 +236,21 @@ gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
 The screenshot is saved to `results/screenshot_lifecycle_upgrade_final.png` and promoted to the `desktop-screenshot` workflow artifact. The step uses `ControlMaster=no` because the VM may have rebooted during the lifecycle suite, invalidating any existing SSH multiplex socket.
 
 The step waits up to 60 s for the Wayland socket (`/run/user/1001/wayland-0`) before attempting the screenshot.
+
+---
+
+## ublue-motd prepended to SSH output breaks assertions
+
+**Symptom:** `vm_reachable_over_ssh` fails or SSH output assertions fail with unexpected content. The step expects `stdout == "ok"` but gets e.g. `"Welcome to Bluefin...\nok"`.
+
+**Cause:** Dakota and some Bluefin images ship `/etc/profile.d/ublue-motd.sh` which prints a MOTD in login shells. SSH commands run as login shells, so the MOTD is prepended to every command's stdout.
+
+**Fix (in e2e.yml):** During VM setup, create the documented opt-out file:
+```bash
+sudo touch "${VAR}/home/bluefin-test/.config/no-show-user-motd"
+```
+`ssh_steps.py` also checks the **last line** of stdout (not the whole output) for the `"ok"` sentinel as a defensive measure against future MOTD sources.
+
+**Do not** change the SSH step assertions to substring-match — the last-line approach is more robust. If a new image adds another MOTD source, add its opt-out file to the VM setup step.
+
+Fixed in PR #208 (2026-06-03).
