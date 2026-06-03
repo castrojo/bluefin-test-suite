@@ -1,5 +1,5 @@
 """
-Software test environment — qecore TestSandbox for gnome-software.
+Software test environment — qecore TestSandbox for Bazaar (gnome-software in Bluefin).
 
 Regressions: bluefin#4062, #4471.
 """
@@ -49,6 +49,7 @@ def before_all(context) -> None:
     try:
         # In GNOME 50 / Fedora 44 the desktop file is org.gnome.Software.desktop
         # (reverse-DNS naming); qecore TestSandbox resolves it from the component name.
+        # Bazaar is the Bluefin-customized GNOME Software app manager.
         context.sandbox = TestSandbox("org.gnome.Software", context=context)
         context.sandbox.attach_faf = False
         context.sandbox.production = False
