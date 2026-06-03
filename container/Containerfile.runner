@@ -90,26 +90,36 @@ RUN for f in /usr/local/bin/qecore_*; do \
 #
 # The shim must strip sudo flags (-H, -u user, -n, -E, etc.) that qecore passes
 # before exec-ing the real command.  Shell's exec builtin rejects unknown flags.
-RUN cat > /usr/local/bin/sudo <<'SUDOEOF'
-#!/bin/sh
-# Strip sudo flags/options, then exec the remaining command directly.
-while [ $# -gt 0 ]; do
-    case "$1" in
-        # Options that take a value: skip flag + next arg
-        -u|-g|-C|-r|-t|-T|-p|-c|-s|-l|-h|-v|-k|-K) shift 2 2>/dev/null || shift ;;
-        # Single-char flags that take no argument
-        -[HEinbAPSl]) shift ;;
-        # -- end of sudo options
-        --) shift; break ;;
-        # Anything else: treat as start of command
-        *) break ;;
-    esac
-done
-[ $# -eq 0 ] && exit 0
-exec "$@"
+RUN python3 - <<'SUDOEOF'
+# Write a Python sudo shim that handles all flag styles:
+#   -H (no value), -u user (value), -Hu user (combined), -n, etc.
+shim = r"""#!/usr/bin/env python3
+import sys, os
+VALUE_FLAGS = set('ugCrTpc')
+args = sys.argv[1:]
+i = 0
+while i < len(args):
+    a = args[i]
+    if a == '--':
+        i += 1
+        break
+    if not a.startswith('-'):
+        break
+    flags = a[1:]
+    if any(c in VALUE_FLAGS for c in flags):
+        i += 2
+    else:
+        i += 1
+if i >= len(args):
+    sys.exit(0)
+os.execvp(args[i], args[i:])
+"""
+with open('/usr/local/bin/sudo', 'w') as f:
+    f.write(shim)
+import os, stat
+os.chmod('/usr/local/bin/sudo', stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
 SUDOEOF
-RUN chmod +x /usr/local/bin/sudo && \
-    ln -sf /usr/local/bin/sudo /usr/bin/sudo
+RUN ln -sf /usr/local/bin/sudo /usr/bin/sudo
 
 # Patch qecore-headless for container-in-VM operation:
 #
