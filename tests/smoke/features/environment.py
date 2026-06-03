@@ -291,8 +291,12 @@ def before_scenario(context, scenario) -> None:
             print(f"Skipping {scenario.name}: no Wi-Fi interface detected", flush=True)
             return
 
-    if hasattr(context, 'failed_setup'):
-        context.scenario.skip(reason=context.failed_setup)
+    if getattr(context, 'failed_setup', None):
+        try:
+            scenario.skip(reason=context.failed_setup)
+        except TypeError:
+            scenario.skip()
+        print(f"Skipping {scenario.name}: failed_setup set", flush=True)
         return
     context.scenario = scenario
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
@@ -329,7 +333,7 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, scenario) -> None:
-    if hasattr(context, 'failed_setup'):
+    if getattr(context, 'failed_setup', None):
         return
     record_end(context, scenario)
     if scenario.status.name in ('passed', 'failed'):
@@ -362,7 +366,7 @@ def after_step(context, step) -> None:
 
 def after_all(context) -> None:
     """Take a fastfetch desktop screenshot, then dump gnome-shell AT-SPI tree."""
-    if hasattr(context, 'failed_setup'):
+    if getattr(context, 'failed_setup', None):
         return
     configure_screenshot_context(context, SUITE_NAME, "end_of_run")
     take_fastfetch_screenshot()
