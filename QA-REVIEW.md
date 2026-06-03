@@ -1,9 +1,9 @@
 # testsuite QA review
 
-> Last updated: 2026-06-02
+> Last updated: 2026-06-03
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 263 scenarios across 31 feature files (last audit: 2026-06-02). 24 quarantined (down from 42), 238 active.
+Current audit: 263 scenarios across 31 feature files (last audit: 2026-06-03). 29 quarantined, 234 active.
 
 ## What this repo is responsible for
 
@@ -33,17 +33,17 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-67 unit tests across 8 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+107 unit tests across 8 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
 | `test_gnome_shell_steps.py` | 38 | Shell.Eval, AT-SPI step helpers, ShellEval bool variants |
-| `test_ssh_steps.py` | 26 | `run_ssh()`, journal/coredump matchers, output assertions |
+| `test_ssh_steps.py` | 27 | `run_ssh()`, journal/coredump matchers, output assertions |
 | `test_timing.py` | 13 | SLA tag thresholds and timing helpers |
 | `test_shared.py` | 9 | Shared step utilities |
 | `test_screenshot.py` | 9 | Screenshot capture helpers |
-| `test_quarantine.py` | 6 | `@quarantine` skip logic |
-| `test_retry.py` | 2 | Behave retry harness |
+| `test_quarantine.py` | 7 | `@quarantine` / `@pending` skip logic |
+| `test_retry.py` | 3 | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | 1 | `scripts/parse_results.py` JSONL output |
 
 The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue entry.
