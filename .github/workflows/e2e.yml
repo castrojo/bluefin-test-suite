@@ -103,7 +103,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: projectbluefin/testsuite
-          ref: ${{ inputs.test_ref || 'main' }}
+          ref: ${{ inputs.test_ref || github.ref_name || 'main' }}
           sparse-checkout: |
             tests/${{ matrix.suite }}
             tests/shared
