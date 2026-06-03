@@ -37,7 +37,7 @@ Start with `docs/skills/index.md`.
 ## Local development
 
 - CI uses **Python 3.14** (`actions/setup-python` in `.github/workflows/pr-validate.yml` and `.github/workflows/unit-tests.yml`), so use Python 3.14 locally as well.
-- Install the local Python pieces with `pip install behave qecore-headless dogtail`.
+- Install the local Python pieces with `pip install behave qecore dogtail` (`qecore-headless` is the runner binary installed by the `qecore` package, not a separate pip package).
 - [`gnome-ponytail-daemon`](https://github.com/dogtail/gnome-ponytail-daemon) is **not** a local pip install; it must already be baked into the image under test.
 - Full end-to-end runs still require a live **Wayland + AT-SPI** session, so they are not feasible for most contributors on a normal workstation. For most changes, the recommended execution path is the GitHub Action workflow below.
 
