@@ -27,15 +27,33 @@ def _skip_if_no_atspi(context) -> bool:
     return False
 
 
-def _run_host(cmd: list[str]):
-    """Run cmd in the host VM's mount namespace when inside the runner container."""
+def _run_host(cmd: list[str] | str):
+    """Run cmd on the host VM via SSH when inside the runner container."""
+    import shlex
+    cmd_str = cmd if isinstance(cmd, str) else " ".join(shlex.quote(a) for a in cmd)
     if _IN_CONTAINER:
+        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+        vm_user = os.environ.get("VM_USER", "bluefin-test")
+        ssh_port = os.environ.get("SSH_PORT", "22")
         result = subprocess.run(
-            ["nsenter", "--mount=/proc/1/ns/mnt", "--", *cmd],
+            [
+                "ssh",
+                "-i", ssh_key,
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "ConnectTimeout=10",
+                "-p", ssh_port,
+                f"{vm_user}@{vm_ip}",
+                cmd_str,
+            ],
             capture_output=True, text=True, timeout=30, check=False,
         )
     else:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+        if isinstance(cmd, list):
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+        else:
+            result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=30, check=False)
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
@@ -131,6 +149,8 @@ def at_least_one_gnome_extension_is_enabled(context) -> None:
 
 @step("Launch Extensions preferences via command")
 def launch_extensions_preferences_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     launch_attempts = [
         ["gtk-launch", "org.gnome.Extensions"],
         ["gnome-extensions", "--launch-preferences"],
