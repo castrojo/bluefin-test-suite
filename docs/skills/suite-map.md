@@ -38,10 +38,12 @@ Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test 
 Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
 Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
 
-> **Do NOT use `manual.yml` in testsuite for lifecycle runs.** `manual.yml` calls
-> `e2e.yml` as a same-repo reusable workflow — GitHub always returns `startup_failure`
-> for this pattern. `upgrade-test.yml` in the actions repo calls `e2e.yml` cross-repo
-> (which works) and is the canonical manual trigger.
+> **For lifecycle runs, use `upgrade-test.yml` in `projectbluefin/actions`** — it
+> calls `e2e.yml` cross-repo and exposes the lifecycle-specific inputs (`chunked_enabled`,
+> `test_ref`). `manual.yml` in this repo works for non-lifecycle suites (startup_failure
+> was fixed in PR #245 by removing the `@main` ref suffix from the `uses:` line — the
+> bare local path `uses: ./.github/workflows/e2e.yml` is fine). For lifecycle, prefer
+> `upgrade-test.yml` because it has the richer input set lifecycle needs.
 
 ## Nightly CI job matrix
 
