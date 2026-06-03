@@ -33,7 +33,7 @@ Feature: bootc upgrade and rollback lifecycle
   Scenario: bootc upgrade stages a new deployment
     # Needs: target image with a different digest than the currently booted one.
     * Capture booted image digest for rollback verification
-    * Run SSH command: "sudo bootc upgrade"
+    * Run long SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * bootc upgrade output indicates image was staged
     * Run SSH command: "sudo bootc status --format=json"
@@ -42,7 +42,7 @@ Feature: bootc upgrade and rollback lifecycle
   @lifecycle @upgrade @reboot
   Scenario: VM boots into upgraded deployment after reboot
     * Capture booted image digest for rollback verification
-    * Run SSH command: "sudo bootc upgrade"
+    * Run long SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * bootc upgrade output indicates image was staged
     * Run SSH command: "sudo bootc status --format=json"
@@ -54,7 +54,7 @@ Feature: bootc upgrade and rollback lifecycle
   @lifecycle @rollback
   Scenario: bootc rollback reverts to previous deployment
     * Capture booted image digest for rollback verification
-    * Run SSH command: "sudo bootc upgrade"
+    * Run long SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * bootc upgrade output indicates image was staged
     * Run SSH command: "sudo bootc status --format=json"
@@ -69,7 +69,7 @@ Feature: bootc upgrade and rollback lifecycle
   @lifecycle @switch
   Scenario: bootc switch transitions to a different variant
     # Requires: golden disk of source variant, target variant image available.
-    * Run SSH command: "sudo bootc switch ghcr.io/ublue-os/bluefin-dx:latest"
+    * Run long SSH command: "sudo bootc switch ghcr.io/ublue-os/bluefin-dx:latest"
     * SSH command return code is "0"
     * Reboot VM and wait for SSH
     * Run SSH command: "sudo bootc status --format=json"
@@ -80,7 +80,7 @@ Feature: bootc upgrade and rollback lifecycle
     # Write a sentinel, upgrade, reboot, verify file survives AND digest changed.
     * Capture booted image digest for rollback verification
     * Run SSH command: "echo 'testsuite-marker' | sudo tee /etc/bluefin-test-marker"
-    * Run SSH command: "sudo bootc upgrade"
+    * Run long SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * bootc upgrade output indicates image was staged
     * Run SSH command: "sudo bootc status --format=json"
@@ -95,7 +95,7 @@ Feature: bootc upgrade and rollback lifecycle
   @lifecycle @ostree
   Scenario: ostree admin status reports at least two deployments after upgrade
     # Run after an upgrade + reboot so both booted and rollback deployments are present.
-    * Run SSH command: "sudo bootc upgrade"
+    * Run long SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * bootc upgrade output indicates image was staged
     * Reboot VM and wait for SSH
@@ -106,7 +106,7 @@ Feature: bootc upgrade and rollback lifecycle
   @lifecycle @upgrade @version
   Scenario: os-release version changes are tracked after upgrade
     * Capture current os-release VERSION_ID via SSH
-    * Run SSH command: "sudo bootc upgrade"
+    * Run long SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * bootc upgrade output indicates image was staged
     * Run SSH command: "sudo bootc status --format=json"
@@ -135,10 +135,10 @@ Feature: bootc upgrade and rollback lifecycle
 
   @lifecycle @upgrade @idempotent
   Scenario: bootc upgrade is idempotent when already at latest
-    * Run SSH command: "sudo bootc upgrade"
+    * Run long SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * If bootc upgrade output indicates image was staged, reboot VM and wait for SSH
-    * Run SSH command: "sudo bootc upgrade"
+    * Run long SSH command: "sudo bootc upgrade"
     * SSH command return code is "0"
     * Run SSH command: "sudo bootc status --format=json"
     * No staged deployment is present in bootc status
