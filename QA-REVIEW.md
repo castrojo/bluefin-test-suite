@@ -3,7 +3,7 @@
 > Last updated: 2026-06-02
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 261 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 241 active.
+Current audit: 262 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 242 active.
 
 ## What this repo is responsible for
 
@@ -33,7 +33,7 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-67 unit tests across 8 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+104 unit tests across 8 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|

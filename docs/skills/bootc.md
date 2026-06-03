@@ -83,3 +83,14 @@ Step definitions in `tests/lifecycle/features/steps/steps.py`:
 
 Both use `_parse_bootc_status(context)` for validated JSON access — do not duplicate the bare `json.loads` pattern.
 
+## Upgrade no-op guard
+
+`bootc upgrade output indicates image was staged` **fails hard** (AssertionError) when `bootc upgrade` exits 0 without staging a new deployment — i.e. the booted image is already at the latest digest.
+
+This is intentional: a silent skip would let upgrade/rollback scenarios produce a green CI result without ever testing the upgrade path.
+
+**What this means for you:**
+- If running lifecycle tests against a mutable tag (`stable`, `latest`) that has not advanced since the last run, the upgrade scenarios will **fail** — this is correct behaviour.
+- To guarantee an actual upgrade occurs, set the `target-image` input in `e2e.yml` to a pinned OCI ref that differs from the booted digest.
+- The idempotent scenario uses `If bootc upgrade output indicates image was staged, reboot VM and wait for SSH` (different step, remains conditional) and is not affected.
+

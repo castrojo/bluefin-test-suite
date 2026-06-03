@@ -150,16 +150,16 @@ def upgrade_output_staged(context):
     staged digest matches the booted digest after rebooting into it, /etc files
     trivially survive a same-image reboot, and ostree still shows two entries.
 
-    If no staging happened, skip this scenario so the reboot+verify steps
-    don't fire against a stale or absent staged deployment.
+    If no staging happened, fail hard so CI does not silently report a
+    passing upgrade path when no upgrade actually occurred.
     """
     output = getattr(context, "command_stdout", "")
     if "Queued for next boot" not in output:
-        _skip_current_scenario(
-            context,
-            f"bootc upgrade was a no-op (image already up-to-date) — "
-            f"skipping reboot+verify steps to avoid false-pass. "
-            f"bootc output: {output!r}",
+        raise AssertionError(
+            "bootc upgrade was a no-op — no image was staged. "
+            "This means the booted image is already at the latest digest. "
+            "Use a pinned target or upgrade from an older digest to test upgrade behavior. "
+            f"bootc output: {output!r}"
         )
 
 
