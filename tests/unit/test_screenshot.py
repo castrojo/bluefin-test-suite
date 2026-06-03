@@ -97,3 +97,37 @@ def test_step_launch_and_screenshot_asserts_on_none():
     ):
         with pytest.raises(AssertionError, match="Screenshot failed"):
             screenshot_steps.step_launch_and_screenshot(_FakeContext(), "org.gnome.Foo")
+
+
+# ── take_fastfetch_screenshot fallback ───────────────────────────────────────
+
+
+def test_take_fastfetch_screenshot_falls_back_when_no_terminal_found(monkeypatch):
+    """When no terminal emulator is on PATH, fall back to plain take_screenshot."""
+    monkeypatch.setattr(screenshot.shutil, "which", lambda _name: None)
+
+    with patch.object(screenshot, "take_screenshot", return_value="/tmp/results/x.png") as mock_ts:
+        result = screenshot.take_fastfetch_screenshot(context=None)
+
+    assert result == "/tmp/results/x.png"
+    mock_ts.assert_called_once_with("fastfetch", None)
+
+
+def test_take_fastfetch_screenshot_skips_fallback_when_terminal_succeeds(monkeypatch):
+    """When a terminal is found and screenshot succeeds, fallback is not called."""
+    def _which(name):
+        return "/usr/bin/ptyxis" if name == "ptyxis" else None
+
+    monkeypatch.setattr(screenshot.shutil, "which", _which)
+
+    with patch.object(screenshot.subprocess, "Popen") as mock_popen:
+        mock_popen.return_value.__enter__ = lambda s: s
+        mock_popen.return_value.__exit__ = lambda *a: False
+        mock_popen.return_value.terminate = lambda: None
+        mock_popen.return_value.wait = lambda timeout=None: None
+
+        with patch.object(screenshot, "take_screenshot", return_value="/tmp/results/ff.png") as mock_ts:
+            result = screenshot.take_fastfetch_screenshot(context=None)
+
+    assert result == "/tmp/results/ff.png"
+    mock_ts.assert_called_once_with("fastfetch", None)
