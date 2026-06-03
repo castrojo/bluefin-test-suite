@@ -33,6 +33,13 @@ on:
         description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
         type: boolean
         default: false
+      chunked_enabled:
+        description: >
+          Enable @zstd_chunked scenarios in the lifecycle suite.
+          Set to true once projectbluefin/bluefin ships with zstd:chunked layer
+          compression. Defaults to false so CI stays green until the image is ready.
+        type: boolean
+        default: false
       screenshot_flatpaks:
         description: >
           Comma-separated Flatpak app IDs to launch-and-screenshot after the test run.
@@ -572,19 +579,21 @@ jobs:
           BEHAVE_RETRIES: 2
           SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
           TARGET_IMAGE: ${{ inputs.target-image }}
+          ZSTD_CHUNKED: ${{ inputs.chunked_enabled && 'true' || 'false' }}
         run: |
           mkdir -p results
           BEHAVE_RC=0
           BEHAVE_TAG_ARGS="--tags ~quarantine"
           [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ~native_app"
 
-          if [[ "${SUITE}" == "common" ]]; then
+          if [[ "${SUITE}" == "common" || "${SUITE}" == "lifecycle" ]]; then
             python3 -m pip install -q --user behave
             PYTHONPATH="$(pwd)" \
             VM_IP=127.0.0.1 \
             VM_USER=bluefin-test \
             SSH_KEY=/tmp/vm_key \
             SSH_PORT=2222 \
+            ZSTD_CHUNKED="${ZSTD_CHUNKED}" \
             python3 tests/shared/behave_retry.py tests/${SUITE}/features/ \
               --format json.pretty --outfile results/results.json \
               --no-capture ${BEHAVE_TAG_ARGS} || BEHAVE_RC=$?

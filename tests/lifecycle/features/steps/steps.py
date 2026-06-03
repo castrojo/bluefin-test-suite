@@ -439,7 +439,54 @@ def unified_storage_overlay_present(context):
     print("Confirmed: /var/lib/bootc/storage/overlay is present", flush=True)
 
 
-@step("ostree status shows two deployments")
+@step("Active image layers use zstd:chunked compression")
+def active_image_layers_zstd_chunked(context):
+    """Verify the active image uses zstd:chunked layer compression.
+
+    Inspects the OCI manifest via skopeo to confirm at least one layer uses
+    tar+zstd mediaType or carries the zstd-chunked annotation.
+
+    Requires the target image to have been built or repushed with zstd:chunked
+    (e.g. skopeo copy --dest-compress-format=zstd:chunked).
+    """
+    status = _parse_bootc_status(context)
+    image_ref = (
+        status.get("booted", {}).get("image", {}).get("image", {}).get("image", "")
+    )
+    assert image_ref, f"Could not extract booted image ref from bootc status: {status}"
+
+    out, rc = run_ssh(context, f"skopeo inspect --raw docker://{image_ref}", timeout=120)
+    assert rc == 0, f"skopeo inspect --raw failed for {image_ref!r}: rc={rc}\n{out}"
+
+    try:
+        manifest = json.loads(out)
+    except json.JSONDecodeError as exc:
+        raise AssertionError(f"Invalid manifest JSON from skopeo: {exc}\n{out}") from exc
+
+    layers = manifest.get("layers", [])
+    assert layers, f"No layers found in manifest for {image_ref!r}"
+
+    for layer in layers:
+        media_type = layer.get("mediaType", "")
+        annotations = layer.get("annotations", {})
+        if "tar+zstd" in media_type or any("zstd-chunked" in k for k in annotations):
+            print(
+                f"Confirmed: {image_ref!r} uses zstd:chunked "
+                f"(first matching layer: mediaType={media_type!r})",
+                flush=True,
+            )
+            return
+
+    media_types = {layer.get("mediaType") for layer in layers}
+    raise AssertionError(
+        f"Image {image_ref!r} does not use zstd:chunked compression. "
+        f"Observed layer mediaTypes: {media_types}. "
+        "Ensure the target image was built or repushed with zstd:chunked "
+        "(e.g. skopeo copy --dest-compress-format=zstd:chunked)."
+    )
+
+
+
 def ostree_two_deployments(context):
     """Verify ostree admin status reports at least 2 deployments.
 

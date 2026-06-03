@@ -1,0 +1,41 @@
+# Migration Test — ublue-os/bluefin → projectbluefin/bluefin
+#
+# Manually trigger this workflow to run the full lifecycle migration suite,
+# including the @zstd_chunked lane once the target image ships zstd:chunked layers.
+#
+# Central toggle for zstd:chunked:
+#   chunked_enabled: false  — runs all migration scenarios EXCEPT @zstd_chunked (default)
+#   chunked_enabled: true   — also runs @zstd_chunked (unified storage + zstd:chunked)
+#
+# Flip the default to true once ghcr.io/projectbluefin/bluefin:latest ships
+# with zstd:chunked layer compression.
+
+name: Migration Test — ublue-os → projectbluefin
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Source image to migrate FROM (must be ublue-os/bluefin)"
+        type: string
+        default: "ghcr.io/ublue-os/bluefin:latest"
+      chunked_enabled:
+        description: "Run @zstd_chunked lane (enable when target ships zstd:chunked layers)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  migration:
+    name: Migration — ${{ inputs.image }}
+    uses: ./.github/workflows/e2e.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image: ${{ inputs.image }}
+      suites: lifecycle
+      chunked_enabled: ${{ inputs.chunked_enabled }}

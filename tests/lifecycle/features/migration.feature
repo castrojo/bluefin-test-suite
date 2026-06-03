@@ -146,3 +146,29 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Active image reference contains "projectbluefin/bluefin"
     * bootc status shows rollback deployment is available
     * bootc status rollback deployment matches migration source digest
+
+  @migration @switch @unified_storage @zstd_chunked
+  Scenario: bootc switch with unified storage migrates to projectbluefin/bluefin with zstd:chunked layers
+    # Final-state migration lane: unified storage enabled, zstd:chunked OCI layers.
+    # This is the target end-state once projectbluefin/bluefin ships with
+    # zstd:chunked compression.
+    #
+    # Toggle: set ZSTD_CHUNKED=false (or --tags ~@zstd_chunked) to skip this
+    # scenario when the target image does not yet ship with zstd:chunked layers.
+    # Flip ZSTD_CHUNKED=true once the image ships zstd:chunked (default: true).
+    * Run SSH command: "bootc status --format=json"
+    * Booted image is from the "ublue-os" registry
+    * Capture booted image digest for rollback verification
+    * Capture booted image reference as migration source
+    * Run SSH command: "sudo bootc switch --experimental-unified-storage ghcr.io/projectbluefin/bluefin:latest"
+    * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * Staged deployment is present in bootc status
+    * Capture staged image digest as upgrade target
+    * Reboot VM and wait for SSH
+    * Run SSH command: "bootc status --format=json"
+    * Active deployment matches upgrade target digest
+    * Active image reference contains "projectbluefin/bluefin"
+    * Unified storage overlay directory is present on the VM
+    * bootc status shows deployment is compatible
+    * Active image layers use zstd:chunked compression
