@@ -66,9 +66,11 @@ Feature: bootc upgrade and rollback lifecycle
     * Run SSH command: "sudo bootc status --format=json"
     * Active deployment matches original image digest
 
-  @lifecycle @switch
+  @lifecycle @switch @quarantine
   Scenario: bootc switch transitions to a different variant
-    # Requires: golden disk of source variant, target variant image available.
+    # Quarantined: mutates VM image variant (bluefin → bluefin-dx), corrupting
+    # subsequent migration.feature scenarios that expect ublue-os/bluefin as source.
+    # Run as a standalone suite once cross-variant golden-disk testing is set up.
     * Run long SSH command: "sudo bootc switch ghcr.io/ublue-os/bluefin-dx:latest"
     * SSH command return code is "0"
     * Reboot VM and wait for SSH
