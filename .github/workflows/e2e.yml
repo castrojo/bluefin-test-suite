@@ -49,6 +49,12 @@ on:
           Example: "org.gnome.Calculator,io.github.kolunmi.Bazaar"
         type: string
         default: ""
+      test_ref:
+        description: >
+          Git ref (branch, SHA, or tag) from which to check out the tests/ directory.
+          Defaults to main. Set to a PR branch to test unreleased test-code changes.
+        type: string
+        default: "main"
 
 jobs:
   # Resolve comma-separated suite list into a JSON matrix
@@ -97,7 +103,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: projectbluefin/testsuite
-          ref: main
+          ref: ${{ inputs.test_ref || 'main' }}
           sparse-checkout: |
             tests/${{ matrix.suite }}
             tests/shared
