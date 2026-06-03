@@ -21,9 +21,9 @@ on:
         required: false
         default: "false"
       test_ref:
-        description: "Git ref for tests/ checkout (default: main; set to branch name to test unreleased changes)"
+        description: "Git ref for tests/ checkout (default: same branch as workflow; set to override)"
         required: false
-        default: "main"
+        default: ""
 
 permissions:
   contents: read
@@ -36,4 +36,4 @@ jobs:
       image: ${{ github.event.inputs.image }}
       suites: ${{ github.event.inputs.suites }}
       chunked_enabled: ${{ github.event.inputs.chunked_enabled == 'true' }}
-      test_ref: ${{ github.event.inputs.test_ref || 'main' }}
+      test_ref: ${{ github.event.inputs.test_ref || github.ref_name }}
