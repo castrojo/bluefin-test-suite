@@ -69,22 +69,29 @@ def _gdbus_screenshot(path: str) -> bool:
     When behave runs inside the runner container, GNOME Shell's D-Bus policy
     rejects screenshot requests from containerized callers. Run the gdbus
     command via SSH on the VM (where gnome-shell is) instead.
+
+    GVariant text format for strings is double-quoted (json.dumps produces this).
+    For the SSH path, wrap the double-quoted value in shell single quotes so bash
+    passes the double-quote characters literally to gdbus without stripping them.
     """
-    # GVariant text format: strings are single-quoted.
-    gdbus_cmd = (
-        "gdbus call --session "
-        "--dest org.gnome.Shell "
-        "--object-path /org/gnome/Shell/Screenshot "
-        "--method org.gnome.Shell.Screenshot.Screenshot "
-        f"true false '{path}'"
-    )
+    # json.dumps produces a valid GVariant text-format string: "double-quoted"
+    gvariant_path = json.dumps(path)
+
     if _IN_CONTAINER:
         ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
         vm_ip = os.environ.get("VM_IP", "127.0.0.1")
         vm_user = os.environ.get("VM_USER", "bluefin-test")
         ssh_port = os.environ.get("SSH_PORT", "22")
-        # source session.env so DBUS_SESSION_BUS_ADDRESS is set on the VM side
-        remote_cmd = f"source /tmp/session.env && {gdbus_cmd}"
+        # Single quotes around gvariant_path preserve the double-quote characters
+        # so gdbus receives: "/tmp/results/foo.png" (with surrounding double quotes).
+        remote_cmd = (
+            "source /tmp/session.env && "
+            "gdbus call --session "
+            "--dest org.gnome.Shell "
+            "--object-path /org/gnome/Shell/Screenshot "
+            "--method org.gnome.Shell.Screenshot.Screenshot "
+            f"true false '{gvariant_path}'"
+        )
         result = subprocess.run(
             [
                 "ssh", "-i", ssh_key,
@@ -98,13 +105,21 @@ def _gdbus_screenshot(path: str) -> bool:
             capture_output=True, text=True, timeout=15,
         )
     else:
+        # subprocess list: gvariant_path is passed directly, no shell quoting needed
         result = subprocess.run(
-            gdbus_cmd, shell=True, capture_output=True, text=True, timeout=10,
+            [
+                'gdbus', 'call', '--session',
+                '--dest', 'org.gnome.Shell',
+                '--object-path', '/org/gnome/Shell/Screenshot',
+                '--method', 'org.gnome.Shell.Screenshot.Screenshot',
+                'true', 'false', gvariant_path,
+            ],
+            capture_output=True, text=True, timeout=10,
         )
     if result.returncode != 0:
         print(
             f"Screenshot gdbus failed (rc={result.returncode}): "
-            f"{result.stderr.strip() or result.stdout.strip()}",
+            f"stderr={result.stderr.strip()!r} stdout={result.stdout.strip()!r}",
             flush=True,
         )
     return result.returncode == 0
