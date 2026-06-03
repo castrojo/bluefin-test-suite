@@ -420,10 +420,19 @@ jobs:
             -device   virtio-net-pci,netdev=net0 \
             -device   virtio-gpu-pci \
             -display  none \
+            -monitor  unix:/tmp/qemu-monitor.sock,server,nowait \
             -serial   file:$(pwd)/vm-serial.log \
             -daemonize \
             -pidfile  /tmp/qemu.pid
           echo "VM booting (pid=$(sudo cat /tmp/qemu.pid))"
+          # Make the monitor socket accessible to the runner user for screendump.
+          # QEMU creates the socket immediately on startup; wait up to 5s.
+          for i in $(seq 1 10); do
+            [[ -S /tmp/qemu-monitor.sock ]] && sudo chmod 666 /tmp/qemu-monitor.sock && break
+            sleep 0.5
+          done
+          [[ -S /tmp/qemu-monitor.sock ]] && echo "QEMU monitor socket ready." \
+            || echo "WARNING: QEMU monitor socket not found after 5s"
 
       # selinux=0 + pre-generated host keys + masked slow services = SSH ready in ~90s
       - name: Wait for SSH
@@ -793,6 +802,62 @@ jobs:
 
           mkdir -p results
           $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
+
+      - name: Capture desktop screenshot (QEMU screendump fallback)
+        if: always() && env.SUITE != 'common' && env.SUITE != 'lifecycle'
+        continue-on-error: true
+        run: |
+          # If the in-VM screenshot path (grim/gdbus inside the container) produced
+          # nothing, capture the QEMU virtual framebuffer directly from the runner.
+          # mutter renders the GNOME desktop to bochs-drm (card1 / primary VGA),
+          # which QEMU maintains internally even with -display none.  The monitor
+          # socket was opened at VM boot; screendump writes a PPM to the runner host.
+          if find results/ -name "screenshot_*fastfetch*.png" 2>/dev/null | grep -q .; then
+            echo "In-VM screenshot already present — skipping QEMU screendump fallback."
+            exit 0
+          fi
+          echo "No in-VM screenshot found; capturing via QEMU monitor screendump..."
+          mkdir -p results
+          python3 - <<'PYEOF'
+import socket, time, sys, os
+
+sock_path = '/tmp/qemu-monitor.sock'
+ppm_path  = '/tmp/qemu-desktop.ppm'
+
+try:
+    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    s.settimeout(15)
+    s.connect(sock_path)
+    time.sleep(0.5)
+    try:
+        s.recv(4096)   # discard QEMU monitor greeting
+    except socket.timeout:
+        pass
+    s.send(f'screendump {ppm_path}\n'.encode())
+    time.sleep(5)      # give QEMU time to flush the framebuffer to disk
+    s.close()
+    print(f"screendump command sent → {ppm_path}", flush=True)
+    # Make readable by the runner user (QEMU runs as root via sudo)
+    if os.path.exists(ppm_path):
+        os.chmod(ppm_path, 0o644)
+        print(f"screendump file size: {os.path.getsize(ppm_path)} bytes", flush=True)
+    else:
+        print(f"WARNING: {ppm_path} not found after screendump", flush=True, file=sys.stderr)
+        sys.exit(1)
+except Exception as e:
+    print(f"QEMU monitor error: {e}", flush=True, file=sys.stderr)
+    sys.exit(1)
+PYEOF
+          # Convert PPM → PNG (ImageMagick convert is pre-installed on ubuntu-24.04)
+          PPM=/tmp/qemu-desktop.ppm
+          OUT="results/screenshot_${SUITE}_fastfetch_endofrun.png"
+          if [[ -f "$PPM" ]]; then
+            convert "$PPM" "$OUT" 2>&1 \
+              && echo "QEMU screendump captured → $OUT" \
+              || echo "WARNING: PPM→PNG conversion failed"
+          else
+            echo "WARNING: screendump did not produce $PPM"
+          fi
 
       - name: Promote desktop screenshot
         if: always()
