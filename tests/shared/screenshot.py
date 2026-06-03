@@ -58,25 +58,13 @@ def _screenshot_path(label: str, context: Any | None = None) -> str:
     return os.path.join(_results_dir(context), f"screenshot_{suite}_{safe_label}_{scenario}.png")
 
 
-def _shell_screenshot_js(path: str) -> str:
-    quoted_path = json.dumps(path)
-    return (
-        "const Shell = imports.gi.Shell; "
-        f"const path = {quoted_path}; "
-        "const screenshot = new Shell.Screenshot(); "
-        "screenshot.screenshot(true, true, path, (_obj, res) => { "
-        "try { screenshot.screenshot_finish(res); } "
-        "catch (e) { logError(e, 'Shared screenshot failed'); } "
-        "}); "
-        "'started';"
-    )
-
-
 def take_screenshot(label: str, context: Any | None = None) -> str | None:
-    """Capture a PNG via GNOME Shell's Screenshot API through gdbus Shell.Eval."""
+    """Capture a PNG via the org.gnome.Shell.Screenshot D-Bus interface.
+
+    Uses the native Screenshot DBus method (not Shell.Eval which is restricted
+    in GNOME 48+). The screenshot is written synchronously by GNOME Shell.
+    """
     context = context or _CURRENT_CONTEXT
-    # Do not require context.sandbox — the runner container has glib2 (gdbus) and
-    # qecore-headless sets DBUS_SESSION_BUS_ADDRESS pointing at the host session bus.
     results_dir = _results_dir(context)
     path = _screenshot_path(label, context)
     os.makedirs(results_dir, exist_ok=True)
@@ -91,9 +79,11 @@ def take_screenshot(label: str, context: Any | None = None) -> str | None:
             [
                 'gdbus', 'call', '--session',
                 '--dest', 'org.gnome.Shell',
-                '--object-path', '/org/gnome/Shell',
-                '--method', 'org.gnome.Shell.Eval',
-                _shell_screenshot_js(path),
+                '--object-path', '/org/gnome/Shell/Screenshot',
+                '--method', 'org.gnome.Shell.Screenshot.Screenshot',
+                'true',    # include_cursor (GVariant boolean)
+                'false',   # flash (GVariant boolean)
+                json.dumps(path),  # filename as GVariant string (double-quoted)
             ],
             capture_output=True,
             timeout=10,

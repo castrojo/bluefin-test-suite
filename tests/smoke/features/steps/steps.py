@@ -33,10 +33,23 @@ _IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/b
 
 
 def _run_host(cmd: str, timeout: int = 30):
-    """Run cmd in the host VM's mount namespace when inside the runner container."""
+    """Run cmd on the host VM via SSH when inside the runner container."""
     if _IN_CONTAINER:
+        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+        vm_user = os.environ.get("VM_USER", "bluefin-test")
+        ssh_port = os.environ.get("SSH_PORT", "22")
         result = subprocess.run(
-            ["nsenter", "--mount=/proc/1/ns/mnt", "--", "bash", "-c", cmd],
+            [
+                "ssh",
+                "-i", ssh_key,
+                "-o", "StrictHostKeyChecking=no",
+                "-o", "UserKnownHostsFile=/dev/null",
+                "-o", "ConnectTimeout=10",
+                "-p", ssh_port,
+                f"{vm_user}@{vm_ip}",
+                cmd,
+            ],
             capture_output=True, text=True, timeout=timeout,
         )
     else:
