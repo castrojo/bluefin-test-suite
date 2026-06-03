@@ -1,0 +1,359 @@
+name: Migration Test — ublue-os → projectbluefin
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_image:
+        description: "Source (legacy) image"
+        default: "ghcr.io/ublue-os/bluefin:stable"
+        required: false
+        type: string
+      target_image:
+        description: "Migration target image"
+        default: "ghcr.io/projectbluefin/bluefin:stable"
+        required: false
+        type: string
+      lanes:
+        description: "Comma-separated lanes to run (rechunker,zstd_chunked,unified_storage)"
+        default: "rechunker,zstd_chunked,unified_storage"
+        required: false
+        type: string
+
+jobs:
+  migrate:
+    if: ${{ contains(format(',{0},', replace(inputs.lanes, ' ', '')), format(',{0},', matrix.lane)) }}
+    name: migrate (${{ matrix.lane }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [rechunker, zstd_chunked, unified_storage]
+    env:
+      SOURCE_IMAGE: ${{ inputs.source_image }}
+      TARGET_IMAGE: ${{ inputs.target_image }}
+      MIGRATION_LANE: ${{ matrix.lane }}
+    steps:
+      - name: Checkout testsuite
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Install dependencies and pull source image
+        run: |
+          sudo podman pull "${SOURCE_IMAGE}" &
+          PULL_PID=$!
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            qemu-system-x86 \
+            ovmf \
+            imagemagick \
+            socat \
+            python3-pip
+          wait ${PULL_PID}
+
+      - name: Generate SSH keypair
+        run: |
+          ssh-keygen -t ed25519 -f "$(pwd)/vm_key" -N "" -C "migration@gha"
+          echo "VM_PUBKEY=$(cat vm_key.pub)" >> "$GITHUB_ENV"
+
+      - name: Install OCI image and configure disk
+        run: |
+          set -euo pipefail
+
+          fallocate -l 40G disk.raw
+
+          if ! sudo podman run --rm --quiet "${SOURCE_IMAGE}" bootc install to-disk --help 2>&1 | grep -q -- '--bootloader'; then
+            echo "ERROR: source image bootc lacks --bootloader support; UEFI migration requires bootc >= 0.1.13"
+            exit 1
+          fi
+
+          sudo podman run \
+            --rm --privileged --pid=host \
+            --security-opt label=type:unconfined_t \
+            -v /var/lib/containers:/var/lib/containers \
+            -v /dev:/dev \
+            -v "$(pwd):/data" \
+            "${SOURCE_IMAGE}" bootc install to-disk \
+              --via-loopback /data/disk.raw \
+              --filesystem ext4 \
+              --wipe \
+              --bootloader systemd
+
+          LOOP=$(sudo losetup -f --show -P disk.raw)
+          echo "Loop: ${LOOP}"
+          ROOT_PART="${LOOP}p3"
+          ESP_PART="${LOOP}p1"
+          XBOOTLDR_PART="${LOOP}p2"
+          ROOT_UUID=$(sudo blkid -s UUID -o value "${ROOT_PART}")
+          echo "root=${ROOT_PART} uuid=${ROOT_UUID}"
+
+          sudo mkdir -p /mnt/root /mnt/esp /mnt/xbootldr
+          cleanup() {
+            sudo umount /mnt/xbootldr 2>/dev/null || true
+            sudo umount /mnt/esp 2>/dev/null || true
+            sudo umount /mnt/root 2>/dev/null || true
+            sudo losetup -d "${LOOP}" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          sudo mount "${ROOT_PART}" /mnt/root
+          sudo mount "${ESP_PART}" /mnt/esp
+          sudo mount "${XBOOTLDR_PART}" /mnt/xbootldr
+
+          DEPLOY=$(sudo ls /mnt/root/ostree/deploy/default/deploy/ 2>/dev/null | head -1)
+          if [[ -z "${DEPLOY}" ]]; then
+            echo "ERROR: ostree deployment missing — bootc install failed before writing layers"
+            exit 1
+          fi
+          VAR="/mnt/root/ostree/deploy/default/var"
+
+          mapfile -t BLS_FILES < <(sudo find /mnt/esp /mnt/xbootldr -path '*/loader/entries/*.conf' -type f | sort)
+          if [[ ${#BLS_FILES[@]} -eq 0 ]]; then
+            echo "ERROR: no BLS entries found in ESP or xbootldr"
+            sudo find /mnt/esp /mnt/xbootldr -maxdepth 4 -type f | sort || true
+            exit 1
+          fi
+
+          FIRST_BLS="${BLS_FILES[0]}"
+          OPTIONS_LINE=$(sudo awk '/^options /{sub(/^options /, ""); print; exit}' "${FIRST_BLS}")
+          OSTREE_PATH=$(printf '%s\n' "${OPTIONS_LINE}" | tr ' ' '\n' | grep '^ostree=' | head -1 | cut -d= -f2-)
+          if [[ -z "${OSTREE_PATH}" ]]; then
+            echo "ERROR: could not extract ostree= path from ${FIRST_BLS}"
+            sudo cat "${FIRST_BLS}"
+            exit 1
+          fi
+
+          if [[ "${OSTREE_PATH}" =~ /ostree/(boot\.[0-9]+)\.[0-9]+ ]]; then
+            VERSIONED_NAME=$(echo "${OSTREE_PATH}" | grep -oE 'boot\.[0-9]+\.[0-9]+')
+            CANONICAL_NAME="${BASH_REMATCH[1]}"
+            if [[ ! -e "/mnt/root/ostree/${CANONICAL_NAME}" ]]; then
+              sudo ln -s "${VERSIONED_NAME}" "/mnt/root/ostree/${CANONICAL_NAME}"
+            fi
+            OSTREE_PATH="${OSTREE_PATH/${VERSIONED_NAME}/${CANONICAL_NAME}}"
+          fi
+
+          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.journald.forward_to_console=1 systemd.mask=tailscaled.service systemd.mask=brew-setup.service systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service systemd.mask=flatpak-preinstall.service systemd.mask=podman-auto-update.service systemd.mask=podman-auto-update.timer systemd.mask=malcontent-webd.service systemd.mask=malcontent-webd-update.service systemd.mask=malcontent-control.service systemd.mask=speech-dispatcherd.service systemd.mask=avahi-daemon.service systemd.mask=avahi-daemon.socket systemd.mask=cups.service systemd.mask=cups.path systemd.mask=cups.socket systemd.mask=cups.browsed.service systemd.mask=blueman-mechanism.service systemd.mask=gnome-remote-desktop.service systemd.mask=bazzite-hardware-setup.service systemd.mask=greenboot-healthcheck.service systemd.mask=greenboot-set-rollback-trigger.service"
+
+          for bls in "${BLS_FILES[@]}"; do
+            if sudo grep -q '^options ' "${bls}"; then
+              sudo sed -i "s|^options .*|options ${KERNEL_ARGS}|" "${bls}"
+            else
+              printf 'options %s\n' "${KERNEL_ARGS}" | sudo tee -a "${bls}" >/dev/null
+            fi
+          done
+
+          for loader_conf in /mnt/esp/loader/loader.conf /mnt/xbootldr/loader/loader.conf; do
+            if [[ -f "${loader_conf}" ]]; then
+              if sudo grep -q '^timeout ' "${loader_conf}"; then
+                sudo sed -i 's/^timeout .*/timeout 0/' "${loader_conf}"
+              else
+                printf 'timeout 0\n' | sudo tee -a "${loader_conf}" >/dev/null
+              fi
+            fi
+          done
+
+          BFT_UID=1001
+          for DEP in $(sudo find /mnt/root/ostree/deploy/default/deploy -maxdepth 1 -mindepth 1 -type d 2>/dev/null); do
+            sudo mkdir -p "${DEP}/etc/systemd/system/multi-user.target.wants/"
+            sudo ln -sf /usr/lib/systemd/system/sshd.service \
+              "${DEP}/etc/systemd/system/multi-user.target.wants/sshd.service"
+            sudo ssh-keygen -A -f "${DEP}" 2>/dev/null || true
+
+            if ! sudo grep -q '^bluefin-test:' "${DEP}/etc/passwd" 2>/dev/null; then
+              printf 'bluefin-test:x:%d:%d:Bluefin Test:/var/home/bluefin-test:/bin/bash\n' \
+                "${BFT_UID}" "${BFT_UID}" | sudo tee -a "${DEP}/etc/passwd"
+              printf 'bluefin-test:*:19000:0:99999:7:::\n' | sudo tee -a "${DEP}/etc/shadow"
+              printf 'bluefin-test:x:%d:\n' "${BFT_UID}" | sudo tee -a "${DEP}/etc/group"
+            fi
+
+            sudo mkdir -p "${DEP}/etc/ssh/sshd_config.d/"
+            printf 'PubkeyAuthentication yes\nAuthorizedKeysCommand /bin/cat /etc/ssh/ci-authorized-keys\nAuthorizedKeysCommandUser root\n' | \
+              sudo tee "${DEP}/etc/ssh/sshd_config.d/00-ci-auth.conf"
+
+            sudo mkdir -p "${DEP}/etc/tmpfiles.d/"
+            printf 'Z /var/home/bluefin-test 0700 %d %d -\nd /var/home/bluefin-test 0700 %d %d -\nd /var/home/bluefin-test/.ssh 0700 %d %d -\n' \
+              "${BFT_UID}" "${BFT_UID}" \
+              "${BFT_UID}" "${BFT_UID}" \
+              "${BFT_UID}" "${BFT_UID}" | \
+              sudo tee "${DEP}/etc/tmpfiles.d/ci-user.conf"
+
+            sudo mkdir -p "${DEP}/etc/sudoers.d"
+            printf 'bluefin-test ALL=(ALL) NOPASSWD:ALL\n' | sudo tee "${DEP}/etc/sudoers.d/bluefin-test"
+            sudo chmod 440 "${DEP}/etc/sudoers.d/bluefin-test"
+
+            sudo mkdir -p "${DEP}/etc/selinux"
+            printf 'SELINUX=permissive\nSELINUXTYPE=targeted\n' | sudo tee "${DEP}/etc/selinux/config"
+          done
+
+          sudo mkdir -p "${VAR}/home/bluefin-test/.ssh"
+          sudo tee "${VAR}/home/bluefin-test/.ssh/authorized_keys" < "$(pwd)/vm_key.pub"
+          sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
+          sudo chmod 700 "${VAR}/home/bluefin-test/.ssh"
+          sudo chmod 600 "${VAR}/home/bluefin-test/.ssh/authorized_keys"
+
+          for DEP in $(sudo find /mnt/root/ostree/deploy/default/deploy -maxdepth 1 -mindepth 1 -type d 2>/dev/null); do
+            sudo cp "$(pwd)/vm_key.pub" "${DEP}/etc/ssh/ci-authorized-keys"
+            sudo chown root:root "${DEP}/etc/ssh/ci-authorized-keys"
+            sudo chmod 644 "${DEP}/etc/ssh/ci-authorized-keys"
+          done
+
+          cleanup
+          trap - EXIT
+          sudo podman rmi "${SOURCE_IMAGE}" 2>/dev/null || true
+          ls -lh disk.raw
+          df -h .
+
+      - name: Boot VM with QEMU UEFI
+        run: |
+          set -euo pipefail
+          OVMF_CODE=$(ls /usr/share/OVMF/OVMF_CODE*.fd 2>/dev/null | head -1)
+          OVMF_VARS_TEMPLATE=$(ls /usr/share/OVMF/OVMF_VARS*.fd 2>/dev/null | head -1)
+          if [[ -z "${OVMF_CODE}" || -z "${OVMF_VARS_TEMPLATE}" ]]; then
+            echo "ERROR: OVMF firmware files not found"
+            ls -la /usr/share/OVMF || true
+            exit 1
+          fi
+          cp "${OVMF_VARS_TEMPLATE}" "$(pwd)/OVMF_VARS.fd"
+          touch "$(pwd)/vm-serial.log"
+          chmod 666 "$(pwd)/vm-serial.log"
+
+          sudo qemu-system-x86_64 \
+            -machine q35,accel=kvm \
+            -cpu host \
+            -m 4096 \
+            -smp 4 \
+            -drive if=pflash,format=raw,unit=0,readonly=on,file="${OVMF_CODE}" \
+            -drive if=pflash,format=raw,unit=1,file="$(pwd)/OVMF_VARS.fd" \
+            -object iothread,id=ioth0 \
+            -drive if=none,id=disk,file=disk.raw,format=raw,cache=unsafe,aio=threads,discard=unmap \
+            -device virtio-blk-pci,drive=disk,iothread=ioth0 \
+            -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+            -device virtio-net-pci,netdev=net0 \
+            -device virtio-gpu-pci \
+            -display none \
+            -serial file:$(pwd)/vm-serial.log \
+            -monitor unix:$(pwd)/qemu-monitor.sock,server,nowait \
+            -daemonize \
+            -pidfile $(pwd)/qemu.pid
+          echo "VM booting (pid=$(cat qemu.pid))"
+
+      - name: Wait for SSH
+        run: |
+          SSH_COMMON="-i $(pwd)/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=./ssh-ctrl-%C -o ConnectTimeout=3"
+          DEADLINE=$((SECONDS + 900))
+          while [ ${SECONDS} -lt ${DEADLINE} ]; do
+            if ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>/dev/null; then
+              echo "SSH ready after ${SECONDS}s"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "ERROR: SSH never became ready after 15 minutes"
+          ssh -v ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>&1 || true
+          echo "=== Tail of serial log at SSH timeout ==="
+          tail -100 "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
+          exit 1
+
+      - name: Install Python test stack
+        run: |
+          python3 -m pip install --user behave pyyaml
+
+      - name: Run migration behave tests
+        id: behave
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          case "${MIGRATION_LANE}" in
+            rechunker)
+              # Exclude @zstd_chunked to avoid running the containers-storage
+              # scenario in the rechunker lane (different transport, needs podman pull).
+              BEHAVE_TAGS='migration and not unified_storage and not zstd_chunked'
+              ;;
+            zstd_chunked)
+              BEHAVE_TAGS='migration and not unified_storage'
+              ;;
+            unified_storage)
+              BEHAVE_TAGS='migration and unified_storage'
+              ;;
+            *)
+              echo "ERROR: unknown migration lane ${MIGRATION_LANE}"
+              exit 1
+              ;;
+          esac
+
+          PYTHONPATH="$(pwd)" \
+          VM_IP=127.0.0.1 \
+          VM_USER=bluefin-test \
+          SSH_KEY="$(pwd)/vm_key" \
+          SSH_PORT=2222 \
+          MIGRATION_TARGET="${TARGET_IMAGE}" \
+          MIGRATION_LANE="${MIGRATION_LANE}" \
+          python3 -m behave tests/lifecycle/features/ \
+            --tags "${BEHAVE_TAGS}" \
+            --no-capture \
+            --format progress2 \
+            --format json.pretty \
+            --outfile results.json
+
+      - name: Capture framebuffer screenshot
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "screendump $(pwd)/migration-screenshot.ppm" | \
+            socat - UNIX-CONNECT:$(pwd)/qemu-monitor.sock || true
+          if [[ -f "$(pwd)/migration-screenshot.ppm" ]]; then
+            convert "$(pwd)/migration-screenshot.ppm" "$(pwd)/migration-screenshot.png"
+          fi
+
+      - name: Dump VM serial log
+        if: always()
+        run: |
+          echo "=== VM serial console output ==="
+          cat "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
+
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: migration-results-${{ matrix.lane }}
+          path: results.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload screenshot artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: migration-screenshot-${{ matrix.lane }}
+          path: migration-screenshot.png
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Upload serial log artifact
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: migration-serial-log-${{ matrix.lane }}
+          path: vm-serial.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Stop VM
+        if: always()
+        run: |
+          if [[ -f "$(pwd)/qemu.pid" ]]; then
+            sudo kill "$(cat "$(pwd)/qemu.pid")" 2>/dev/null || true
+          fi
+
+      - name: Fail if behave failed
+        if: ${{ steps.behave.outcome == 'failure' }}
+        run: exit 1

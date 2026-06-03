@@ -5,13 +5,11 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
   projectbluefin/bluefin image (built with chunkah), and can safely roll
   back to the legacy image if needed.
 
-  These scenarios are designed to run with:
-    image: ghcr.io/ublue-os/bluefin:latest
-  via the projectbluefin/actions upgrade-test workflow:
-    uses: projectbluefin/actions/.github/workflows/upgrade-test.yml@v1
-    with:
-      image: ghcr.io/ublue-os/bluefin:latest
-      suites: lifecycle
+  These scenarios run via .github/workflows/migration-test.yml (workflow_dispatch).
+  Set MIGRATION_TARGET env var to override the default target (ghcr.io/projectbluefin/bluefin:stable).
+
+  Required env vars:
+    MIGRATION_TARGET  — target image (default: ghcr.io/projectbluefin/bluefin:stable)
 
   The migration exercises the chunkah OCI layer format transition: the legacy
   image uses rpm-ostree chunked format (ublue-os/legacy-rechunker) while the
@@ -148,3 +146,23 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Active image reference contains "projectbluefin/bluefin"
     * bootc status shows rollback deployment is available
     * bootc status rollback deployment matches migration source digest
+
+  @migration @zstd_chunked
+  Scenario: bootc switch via podman zstd:chunked migrates from ublue-os/bluefin to projectbluefin/bluefin
+    # zstd:chunked lane: pull target into root containers-storage via podman
+    # (uses zstd:chunked partial-pull), then switch using the local copy.
+    # Requires extra disk space (~10 GB) for the podman-pulled image layers.
+    * Run SSH command: "bootc status --format=json"
+    * Booted image is from the "ublue-os" registry
+    * Capture booted image digest for rollback verification
+    * Capture booted image reference as migration source
+    * Pull migration target via podman for zstd:chunked transport
+    * Switch to migration target via containers-storage transport
+    * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * Staged deployment is present in bootc status
+    * Capture staged image digest as upgrade target
+    * Reboot VM and wait for SSH after migration
+    * Run SSH command: "bootc status --format=json"
+    * Active deployment matches upgrade target digest
+    * Active image reference contains "projectbluefin/bluefin"

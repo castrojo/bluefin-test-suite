@@ -8,6 +8,13 @@ import os
 
 from tests.shared.ssh_steps import *  # noqa: F401,F403
 
+
+def _first_value(*values: str) -> str:
+    for value in values:
+        if value:
+            return value
+    return ""
+
 try:
     from tests.shared.timing import record_end, record_start
 except Exception:  # noqa: BLE001
@@ -23,9 +30,15 @@ def before_all(context):
     context.vm_ip = os.environ.get("VM_IP", "")
     context.ssh_user = os.environ.get("VM_USER", "bluefin-test")
     context.ssh_key = os.environ.get("SSH_KEY", "/etc/ssh/test-key/id_ed25519")
+    context.ssh_port = _first_value(
+        os.environ.get("SSH_PORT", ""),
+        os.environ.get("VM_PORT", ""),
+        os.environ.get("TMT_SSH_PORT", ""),
+    ) or None
     context.migration_target = os.environ.get(
         "MIGRATION_TARGET", "ghcr.io/projectbluefin/bluefin:stable"
     )
+    context.migration_lane = os.environ.get("MIGRATION_LANE", "rechunker")
     context.expected_upgrade_digest = None
     context.original_digest = None
     context.initial_version_id = None

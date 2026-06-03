@@ -3,7 +3,7 @@
 > Last updated: 2026-06-02
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 261 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 241 active.
+Current audit: 262 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 242 active.
 
 ## What this repo is responsible for
 
@@ -53,5 +53,5 @@ The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
 - `security/selinux`: still `@future` until Bluefin test images stop booting with `selinux=0`.
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
-- `lifecycle/migration` (3-lane: rechunker, zstd_chunked, unified_storage): scenarios exist and pass lint, but the GHA workflow to run them doesn't exist yet. `e2e.yml` direct kernel boot prevents VM reboots after `bootc switch` — requires UEFI boot (OVMF pflash). Tracked: epic #227 (spike #229 unblocks the workflow implementation). Steps use 900s timeout and graceful `Check unified storage support and skip if unavailable` via PR #235.
+- `lifecycle/migration` (3-lane: rechunker, zstd_chunked, unified_storage): `.github/workflows/migration-test.yml` added (epic #227). Uses UEFI boot (OVMF pflash) so VM reboots pick up the new deployment after `bootc switch`. Steps use 900s timeout and graceful `Check unified storage support and skip if unavailable`.
 

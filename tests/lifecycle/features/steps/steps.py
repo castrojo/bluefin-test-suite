@@ -479,16 +479,31 @@ def ostree_two_deployments(context):
 
 @step("Switch to migration target")
 def switch_to_migration_target(context):
-    """Run bootc switch to the migration target with a 900s timeout.
+    """Run the lane-appropriate migration switch with explicit long timeouts.
 
-    The target image reference is read from context.migration_target, which is
-    populated from the MIGRATION_TARGET env var (default: ghcr.io/projectbluefin/bluefin:stable).
-    Pulling a remote image takes 5–15 minutes; the default 60s SSH timeout is too short.
+    rechunker: remote bootc switch against the target registry image.
+    zstd_chunked: pre-pull into containers-storage, then switch with
+    --transport containers-storage.
     """
     import shlex as _shlex
 
     target = getattr(context, "migration_target", "ghcr.io/projectbluefin/bluefin:stable")
-    run_ssh(context, f"sudo bootc switch {_shlex.quote(target)}", timeout=900)
+    lane = getattr(context, "migration_lane", "rechunker")
+    quoted_target = _shlex.quote(target)
+
+    if lane == "zstd_chunked":
+        print("Migration lane zstd_chunked: pre-pulling target into containers-storage", flush=True)
+        run_ssh(context, f"sudo podman pull {quoted_target}", timeout=900)
+        if getattr(context, "ssh_rc", 1) != 0:
+            return
+        run_ssh(
+            context,
+            f"sudo bootc switch --transport containers-storage {quoted_target}",
+            timeout=120,
+        )
+        return
+
+    run_ssh(context, f"sudo bootc switch {quoted_target}", timeout=900)
 
 
 @step("Switch to migration target with unified storage")

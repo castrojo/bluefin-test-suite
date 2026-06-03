@@ -30,9 +30,9 @@ with:
   image: <your-bootc-image>
   suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software, common
 ```
-GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`) run on `ubuntu-latest`.
-SSH-mode suites (`lifecycle`, `security`, `hardware`) are not yet in the GHA action (epics #43/#44).
-`lifecycle/migration` specifically requires UEFI boot (OVMF pflash) because `e2e.yml` uses direct kernel boot which cannot handle VM reboots after `bootc switch` (see `ops.md` — "Direct kernel boot blocks migration VM reboots"). A standalone `migration-test.yml` workflow is planned in epic #227. Migration steps use 900s timeout (`Switch to migration target`), 300s post-migration reboot wait, and `Check unified storage support and skip if unavailable` for graceful bootc < 1.16 skips (spike #229 unblocks the workflow).
+GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`) run on `ubuntu-latest` via the reusable `e2e.yml` workflow.
+SSH-mode suites (`security`, `hardware`, and non-migration `lifecycle`) are not yet in the reusable GHA action (epics #43/#44).
+`lifecycle/migration` now has a standalone `workflow_dispatch` workflow at `.github/workflows/migration-test.yml`. It uses UEFI boot (OVMF pflash) because `e2e.yml` uses direct kernel boot which cannot handle VM reboots after `bootc switch` (see `ops.md` — "Direct kernel boot blocks migration VM reboots"). Migration steps use 900s timeout (`Switch to migration target`), 300s post-migration reboot wait, and `Check unified storage support and skip if unavailable` for graceful bootc < 1.16 skips.
 
 ## Nightly CI job matrix
 
@@ -82,7 +82,7 @@ The `nightly.yml` workflow runs 13 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-261 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 241 active.
+262 scenarios across 30 feature files (last audit: 2026-06-02). 20 quarantined (down from 42), 242 active.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
@@ -91,7 +91,7 @@ The `nightly.yml` workflow runs 13 named jobs (plus `persist-results`). Each job
 | software | 12 | 4 | 8 | 4 navigation/regression/close scenarios need live gnomeos run to verify GNOME 50 AT-SPI names |
 | common | 32 | 32 | 0 | dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 19 | 19 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default + unified-storage lanes) |
+| lifecycle | 20 | 20 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default + zstd:chunked + unified-storage lanes) |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
 | security/image_provenance | 10 | 10 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |

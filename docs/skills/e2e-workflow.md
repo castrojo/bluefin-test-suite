@@ -9,6 +9,8 @@ It boots a bootc OCI image in a KVM-accelerated QEMU VM on `ubuntu-latest`, star
 
 **No self-hosted runners. Pure GitHub Actions.**
 
+Cross-registry lifecycle migration (`ublue-os/bluefin` → `projectbluefin/bluefin`) does **not** use this workflow. Use `.github/workflows/migration-test.yml` instead — it boots with UEFI/OVMF because the direct `-kernel/-initrd/-append` path in `e2e.yml` cannot pick up the new deployment after `bootc switch` + reboot.
+
 ## How to call it from another repo
 
 ```yaml
