@@ -188,3 +188,24 @@ dbus-run-session -- bash /tmp/dry-run.sh
 - `isA11yEnabled()` from dogtail reads `org.gnome.desktop.interface` → needs `gsettings-desktop-schemas`
 - PyGObject from Ubuntu always fights ABI with the GHA toolcache Python → always use Fedora
 - `dogtail` has a `tests/` package in site-packages that shadows local `tests/` → fix with empty `tests/__init__.py` (already in repo)
+
+---
+
+## zstd:chunked migration toggle
+
+The `@zstd_chunked` tag gates the final-state migration scenario (unified storage + zstd:chunked layers).
+It is **skipped** (not failed) when disabled.
+
+| Toggle | Default | Effect |
+|---|---|---|
+| `ZSTD_CHUNKED=true` | on | `@zstd_chunked` scenarios run |
+| `ZSTD_CHUNKED=false` | — | `@zstd_chunked` scenarios are skipped |
+| `chunked_enabled: false` (workflow input) | default | sets `ZSTD_CHUNKED=false` |
+| `chunked_enabled: true` (workflow input) | — | sets `ZSTD_CHUNKED=true` |
+
+**Enable once** `ghcr.io/projectbluefin/bluefin:latest` ships with `tar+zstd` OCI layers.
+Verify via `skopeo inspect --raw docker://ghcr.io/projectbluefin/bluefin:latest | jq '.layers[0].mediaType'`.
+
+**Run the migration test manually** (Actions → Migration Test — ublue-os → projectbluefin):
+- Default: runs all migration scenarios except `@zstd_chunked`
+- With `chunked_enabled: true`: also tests zstd:chunked lane
