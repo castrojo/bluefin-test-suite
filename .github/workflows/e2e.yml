@@ -548,8 +548,27 @@ jobs:
               --method org.gnome.Shell.SetUnsafeMode \
               true \
             && echo 'GNOME Shell unsafe_mode enabled via SetUnsafeMode' \
-            || echo 'WARNING: SetUnsafeMode failed — screenshot calls may be denied'
+            || echo 'WARNING: SetUnsafeMode not available — will rely on grim for screenshots'
           "
+
+          # Introspect GNOME Shell D-Bus interface for debugging screenshot APIs.
+          $SSH "
+            source /tmp/session.env
+            echo '=== GNOME Shell D-Bus methods ==='
+            gdbus introspect --session --dest org.gnome.Shell \
+              --object-path /org/gnome/Shell 2>&1 | grep -E 'method|signal|property|interface' | head -40
+            echo '=== Screenshot interface ==='
+            gdbus introspect --session --dest org.gnome.Shell \
+              --object-path /org/gnome/Shell/Screenshot 2>&1 | grep -E 'method|signal|property|interface' | head -20
+          " || true
+
+          # Install grim for Wayland screenshots via wlr-screencopy.
+          # grim bypasses GNOME Shell permission checks entirely — it talks directly
+          # to the compositor's screencopy protocol, no unsafe_mode required.
+          # GNOME 50 (mutter 50) supports wlr-screencopy-unstable-v1.
+          $SSH "sudo rpm-ostree install --apply-live --idempotent grim 2>&1 | tail -3" \
+            && echo "grim installed on VM" \
+            || echo "INFO: grim install via rpm-ostree skipped — screenshot.py will fall back to gdbus"
 
       - name: Install gnome-ponytail-daemon
         if: ${{ env.SUITE != 'common' }}
