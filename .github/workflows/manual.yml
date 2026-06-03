@@ -18,8 +18,9 @@ on:
         default: "smoke"
       chunked_enabled:
         description: "Enable @zstd_chunked scenarios in the lifecycle suite"
+        type: boolean
         required: false
-        default: "false"
+        default: false
 
 jobs:
   test:
