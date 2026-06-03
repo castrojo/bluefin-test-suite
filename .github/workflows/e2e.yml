@@ -704,6 +704,7 @@ jobs:
                 -e VM_USER=bluefin-test \
                 -e SSH_KEY=/home/bluefin-test/.ssh/id_ed25519 \
                 -e SSH_PORT=22 \
+                -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
                 -e BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \
                 -e TARGET_IMAGE=\"${TARGET_IMAGE}\" \
                 -e PYTHONPATH=/tmp/bluefin-tests \
@@ -798,6 +799,7 @@ jobs:
               -e XDG_SESSION_TYPE=wayland \
               -e XDG_SESSION_DESKTOP=gnome \
               -e AT_SPI_BUS_ADDRESS=\"\${AT_SPI_BUS_ADDRESS}\" \
+              -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
               -e SUITE=${SUITE} \
               -e PYTHONPATH=/tmp/bluefin-tests \
               ghcr.io/projectbluefin/testsuite:runner \
