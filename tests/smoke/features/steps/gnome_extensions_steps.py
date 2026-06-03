@@ -151,6 +151,40 @@ def at_least_one_gnome_extension_is_enabled(context) -> None:
 def launch_extensions_preferences_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
+
+    if _IN_CONTAINER:
+        # Inside the runner container the desktop file is absent from the container
+        # filesystem — launch via SSH on the VM where the session is running.
+        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
+        vm_user = os.environ.get("VM_USER", "bluefin-test")
+        ssh_port = os.environ.get("SSH_PORT", "22")
+        cmd = (
+            "source /tmp/session.env 2>/dev/null; "
+            f"nohup gio launch {EXTENSIONS_DESKTOP_FILE} </dev/null &>/dev/null & disown"
+        )
+        result = subprocess.run(
+            ["ssh", "-i", ssh_key, "-o", "StrictHostKeyChecking=no",
+             "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10",
+             "-p", ssh_port, f"{vm_user}@{vm_ip}", cmd],
+            capture_output=True, text=True, timeout=15,
+        )
+        if result.returncode != 0:
+            raise AssertionError(
+                f"Unable to launch GNOME Extensions via SSH: {result.stderr.strip() or result.stdout.strip()}"
+            )
+        context.extensions_launch_target = f"ssh:gio launch {EXTENSIONS_DESKTOP_FILE}"
+        sleep(2)
+        for _ in range(6):
+            try:
+                window = _extensions_window(allow_process_fallback=True)
+                context.extensions_window = window
+                context.extensions_at_spi_available = window is not None
+                return
+            except AssertionError as exc:
+                sleep(0.5)
+        raise AssertionError("GNOME Extensions window not found via AT-SPI after SSH launch")
+
     launch_attempts = [
         ["gtk-launch", "org.gnome.Extensions"],
         ["gnome-extensions", "--launch-preferences"],
