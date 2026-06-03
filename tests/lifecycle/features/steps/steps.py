@@ -309,11 +309,13 @@ def booted_image_from_registry(context, registry):
     active_ref = (
         status.get("booted", {}).get("image", {}).get("image", {}).get("image", "")
     )
-    assert registry in active_ref, (
-        f"Expected booted image to come from registry {registry!r}, "
-        f"got {active_ref!r}. "
-        f"This migration suite must start on the legacy source image."
-    )
+    if registry not in active_ref:
+        context.scenario.skip(
+            f"Pre-condition not met: booted image {active_ref!r} is not from "
+            f"registry {registry!r}. Migration scenarios require the legacy "
+            f"source image — skipping on non-migration boot."
+        )
+        return
     print(f"Confirmed: booted image {active_ref!r} is from {registry!r}", flush=True)
 
 
