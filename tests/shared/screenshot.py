@@ -117,14 +117,20 @@ def _take_screenshot_via_ssh(path: str) -> bool:
         print(f"gnome-screenshot failed (rc={r.returncode}): {r.stderr.strip()!r}", flush=True)
 
     # --- 3. gdbus org.gnome.Shell.Screenshot (requires unsafe_mode=true) ---
-    # Set unsafe_mode first so GNOME Shell permits the call.
-    _ssh_run(
-        f"{env_prefix}gdbus call --session "
-        "--dest org.gnome.Shell "
-        "--object-path /org/gnome/Shell "
-        "--method org.gnome.Shell.Eval "
-        "'global.context.unsafe_mode = true'"
-    )
+    # Try SetUnsafeMode (GNOME 43+, polkit-gated) then Shell.Eval as fallback.
+    # The workflow pre-installs a polkit rule so SetUnsafeMode succeeds without
+    # interactive auth.
+    for _unsafe_cmd in [
+        (f"{env_prefix}gdbus call --session --dest org.gnome.Shell "
+         "--object-path /org/gnome/Shell "
+         "--method org.gnome.Shell.SetUnsafeMode true"),
+        (f"{env_prefix}gdbus call --session --dest org.gnome.Shell "
+         "--object-path /org/gnome/Shell "
+         "--method org.gnome.Shell.Eval "
+         "'global.context.unsafe_mode = true'"),
+    ]:
+        if _ssh_run(_unsafe_cmd).returncode == 0:
+            break
     gvariant_path = json.dumps(path)
     gdbus_cmd = (
         f"{env_prefix}"
