@@ -1,6 +1,8 @@
-@software_suite
-Feature: GNOME Software smoke tests
-  Validates GNOME Software launches and core UI elements are accessible.
+@software_suite @quarantine
+Feature: GNOME Software smoke tests (upstream-only)
+  Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software.
+  Keep these upstream GNOME OS scenarios quarantined until issue #419 is
+  replaced by Bluefin-valid Bazaar coverage.
   Regression coverage for bluefin#4062 and #4471.
 
   Background:

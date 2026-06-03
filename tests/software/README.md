@@ -1,15 +1,17 @@
 # software test suite
 
-Tests for GNOME Software (`org.gnome.Software`) — Flatpak browsing, install/remove, and update flows.
+Tests for GNOME Software (`org.gnome.Software`) and the Bluefin Bazaar coverage gap.
 
 Runs on `gnomeos` (upstream GNOME OS) where `gnome-software` ships as an RPM. Bluefin ships
-Bazaar (`io.github.kolunmi.Bazaar`) instead; this suite is intentionally upstream-only.
+Bazaar (`io.github.kolunmi.Bazaar`) instead, so the GNOME Software scenarios are quarantined and
+Bazaar coverage stays `@pending` until issue #419 has a Bluefin-valid harness.
 
 ## Coverage
 
 | Feature file | Coverage |
 |---|---|
-| `flatpak.feature` | Browse, install, and remove a Flatpak via gnome-software |
+| `flatpak.feature` | Quarantined upstream GNOME Software smoke coverage kept for GNOME OS only |
+| `bazaar.feature` | Pending placeholder for Bluefin Bazaar Flatpak management coverage |
 
 ## Image
 

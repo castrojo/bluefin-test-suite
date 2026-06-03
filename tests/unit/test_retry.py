@@ -24,6 +24,13 @@ def test_skip_quarantine_marks_scenario_skipped():
     assert scenario.skip_calls == ["@quarantine — known flaky, skipping"]
 
 
+def test_skip_pending_marks_scenario_skipped():
+    scenario = DummyScenario({"pending"})
+
+    assert skip_quarantine(scenario) is True
+    assert scenario.skip_calls == ["@pending — placeholder coverage, skipping"]
+
+
 def test_retry_reruns_failed_scenarios_until_success(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     rerun_path = tmp_path / behave_retry.RERUN_FILENAME
