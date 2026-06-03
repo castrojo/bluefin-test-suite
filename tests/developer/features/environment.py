@@ -56,12 +56,17 @@ def before_all(context) -> None:
         context.sandbox.production = False
         context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
 
-        context.ptyxis = context.sandbox.get_application(
-            name="ptyxis",
-            a11y_app_name="ptyxis",
-            desktop_file_name="org.gnome.Ptyxis.desktop",
-        )
-        context.ptyxis.exit_shortcut = "<Alt>F4"
+        # Ptyxis is only present on systems with GNOME + terminal; skip gracefully when absent.
+        try:
+            context.ptyxis = context.sandbox.get_application(
+                name="ptyxis",
+                a11y_app_name="ptyxis",
+                desktop_file_path="/usr/share/applications/org.gnome.Ptyxis.desktop",
+            )
+            context.ptyxis.exit_shortcut = "<Alt>F4"
+        except Exception as _ptyxis_err:
+            print(f"INFO: Ptyxis not available ({_ptyxis_err}) — @ptyxis scenarios will be skipped")
+            context.ptyxis = None
 
         # micro is launched via terminal, not registered as a standalone app
         # Podman Desktop is only present on bluefin-dx; skip gracefully on base images.
@@ -89,6 +94,10 @@ def before_scenario(context, scenario) -> None:
     # Podman Desktop is only on bluefin-dx; skip those scenarios on the base image.
     if "podman_desktop" in scenario.tags and getattr(context, "podman_desktop", None) is None:
         scenario.skip("Podman Desktop Flatpak not installed on this image")
+        return
+    # Ptyxis is not available in this environment; skip AT-SPI terminal scenarios.
+    if "ptyxis" in scenario.tags and getattr(context, "ptyxis", None) is None:
+        scenario.skip("Ptyxis not available in this environment")
         return
     context.scenario = scenario
     configure_screenshot_context(context, SUITE_NAME, scenario.name)

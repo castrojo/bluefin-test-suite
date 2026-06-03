@@ -57,9 +57,9 @@ def before_all(context) -> None:
         context.software = context.sandbox.get_application(
             name="gnome-software",
             a11y_app_name="gnome-software",
-            # Use desktop_file_name so qecore does not require the file to be present
-            # at a fixed path — the runner container lacks /usr/share/applications/.
-            desktop_file_name="org.gnome.Software.desktop",
+            # Use desktop_file_path (absolute) so qecore skips rpm -qlf lookup,
+            # which fails in the runner container where gnome-software is not installed.
+            desktop_file_path="/usr/share/applications/org.gnome.Software.desktop",
         )
         context.software.exit_shortcut = "<Ctrl>Q"
         configure_screenshot_context(context, SUITE_NAME)
