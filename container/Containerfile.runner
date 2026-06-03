@@ -33,6 +33,9 @@ RUN microdnf install -y --setopt=install_weak_deps=0 \
         python3-pip \
         python3-gobject \
         at-spi2-core \
+        at-spi2-atk \
+        atk \
+        dbus-glib \
         gtk3 \
         gsettings-desktop-schemas \
         dbus-libs \
