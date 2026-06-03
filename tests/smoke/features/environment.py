@@ -200,6 +200,12 @@ def before_all(context) -> None:
     else:
         print("WARNING: could not confirm unsafe_mode=true; Shell.Eval steps may fail", flush=True)
 
+    if not _QECORE_AVAILABLE:
+        print("Sandbox disabled: qecore/dogtail not available in this environment", flush=True)
+        context.optional_scenario_availability = {}
+        configure_screenshot_context(context, SUITE_NAME)
+        return
+
     # Poll until clock + system toggles appear in AT-SPI (up to 15s)
     from dogtail import tree as dtree
 
@@ -242,13 +248,6 @@ def before_all(context) -> None:
         time.sleep(1)
     else:
         print("WARNING: clock/system toggles not found after 15s — proceeding anyway", flush=True)
-
-    # Initialize sandbox (only when qecore/dogtail are available)
-    if TestSandbox is None:
-        print("Sandbox disabled: qecore/dogtail not available in this environment", flush=True)
-        context.optional_scenario_availability = {}
-        configure_screenshot_context(context, SUITE_NAME)
-        return
 
     try:
         context.optional_scenario_availability = {
