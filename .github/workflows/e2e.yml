@@ -690,7 +690,7 @@ jobs:
             results/screenshot_lifecycle_upgrade_final.png 2>/dev/null \
             || echo "WARNING: could not retrieve screenshot from VM"
 
-
+      - name: Capture Flatpak screenshots
         if: always() && inputs.screenshot_flatpaks != '' && env.SUITE != 'common'
         continue-on-error: true
         env:
