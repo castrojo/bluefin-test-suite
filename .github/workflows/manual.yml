@@ -18,9 +18,12 @@ on:
         default: "smoke"
       chunked_enabled:
         description: "Enable @zstd_chunked scenarios in the lifecycle suite"
-        type: boolean
         required: false
-        default: false
+        default: "false"
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   test:
@@ -29,4 +32,3 @@ jobs:
       image: ${{ github.event.inputs.image }}
       suites: ${{ github.event.inputs.suites }}
       chunked_enabled: ${{ github.event.inputs.chunked_enabled == 'true' }}
-
