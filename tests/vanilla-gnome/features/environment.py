@@ -61,9 +61,25 @@ def before_all(context) -> None:
     time.sleep(5)
 
     # Enable unsafe_mode so Shell.Eval works for the rest of the session.
-    # gdbus returns (true, 'null') on success, (false, '...') on failure.
+    # Try SetUnsafeMode first (GNOME 43+, polkit rule pre-installed by workflow),
+    # then fall back to Shell.Eval. gdbus returns (true, ...) on success.
+    unsafe_enabled = False
     for attempt in range(3):
         try:
+            # SetUnsafeMode is the preferred API; requires polkit (rule grants it).
+            r = subprocess.run(
+                ['gdbus', 'call', '--session',
+                 '--dest', 'org.gnome.Shell',
+                 '--object-path', '/org/gnome/Shell',
+                 '--method', 'org.gnome.Shell.SetUnsafeMode',
+                 'true'],
+                capture_output=True, text=True, timeout=5,
+            )
+            if r.returncode == 0:
+                print(f"unsafe_mode enabled via SetUnsafeMode (attempt {attempt+1})", flush=True)
+                unsafe_enabled = True
+                break
+            # Fall back to Shell.Eval (older/no-polkit-rule path)
             r = subprocess.run(
                 ['gdbus', 'call', '--session',
                  '--dest', 'org.gnome.Shell',
@@ -74,13 +90,14 @@ def before_all(context) -> None:
             )
             out = r.stdout.strip()
             if r.returncode == 0 and out.startswith('(true'):
-                print(f"unsafe_mode enabled (attempt {attempt+1}): {out}", flush=True)
+                print(f"unsafe_mode enabled via Shell.Eval (attempt {attempt+1}): {out}", flush=True)
+                unsafe_enabled = True
                 break
             print(f"unsafe_mode attempt {attempt+1} returned: {out!r}", flush=True)
         except Exception as e:  # noqa: BLE001
             print(f"unsafe_mode attempt {attempt+1} failed: {e}", flush=True)
         time.sleep(2)
-    else:
+    if not unsafe_enabled:
         print("WARNING: could not confirm unsafe_mode=true; Shell.Eval steps may fail", flush=True)
 
     # Poll until clock + system toggles appear in AT-SPI (up to 15s)

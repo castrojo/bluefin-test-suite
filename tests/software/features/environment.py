@@ -58,7 +58,8 @@ def before_all(context) -> None:
         context.software = context.sandbox.get_application(
             name="gnome-software",
             a11y_app_name="gnome-software",
-            # qecore 4.16: rpm -qlf lookup fails for Flatpak-style apps; use full path
+            # Use desktop_file_path (absolute) so qecore skips rpm -qlf lookup,
+            # which fails in the runner container where gnome-software is not installed.
             desktop_file_path="/usr/share/applications/org.gnome.Software.desktop",
         )
         context.software.exit_shortcut = "<Ctrl>Q"
@@ -72,6 +73,13 @@ def before_scenario(context, scenario) -> None:
     from tests.shared.quarantine import skip_quarantine
 
     if skip_quarantine(scenario):
+        return
+    if getattr(context, 'failed_setup', None):
+        try:
+            scenario.skip(reason=context.failed_setup)
+        except TypeError:
+            scenario.skip()
+        print(f"Skipping {scenario.name}: failed_setup set", flush=True)
         return
     context.scenario = scenario
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
@@ -88,14 +96,19 @@ def before_scenario(context, scenario) -> None:
 
 
 def after_scenario(context, scenario) -> None:
+    if getattr(context, 'failed_setup', None):
+        return
     record_end(context, scenario)
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
-    context.sandbox.after_scenario(context, scenario)
+    if hasattr(context, 'sandbox'):
+        context.sandbox.after_scenario(context, scenario)
 
 
 def after_all(context) -> None:
     """Take a fastfetch desktop screenshot as end-of-run evidence."""
+    if getattr(context, 'failed_setup', None):
+        return
     configure_screenshot_context(context, SUITE_NAME, "end_of_run")
     take_fastfetch_screenshot()

@@ -51,7 +51,7 @@ def vm_reachable_over_ssh(context):
     for attempt in range(1, 6):
         try:
             stdout, returncode = run_ssh(context, "echo ok", timeout=20)
-            if returncode == 0 and stdout.strip().split("\n")[-1] == "ok":
+            if returncode == 0 and stdout == "ok":
                 return
             last_error = f"rc={returncode}, stdout={stdout!r}"
         except subprocess.TimeoutExpired as exc:
@@ -66,6 +66,12 @@ def vm_reachable_over_ssh(context):
 @step('Run SSH command: "{cmd}"')
 def run_ssh_command(context, cmd):
     run_ssh(context, cmd)
+
+
+@step('Run long SSH command: "{cmd}"')
+def run_long_ssh_command(context, cmd):
+    """Run a command that may take many minutes (bootc switch/upgrade pulling OCI layers)."""
+    run_ssh(context, cmd, timeout=900)
 
 
 @step('SSH command output "is" "{expected}"')

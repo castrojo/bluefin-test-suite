@@ -90,6 +90,7 @@ All CI checks must pass cleanly before pushing. Local checks should also be clea
 | Behavior or command change | `README.md` and/or `RUNBOOK.md` if agent-facing docs describe the old behavior |
 | @future scenario now implemented | Remove `@future` tag; update `QA-REVIEW.md` + `docs/skills/suite-map.md` status |
 | Coverage gap resolved | Update `QA-REVIEW.md` known gaps + `docs/skills/suite-map.md` known gaps |
+| `container/Containerfile.runner` changed | Dispatch `build-runner.yml` manually before dispatching any test run — the runner image is NOT auto-rebuilt on push; the new image must be pushed to GHCR before tests will see it |
 
 ## PR description format
 

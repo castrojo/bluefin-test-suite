@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -118,11 +119,32 @@ def read_rerun_entries(rerun_path: Path) -> list[str]:
     return deduped
 
 
+def _find_python() -> str:
+    """Return a usable Python interpreter path.
+
+    sys.executable is '' inside podman --pid=host containers on Python 3.14
+    (the kernel /proc/self/exe path doesn't exist in the container FS).
+    Validate each candidate before using it so subprocess.run never receives ''.
+    """
+    for candidate in filter(None, [
+        sys.executable,
+        shutil.which("python3"),
+        shutil.which("python"),
+        "/usr/bin/python3",
+        "/usr/local/bin/python3",
+        "/usr/bin/python",
+    ]):
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    return "python3"
+
+
 def run_behave(args: list[str], rerun_path: Path) -> tuple[int, list[str]]:
     if rerun_path.exists():
         rerun_path.unlink()
+    python = _find_python()
     command = [
-        sys.executable,
+        python,
         "-m",
         "behave",
         *args,

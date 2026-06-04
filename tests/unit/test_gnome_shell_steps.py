@@ -50,30 +50,49 @@ class TestShellEval:
 
     def test_returns_stdout_on_success(self):
         proc = self._make_completed(stdout="(true, 'true')\n")
-        with patch("subprocess.run", return_value=proc):
+        with patch("subprocess.run", return_value=proc), \
+             patch.object(self.mod, "_IN_CONTAINER", False):
             result = self.mod._shell_eval("Main.overview.visible")
         assert result == "(true, 'true')\n"
 
     def test_raises_on_nonzero_returncode(self):
         proc = self._make_completed(returncode=1, stderr="DBus error")
-        with patch("subprocess.run", return_value=proc):
+        with patch("subprocess.run", return_value=proc), \
+             patch.object(self.mod, "_IN_CONTAINER", False):
             with pytest.raises(AssertionError, match="Shell.Eval failed"):
                 self.mod._shell_eval("bad.js")
 
     def test_passes_js_to_subprocess(self):
         proc = self._make_completed(stdout="(true, 'true')\n")
-        with patch("subprocess.run", return_value=proc) as mock_run:
+        with patch("subprocess.run", return_value=proc) as mock_run, \
+             patch.object(self.mod, "_IN_CONTAINER", False):
             self.mod._shell_eval("Main.overview.visible")
         call_args = mock_run.call_args[0][0]
-        assert "Main.overview.visible" in call_args
+        # JS is now prefixed with unsafe_mode; check it appears in the last arg.
+        assert any("Main.overview.visible" in str(a) for a in call_args)
 
     def test_uses_gdbus_call(self):
         proc = self._make_completed(stdout="(true, 'true')\n")
-        with patch("subprocess.run", return_value=proc) as mock_run:
+        with patch("subprocess.run", return_value=proc) as mock_run, \
+             patch.object(self.mod, "_IN_CONTAINER", False):
             self.mod._shell_eval("x")
         call_args = mock_run.call_args[0][0]
         assert "gdbus" in call_args[0]
         assert "org.gnome.Shell" in call_args
+
+    def test_uses_ssh_in_container(self):
+        """In container mode, gdbus is forwarded via SSH to the host VM."""
+        proc = self._make_completed(stdout="(true, 'true')\n")
+        with patch("subprocess.run", return_value=proc) as mock_run, \
+             patch.object(self.mod, "_IN_CONTAINER", True):
+            self.mod._shell_eval("Main.overview.visible")
+        call_args = mock_run.call_args[0][0]
+        # First arg is "ssh", rest is SSH options and the gdbus command string.
+        assert call_args[0] == "ssh"
+        cmd_str = call_args[-1]
+        assert "gdbus" in cmd_str
+        assert "org.gnome.Shell" in cmd_str
+        assert "Main.overview.visible" in cmd_str
 
 
 # ---------------------------------------------------------------------------
@@ -276,13 +295,13 @@ class TestAtspiSteps:
             self.mod.panel_is_present(context)
 
     def test_clock_toggle_visible_finds_clock_by_time_name(self):
-        clock = _make_node(role="toggle button", name="7:14 PM")
+        clock = _make_node(role="toggle button", name="7:14 PM", showing=False)
         panel = _make_node(
             role="panel",
             children=[
-                _make_node(role="toggle button", name="Activities"),
+                _make_node(role="toggle button", name="Activities", showing=False),
                 clock,
-                _make_node(role="toggle button", name="System"),
+                _make_node(role="toggle button", name="System", showing=False),
             ],
         )
         shell = _make_node(role="application", children=[panel])
@@ -293,12 +312,12 @@ class TestAtspiSteps:
         assert context.clock_toggle is clock
 
     def test_clock_toggle_visible_excludes_non_clock_names(self):
-        fallback = _make_node(role="toggle button", name="Bluetooth")
+        fallback = _make_node(role="toggle button", name="Bluetooth", showing=False)
         panel = _make_node(
             role="panel",
             children=[
-                _make_node(role="toggle button", name="Activities"),
-                _make_node(role="toggle button", name="System"),
+                _make_node(role="toggle button", name="Activities", showing=False),
+                _make_node(role="toggle button", name="System", showing=False),
                 fallback,
             ],
         )
@@ -310,12 +329,12 @@ class TestAtspiSteps:
         assert context.clock_toggle is fallback
 
     def test_system_menu_toggle_visible_finds_system_toggle(self):
-        system = _make_node(role="toggle button", name="System")
+        system = _make_node(role="toggle button", name="System", showing=False)
         panel = _make_node(
             role="panel",
             children=[
-                _make_node(role="toggle button", name="Activities"),
-                _make_node(role="toggle button", name="7:14 PM"),
+                _make_node(role="toggle button", name="Activities", showing=False),
+                _make_node(role="toggle button", name="7:14 PM", showing=False),
                 system,
             ],
         )
@@ -327,12 +346,12 @@ class TestAtspiSteps:
         assert context.system_toggle is system
 
     def test_system_menu_toggle_visible_falls_back_to_nonstandard_name(self):
-        fallback = _make_node(role="toggle button", name="Sound")
+        fallback = _make_node(role="toggle button", name="Sound", showing=False)
         panel = _make_node(
             role="panel",
             children=[
-                _make_node(role="toggle button", name="Activities"),
-                _make_node(role="toggle button", name="7:14 PM"),
+                _make_node(role="toggle button", name="Activities", showing=False),
+                _make_node(role="toggle button", name="7:14 PM", showing=False),
                 fallback,
             ],
         )
@@ -342,6 +361,37 @@ class TestAtspiSteps:
         self.mod.system_menu_toggle_visible(context)
 
         assert context.system_toggle is fallback
+
+    def test_activities_toggle_in_panel_finds_activities(self):
+        activities = _make_node(role="toggle button", name="Activities", showing=False)
+        panel = _make_node(
+            role="panel",
+            children=[
+                activities,
+                _make_node(role="toggle button", name="7:14 PM", showing=False),
+                _make_node(role="toggle button", name="System", showing=False),
+            ],
+        )
+        shell = _make_node(role="application", children=[panel])
+        context = _make_context(shell)
+
+        self.mod.activities_toggle_in_panel(context)
+
+        assert context.activities_toggle is activities
+
+    def test_activities_toggle_in_panel_raises_when_missing(self):
+        panel = _make_node(
+            role="panel",
+            children=[
+                _make_node(role="toggle button", name="7:14 PM", showing=False),
+                _make_node(role="toggle button", name="System", showing=False),
+            ],
+        )
+        shell = _make_node(role="application", children=[panel])
+        context = _make_context(shell)
+
+        with pytest.raises(AssertionError, match="Activities toggle button not found"):
+            self.mod.activities_toggle_in_panel(context)
 
 
 # ---------------------------------------------------------------------------

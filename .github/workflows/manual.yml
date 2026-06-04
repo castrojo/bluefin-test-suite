@@ -20,6 +20,14 @@ on:
         description: "Enable @zstd_chunked scenarios in the lifecycle suite"
         required: false
         default: "false"
+      test_ref:
+        description: "Git ref for tests/ checkout (default: same branch as workflow; set to override)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   test:
@@ -28,4 +36,4 @@ jobs:
       image: ${{ github.event.inputs.image }}
       suites: ${{ github.event.inputs.suites }}
       chunked_enabled: ${{ github.event.inputs.chunked_enabled == 'true' }}
-
+      test_ref: ${{ github.event.inputs.test_ref || github.ref_name }}

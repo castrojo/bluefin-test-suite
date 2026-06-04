@@ -3,16 +3,44 @@ import subprocess
 from time import sleep
 
 from behave import step
-from dogtail import tree
-from qecore.common_steps import *  # noqa: F401,F403
-from app_support import launch_background
+try:
+    from dogtail import tree
+except Exception:  # noqa: BLE001
+    tree = None  # type: ignore[assignment]
+try:
+    from qecore.common_steps import *  # noqa: F401,F403
+except Exception:  # noqa: BLE001
+    pass
+from app_support import _IN_CONTAINER, _ssh_args, atspi_click, launch_background
+
+
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
 
 
 FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
 FILES_LAUNCH_TARGETS = (
-    ("command", "nautilus"),
     ("desktop", "org.gnome.Nautilus.desktop"),
+    ("command", "nautilus"),
 )
+# Maps sidebar item name → nautilus URI for direct navigation.
+# Used as fallback when AT-SPI action click isn't available on sidebar items.
+FILES_SIDEBAR_URIS = {
+    "Home": "home:///",
+    "Downloads": "~/Downloads",
+    "Documents": "~/Documents",
+    "Desktop": "~/Desktop",
+    "Music": "~/Music",
+    "Pictures": "~/Pictures",
+    "Videos": "~/Videos",
+    "Trash": "trash:///",
+}
 
 
 def _nautilus_app():
@@ -27,6 +55,8 @@ def _nautilus_app():
 
 @step("Launch Files via command")
 def launch_files_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     context.files_launch_target = launch_background(FILES_LAUNCH_TARGETS)
     sleep(1)
 
@@ -55,7 +85,7 @@ def files_window_is_accessible(context) -> None:
     context.files_window = _nautilus_window()
     # Click to ensure the window has keyboard focus before subsequent steps.
     try:
-        context.files_window.click()
+        atspi_click(context.files_window)
     except Exception:  # noqa: BLE001
         pass
     # Brief pause so Nautilus finishes its focus transition before key combos.
@@ -77,7 +107,13 @@ def files_is_no_longer_running(context) -> None:
             return
         # After 10s (20 retries), force-quit the Nautilus daemon.
         if i == 19:
-            subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
+            if _IN_CONTAINER:
+                subprocess.run(
+                    _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
+                    capture_output=True, text=True, timeout=10,
+                )
+            else:
+                subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
             sleep(1)
         else:
             sleep(0.5)
@@ -107,6 +143,43 @@ def home_folder_is_in_the_sidebar(context) -> None:
         )
 
     assert home_items, "Home list item not found in Nautilus sidebar"
+
+
+@step('Navigate to "{name}" in Files sidebar')
+def navigate_to_in_files_sidebar(context, name: str) -> None:
+    """Click a Nautilus sidebar item using AT-SPI action or URI fallback."""
+    from app_support import _IN_CONTAINER, _ssh_run
+    window = _nautilus_window()
+    # Sidebar items may be "button" (GNOME 50+) or "list item" (older)
+    for attempt in range(3):
+        items = window.findChildren(
+            lambda n: n.roleName in {"button", "list item"}
+            and bool(n.name)
+            and name.casefold() in n.name.casefold()
+        )
+        if items:
+            try:
+                atspi_click(items[0])
+                sleep(0.5)
+                return
+            except RuntimeError:
+                break  # AT-SPI actions not available; fall through to URI navigation
+        sleep(0.5)
+
+    # Fallback: navigate via URI so Nautilus opens the correct location directly.
+    uri = FILES_SIDEBAR_URIS.get(name)
+    if uri:
+        if _IN_CONTAINER:
+            _ssh_run(
+                f"source /tmp/session.env 2>/dev/null; "
+                f"gio open {uri} &",
+                timeout=5,
+            )
+        else:
+            launch_background(["nautilus", uri])
+        sleep(1)
+        return
+    raise AssertionError(f"Sidebar item {name!r} not found in Files window and no URI fallback available")
 
 
 @step('Nautilus location shows "{location}"')

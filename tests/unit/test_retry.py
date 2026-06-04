@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from tests.shared import behave_retry
 from tests.shared.quarantine import skip_quarantine
@@ -61,7 +62,8 @@ def test_retry_reruns_failed_scenarios_until_success(monkeypatch, tmp_path):
     )
 
     assert rc == 0
-    assert commands[0][:3] == [sys.executable, "-m", "behave"]
+    expected_python = sys.executable or behave_retry.shutil.which("python3") or "python3"
+    assert commands[0][:3] == [expected_python, "-m", "behave"]
     assert commands[0][-4:] == ["--format", "rerun", "--outfile", str(rerun_path)]
     assert commands[0][3:-4] == [
         "tests/smoke/features",
@@ -72,7 +74,7 @@ def test_retry_reruns_failed_scenarios_until_success(monkeypatch, tmp_path):
         "--tags",
         "~@quarantine",
     ]
-    assert commands[1][:3] == [sys.executable, "-m", "behave"]
+    assert commands[1][:3] == [expected_python, "-m", "behave"]
     assert "tests/smoke/features" not in commands[1]
     assert commands[1][3:-4] == [
         "--tags",
@@ -80,3 +82,22 @@ def test_retry_reruns_failed_scenarios_until_success(monkeypatch, tmp_path):
         "features/demo.feature:12",
         "features/other.feature:7",
     ]
+
+
+def test_run_behave_falls_back_to_shutil_when_executable_empty(monkeypatch, tmp_path):
+    """When sys.executable is empty, fall back to shutil.which('python3')."""
+    rerun_path = tmp_path / behave_retry.RERUN_FILENAME
+    captured = []
+
+    def fake_run(command, check=False):
+        captured.append(command)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(behave_retry.subprocess, "run", fake_run)
+    monkeypatch.setattr(behave_retry.shutil, "which", lambda name: "/usr/bin/python3" if name == "python3" else None)
+
+    with patch.object(behave_retry.sys, "executable", ""):
+        rc, _ = behave_retry.run_behave(["tests/smoke/features"], rerun_path)
+
+    assert rc == 0
+    assert captured[0][0] == "/usr/bin/python3"

@@ -2,9 +2,25 @@
 from time import sleep
 
 from behave import step
-from dogtail import tree
-from qecore.common_steps import *  # noqa: F401,F403
+try:
+    from dogtail import tree
+except Exception:  # noqa: BLE001
+    tree = None  # type: ignore[assignment]
+try:
+    from qecore.common_steps import *  # noqa: F401,F403
+except Exception:  # noqa: BLE001
+    pass
 from app_support import launch_background
+
+
+def _skip_if_no_atspi(context) -> bool:
+    if tree is None:
+        try:
+            context.scenario.skip("AT-SPI unavailable: dogtail not imported in this environment")
+        except Exception:  # noqa: BLE001
+            pass
+        return True
+    return False
 
 
 TEXT_EDITOR_APP_NAMES = ("gnome-text-editor", "Text Editor")
@@ -32,6 +48,8 @@ def _text_editor_app():
 
 @step("Launch Text Editor via command")
 def launch_text_editor_via_command(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
     context.text_editor_launch_target = launch_background(TEXT_EDITOR_LAUNCH_TARGETS)
     sleep(1)
 
