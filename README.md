@@ -1,4 +1,6 @@
 # testsuite
+[![codecov](https://codecov.io/gh/projectbluefin/testsuite/branch/main/graph/badge.svg)](https://codecov.io/gh/projectbluefin/testsuite)
+
 > Enslave the oppressors
 
 Automated behave + qecore-headless + dogtail and shared libraries for testing GNOME. Totally headless, k8s friendly. Help wanted!
