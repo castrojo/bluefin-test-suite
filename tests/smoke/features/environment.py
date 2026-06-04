@@ -177,8 +177,9 @@ def before_all(context) -> None:
     # Give GDM/GNOME Shell time to start the session
     time.sleep(5)
 
-    # Enable unsafe_mode so Shell.Eval works for the rest of the session.
-    # gdbus returns (true, 'null') on success, (false, '...') on failure.
+    # Verify Shell.Eval is available.  unsafe_mode should already be set by the
+    # gnome-shell extension installed in e2e.yml (GNOME 47+ removed SetUnsafeMode).
+    # gdbus returns (true, 'true') when unsafe_mode=true, (false, '') when false.
     # When running inside the runner container, the systemd user session bus is
     # cgroup-restricted — forward the gdbus call to the VM via SSH instead.
     from steps.app_support import _IN_CONTAINER, _ssh_run

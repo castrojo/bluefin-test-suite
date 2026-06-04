@@ -535,30 +535,38 @@ jobs:
             cat /tmp/session.env
           "
 
-          # Write a polkit rule that grants bluefin-test permission to call
-          # SetUnsafeMode without interactive auth, then enable unsafe_mode.
-          # This must run after session.env is created so DBUS_SESSION_BUS_ADDRESS
-          # is the correct GDM-started session bus (not the systemd user socket).
-          printf '%s\n' \
-            'polkit.addRule(function(action, subject) {' \
-            '    if ((action.id === "org.gnome.shell.unsafe-mode" ||' \
-            '         action.id === "org.gnome.Shell.UnsafeMode") &&' \
-            '        subject.local === true) {' \
-            '        return polkit.Result.YES;' \
-            '    }' \
-            '});' \
-          | $SSH "sudo tee /etc/polkit-1/rules.d/10-e2e-unsafe-mode.rules > /dev/null"
-
+          # GNOME 47+ removed the SetUnsafeMode D-Bus method.  Install a tiny
+          # gnome-shell extension that sets global.context.unsafe_mode = true from
+          # inside the shell process — the only remaining path to enable Shell.Eval.
+          mkdir -p /tmp/unsafe-mode-ext
+          cat > /tmp/unsafe-mode-ext/metadata.json << 'METAEOF'
+          {
+            "uuid": "unsafe-mode@bluefin-test",
+            "name": "Unsafe Mode for Testing",
+            "description": "Enables Shell.Eval for automated testing",
+            "shell-version": ["45", "46", "47", "48", "49", "50"],
+            "version": 1
+          }
+          METAEOF
+          cat > /tmp/unsafe-mode-ext/extension.js << 'EXTEOF'
+          import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+          export default class UnsafeModeExtension extends Extension {
+              enable() { global.context.unsafe_mode = true; }
+              disable() {}
+          }
+          EXTEOF
+          $SSH "mkdir -p \$HOME/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test"
+          $SCP_KEY /tmp/unsafe-mode-ext/metadata.json \
+            bluefin-test@127.0.0.1:~/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/metadata.json
+          $SCP_KEY /tmp/unsafe-mode-ext/extension.js \
+            bluefin-test@127.0.0.1:~/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/extension.js
           $SSH "
             source /tmp/session.env
-            gdbus call --session \
-              --dest org.gnome.Shell \
-              --object-path /org/gnome/Shell \
-              --method org.gnome.Shell.SetUnsafeMode \
-              true \
-            && echo 'GNOME Shell unsafe_mode enabled via SetUnsafeMode' \
-            || echo 'WARNING: SetUnsafeMode not available — will rely on grim for screenshots'
+            gnome-extensions enable unsafe-mode@bluefin-test \
+              && echo 'GNOME Shell unsafe_mode enabled via extension' \
+              || echo 'WARNING: Failed to enable unsafe-mode extension'
           "
+          sleep 2
 
           # Enable AT-SPI accessibility for GTK4 apps (gnome-control-center, etc.).
           # qecore-headless tries to do this with `dbus-run-session gsettings set ...`
