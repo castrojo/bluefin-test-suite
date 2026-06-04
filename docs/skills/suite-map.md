@@ -14,7 +14,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
-| `software` | — | — | — | — | — | ✅ | — | Quarantined GNOME Software suite for gnomeos plus one `@pending` Bazaar placeholder; Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`), not GNOME Software |
+| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, Flathub remote, and permissions DB are active; upstream GNOME Software scenarios quarantined (Bluefin ships Bazaar `io.github.kolunmi.Bazaar`); `@pending` Bazaar placeholder tracks issue #419 |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
 | `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
@@ -95,14 +95,14 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-263 scenarios across 31 feature files (last audit: 2026-06-02). 24 quarantined (down from 42), 238 active.
+263 scenarios across 31 feature files (last audit: 2026-06-03). 29 quarantined, 234 active.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 81 | 81 | 0 | dogtail 4.16 API correct throughout |
+| smoke | 82 | 81 | 1 | ujust report --confirm quarantined pending implementation (#419) |
 | developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI |
-| software | 13 | 0 | 12 | GNOME Software scenarios are quarantined because Bluefin uses Bazaar; one `@pending` Bazaar placeholder tracks issue #419 |
-| common | 32 | 32 | 0 | dconf (+clock/font/color-scheme), scripts (+bootc/just/ublue-update), desktop entries (+MIME/icons/Nautilus/Settings), shell + modern CLI tools |
+| software | 13 | 4 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar); 1 `@pending` Bazaar placeholder tracks issue #419 |
+| common | 32 | 24 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209) |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 20 | 20 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default, unified-storage, and zstd:chunked lanes) |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
@@ -124,13 +124,17 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | distrobox enter | dx | pulls `fedora:latest`; no pre-pull in CI, times out |
 | JupyterLab | dx | not preinstalled in DX image |
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
-| software GNOME Software scenarios (×12) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
+| zsh, fish | common | installed as RPMs but not on `PATH` for `bluefin-test` user in CI (issue #209) |
+| fzf, bat, eza, fd, ripgrep, starship (×6) | common | installed by `brew-setup.service` (cli.Brewfile) which is masked in CI (issue #209) |
+| ujust report --confirm | smoke | not yet implemented upstream |
+| software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
 
 ## Known coverage gaps
 
 | Area | Priority | Status | Notes |
 |---|---|---|---|
 | Bazaar / Flatpak management on Bluefin | High | Open | `@pending` placeholder exists; current `common` suite is SSH-only with no GNOME session (issue #419) |
+| Common shell tools (zsh, fish, fzf, bat, eza, fd, ripgrep, starship) | Medium | Open | 8 scenarios quarantined — `brew-setup.service` masked in CI and PATH issue for RPM-installed shells (issue #209) |
 | Flatpak permission management | Low | Open | Flatseal / per-app permissions not exercised |
 | OOBE / first-boot | Low | Open | Initial user setup flow not covered |
 
