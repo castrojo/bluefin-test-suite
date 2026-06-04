@@ -552,13 +552,13 @@ jobs:
           # _run_host() in step files can SSH from the container to the VM.
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
           $SSH "
-            if podman run --rm --entrypoint '' ghcr.io/projectbluefin/testsuite:runner which ssh >/dev/null 2>&1; then
+            if podman run --rm --entrypoint '' ghcr.io/projectbluefin/testsuite:runner sh -c 'command -v ssh >/dev/null 2>&1'; then
               echo 'openssh-clients already in runner image'
             else
               echo 'Patching runner image: adding openssh-clients...'
               CID=\$(podman run -d --entrypoint '' ghcr.io/projectbluefin/testsuite:runner sh -c 'microdnf install -y openssh-clients >/dev/null 2>&1')
               podman wait \$CID
-              podman commit \$CID ghcr.io/projectbluefin/testsuite:runner
+              podman commit --change 'ENTRYPOINT ["qecore-headless"]' \$CID ghcr.io/projectbluefin/testsuite:runner
               podman rm \$CID
               echo 'Runner image patched with openssh-clients'
             fi
