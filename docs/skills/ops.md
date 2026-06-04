@@ -475,3 +475,20 @@ sudo touch "${VAR}/home/bluefin-test/.config/no-show-user-motd"
 **Do not** change the SSH step assertions to substring-match — the last-line approach is more robust. If a new image adds another MOTD source, add its opt-out file to the VM setup step.
 
 Fixed in PR #208 (2026-06-03).
+
+---
+
+## Do not add a second `-monitor` flag to QEMU
+
+`e2e.yml` already opens a QEMU monitor unix socket at boot:
+```
+-monitor  unix:/tmp/qemu-monitor.sock,server,nowait
+```
+The socket is chmod 666'd immediately after VM start, and `tests/shared/qemu_screendump.py` uses it for the fallback screenshot (see `e2e-workflow.md` — "Fallback path").
+
+**Do not** add a second `-monitor tcp:localhost:4444,...` flag. QEMU accepts duplicate monitor flags silently but the result is two active monitor connections competing for the same VM state, and any `nc`/imagemagick-based screendump you write is redundant — the Python fallback already does this correctly with no extra dependencies.
+
+If you need to capture the framebuffer from a custom step, call `qemu_screendump.py` directly:
+```bash
+sudo python3 tests/shared/qemu_screendump.py results/my-screenshot.png
+```
