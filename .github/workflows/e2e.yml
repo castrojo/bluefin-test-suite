@@ -538,6 +538,8 @@ jobs:
           # GNOME 47+ removed the SetUnsafeMode D-Bus method.  Install a tiny
           # gnome-shell extension that sets global.context.unsafe_mode = true from
           # inside the shell process — the only remaining path to enable Shell.Eval.
+          # Use 'gnome-extensions install <zip>' which both copies the files and
+          # notifies gnome-shell about the new extension in one step.
           mkdir -p /tmp/unsafe-mode-ext
           cat > /tmp/unsafe-mode-ext/metadata.json << 'METAEOF'
           {
@@ -555,18 +557,35 @@ jobs:
               disable() {}
           }
           EXTEOF
-          $SSH "mkdir -p \$HOME/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test"
-          $SCP_KEY /tmp/unsafe-mode-ext/metadata.json \
-            bluefin-test@127.0.0.1:~/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/metadata.json
-          $SCP_KEY /tmp/unsafe-mode-ext/extension.js \
-            bluefin-test@127.0.0.1:~/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/extension.js
+          python3 -c "
+import zipfile
+with zipfile.ZipFile('/tmp/unsafe-mode-ext.zip', 'w') as z:
+    z.write('/tmp/unsafe-mode-ext/metadata.json', 'metadata.json')
+    z.write('/tmp/unsafe-mode-ext/extension.js', 'extension.js')
+print('Created /tmp/unsafe-mode-ext.zip')
+"
+          $SCP_KEY /tmp/unsafe-mode-ext.zip bluefin-test@127.0.0.1:/tmp/unsafe-mode-ext.zip
           $SSH "
             source /tmp/session.env
+            gnome-extensions install --force /tmp/unsafe-mode-ext.zip \
+              && echo 'Extension installed' \
+              || echo 'WARNING: gnome-extensions install failed'
+            sleep 1
             gnome-extensions enable unsafe-mode@bluefin-test \
               && echo 'GNOME Shell unsafe_mode enabled via extension' \
               || echo 'WARNING: Failed to enable unsafe-mode extension'
           "
-          sleep 2
+          # Poll until Shell.Eval confirms unsafe_mode is active (up to 10s).
+          $SSH "
+            source /tmp/session.env
+            for i in 1 2 3 4 5; do
+              result=\$(gdbus call --session --dest org.gnome.Shell \
+                --object-path /org/gnome/Shell --method org.gnome.Shell.Eval '1' 2>&1)
+              echo \"Shell.Eval check \$i: \$result\"
+              echo \"\$result\" | grep -q '(true,' && echo 'Shell.Eval confirmed' && break
+              sleep 2
+            done
+          " || true
 
           # Enable AT-SPI accessibility for GTK4 apps (gnome-control-center, etc.).
           # qecore-headless tries to do this with `dbus-run-session gsettings set ...`
