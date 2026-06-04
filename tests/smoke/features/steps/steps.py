@@ -343,9 +343,9 @@ def set_overview_search_eval(context, text) -> None:
 
 @step("Lock screen via Shell.Eval")
 def lock_screen_via_shell_eval(context) -> None:
-    """Lock the GNOME session via loginctl lock-sessions (more reliable than ScreenSaver D-Bus)."""
-    stdout, rc, stderr = _run_host("loginctl lock-sessions 2>/dev/null")
-    assert rc == 0, f"loginctl lock-sessions failed (rc={rc}): {stderr}"
+    """Lock the GNOME session via Shell.Eval screenShield.lock()."""
+    _shell_eval('Main.screenShield.lock(true)')
+    sleep(1)
 
 
 @step("Session is locked")

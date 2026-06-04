@@ -179,18 +179,35 @@ def before_all(context) -> None:
 
     # Enable unsafe_mode so Shell.Eval works for the rest of the session.
     # gdbus returns (true, 'null') on success, (false, '...') on failure.
+    # When running inside the runner container, the systemd user session bus is
+    # cgroup-restricted — forward the gdbus call to the VM via SSH instead.
+    from steps.app_support import _IN_CONTAINER, _ssh_run
+
     for attempt in range(3):
         try:
-            r = subprocess.run(
-                ['gdbus', 'call', '--session',
-                 '--dest', 'org.gnome.Shell',
-                 '--object-path', '/org/gnome/Shell',
-                 '--method', 'org.gnome.Shell.Eval',
-                 'global.context.unsafe_mode = true'],
-                capture_output=True, text=True, timeout=5,
-            )
-            out = r.stdout.strip()
-            if r.returncode == 0 and out.startswith('(true'):
+            if _IN_CONTAINER:
+                r = _ssh_run(
+                    "source /tmp/session.env 2>/dev/null; "
+                    "gdbus call --session "
+                    "--dest org.gnome.Shell "
+                    "--object-path /org/gnome/Shell "
+                    "--method org.gnome.Shell.Eval "
+                    "'global.context.unsafe_mode = true'"
+                )
+                rc = r.returncode
+                out = r.stdout.strip()
+            else:
+                r = subprocess.run(
+                    ['gdbus', 'call', '--session',
+                     '--dest', 'org.gnome.Shell',
+                     '--object-path', '/org/gnome/Shell',
+                     '--method', 'org.gnome.Shell.Eval',
+                     'global.context.unsafe_mode = true'],
+                    capture_output=True, text=True, timeout=5,
+                )
+                rc = r.returncode
+                out = r.stdout.strip()
+            if rc == 0 and out.startswith('(true'):
                 print(f"unsafe_mode enabled (attempt {attempt+1}): {out}", flush=True)
                 break
             print(f"unsafe_mode attempt {attempt+1} returned: {out!r}", flush=True)
