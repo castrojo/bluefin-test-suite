@@ -160,7 +160,7 @@ def run_behave(args: list[str], rerun_path: Path) -> tuple[int, list[str]]:
 def main(argv: list[str] | None = None) -> int:
     retries, behave_args = parse_cli_args(list(sys.argv[1:] if argv is None else argv))
     base_args = with_quarantine_filter(behave_args)
-    rerun_path = Path("/tmp") / RERUN_FILENAME
+    rerun_path = Path.cwd() / RERUN_FILENAME
 
     rc, failed_entries = run_behave(base_args, rerun_path)
     if rc == 0:
