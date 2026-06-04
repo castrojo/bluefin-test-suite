@@ -167,7 +167,22 @@ def navigate_to_settings_panel(context, name: str) -> None:
         and (n.name or "").strip().casefold() in {alias.casefold() for alias in aliases}
     )
     assert candidates, f"Settings sidebar item {name!r} not found"
-    candidates[0].click()
+    for attempt in range(3):
+        try:
+            candidates[0].click()
+            break
+        except AttributeError:
+            if attempt == 2:
+                raise
+            # AT-SPI node became stale; re-find the sidebar and retry.
+            sleep(0.5)
+            settings_sidebar_is_present(context)
+            sidebar = context.settings_sidebar
+            candidates = sidebar.findChildren(
+                lambda n: n.roleName in {"button", "list item"}
+                and (n.name or "").strip().casefold() in {alias.casefold() for alias in aliases}
+            )
+            assert candidates, f"Settings sidebar item {name!r} not found on retry"
     context.last_settings_panel = candidates[0].name or name
     sleep(1)
     if name == "About" and (context.last_settings_panel or "").casefold() == "system":

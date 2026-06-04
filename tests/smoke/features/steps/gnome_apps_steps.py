@@ -234,12 +234,13 @@ def _launch_assert_and_close(
     _shell_eval_force_close(app_names)
     # Nautilus also needs --quit to stop its background service process.
     if "nautilus" in app_id.lower() or any("nautilus" in n.lower() for n in app_names):
-        subprocess.run(
-            ["nautilus", "--quit"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
+        if _IN_CONTAINER:
+            subprocess.run(
+                _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
+                capture_output=True, text=True, timeout=10,
+            )
+        else:
+            subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
         sleep(1)
     _wait_for_app_to_close(app_names, label)
 

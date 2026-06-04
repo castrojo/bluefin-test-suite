@@ -11,7 +11,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
-from app_support import launch_background
+from app_support import _IN_CONTAINER, _ssh_args, launch_background
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -26,8 +26,8 @@ def _skip_if_no_atspi(context) -> bool:
 
 FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
 FILES_LAUNCH_TARGETS = (
-    ("command", "nautilus"),
     ("desktop", "org.gnome.Nautilus.desktop"),
+    ("command", "nautilus"),
 )
 
 
@@ -95,7 +95,13 @@ def files_is_no_longer_running(context) -> None:
             return
         # After 10s (20 retries), force-quit the Nautilus daemon.
         if i == 19:
-            subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
+            if _IN_CONTAINER:
+                subprocess.run(
+                    _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
+                    capture_output=True, text=True, timeout=10,
+                )
+            else:
+                subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
             sleep(1)
         else:
             sleep(0.5)
