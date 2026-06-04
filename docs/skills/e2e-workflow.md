@@ -36,6 +36,7 @@ jobs:
 | `skip_native_apps` | boolean | `false` | When `true`, skips `@native_app` scenarios (Flatpak apps that may not be installed in all variants) |
 | `screenshot_flatpaks` | string | `""` | Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See [Flatpak screenshot gallery](../flatpak-screenshots.md) for full details. |
 | `chunked_enabled` | boolean | `false` | When `true`, sets `ZSTD_CHUNKED=true` so `@zstd_chunked` lifecycle scenarios run. Enable once the image ships `tar+zstd` OCI layers. |
+| `test_ref` | string | `main` | `projectbluefin/testsuite` ref to check out for test content. Wrapper workflows that start from `workflow_dispatch` should resolve this on the caller side with `${{ github.event.inputs.test_ref || github.ref_name }}`. |
 
 Multiple suites run as a matrix (parallel jobs):
 
@@ -194,7 +195,7 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 
 **Root cause:** `github.ref_name` inside a `workflow_call` reusable workflow always resolves to the default branch (`main`). If `e2e.yml` uses it directly as the test checkout ref, it always pulls from `main`.
 
-**Fix:** Pass `test_ref` through `manual.yml`'s dispatch inputs using `github.ref_name` on the **workflow_dispatch** side (where it correctly reflects the dispatched branch), then forward it as an input to `e2e.yml`. See ops.md "test_ref and github.ref_name" for the exact pattern.
+**Fix:** Pass `test_ref` through the `workflow_dispatch` caller (`manual.yml`, `migration-test.yml`, or another wrapper) using `github.ref_name` on the **workflow_dispatch** side (where it correctly reflects the dispatched branch), then forward it as an input to `e2e.yml`. Inside `e2e.yml`, the checkout must use `inputs.test_ref` directly — never `github.ref_name`. See ops.md "test_ref and github.ref_name" for the exact pattern.
 
 ### SSH never became ready
 

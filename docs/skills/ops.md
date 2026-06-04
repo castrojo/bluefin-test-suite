@@ -343,10 +343,10 @@ Also use `scenario.skip()` (the argument), NOT `context.scenario.skip()` — `co
 
 **Cause:** `github.ref_name` inside a `workflow_call` reusable workflow resolves to the **default branch** (`main`), not the caller's branch. This is a GitHub Actions platform behavior.
 
-**Fix:** Set `test_ref` in `manual.yml` (the `workflow_dispatch` side), where `github.ref_name` DOES correctly reflect the dispatched branch:
+**Fix:** Set `test_ref` in the `workflow_dispatch` caller (`manual.yml`, `migration-test.yml`, or another wrapper), where `github.ref_name` DOES correctly reflect the dispatched branch:
 
 ```yaml
-# manual.yml
+# manual.yml or migration-test.yml
 jobs:
   test:
     uses: ./.github/workflows/e2e.yml
@@ -356,7 +356,7 @@ jobs:
 
 The fallback chain is: user-supplied override → dispatched branch name → (never) empty. The old `|| 'main'` fallback was wrong and caused all dispatch runs to pull tests from main.
 
-**Rule:** Never use `github.ref_name` as a test-checkout ref inside `e2e.yml` itself — it always gives `main` there. Pass `test_ref` through from the caller.
+**Rule:** Never use `github.ref_name` as a test-checkout ref inside `e2e.yml` itself — it always gives `main` there. `e2e.yml` must consume `inputs.test_ref` directly, and callers must own the branch-selection logic.
 
 ---
 
