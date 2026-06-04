@@ -2,6 +2,9 @@
 
 Tests _desktop_path, _flatpak_available, launch_target_available, and
 launch_background using mocks — no real filesystem or subprocesses required.
+
+All tests force _IN_CONTAINER=False so the non-SSH local-filesystem code paths
+are exercised (the SSH paths are for behave runs inside the runner container).
 """
 
 from types import SimpleNamespace
@@ -11,12 +14,21 @@ import pytest
 
 from tests.smoke.features.steps import app_support
 
+# Force non-container mode for all tests in this module.
+_no_container = patch.object(app_support, "_IN_CONTAINER", False)
+
 
 # ---------------------------------------------------------------------------
 # _desktop_path
 # ---------------------------------------------------------------------------
 
 class TestDesktopPath:
+    def setup_method(self):
+        _no_container.start()
+
+    def teardown_method(self):
+        _no_container.stop()
+
     def test_returns_path_when_desktop_file_exists(self, tmp_path):
         desktop_id = "org.gnome.Calculator.desktop"
         fake_dir = tmp_path / "applications"
@@ -66,6 +78,12 @@ class TestDesktopPath:
 # ---------------------------------------------------------------------------
 
 class TestFlatpakAvailable:
+    def setup_method(self):
+        _no_container.start()
+
+    def teardown_method(self):
+        _no_container.stop()
+
     def test_returns_true_when_flatpak_info_succeeds(self):
         fake_result = SimpleNamespace(returncode=0)
         with patch("tests.smoke.features.steps.app_support.subprocess.run",
@@ -92,6 +110,12 @@ class TestFlatpakAvailable:
 # ---------------------------------------------------------------------------
 
 class TestLaunchTargetAvailable:
+    def setup_method(self):
+        _no_container.start()
+
+    def teardown_method(self):
+        _no_container.stop()
+
     def test_returns_true_for_available_command(self):
         targets = (("command", "bash"),)
         with patch.object(app_support.shutil, "which", return_value="/usr/bin/bash"):
@@ -149,6 +173,12 @@ class TestLaunchTargetAvailable:
 # ---------------------------------------------------------------------------
 
 class TestLaunchBackground:
+    def setup_method(self):
+        _no_container.start()
+
+    def teardown_method(self):
+        _no_container.stop()
+
     def test_launches_command_when_available(self):
         targets = (("command", "bash"),)
         with patch.object(app_support.shutil, "which", return_value="/usr/bin/bash"):
