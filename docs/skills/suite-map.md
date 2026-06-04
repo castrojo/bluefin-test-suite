@@ -15,7 +15,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
 | `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, Flathub remote, and permissions DB are active; upstream GNOME Software scenarios quarantined (Bluefin ships Bazaar `io.github.kolunmi.Bazaar`); `@pending` Bazaar placeholder tracks issue #419 |
-| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env, signing/security invariants |
+| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
 | `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
 | `hardware` | ✅ | — | — | — | — | — | — | Emulated peripherals; SSH-mode |
@@ -38,12 +38,10 @@ Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test 
 Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
 Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
 
-> **For lifecycle runs, use `upgrade-test.yml` in `projectbluefin/actions`** — it
-> calls `e2e.yml` cross-repo and exposes the lifecycle-specific inputs (`chunked_enabled`,
-> `test_ref`). `manual.yml` in this repo works for non-lifecycle suites (startup_failure
-> was fixed in PR #245 by removing the `@main` ref suffix from the `uses:` line — the
-> bare local path `uses: ./.github/workflows/e2e.yml` is fine). For lifecycle, prefer
-> `upgrade-test.yml` because it has the richer input set lifecycle needs.
+> **Do NOT use `manual.yml` in testsuite for lifecycle runs.** `manual.yml` calls
+> `e2e.yml` as a same-repo reusable workflow — GitHub always returns `startup_failure`
+> for this pattern. `upgrade-test.yml` in the actions repo calls `e2e.yml` cross-repo
+> (which works) and is the canonical manual trigger.
 
 ## Nightly CI job matrix
 
@@ -95,23 +93,23 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-269 scenarios across 32 feature files (last audit: 2026-06-04). 30 quarantined, 218 active, 21 @future/@pending stubs.
+263 scenarios across 31 feature files (last audit: 2026-06-04). 29 quarantined, 234 active (5 selinux scenarios promoted from @future).
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 82 | 82 | 0 | All active |
+| smoke | 82 | 81 | 1 | ujust report --confirm quarantined pending implementation (#419) |
 | developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI |
 | software | 13 | 4 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar); 1 `@pending` Bazaar placeholder tracks issue #419 |
-| common | 37 | 29 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209); adds signing-policy/runtime security assertions |
+| common | 32 | 24 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209) |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration + podman-pull zstd:chunked lane; pin + switch quarantined |
+| lifecycle | 20 | 20 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default, unified-storage, and zstd:chunked lanes) |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
 | security/image_provenance | 10 | 10 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
 | flatcar/boot | 7 | 7 | 0 | systemd, containerd, networking |
-| flatcar/lifecycle | 6 | 3 | 0 | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
-| security/selinux | 5 | 0 | 0 | `@future` Feature-level — needs `selinux=0` removed from golden disk (Epic E04, PR #280 in merge queue) |
+| flatcar/lifecycle | 6 | 4 | 0 | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
+| security/selinux | 5 | 5 | 0 | active — `selinux=0` removed from golden disk (Epic E04 closed) |
 | nvidia | 12 | 0 | 0 | `@future`/`@hardware_blocked` — needs GPU passthrough (Epic E08) |
 
 ### Remaining quarantine breakdown
@@ -126,9 +124,8 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
 | zsh, fish | common | installed as RPMs but not on `PATH` for `bluefin-test` user in CI (issue #209) |
 | fzf, bat, eza, fd, ripgrep, starship (×6) | common | installed by `brew-setup.service` (cli.Brewfile) which is masked in CI (issue #209) |
+| ujust report --confirm | smoke | not yet implemented upstream |
 | software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
-| bootc pin | lifecycle | pin not supported on all images (race condition in some test environments) |
-| bootc switch | lifecycle | switch target requires a valid alternate image ref in CI |
 
 ## Known coverage gaps
 

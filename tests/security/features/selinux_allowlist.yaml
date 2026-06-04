@@ -1,0 +1,39 @@
+# SELinux AVC denial allowlist
+#
+# Documents AVC denials that are known-acceptable in Bluefin test environments
+# and should not cause the selinux.feature no_denials scenarios to fail.
+#
+# Format:
+#   - scontext: <source context regexp>
+#     tcontext: <target context regexp>
+#     tclass:   <object class>
+#     perm:     <permission(s) — space-separated if multiple>
+#     reason:   <why this denial is acceptable>
+#     upstream: <upstream bug/issue link, if tracking>
+#
+# HOW TO USE
+# ----------
+# When a no_denials scenario fails on CI, capture the offending AVC line from
+# `ausearch -m avc --raw`, identify the context triple, and decide:
+#
+#   ACCEPTABLE (add here): denial is a known kernel/policy gap, not a real
+#     security regression, and has an upstream tracking item.
+#   NOT ACCEPTABLE (fix the application): denial indicates a mislabeled
+#     file, missing file-context rule, or application policy violation.
+#
+# Keep entries minimal — this list is reviewed on every security PR.
+
+allowlist: []
+
+# Example entry (commented out — add real ones as they are confirmed):
+#
+# allowlist:
+#   - scontext: "system_u:system_r:NetworkManager_t:s0"
+#     tcontext:  "system_u:object_r:NetworkManager_var_run_t:s0"
+#     tclass:    dir
+#     perm:      write
+#     reason:    >
+#       NetworkManager attempts to write to its runtime dir before the
+#       directory label is restored by restorecon; harmless on Bluefin
+#       because the directory is re-labeled at next boot.
+#     upstream:  "https://bugzilla.redhat.com/show_bug.cgi?id=XXXXXXX"
