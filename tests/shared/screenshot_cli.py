@@ -27,30 +27,39 @@ from tests.shared.screenshot import (  # noqa: E402
     take_app_screenshot,
 )
 
-# Minimal context — sandbox just needs to be non-None to pass the guard check
-# in take_screenshot; it is never dereferenced here.
-_ctx = types.SimpleNamespace(
-    sandbox=object(),
-    config=types.SimpleNamespace(userdata={}),
-)
 
-_suite = os.environ.get("SUITE", "unknown")
-configure_screenshot_context(_ctx, _suite, "flatpak_gallery")
+def main(argv=None):
+    """Run the flatpak gallery screenshotter.  Returns exit code (int)."""
+    if argv is None:
+        argv = sys.argv[1:]
 
-if len(sys.argv) < 2:
-    print("Usage: screenshot_cli.py <app_id> [<app_id> ...]", file=sys.stderr)
-    sys.exit(1)
+    if not argv:
+        print("Usage: screenshot_cli.py <app_id> [<app_id> ...]", file=sys.stderr)
+        return 1
 
-ok = 0
-fail = 0
-for app_id in sys.argv[1:]:
-    path = take_app_screenshot(app_id, context=_ctx)
-    if path:
-        print(f"OK   {app_id}: {path}", flush=True)
-        ok += 1
-    else:
-        print(f"FAIL {app_id}: no screenshot captured", flush=True)
-        fail += 1
+    # Minimal context — sandbox just needs to be non-None to pass the guard
+    # check in take_screenshot; it is never dereferenced here.
+    ctx = types.SimpleNamespace(
+        sandbox=object(),
+        config=types.SimpleNamespace(userdata={}),
+    )
+    suite = os.environ.get("SUITE", "unknown")
+    configure_screenshot_context(ctx, suite, "flatpak_gallery")
 
-print(f"\nFlatpak gallery: {ok} captured, {fail} failed", flush=True)
-sys.exit(1 if fail > 0 else 0)
+    ok = 0
+    fail = 0
+    for app_id in argv:
+        path = take_app_screenshot(app_id, context=ctx)
+        if path:
+            print(f"OK   {app_id}: {path}", flush=True)
+            ok += 1
+        else:
+            print(f"FAIL {app_id}: no screenshot captured", flush=True)
+            fail += 1
+
+    print(f"\nFlatpak gallery: {ok} captured, {fail} failed", flush=True)
+    return 1 if fail > 0 else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

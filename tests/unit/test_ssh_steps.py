@@ -162,7 +162,7 @@ class TestVmReachableOverSsh:
     def test_succeeds_immediately_when_ssh_works(self):
         ctx = _make_context()
         with patch.object(self.mod, "run_ssh", return_value=("ok", 0)):
-            with patch("time.sleep"):
+            with patch("tests.shared.ssh_steps.sleep"):
                 # Should not raise
                 self.mod.vm_reachable_over_ssh(ctx)
 
@@ -181,14 +181,14 @@ class TestVmReachableOverSsh:
             return val
 
         with patch.object(self.mod, "run_ssh", side_effect=_mock_run_ssh):
-            with patch("time.sleep"):
+            with patch("tests.shared.ssh_steps.sleep"):
                 self.mod.vm_reachable_over_ssh(ctx)
         assert call_count["n"] == 3
 
     def test_raises_after_all_retries_fail(self):
         ctx = _make_context()
         with patch.object(self.mod, "run_ssh", return_value=("", 1)):
-            with patch("time.sleep"):
+            with patch("tests.shared.ssh_steps.sleep"):
                 with pytest.raises(Exception):
                     self.mod.vm_reachable_over_ssh(ctx)
 
