@@ -51,6 +51,6 @@ The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue 
 ## Current stub posture
 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
-- `security/selinux`: still `@future` until Bluefin test images stop booting with `selinux=0`.
+- `security/selinux`: **active** — `selinux=0` removed from QEMU kernel args; VMs now boot with SELinux enforcing. Known-acceptable denials tracked in `tests/security/selinux_allowlist.yaml`.
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
 

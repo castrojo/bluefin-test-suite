@@ -1,0 +1,17 @@
+# SELinux AVC denial allowlist for Bluefin CI test VMs.
+#
+# Denials listed here are known-acceptable in the QEMU CI environment and
+# are filtered out by the "No AVC denials" scenarios in selinux.feature.
+#
+# Each entry documents the denial source, context, and reason for allowlisting.
+# Review this file when upgrading Fedora base or GNOME versions — denials may
+# resolve upstream or new ones may appear.
+#
+# Format:
+#   - source: the process or service generating the AVC
+#     scontext: source SELinux context type (from ausearch output)
+#     tcontext: target SELinux context type
+#     tclass: object class (file, dir, sock_file, etc.)
+#     reason: why this denial is acceptable in CI
+
+allowed_denials: []

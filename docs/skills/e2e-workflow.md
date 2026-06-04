@@ -158,7 +158,7 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 Check the serial log artifact. Common causes:
 - ostree deployment missing: `bootc install` exited before writing layers (check for `ERROR: ostree deployment missing` in the install step)
 - Kernel args wrong: `root=UUID=…` mismatch — verify `ROOT_UUID` in the install step output
-- `selinux=0` is set, so SELinux policy isn't the cause
+- SELinux is enforcing — check for AVC denials blocking sshd: `sudo ausearch -m avc -ts boot -c sshd` in the serial log
 
 ### GNOME session did not start
 
