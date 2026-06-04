@@ -12,7 +12,9 @@ bootc status JSON schema (v1alpha1):
   .status.booted.image.image.image  — image reference string
 """
 import json
+import os
 import re
+import shlex
 import subprocess
 from time import sleep, time
 
@@ -20,6 +22,13 @@ from behave import step
 
 from tests.shared.ssh_steps import *  # noqa: F401,F403
 from tests.shared.ssh_steps import run_ssh
+
+DEFAULT_MIGRATION_TARGET = "ghcr.io/projectbluefin/bluefin:stable"
+BOOTC_SWITCH_TIMEOUT_S = 900
+PODMAN_PULL_TIMEOUT_S = 900
+CONTAINERS_STORAGE_SWITCH_TIMEOUT_S = 120
+POST_MIGRATION_REBOOT_DEADLINE_S = 300
+POST_MIGRATION_REBOOT_INITIAL_WAIT_S = 15
 
 
 def _parse_bootc_status(context):
@@ -280,6 +289,107 @@ def reboot_and_wait(context):
 
     raise AssertionError(
         f"VM at {context.vm_ip} did not come back over SSH within 120s: {last_error}"
+    )
+
+
+def _migration_target():
+    """Return the migration target image ref from env or the default."""
+    return os.environ.get("MIGRATION_TARGET", DEFAULT_MIGRATION_TARGET)
+
+
+@step("Switch to migration target")
+def switch_to_migration_target(context):
+    """Run bootc switch to the MIGRATION_TARGET image with a 900s timeout."""
+    target = shlex.quote(_migration_target())
+    run_ssh(context, f"sudo bootc switch {target}", timeout=BOOTC_SWITCH_TIMEOUT_S)
+    rc = getattr(context, "ssh_rc", None)
+    assert rc == 0, (
+        f"bootc switch to {target} failed with rc={rc}\n"
+        f"{getattr(context, 'command_stdout', '')}"
+    )
+
+
+@step("Switch to migration target with unified storage")
+def switch_to_migration_target_unified(context):
+    """Run bootc switch --experimental-unified-storage to MIGRATION_TARGET."""
+    target = shlex.quote(_migration_target())
+    run_ssh(
+        context,
+        f"sudo bootc switch --experimental-unified-storage {target}",
+        timeout=BOOTC_SWITCH_TIMEOUT_S,
+    )
+    rc = getattr(context, "ssh_rc", None)
+    assert rc == 0, (
+        f"bootc switch --experimental-unified-storage to {target} failed with rc={rc}\n"
+        f"{getattr(context, 'command_stdout', '')}"
+    )
+
+
+@step("Check unified storage support and skip if unavailable")
+def check_unified_storage_support(context):
+    """Probe bootc switch --help for --experimental-unified-storage; skip if absent."""
+    run_ssh(context, "bootc switch --help 2>&1")
+    help_output = getattr(context, "command_stdout", "")
+    if "--experimental-unified-storage" not in help_output:
+        _skip_current_scenario(
+            context,
+            "bootc on this image does not support --experimental-unified-storage "
+            "(likely bootc < 1.16). Skipping unified storage scenario.",
+        )
+
+
+@step("Pull migration target via podman for zstd:chunked transport")
+def pull_migration_target_via_podman(context):
+    """Pull the MIGRATION_TARGET image via podman so it is available locally."""
+    target = shlex.quote(_migration_target())
+    run_ssh(context, f"sudo podman pull {target}", timeout=PODMAN_PULL_TIMEOUT_S)
+    rc = getattr(context, "ssh_rc", None)
+    assert rc == 0, (
+        f"podman pull {target} failed with rc={rc}\n"
+        f"{getattr(context, 'command_stdout', '')}"
+    )
+
+
+@step("Switch to migration target via containers-storage transport")
+def switch_via_containers_storage(context):
+    """Run bootc switch --transport containers-storage to MIGRATION_TARGET."""
+    target = shlex.quote(_migration_target())
+    run_ssh(
+        context,
+        f"sudo bootc switch --transport containers-storage {target}",
+        timeout=CONTAINERS_STORAGE_SWITCH_TIMEOUT_S,
+    )
+    rc = getattr(context, "ssh_rc", None)
+    assert rc == 0, (
+        f"bootc switch --transport containers-storage to {target} failed with rc={rc}\n"
+        f"{getattr(context, 'command_stdout', '')}"
+    )
+
+
+@step("Reboot VM and wait for SSH after migration")
+def reboot_and_wait_after_migration(context):
+    """Reboot and wait up to 300s for SSH — longer deadline for first-boot after migration."""
+    try:
+        run_ssh(context, "sudo reboot")
+    except subprocess.TimeoutExpired:
+        pass
+
+    deadline = time() + POST_MIGRATION_REBOOT_DEADLINE_S
+    last_error = "SSH never became reachable after migration reboot"
+    sleep(POST_MIGRATION_REBOOT_INITIAL_WAIT_S)
+    while time() < deadline:
+        try:
+            stdout, returncode = run_ssh(context, "echo ok", timeout=10)
+            if returncode == 0 and stdout == "ok":
+                return
+            last_error = f"rc={returncode}, stdout={stdout!r}"
+        except subprocess.TimeoutExpired as exc:
+            last_error = f"timeout after {exc.timeout}s"
+        sleep(5)
+
+    raise AssertionError(
+        f"VM at {context.vm_ip} did not come back over SSH within "
+        f"{POST_MIGRATION_REBOOT_DEADLINE_S}s after migration: {last_error}"
     )
 
 
