@@ -475,3 +475,52 @@ sudo touch "${VAR}/home/bluefin-test/.config/no-show-user-motd"
 **Do not** change the SSH step assertions to substring-match — the last-line approach is more robust. If a new image adds another MOTD source, add its opt-out file to the VM setup step.
 
 Fixed in PR #208 (2026-06-03).
+
+---
+
+## toolkit-accessibility must be set via SSH before tests
+
+**Symptom:** GTK4 apps (Settings, Calculator, Text Editor, etc.) are never visible to dogtail — `tree.root.application('Settings')` times out on every attempt. All AT-SPI window queries fail.
+
+**Cause:** `org.gnome.desktop.interface toolkit-accessibility` must be `true` in the **running GNOME session** for GTK4 apps to register with `at-spi2-registryd`. Setting it from inside the runner container does not help because the container cannot reach the GDM session bus. `dbus-run-session gsettings set ...` also fails — it creates a *new* D-Bus session, not the existing GDM one.
+
+**Fix:** Set toolkit-accessibility via SSH using the session bus exported into the user environment. In `e2e.yml`, after `unsafe_mode` is enabled, run:
+```bash
+ssh bluefin-test@localhost \
+  'source /tmp/session.env && gsettings set org.gnome.desktop.interface toolkit-accessibility true'
+```
+GTK4 apps launched after this will register with AT-SPI, making them visible to dogtail.
+
+Fixed in PR #269 (2026-06-04).
+
+---
+
+## `podman commit` must preserve ENTRYPOINT when patching runner image
+
+**Symptom:** `podman run runner_patched "python3 /tmp/behave_retry.py ..."` fails with `crun: executable file not found in $PATH` — the path `/tmp/python3 /tmp/...` is treated as a literal binary name.
+
+**Cause:** When you start a container with `--entrypoint ''` (empty string) to run a shell command, and then `podman commit` it, the committed image inherits the empty ENTRYPOINT. Subsequent `podman run image "python3 ..."` passes the command as CMD but with no ENTRYPOINT, so crun prepends nothing and tries to exec `python3 /tmp/...` as a single literal string.
+
+**Fix:** Always pass `--change 'ENTRYPOINT ["qecore-headless"]'` to `podman commit`:
+```bash
+podman commit --change 'ENTRYPOINT ["qecore-headless"]' container_name new_image_name
+```
+
+Fixed in PR #269 (2026-06-04).
+
+---
+
+## `which` not in fedora-minimal — use `command -v` instead
+
+**Symptom:** Shell scripts using `which tool` inside the runner container always succeed (or fail unexpectedly) — `which` exits 127 when the tool is absent but may not be found at all.
+
+**Cause:** `fedora-minimal` with `install_weak_deps=0` does not ship the `which` utility (it's in the `which` RPM, which is not pulled as a dependency of anything in the minimal image).
+
+**Fix:** Use POSIX `command -v` instead:
+```bash
+if sh -c 'command -v ssh >/dev/null 2>&1'; then
+    echo "ssh found"
+fi
+```
+
+Fixed in PR #269 (2026-06-04).

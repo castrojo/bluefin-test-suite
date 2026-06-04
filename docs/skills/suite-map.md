@@ -95,22 +95,22 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-263 scenarios across 31 feature files (last audit: 2026-06-03). 29 quarantined, 234 active.
+263 scenarios across 31 feature files (last audit: 2026-06-04). 30 quarantined, 212 active (21 @future/@pending stubs not yet runnable).
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 82 | 81 | 1 | ujust report --confirm quarantined pending implementation (#419) |
+| smoke | 82 | 82 | 0 | Core GNOME Shell, activities, settings, files, audio, notifications, lock screen |
 | developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI |
 | software | 13 | 4 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar); 1 `@pending` Bazaar placeholder tracks issue #419 |
 | common | 32 | 24 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209) |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 20 | 20 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default, unified-storage, and zstd:chunked lanes) |
+| lifecycle | 20 | 18 | 2 | bootc upgrade / rollback / version tracking / idempotence + ublue-os→projectbluefin migration; pin/unpin + switch quarantined |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
 | security/image_provenance | 10 | 10 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
 | flatcar/boot | 7 | 7 | 0 | systemd, containerd, networking |
-| flatcar/lifecycle | 6 | 4 | 0 | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
+| flatcar/lifecycle | 6 | 3 | 0 | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
 | security/selinux | 5 | 0 | 0 | `@future` — needs `selinux=0` removed from golden disk (Epic E04) |
 | nvidia | 12 | 0 | 0 | `@future`/`@hardware_blocked` — needs GPU passthrough (Epic E08) |
 
@@ -126,8 +126,9 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
 | zsh, fish | common | installed as RPMs but not on `PATH` for `bluefin-test` user in CI (issue #209) |
 | fzf, bat, eza, fd, ripgrep, starship (×6) | common | installed by `brew-setup.service` (cli.Brewfile) which is masked in CI (issue #209) |
-| ujust report --confirm | smoke | not yet implemented upstream |
 | software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
+| bootc pin/unpin | lifecycle | modifies active deployment pins; excluded to avoid interfering with upgrade/rollback sequence |
+| bootc switch | lifecycle | changes image reference to a different variant; isolated to prevent CI contamination |
 
 ## Known coverage gaps
 

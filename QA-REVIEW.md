@@ -1,9 +1,9 @@
 # testsuite QA review
 
-> Last updated: 2026-06-03
+> Last updated: 2026-06-04
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 263 scenarios across 31 feature files (last audit: 2026-06-03). 29 quarantined, 234 active.
+Current audit: 263 scenarios across 31 feature files (last audit: 2026-06-04). 30 quarantined, 212 active (21 @future/@pending stubs).
 
 ## What this repo is responsible for
 
@@ -33,7 +33,7 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-107 unit tests across 8 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+112 unit tests across 8 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
