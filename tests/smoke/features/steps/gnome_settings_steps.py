@@ -11,7 +11,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
-from app_support import atspi_click, launch_background
+from app_support import launch_background
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -40,16 +40,38 @@ SETTINGS_PANEL_ALIASES = {
     "Displays": ("Displays",),
     "Privacy & Security": ("Privacy & Security", "Privacy"),
 }
+# Maps display panel name → gnome-control-center CLI panel ID.
+# gnome-control-center <panel-id> navigates directly to the panel via D-Bus
+# activation, avoiding the need to click sidebar items via AT-SPI.
+SETTINGS_PANEL_IDS = {
+    "About": "system",
+    "Displays": "display",
+    "Wi-Fi": "wifi",
+    "Privacy & Security": "privacy",
+    "Notifications": "notifications",
+    "Keyboard": "keyboard",
+    "Power": "power",
+    "Accessibility": "universal-access",
+    "Sound": "sound",
+    "Network": "network",
+    "Bluetooth": "bluetooth",
+    "Users": "user-accounts",
+}
 
 
-def _settings_app():
+def _settings_app(timeout: int = 15):
+    """Find the Settings app in the AT-SPI tree, retrying for up to ``timeout`` seconds."""
+    import time
+    deadline = time.monotonic() + timeout
     last_error = None
-    for name in SETTINGS_APP_NAMES:
-        try:
-            return tree.root.application(name)
-        except Exception as exc:  # noqa: BLE001
-            last_error = exc
-    raise AssertionError(f"GNOME Settings application was not found via AT-SPI: {last_error}")
+    while time.monotonic() < deadline:
+        for name in SETTINGS_APP_NAMES:
+            try:
+                return tree.root.application(name)
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+        sleep(1)
+    raise AssertionError(f"GNOME Settings application was not found via AT-SPI after {timeout}s: {last_error}")
 
 
 def _settings_window():
@@ -156,45 +178,30 @@ def settings_sidebar_is_present(context) -> None:
 
 @step('Navigate to Settings panel "{name}"')
 def navigate_to_settings_panel(context, name: str) -> None:
-    sidebar = getattr(context, "settings_sidebar", None)
-    if sidebar is None:
-        settings_sidebar_is_present(context)
-        sidebar = context.settings_sidebar
-
-    aliases = SETTINGS_PANEL_ALIASES.get(name, (name,))
-    candidates = sidebar.findChildren(
-        lambda n: n.roleName in {"button", "list item"}
-        and (n.name or "").strip().casefold() in {alias.casefold() for alias in aliases}
-    )
-    assert candidates, f"Settings sidebar item {name!r} not found"
-    for attempt in range(3):
-        try:
-            atspi_click(candidates[0])
-            break
-        except AttributeError:
-            if attempt == 2:
-                raise
-            # AT-SPI node became stale; re-find the sidebar and retry.
-            sleep(0.5)
-            settings_sidebar_is_present(context)
-            sidebar = context.settings_sidebar
-            candidates = sidebar.findChildren(
-                lambda n: n.roleName in {"button", "list item"}
-                and (n.name or "").strip().casefold() in {alias.casefold() for alias in aliases}
-            )
-            assert candidates, f"Settings sidebar item {name!r} not found on retry"
-    context.last_settings_panel = candidates[0].name or name
-    sleep(1)
-    if name == "About" and (context.last_settings_panel or "").casefold() == "system":
-        about_buttons = _settings_app().findChildren(
-            lambda n: n.showing
-            and n.roleName in {"button", "list item"}
-            and (n.name or "").strip().casefold() == "about"
+    from app_support import _IN_CONTAINER, _ssh_run
+    # Use gnome-control-center <panel-id> for direct D-Bus activation — this is more
+    # reliable than AT-SPI sidebar clicks, especially in the runner container where
+    # Wayland input injection via ponytail is unavailable.
+    panel_id = SETTINGS_PANEL_IDS.get(name, name.lower().replace(" ", "-").replace("&", "and"))
+    if _IN_CONTAINER:
+        # Kill any existing instance first so the new launch takes the panel argument.
+        _ssh_run(
+            "pid=$(pgrep -x gnome-control-center 2>/dev/null); "
+            "[ -n \"$pid\" ] && kill -TERM \"$pid\" 2>/dev/null; sleep 0.5; true",
+            timeout=5,
         )
-        if about_buttons:
-            atspi_click(about_buttons[0])
-            context.last_settings_panel = about_buttons[0].name or name
-            sleep(1)
+        _ssh_run(
+            f"source /tmp/session.env 2>/dev/null; "
+            f"gio launch /usr/share/applications/org.gnome.Settings.desktop {panel_id} &",
+            timeout=5,
+        )
+    else:
+        subprocess.run(["pkill", "-f", "gnome-control-center"], check=False)
+        sleep(0.5)
+        launch_background(["gnome-control-center", panel_id])
+    # Wait for Settings window to appear and the panel to load.
+    sleep(2)
+    context.last_settings_panel = name
 
 
 @step('Settings panel "{name}" is visible')

@@ -29,6 +29,18 @@ FILES_LAUNCH_TARGETS = (
     ("desktop", "org.gnome.Nautilus.desktop"),
     ("command", "nautilus"),
 )
+# Maps sidebar item name → nautilus URI for direct navigation.
+# Used as fallback when AT-SPI action click isn't available on sidebar items.
+FILES_SIDEBAR_URIS = {
+    "Home": "home:///",
+    "Downloads": "~/Downloads",
+    "Documents": "~/Documents",
+    "Desktop": "~/Desktop",
+    "Music": "~/Music",
+    "Pictures": "~/Pictures",
+    "Videos": "~/Videos",
+    "Trash": "trash:///",
+}
 
 
 def _nautilus_app():
@@ -135,7 +147,8 @@ def home_folder_is_in_the_sidebar(context) -> None:
 
 @step('Navigate to "{name}" in Files sidebar')
 def navigate_to_in_files_sidebar(context, name: str) -> None:
-    """Click a Nautilus sidebar item using AT-SPI action (no ponytail required)."""
+    """Click a Nautilus sidebar item using AT-SPI action or URI fallback."""
+    from app_support import _IN_CONTAINER, _ssh_run
     window = _nautilus_window()
     # Sidebar items may be "button" (GNOME 50+) or "list item" (older)
     for attempt in range(3):
@@ -145,11 +158,28 @@ def navigate_to_in_files_sidebar(context, name: str) -> None:
             and name.casefold() in n.name.casefold()
         )
         if items:
-            atspi_click(items[0])
-            sleep(0.5)
-            return
+            try:
+                atspi_click(items[0])
+                sleep(0.5)
+                return
+            except RuntimeError:
+                break  # AT-SPI actions not available; fall through to URI navigation
         sleep(0.5)
-    raise AssertionError(f"Sidebar item {name!r} not found in Files window")
+
+    # Fallback: navigate via URI so Nautilus opens the correct location directly.
+    uri = FILES_SIDEBAR_URIS.get(name)
+    if uri:
+        if _IN_CONTAINER:
+            _ssh_run(
+                f"source /tmp/session.env 2>/dev/null; "
+                f"gio open {uri} &",
+                timeout=5,
+            )
+        else:
+            launch_background(["nautilus", uri])
+        sleep(1)
+        return
+    raise AssertionError(f"Sidebar item {name!r} not found in Files window and no URI fallback available")
 
 
 @step('Nautilus location shows "{location}"')

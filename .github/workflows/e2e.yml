@@ -393,8 +393,22 @@ jobs:
           sudo tee "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/extension.js" > /dev/null << 'EXTEOF'
           import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
           export default class UnsafeModeExtension extends Extension {
-              enable() { global.context.unsafe_mode = true; }
-              disable() {}
+              enable() {
+                  global.context.unsafe_mode = true;
+                  // GNOME Shell resets unsafe_mode to false after certain UI events
+                  // (overview open/close, modal dialogs, screen lock, etc.).
+                  // Re-enable it whenever it gets reset so Shell.Eval stays active.
+                  this._id = global.context.connect('notify::unsafe-mode', () => {
+                      if (!global.context.unsafe_mode)
+                          global.context.unsafe_mode = true;
+                  });
+              }
+              disable() {
+                  if (this._id) {
+                      global.context.disconnect(this._id);
+                      this._id = 0;
+                  }
+              }
           }
           EXTEOF
 

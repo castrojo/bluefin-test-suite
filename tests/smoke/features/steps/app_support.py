@@ -130,8 +130,9 @@ def atspi_click(node) -> None:
     """Activate a widget via AT-SPI action API (no ponytail / Wayland injection).
 
     Tries "click", "press", and "activate" actions in order. Falls back to the
-    coordinate-based node.click() when no matching action is found — this may
-    fail on Wayland without ponytail but keeps compatibility with X11 / local runs.
+    coordinate-based node.click() only for non-container runs (X11 / local) where
+    ponytail or XTest is available. In container mode (Wayland + no ponytail),
+    raises RuntimeError with available actions for diagnosis.
     """
     try:
         available = node.actions or {}
@@ -144,4 +145,9 @@ def atspi_click(node) -> None:
                 return
             except Exception:  # noqa: BLE001
                 pass
+    if _IN_CONTAINER:
+        raise RuntimeError(
+            f"atspi_click: no usable AT-SPI action on {node!r}; "
+            f"available={list(available)!r}"
+        )
     node.click()
