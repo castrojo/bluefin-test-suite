@@ -79,7 +79,29 @@ Should return nothing. Any hit must be replaced with `raise`.
 
 Both layers are required. Do not remove either.
 
-## --bootloader flag requires bootc >= 0.1.13
+## ujust recipe skip-detection pattern
+
+**Symptom:** A step that is meant to skip when a recipe is absent instead fails — the assertion after the skip check fires with an unexpected value.
+
+**Cause:** The skip check pattern `if returncode != 0 and "does not contain recipe" in output` only catches the case where the recipe does not exist at all. When the recipe **exists but rejects the arguments** (e.g., wrong argument count), `just` emits a different error like:
+
+```
+error: Recipe `report` takes 0 positional arguments, but 2 were provided.
+```
+
+This error does not contain `"does not contain recipe"`, so the skip never fires and the following assertion fails.
+
+**Fix options (in priority order):**
+1. Add `@quarantine` to the scenario if the feature is not yet implemented on any current image variant. This is the right call when there is no active implementation to test.
+2. Widen the skip check to cover both error strings:
+   ```python
+   skip_signals = ("does not contain recipe", "takes 0 positional", "wasn't expected")
+   if returncode != 0 and any(s in output for s in skip_signals):
+       _skip_scenario(context, "recipe not available on this image")
+       return
+   ```
+
+**Reference:** The `ujust report --confirm` scenario hit this exact issue (bluefin/issues/240, #241). Fixed in testsuite PR #259 by adding `@quarantine`.
 
 **Symptom:** `bootc install to-disk --bootloader systemd` fails with `unrecognized flag`.
 
