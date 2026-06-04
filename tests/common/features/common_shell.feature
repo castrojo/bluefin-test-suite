@@ -19,30 +19,28 @@ Feature: Bluefin common shell environment
     * SSH command output is not empty
 
   # ── Modern CLI tools (common layer) ──────────────────────────────────────
-  # These tools are installed by brew-setup.service on first login. In CI,
-  # brew-setup is masked for boot speed; the e2e workflow installs them
-  # explicitly before the common suite runs.
 
   Scenario: fzf fuzzy finder is available
     * Run SSH command: "fzf --version"
     * SSH command return code is "0"
 
   Scenario: bat (modern cat) is available
-    * Run SSH command: "bat --version"
-    * SSH command return code is "0"
+    * Run SSH command: "bat --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/bat --version 2>/dev/null || batcat --version 2>/dev/null || echo missing"
+    * SSH command output is not empty
+    * SSH command output does not contain "missing"
 
   Scenario: eza (modern ls) is available
-    * Run SSH command: "eza --version"
+    * Run SSH command: "eza --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/eza --version"
     * SSH command return code is "0"
 
   Scenario: fd (modern find) is available
-    * Run SSH command: "fd --version"
+    * Run SSH command: "fd --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/fd --version"
     * SSH command return code is "0"
 
   Scenario: ripgrep is available
-    * Run SSH command: "rg --version"
+    * Run SSH command: "rg --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/rg --version"
     * SSH command return code is "0"
 
   Scenario: starship prompt binary is present
-    * Run SSH command: "starship --version"
+    * Run SSH command: "starship --version 2>/dev/null || /home/linuxbrew/.linuxbrew/bin/starship --version 2>/dev/null"
     * SSH command return code is "0"

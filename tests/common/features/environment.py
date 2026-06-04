@@ -67,8 +67,11 @@ def before_all(context):
         quoted = shlex.quote(session_env)
         session_prefix = f"if [ -f {quoted} ]; then . {quoted}; fi; "
     # Set up Homebrew PATH so brew-installed tools (bat, eza, fd, rg, etc.) are
-    # accessible in non-interactive SSH sessions.
+    # accessible in non-interactive SSH sessions.  The explicit PATH export
+    # ensures standard system directories are present before brew shellenv
+    # runs, which also fixes zsh/fish lookup in the bluefin-test SSH session.
     brew_prefix = (
+        'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH; '
         '[ -x /home/linuxbrew/.linuxbrew/bin/brew ] '
         '&& eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)" '
         '|| true; '

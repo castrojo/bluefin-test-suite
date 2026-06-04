@@ -3,7 +3,7 @@
 > Last updated: 2026-06-04
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 268 scenarios across 32 feature files (last audit: 2026-06-05). 22 quarantined, 225 active, 21 @future/@pending stubs.
+Current audit: 268 scenarios across 32 feature files (last audit: 2026-06-04). 22 quarantined, 225 active, 21 @future/@pending stubs.
 
 ## What this repo is responsible for
 
@@ -28,12 +28,12 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 3. Are step phrases unique within each loaded suite?
 4. Is dogtail usage compatible with current API behavior?
 5. Do docs (`README.md`, `RUNBOOK.md`, `docs/skills/`) still match behavior?
-6. Are new scenario tests being added as behave steps, with pytest reserved for `tests/unit/` helper coverage?
+6. Are new pytest files being added? (Legacy pytest removed 2026-05-28 — all new tests must use behave.)
 7. If scenario count changed, is `docs/skills/suite-map.md` updated?
 
 ## Unit test coverage
 
-177 unit tests across 13 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+162 unit tests across 12 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -43,7 +43,6 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 | `test_screenshot.py` | 11 | Screenshot capture helpers |
 | `test_shared.py` | 9 | Shared step utilities |
 | `test_screenshot_cli.py` | 9 | `screenshot_cli.main()` argument parsing and dispatch |
-| `test_security_steps.py` | 15 | `_cosign_entries()` JSON validation and `_collect_values()` recursive extraction |
 | `test_quarantine.py` | 7 | `@quarantine` / `@pending` skip logic |
 | `test_qemu_screendump.py` | 8 | `_ppm_to_png` conversion and `main()` entry point |
 | `test_app_support.py` | 17 | `_desktop_path`, `_flatpak_available`, `launch_target_available`, `launch_background` |

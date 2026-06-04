@@ -49,6 +49,25 @@ on:
           Example: "org.gnome.Calculator,io.github.kolunmi.Bazaar"
         type: string
         default: ""
+      migration-target:
+        description: >
+          Migration target image ref for cross-registry migration scenarios.
+          Only used when the lifecycle suite runs @migration scenarios.
+          Passed as MIGRATION_TARGET env var to behave; when empty the test code
+          falls back to its built-in default (ghcr.io/projectbluefin/bluefin:stable).
+          Example (non-LTS): ghcr.io/projectbluefin/bluefin:stable
+          Example (LTS):     ghcr.io/projectbluefin/bluefin-lts:stable
+        type: string
+        default: ""
+        required: false
+      extra-tags:
+        description: >
+          Additional behave tag expression appended to the tag filter.
+          Use to scope a run to a tag group, e.g. "migration" to run only
+          @migration scenarios within the lifecycle suite.
+        type: string
+        default: ""
+        required: false
       test_ref:
         description: >
           Git ref (branch, SHA, or tag) from which to check out the tests/ directory.
@@ -293,7 +312,12 @@ jobs:
           #
           # systemd.journald.forward_to_console=1 — forward full journal to serial for
           #   diagnostics when SSH fails (output captured in vm-serial.log artifact).
-          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.journald.forward_to_console=1 systemd.mask=tailscaled.service systemd.mask=brew-setup.service systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service systemd.mask=flatpak-preinstall.service systemd.mask=podman-auto-update.service systemd.mask=podman-auto-update.timer systemd.mask=malcontent-webd.service systemd.mask=malcontent-webd-update.service systemd.mask=malcontent-control.service systemd.mask=speech-dispatcherd.service systemd.mask=avahi-daemon.service systemd.mask=avahi-daemon.socket systemd.mask=cups.service systemd.mask=cups.path systemd.mask=cups.socket systemd.mask=cups.browsed.service systemd.mask=blueman-mechanism.service systemd.mask=gnome-remote-desktop.service systemd.mask=bazzite-hardware-setup.service systemd.mask=greenboot-healthcheck.service systemd.mask=greenboot-set-rollback-trigger.service"
+          # brew-setup.service installs Homebrew CLI tools (fzf, bat, eza, fd, rg,
+          # starship) validated by the common suite.  Un-mask it for the common suite
+          # so those tools are available; mask it for all other suites to save boot time.
+          BREW_SETUP_MASK=""
+          [[ "${SUITE}" != "common" ]] && BREW_SETUP_MASK=" systemd.mask=brew-setup.service"
+          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no console=ttyS0,115200 systemd.journald.forward_to_console=1 systemd.mask=tailscaled.service${BREW_SETUP_MASK} systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service systemd.mask=flatpak-preinstall.service systemd.mask=podman-auto-update.service systemd.mask=podman-auto-update.timer systemd.mask=malcontent-webd.service systemd.mask=malcontent-webd-update.service systemd.mask=malcontent-control.service systemd.mask=speech-dispatcherd.service systemd.mask=avahi-daemon.service systemd.mask=avahi-daemon.socket systemd.mask=cups.service systemd.mask=cups.path systemd.mask=cups.socket systemd.mask=cups.browsed.service systemd.mask=blueman-mechanism.service systemd.mask=gnome-remote-desktop.service systemd.mask=bazzite-hardware-setup.service systemd.mask=greenboot-healthcheck.service systemd.mask=greenboot-set-rollback-trigger.service"
           echo "KERNEL_ARGS=${KERNEL_ARGS}" >> "$GITHUB_ENV"
 
           # Apply user + sshd config to ALL deployments in this stateroot.
@@ -483,7 +507,7 @@ jobs:
           [[ -S /tmp/qemu-monitor.sock ]] && echo "QEMU monitor socket ready." \
             || echo "WARNING: QEMU monitor socket not found after 5s"
 
-      # selinux=0 + pre-generated host keys + masked slow services = SSH ready in ~90s
+      # pre-generated host keys + masked slow services = SSH ready in ~90s
       - name: Wait for SSH
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
@@ -537,64 +561,26 @@ jobs:
           $SSH "journalctl -u gdm --no-pager -n 50" 2>/dev/null || true
           exit 1
 
-      # brew-setup.service is masked in CI to save ~60s boot time. Install the
-      # CLI tools the common suite validates (zsh, fish, eza, fd, rg, bat, fzf,
-      # starship) directly so scenarios don't need quarantine.
-      - name: Install shell tools for common suite
+      # brew-setup.service runs at first user login (GDM autologin triggers it).
+      # Wait up to 5 minutes for Homebrew CLI tools to be installed before tests run.
+      - name: Wait for brew CLI tools
         if: ${{ env.SUITE == 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
-
-          # zsh and fish are RPMs in the image — verify they exist, install if missing.
-          $SSH "command -v zsh >/dev/null 2>&1 && echo 'zsh already installed' \
-            || (echo 'Installing zsh...' && sudo rpm-ostree install --apply-live --allow-inactive zsh 2>/dev/null \
-            || sudo dnf install -y zsh 2>/dev/null \
-            || echo 'WARNING: could not install zsh')"
-          $SSH "command -v fish >/dev/null 2>&1 && echo 'fish already installed' \
-            || (echo 'Installing fish...' && sudo rpm-ostree install --apply-live --allow-inactive fish 2>/dev/null \
-            || sudo dnf install -y fish 2>/dev/null \
-            || echo 'WARNING: could not install fish')"
-
-          # Brew CLI tools: install via brew if available, skip gracefully if not.
-          # brew-setup.service normally handles this on first login, but it's masked
-          # in CI. Run brew bundle or individual installs instead.
-          BREW_INSTALL_TIMEOUT_S=300
-          $SSH "
-            BREW=/home/linuxbrew/.linuxbrew/bin/brew
-            if [ -x \"\$BREW\" ]; then
-              echo 'Homebrew found — installing CLI tools...'
-              eval \"\$(\$BREW shellenv)\"
-              # Install each tool individually so one failure doesn't block others.
-              for tool in fzf bat eza fd ripgrep starship; do
-                if command -v \"\$tool\" >/dev/null 2>&1 || \
-                   command -v \"\$(echo \$tool | sed 's/ripgrep/rg/')\" >/dev/null 2>&1; then
-                  echo \"  \$tool: already available\"
-                else
-                  echo \"  \$tool: installing via brew...\"
-                  \$BREW install \"\$tool\" 2>&1 | tail -1 || echo \"  WARNING: brew install \$tool failed\"
-                fi
-              done
-              echo 'Brew CLI tools install complete'
-            else
-              echo 'WARNING: Homebrew not found at /home/linuxbrew/.linuxbrew/bin/brew'
-              echo 'Brew-provided CLI tools will not be available'
+          echo "Waiting for brew-setup.service to install CLI tools..."
+          DEADLINE=$((SECONDS + 300))
+          while [ $SECONDS -lt $DEADLINE ]; do
+            if $SSH "command -v fzf >/dev/null 2>&1 || /home/linuxbrew/.linuxbrew/bin/fzf --version >/dev/null 2>&1" 2>/dev/null; then
+              echo "Brew CLI tools ready after ${SECONDS}s"
+              exit 0
             fi
-          " || echo "WARNING: shell tools install step had errors — some common scenarios may fail"
-
-          # Verify tool availability for CI diagnostics
-          $SSH "
-            echo '=== Shell tool availability ==='
-            for tool in zsh fish fzf bat eza fd rg starship; do
-              if command -v \"\$tool\" >/dev/null 2>&1; then
-                echo \"  \$tool: \$(command -v \$tool)\"
-              elif [ -x /home/linuxbrew/.linuxbrew/bin/\$tool ]; then
-                echo \"  \$tool: /home/linuxbrew/.linuxbrew/bin/\$tool (brew)\"
-              else
-                echo \"  \$tool: NOT FOUND\"
-              fi
-            done
-          " || true
+            sleep 5
+          done
+          echo "WARNING: brew CLI tools not available after 5 minutes"
+          $SSH "systemctl status brew-setup.service --no-pager -l" 2>/dev/null || true
+          $SSH "journalctl -u brew-setup.service --no-pager -n 40" 2>/dev/null || true
+          exit 1
 
       - name: Load runner container into VM
         if: ${{ env.SUITE != 'common' }}
@@ -655,8 +641,27 @@ jobs:
             [[ -z \"\${SESSION_BUS}\" ]] && SESSION_BUS=\"unix:path=\${XDG}/bus\"
             WAYLAND_DISP=\$(ls /run/user/1001/wayland-* 2>/dev/null \
               | head -1 | xargs basename 2>/dev/null || echo wayland-0)
+            # Query the real AT-SPI accessibility bus address.
+            # AT-SPI uses a separate socket from the D-Bus session bus; the address
+            # is published by at-spi-bus-launcher via org.a11y.Bus.GetAddress.
+            # Retry up to 10s to tolerate at-spi-bus-launcher startup delay.
+            ATSPI_ADDR=\"\"
+            for _i in 1 2 3 4 5; do
+              ATSPI_ADDR=\$(DBUS_SESSION_BUS_ADDRESS=\"\${SESSION_BUS}\" \
+                gdbus call --session --dest org.a11y.Bus --object-path /org/a11y/bus \
+                --method org.a11y.Bus.GetAddress 2>/dev/null \
+                | sed \"s/.*'\\(unix:[^']*\\)'.*/\\1/\")
+              [[ -n \"\${ATSPI_ADDR}\" ]] && break
+              sleep 2
+            done
+            if [[ -z \"\${ATSPI_ADDR}\" ]]; then
+              echo 'WARNING: Could not query AT-SPI bus address from org.a11y.Bus; falling back to session bus (AT-SPI tests may fail)'
+              ATSPI_ADDR=\"\${SESSION_BUS}\"
+            else
+              echo \"AT-SPI bus address: \${ATSPI_ADDR}\"
+            fi
             printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\nexport PATH=%s\nexport XDG_SESSION_TYPE=wayland\nexport XDG_SESSION_DESKTOP=gnome\n' \
-              \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${SESSION_BUS}\" \"\$HOME/.local/bin:\$PATH\" \
+              \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${ATSPI_ADDR}\" \"\$HOME/.local/bin:\$PATH\" \
               > /tmp/session.env
             cat /tmp/session.env
           "
@@ -801,12 +806,15 @@ jobs:
           BEHAVE_RETRIES: 2
           SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
           TARGET_IMAGE: ${{ inputs.target-image }}
+          MIGRATION_TARGET: ${{ inputs.migration-target }}
+          EXTRA_TAGS: ${{ inputs.extra-tags }}
           ZSTD_CHUNKED: ${{ inputs.chunked_enabled && 'true' || 'false' }}
         run: |
           mkdir -p results
           BEHAVE_RC=0
           BEHAVE_TAG_ARGS="--tags ~quarantine"
           [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ~native_app"
+          [[ -n "${EXTRA_TAGS}" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ${EXTRA_TAGS}"
 
           if [[ "${SUITE}" == "common" || "${SUITE}" == "lifecycle" ]]; then
             python3 -m pip install -q --user behave
@@ -816,6 +824,7 @@ jobs:
             SSH_KEY=/tmp/vm_key \
             SSH_PORT=2222 \
             ZSTD_CHUNKED="${ZSTD_CHUNKED}" \
+            MIGRATION_TARGET="${MIGRATION_TARGET}" \
             python3 tests/shared/behave_retry.py tests/${SUITE}/features/ \
               --format json.pretty --outfile results/results.json \
               --no-capture ${BEHAVE_TAG_ARGS} || BEHAVE_RC=$?
@@ -915,36 +924,20 @@ jobs:
             results/screenshot_lifecycle_upgrade_final.png 2>/dev/null \
             || echo "WARNING: could not retrieve screenshot from VM"
 
-      - name: Capture post-migration screenshot and status
+      - name: Collect migration status
         if: always() && env.SUITE == 'lifecycle'
         continue-on-error: true
         run: |
-          mkdir -p results
-
-          # Option A: QEMU framebuffer capture — produces an actual PNG of the
-          # VM display (GDM login screen or desktop if autologin succeeded).
-          # The monitor socket was opened at VM boot with -monitor unix:...
-          OUT="results/screenshot-post-migration.png"
-          sudo python3 tests/shared/qemu_screendump.py "$OUT" \
-            && echo "Post-migration screenshot captured: $OUT" \
-            || echo "WARNING: QEMU screendump failed — screenshot may be missing"
-          sudo chmod 644 "$OUT" 2>/dev/null || true
-
-          # Option C (supplemental): bootc status + fastfetch text dump.
-          # Always available even if the QEMU monitor screenshot fails.
           SSH_CLEAN="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=no -o ConnectTimeout=30"
           SSH="ssh ${SSH_CLEAN} -p 2222 bluefin-test@127.0.0.1"
+          mkdir -p results
           {
             echo "=== bootc status ==="
             $SSH "sudo bootc status" 2>&1 || echo "(bootc status failed)"
             echo ""
             echo "=== fastfetch ==="
             $SSH "fastfetch" 2>&1 || echo "(fastfetch not available)"
-            echo ""
-            echo "=== os-release ==="
-            $SSH "cat /etc/os-release" 2>&1 || echo "(os-release not available)"
-          } > results/migration-status.txt 2>&1
-          echo "Migration status captured: results/migration-status.txt"
+          } > results/migration-status.txt
 
       - name: Capture Flatpak screenshots
         if: always() && inputs.screenshot_flatpaks != '' && env.SUITE != 'common'
@@ -996,7 +989,7 @@ jobs:
           $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
 
       - name: Capture desktop screenshot (QEMU screendump fallback)
-        if: always() && env.SUITE != 'common'
+        if: always() && env.SUITE != 'common' && env.SUITE != 'lifecycle'
         continue-on-error: true
         run: |
           # If the in-VM screenshot path (grim/gdbus inside the container) produced
@@ -1027,9 +1020,9 @@ jobs:
         id: desktop-screenshot
         run: |
           # GUI suites produce a fastfetch screenshot in after_all; the lifecycle
-          # suite produces a post-upgrade screenshot or a post-migration screenshot.
-          # Find whichever is present (prefer migration > upgrade > fastfetch).
-          SHOT=$(find results/ \( -name "screenshot-post-migration.png" -o -name "screenshot_*upgrade*.png" -o -name "screenshot_*fastfetch*.png" \) 2>/dev/null | head -1)
+          # suite produces a post-upgrade screenshot named screenshot_*upgrade*.png.
+          # Find whichever is present.
+          SHOT=$(find results/ \( -name "screenshot_*fastfetch*.png" -o -name "screenshot_*upgrade*.png" \) 2>/dev/null | head -1)
           if [[ -n "$SHOT" ]]; then
             cp "$SHOT" desktop-screenshot.png
             echo "found=true" >> "$GITHUB_OUTPUT"
