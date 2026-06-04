@@ -557,13 +557,7 @@ jobs:
               disable() {}
           }
           EXTEOF
-          python3 -c "
-import zipfile
-with zipfile.ZipFile('/tmp/unsafe-mode-ext.zip', 'w') as z:
-    z.write('/tmp/unsafe-mode-ext/metadata.json', 'metadata.json')
-    z.write('/tmp/unsafe-mode-ext/extension.js', 'extension.js')
-print('Created /tmp/unsafe-mode-ext.zip')
-"
+          python3 -c "import zipfile; zf=zipfile.ZipFile('/tmp/unsafe-mode-ext.zip','w'); zf.write('/tmp/unsafe-mode-ext/metadata.json','metadata.json'); zf.write('/tmp/unsafe-mode-ext/extension.js','extension.js'); zf.close(); print('Created /tmp/unsafe-mode-ext.zip')"
           $SCP_KEY /tmp/unsafe-mode-ext.zip bluefin-test@127.0.0.1:/tmp/unsafe-mode-ext.zip
           $SSH "
             source /tmp/session.env
