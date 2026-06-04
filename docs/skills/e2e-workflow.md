@@ -60,6 +60,8 @@ else
 
 After the lifecycle suite finishes, a separate "Capture post-upgrade screenshot" step re-SSHes with `ControlMaster=no` (fresh connection after reboot), waits up to 60 s for the Wayland socket at `/run/user/1001/wayland-0`, and calls `org.gnome.Shell.Screenshot` via gdbus. The screenshot is saved to `results/screenshot_lifecycle_upgrade_final.png` and uploaded in the `e2e-results-*` artifact.
 
+A **"Collect migration status"** step also runs (`always()`, `continue-on-error: true`) for the lifecycle suite. It SSHes in and writes `results/migration-status.txt` containing `bootc status` and `fastfetch` output — useful for confirming the active image ref and OS version after a migration reboot. This file is included in the `e2e-results-*` artifact alongside the screenshot.
+
 **Preferred manual trigger:** dispatch `upgrade-test.yml` in `projectbluefin/actions` — it calls `e2e.yml` cross-repo (which works). Do NOT dispatch `manual.yml` in this repo for lifecycle runs (see ops.md "manual.yml startup_failure").
 
 ## Pipeline stages

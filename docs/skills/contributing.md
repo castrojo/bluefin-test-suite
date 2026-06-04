@@ -141,6 +141,38 @@ Or use the composite action directly for full control over artifact names and fa
 
 For scenarios in the `developer` or `dx` suites, swap `bluefin:latest` for the appropriate DX image.
 
+## Reviewing PRs before merging
+
+Before enqueuing any PR, read the diff (`gh pr diff <N> --repo projectbluefin/testsuite`). Check:
+
+1. **Correctness** — step names in `.feature` files have matching `@step` implementations; new steps don't duplicate existing ones.
+2. **Not superseded** — compare the PR's changes against `git show origin/main:<file>` for each modified file. If the core change is already in main (landed via another PR), close the PR with a comment explaining which commit superseded it.
+3. **Contributor PRs** — check `maintainerCanModify` before deciding to fix vs close:
+   ```bash
+   gh pr view <N> --repo projectbluefin/testsuite --json maintainerCanModify,headRepositoryOwner,headRefName
+   ```
+   If `maintainerCanModify: true`, check out and push fixes directly to the contributor's branch rather than opening a new PR.
+
+### Resolving count conflicts when rebasing
+
+PRs that update `QA-REVIEW.md` or `docs/skills/suite-map.md` counts frequently conflict when rebased. Resolve by recalculating from main's current counts plus the PR's delta — never blindly accept either side:
+
+```
+# Identify what the PR changes (e.g. removes 8 @quarantine tags)
+# Start from main's numbers and apply the delta:
+#   main:  268 total / 30 quarantined / 217 active / 21 stubs
+#   PR:    removes 8 quarantine tags
+#   result: 268 / 22 quarantined / 225 active / 21 stubs
+```
+
+The suite table row for the affected suite must also be updated to reflect the correct active/quarantined split.
+
+### Merge queue dependency ordering
+
+If PR B depends on step functions added by PR A (e.g. B's `.feature` uses `Switch to migration target` defined in A's `steps.py`), enqueue A first. The merge queue tests each entry against all preceding entries in the queue, so B will see A's steps in CI even before A merges to `main`.
+
+Corollary: do not close or skip enqueuing a "dependency" PR just because its CI ran against an older `main` — re-enqueue both in order.
+
 ## Merging PRs — merge queue required
 
 This repo uses a **merge queue** (ruleset `main — merge queue`, id 17074591). Enqueue with:
