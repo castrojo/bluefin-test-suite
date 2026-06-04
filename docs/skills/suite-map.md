@@ -15,7 +15,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
 | `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, Flathub remote, and permissions DB are active; upstream GNOME Software scenarios quarantined (Bluefin ships Bazaar `io.github.kolunmi.Bazaar`); `@pending` Bazaar placeholder tracks issue #419 |
-| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env |
+| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env, signing/security invariants |
 | `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
 | `hardware` | ✅ | — | — | — | — | — | — | Emulated peripherals; SSH-mode |
@@ -95,14 +95,14 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-263 scenarios across 31 feature files (last audit: 2026-06-03). 29 quarantined, 234 active.
+268 scenarios across 32 feature files (last audit: 2026-06-04). 29 quarantined, 239 active.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
 | smoke | 82 | 81 | 1 | ujust report --confirm quarantined pending implementation (#419) |
 | developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI |
 | software | 13 | 4 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar); 1 `@pending` Bazaar placeholder tracks issue #419 |
-| common | 32 | 24 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209) |
+| common | 37 | 29 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209); adds signing-policy/runtime security assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 20 | 20 | 0 | bootc upgrade / rollback / switch / version tracking / idempotence + ublue-os→projectbluefin migration (default, unified-storage, and zstd:chunked lanes) |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
