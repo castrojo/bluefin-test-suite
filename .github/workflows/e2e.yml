@@ -345,6 +345,16 @@ jobs:
             printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=bluefin-test\n' | \
               sudo tee "${DEP}/etc/gdm/custom.conf"
 
+            # dconf system override: ensure allow-extension-installation=true so
+            # gnome-shell scans ~/.local/share/gnome-shell/extensions/ at startup,
+            # and pre-add our UUID to enabled-extensions so it activates automatically.
+            sudo mkdir -p "${DEP}/etc/dconf/db/local.d"
+            printf '[org/gnome/shell]\nallow-extension-installation=true\nenabled-extensions=['\''unsafe-mode@bluefin-test'\'']\n' | \
+              sudo tee "${DEP}/etc/dconf/db/local.d/00-ci-testing" > /dev/null
+            # Best-effort compile: works if host glibc matches the deployment binary.
+            # If this fails (glibc mismatch), dconf-service will auto-compile on first start.
+            sudo chroot "${DEP}" /bin/sh -c 'dconf update 2>/dev/null || true' 2>/dev/null || true
+
             # Mask CI-irrelevant services to shorten first-boot systemd startup
             for svc in bluetooth cups cups.path cups.socket cups.browsed avahi-daemon avahi-daemon.socket ModemManager fwupd colord podman-auto-update malcontent-control blueman-mechanism gnome-remote-desktop; do
               sudo ln -sf /dev/null "${DEP}/etc/systemd/system/${svc}.service" 2>/dev/null || true
@@ -368,6 +378,25 @@ jobs:
           sudo mkdir -p "${VAR}/home/bluefin-test/.config/environment.d"
           printf 'PATH=/var/home/bluefin-test/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin\n' | \
             sudo tee "${VAR}/home/bluefin-test/.config/environment.d/99-ci-path.conf"
+
+          # Pre-install gnome-shell unsafe-mode extension before first boot.
+          # gnome-shell's _loadExtensions() scans ~/.local/share/gnome-shell/extensions/
+          # ONCE at session startup. Extensions installed AFTER that scan are not
+          # registered and cannot be enabled via D-Bus (enableExtension returns false).
+          # Writing the files here (before the VM boots) guarantees gnome-shell finds
+          # and registers the extension during its startup scan.  After the GNOME
+          # session is ready, we just call 'gnome-extensions enable' — no zip, no
+          # gnome-extensions install, no ReloadExtension (removed in GNOME 47).
+          sudo mkdir -p "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test"
+          printf '{"uuid":"unsafe-mode@bluefin-test","name":"Unsafe Mode for Testing","description":"Enables Shell.Eval for automated testing","shell-version":["50","49","48","47","46","45"],"version":1}\n' | \
+            sudo tee "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/metadata.json" > /dev/null
+          sudo tee "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/extension.js" > /dev/null << 'EXTEOF'
+          import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+          export default class UnsafeModeExtension extends Extension {
+              enable() { global.context.unsafe_mode = true; }
+              disable() {}
+          }
+          EXTEOF
 
           sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
           sudo chmod 700 "${VAR}/home/bluefin-test/.ssh"
@@ -535,38 +564,18 @@ jobs:
             cat /tmp/session.env
           "
 
-          # GNOME 47+ removed the SetUnsafeMode D-Bus method.  Install a tiny
-          # gnome-shell extension that sets global.context.unsafe_mode = true from
-          # inside the shell process — the only remaining path to enable Shell.Eval.
-          # Use 'gnome-extensions install <zip>' which both copies the files and
-          # notifies gnome-shell about the new extension in one step.
-          mkdir -p /tmp/unsafe-mode-ext
-          cat > /tmp/unsafe-mode-ext/metadata.json << 'METAEOF'
-          {
-            "uuid": "unsafe-mode@bluefin-test",
-            "name": "Unsafe Mode for Testing",
-            "description": "Enables Shell.Eval for automated testing",
-            "shell-version": ["45", "46", "47", "48", "49", "50"],
-            "version": 1
-          }
-          METAEOF
-          cat > /tmp/unsafe-mode-ext/extension.js << 'EXTEOF'
-          import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
-          export default class UnsafeModeExtension extends Extension {
-              enable() { global.context.unsafe_mode = true; }
-              disable() {}
-          }
-          EXTEOF
-          python3 -c "import zipfile; zf=zipfile.ZipFile('/tmp/unsafe-mode-ext.zip','w'); zf.write('/tmp/unsafe-mode-ext/metadata.json','metadata.json'); zf.write('/tmp/unsafe-mode-ext/extension.js','extension.js'); zf.close(); print('Created /tmp/unsafe-mode-ext.zip')"
-          $SCP_KEY /tmp/unsafe-mode-ext.zip bluefin-test@127.0.0.1:/tmp/unsafe-mode-ext.zip
+          # Enable the pre-installed unsafe-mode gnome-shell extension.
+          # The extension files were written to ~/.local/share/gnome-shell/extensions/
+          # before first boot (in the "Install OCI image and configure disk" step),
+          # so gnome-shell found and registered the extension during _loadExtensions()
+          # at session startup.  We just need to enable it — gnome-shell's
+          # enableExtension() succeeds because the UUID is already in its internal map.
+          # (gnome-extensions install --force at this point would fail: ReloadExtension
+          # was removed in GNOME 47, so runtime-installed extensions are never registered.)
           $SSH "
             source /tmp/session.env
-            gnome-extensions install --force /tmp/unsafe-mode-ext.zip \
-              && echo 'Extension installed' \
-              || echo 'WARNING: gnome-extensions install failed'
-            sleep 1
             gnome-extensions enable unsafe-mode@bluefin-test \
-              && echo 'GNOME Shell unsafe_mode enabled via extension' \
+              && echo 'unsafe-mode extension enabled — Shell.Eval is active' \
               || echo 'WARNING: Failed to enable unsafe-mode extension'
           "
           # Poll until Shell.Eval confirms unsafe_mode is active (up to 10s).
