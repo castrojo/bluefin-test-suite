@@ -64,6 +64,8 @@ jobs:
       suites: smoke                          # smoke | developer | dx | software | vanilla-gnome
 ```
 
+If you wrap the reusable workflow in a same-repo `workflow_dispatch` workflow to test an unreleased testsuite branch, resolve `test_ref` in the wrapper (`${{ github.event.inputs.test_ref || github.ref_name }}`) and pass it through. Do **not** rely on `github.ref_name` inside `e2e.yml`; in `workflow_call` it resolves to `main`.
+
 ### Advanced — composite action directly
 
 For full control over artifact naming, concurrency, or triggering:
@@ -119,4 +121,3 @@ jobs:
 | `lts` | `ghcr.io/ublue-os/bluefin:lts` |
 
 `gts` and `lts-hwe` are invalid for Bluefin.
-
