@@ -184,21 +184,27 @@ def navigate_to_settings_panel(context, name: str) -> None:
     # Wayland input injection via ponytail is unavailable.
     panel_id = SETTINGS_PANEL_IDS.get(name, name.lower().replace(" ", "-").replace("&", "and"))
     if _IN_CONTAINER:
-        # Kill any existing instance first so the new launch takes the panel argument.
+        # Kill any existing instance first so the new launch opens on the correct panel.
         _ssh_run(
             "pid=$(pgrep -x gnome-control-center 2>/dev/null); "
             "[ -n \"$pid\" ] && kill -TERM \"$pid\" 2>/dev/null; sleep 0.5; true",
             timeout=5,
         )
+        # Launch gnome-control-center with the panel ID directly.
+        # gnome-control-center interprets the first positional arg as the panel name.
         _ssh_run(
             f"source /tmp/session.env 2>/dev/null; "
-            f"gio launch /usr/share/applications/org.gnome.Settings.desktop {panel_id} &",
+            f"gnome-control-center {panel_id} &",
             timeout=5,
         )
     else:
         subprocess.run(["pkill", "-f", "gnome-control-center"], check=False)
         sleep(0.5)
-        launch_background(["gnome-control-center", panel_id])
+        subprocess.Popen(
+            ["gnome-control-center", panel_id],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     # Wait for Settings window to appear and the panel to load.
     sleep(2)
     context.last_settings_panel = name
