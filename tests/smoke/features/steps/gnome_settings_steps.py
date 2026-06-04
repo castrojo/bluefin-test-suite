@@ -11,7 +11,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
-from app_support import launch_background
+from app_support import atspi_click, launch_background
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -169,7 +169,7 @@ def navigate_to_settings_panel(context, name: str) -> None:
     assert candidates, f"Settings sidebar item {name!r} not found"
     for attempt in range(3):
         try:
-            candidates[0].click()
+            atspi_click(candidates[0])
             break
         except AttributeError:
             if attempt == 2:
@@ -192,7 +192,7 @@ def navigate_to_settings_panel(context, name: str) -> None:
             and (n.name or "").strip().casefold() == "about"
         )
         if about_buttons:
-            about_buttons[0].click()
+            atspi_click(about_buttons[0])
             context.last_settings_panel = about_buttons[0].name or name
             sleep(1)
 

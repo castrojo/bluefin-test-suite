@@ -120,3 +120,28 @@ def launch_background(targets: tuple[tuple[str, str], ...]) -> str:
                 )
             return f"flatpak:{value}"
     raise AssertionError(f"No launch candidate available from {targets!r}")
+
+
+# AT-SPI action names that represent a primary click in order of preference.
+_ATSPI_CLICK_ACTIONS = ("click", "press", "activate")
+
+
+def atspi_click(node) -> None:
+    """Activate a widget via AT-SPI action API (no ponytail / Wayland injection).
+
+    Tries "click", "press", and "activate" actions in order. Falls back to the
+    coordinate-based node.click() when no matching action is found — this may
+    fail on Wayland without ponytail but keeps compatibility with X11 / local runs.
+    """
+    try:
+        available = node.actions or {}
+    except Exception:  # noqa: BLE001
+        available = {}
+    for action in _ATSPI_CLICK_ACTIONS:
+        if action in available:
+            try:
+                node.do_action_named(action)
+                return
+            except Exception:  # noqa: BLE001
+                pass
+    node.click()

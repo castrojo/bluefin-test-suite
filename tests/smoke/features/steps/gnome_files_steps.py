@@ -11,7 +11,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
-from app_support import _IN_CONTAINER, _ssh_args, launch_background
+from app_support import _IN_CONTAINER, _ssh_args, atspi_click, launch_background
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -73,7 +73,7 @@ def files_window_is_accessible(context) -> None:
     context.files_window = _nautilus_window()
     # Click to ensure the window has keyboard focus before subsequent steps.
     try:
-        context.files_window.click()
+        atspi_click(context.files_window)
     except Exception:  # noqa: BLE001
         pass
     # Brief pause so Nautilus finishes its focus transition before key combos.
@@ -131,6 +131,25 @@ def home_folder_is_in_the_sidebar(context) -> None:
         )
 
     assert home_items, "Home list item not found in Nautilus sidebar"
+
+
+@step('Navigate to "{name}" in Files sidebar')
+def navigate_to_in_files_sidebar(context, name: str) -> None:
+    """Click a Nautilus sidebar item using AT-SPI action (no ponytail required)."""
+    window = _nautilus_window()
+    # Sidebar items may be "button" (GNOME 50+) or "list item" (older)
+    for attempt in range(3):
+        items = window.findChildren(
+            lambda n: n.roleName in {"button", "list item"}
+            and bool(n.name)
+            and name.casefold() in n.name.casefold()
+        )
+        if items:
+            atspi_click(items[0])
+            sleep(0.5)
+            return
+        sleep(0.5)
+    raise AssertionError(f"Sidebar item {name!r} not found in Files window")
 
 
 @step('Nautilus location shows "{location}"')

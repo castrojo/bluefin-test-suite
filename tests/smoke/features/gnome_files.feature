@@ -18,12 +18,12 @@ Feature: GNOME Files smoke tests
 
   @files @navigation
   Scenario: Navigating to home folder shows contents
-    * Left click "Home" "button" in "nautilus"
+    * Navigate to "Home" in Files sidebar
     * Navigating to home folder shows file listing
 
   @files @navigation
   Scenario: Back button returns to previous location after navigating to Downloads
-    * Left click "Downloads" "list item" in "nautilus"
+    * Navigate to "Downloads" in Files sidebar
     * Nautilus location shows "Downloads"
     * Key combo: "<Alt>Left" with uinput
     * Nautilus location shows "Home"
