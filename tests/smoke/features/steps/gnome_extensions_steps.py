@@ -181,7 +181,7 @@ def launch_extensions_preferences_via_command(context) -> None:
                 context.extensions_window = window
                 context.extensions_at_spi_available = window is not None
                 return
-            except AssertionError as exc:
+            except AssertionError:
                 sleep(0.5)
         raise AssertionError("GNOME Extensions window not found via AT-SPI after SSH launch")
 
