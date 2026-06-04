@@ -80,6 +80,7 @@ All CI checks must pass cleanly before pushing. Local checks should also be clea
 |---|---|
 | New scenario in any suite | Feature file + steps file |
 | Scenario count changes | `QA-REVIEW.md` coverage table + `docs/skills/suite-map.md` coverage snapshot |
+| New unit test file | `QA-REVIEW.md` unit test table |
 | New suite or variant-matrix change | `docs/skills/suite-map.md` variant matrix + `RUNBOOK.md` suite layout table |
 | New step pattern discovered | `docs/skills/behave.md` |
 | New dogtail / GNOME anti-pattern | `docs/skills/gnome.md` |
