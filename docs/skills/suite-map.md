@@ -95,7 +95,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-268 scenarios across 32 feature files (last audit: 2026-06-04). 30 quarantined, 217 active, 21 @future/@pending stubs.
+269 scenarios across 32 feature files (last audit: 2026-06-04). 30 quarantined, 218 active, 21 @future/@pending stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
@@ -104,7 +104,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | software | 13 | 4 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar); 1 `@pending` Bazaar placeholder tracks issue #419 |
 | common | 37 | 29 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209); adds signing-policy/runtime security assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 20 | 18 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
+| lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration + podman-pull zstd:chunked lane; pin + switch quarantined |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
 | security/image_provenance | 10 | 10 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |

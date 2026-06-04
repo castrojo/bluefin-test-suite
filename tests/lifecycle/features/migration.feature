@@ -13,6 +13,9 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
       image: ghcr.io/ublue-os/bluefin:latest
       suites: lifecycle
 
+  The migration target defaults to ghcr.io/projectbluefin/bluefin:stable and can be
+  overridden by setting the MIGRATION_TARGET environment variable.
+
   The migration exercises the chunkah OCI layer format transition: the legacy
   image uses rpm-ostree chunked format (ublue-os/legacy-rechunker) while the
   projectbluefin image uses chunkah. A successful switch and rollback confirms
@@ -30,13 +33,13 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run long SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target
     * SSH command return code is "0"
     * Run SSH command: "sudo bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
-    * Run SSH command: "sudo bootc status --format=json"
+    * Reboot VM and wait for SSH after migration
+    * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
     * Active image reference contains "projectbluefin/bluefin"
 
@@ -47,12 +50,12 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run long SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target
     * SSH command return code is "0"
     * Run SSH command: "sudo bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
+    * Reboot VM and wait for SSH after migration
     # Verify we landed on the migrated image before attempting rollback.
     * Run SSH command: "sudo bootc status --format=json"
     * Active deployment matches upgrade target digest
@@ -68,13 +71,13 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
   Scenario: System identity and health are correct after migration
     * Run SSH command: "sudo bootc status --format=json"
     * Booted image is from the "ublue-os" registry
-    * Run long SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target
     * SSH command return code is "0"
     * Run SSH command: "sudo bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
-    * Run SSH command: "sudo bootc status --format=json"
+    * Reboot VM and wait for SSH after migration
+    * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
     * bootc status image reference starts with "ghcr.io/projectbluefin/"
     * bootc status image digest is a valid sha256
@@ -88,17 +91,18 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     # Unified storage places the target image in containers-storage (/var/lib/bootc/storage/overlay)
     # rather than the legacy ostree repo. This lane mirrors the "experimental-unified-storage"
     # lane of the bluespeed 4-lane migration matrix.
-    * Run SSH command: "sudo bootc status --format=json"
+    * Check unified storage support and skip if unavailable
+    * Run SSH command: "bootc status --format=json"
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run long SSH command: "sudo bootc switch --experimental-unified-storage ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target with unified storage
     * SSH command return code is "0"
     * Run SSH command: "sudo bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
-    * Run SSH command: "sudo bootc status --format=json"
+    * Reboot VM and wait for SSH after migration
+    * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
     * Active image reference contains "projectbluefin/bluefin"
     * Unified storage overlay directory is present on the VM
@@ -107,16 +111,17 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
 
   @migration @switch @unified_storage @rollback
   Scenario: Rolling back after unified storage migration returns to ublue-os/bluefin
-    * Run SSH command: "sudo bootc status --format=json"
+    * Check unified storage support and skip if unavailable
+    * Run SSH command: "bootc status --format=json"
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run long SSH command: "sudo bootc switch --experimental-unified-storage ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target with unified storage
     * SSH command return code is "0"
     * Run SSH command: "sudo bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
+    * Reboot VM and wait for SSH after migration
     # Confirm we landed on the migrated image (via unified storage) before rolling back.
     * Run SSH command: "sudo bootc status --format=json"
     * Active deployment matches upgrade target digest
@@ -138,12 +143,12 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run long SSH command: "sudo bootc switch ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target
     * SSH command return code is "0"
     * Run SSH command: "sudo bootc status --format=json"
     * Staged deployment is present in bootc status
-    * Reboot VM and wait for SSH
-    * Run SSH command: "sudo bootc status --format=json"
+    * Reboot VM and wait for SSH after migration
+    * Run SSH command: "bootc status --format=json"
     * Active image reference contains "projectbluefin/bluefin"
     * bootc status shows rollback deployment is available
     * bootc status rollback deployment matches migration source digest
@@ -157,20 +162,40 @@ Feature: Migration from ublue-os/bluefin to projectbluefin/bluefin
     # Toggle: set ZSTD_CHUNKED=false (or --tags ~@zstd_chunked) to skip this
     # scenario when the target image does not yet ship with zstd:chunked layers.
     # Flip ZSTD_CHUNKED=true once the image ships zstd:chunked (default: true).
-    * Run SSH command: "sudo bootc status --format=json"
+    * Check unified storage support and skip if unavailable
+    * Run SSH command: "bootc status --format=json"
     * Booted image is from the "ublue-os" registry
     * Capture booted image digest for rollback verification
     * Capture booted image reference as migration source
-    * Run long SSH command: "sudo bootc switch --experimental-unified-storage ghcr.io/projectbluefin/bluefin:latest"
+    * Switch to migration target with unified storage
     * SSH command return code is "0"
     * Run SSH command: "sudo bootc status --format=json"
     * Staged deployment is present in bootc status
     * Capture staged image digest as upgrade target
-    * Reboot VM and wait for SSH
-    * Run SSH command: "sudo bootc status --format=json"
+    * Reboot VM and wait for SSH after migration
+    * Run SSH command: "bootc status --format=json"
     * Active deployment matches upgrade target digest
     * Active image reference contains "projectbluefin/bluefin"
     * Unified storage overlay directory is present on the VM
     * Run SSH command: "sudo bootc status --format=json"
     * bootc status shows deployment is compatible
     * Active image layers use zstd:chunked compression
+
+  @migration @zstd_chunked
+  Scenario: bootc switch via podman zstd:chunked migrates from ublue-os/bluefin to projectbluefin/bluefin
+    # zstd:chunked lane: pull target into root containers-storage via podman
+    # (uses zstd:chunked partial-pull), then switch using the local copy.
+    * Run SSH command: "bootc status --format=json"
+    * Booted image is from the "ublue-os" registry
+    * Capture booted image digest for rollback verification
+    * Capture booted image reference as migration source
+    * Pull migration target via podman for zstd:chunked transport
+    * Switch to migration target via containers-storage transport
+    * SSH command return code is "0"
+    * Run SSH command: "bootc status --format=json"
+    * Staged deployment is present in bootc status
+    * Capture staged image digest as upgrade target
+    * Reboot VM and wait for SSH after migration
+    * Run SSH command: "bootc status --format=json"
+    * Active deployment matches upgrade target digest
+    * Active image reference contains "projectbluefin/bluefin"
