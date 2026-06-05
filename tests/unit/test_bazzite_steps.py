@@ -83,19 +83,33 @@ class TestEvalBool:
 # ---------------------------------------------------------------------------
 
 class TestExtensionState:
-    def test_parses_state_from_gdbus_output(self):
-        m = _import_bazzite_steps()
-        gdbus_out = "(true, '1')"
-        with patch("tests.bazzite.features.steps.steps._shell_eval", return_value=gdbus_out):
-            state = m._extension_state(_ctx(), "some@uuid")
-            assert state == "1"
+    def _make_result(self, stdout, returncode=0):
+        r = MagicMock()
+        r.stdout = stdout
+        r.returncode = returncode
+        return r
 
-    def test_returns_99_when_not_installed(self):
+    def test_parses_enabled_state_1(self):
         m = _import_bazzite_steps()
-        gdbus_out = "(true, '99')"
-        with patch("tests.bazzite.features.steps.steps._shell_eval", return_value=gdbus_out):
-            state = m._extension_state(_ctx(), "missing@uuid")
-            assert state == "99"
+        out = "({'state': <uint32 1>, 'path': <'/usr/share/gnome-shell/extensions/uuid'>},)"
+        with patch("subprocess.run", return_value=self._make_result(out)):
+            assert m._extension_state(_ctx(), "some@uuid") == "1"
+
+    def test_parses_initialized_state_6(self):
+        m = _import_bazzite_steps()
+        out = "({'state': <uint32 6>, 'path': <'/usr/share/gnome-shell/extensions/uuid'>},)"
+        with patch("subprocess.run", return_value=self._make_result(out)):
+            assert m._extension_state(_ctx(), "some@uuid") == "6"
+
+    def test_returns_99_when_gdbus_fails(self):
+        m = _import_bazzite_steps()
+        with patch("subprocess.run", return_value=self._make_result("", returncode=1)):
+            assert m._extension_state(_ctx(), "missing@uuid") == "99"
+
+    def test_returns_99_when_state_not_in_output(self):
+        m = _import_bazzite_steps()
+        with patch("subprocess.run", return_value=self._make_result("({})")):
+            assert m._extension_state(_ctx(), "some@uuid") == "99"
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +138,14 @@ class TestExtensionIsEnabled:
         """State 6 (INITIALIZED) is transient — step should poll until state=1."""
         m = _import_bazzite_steps()
         states = iter(["6", "6", "1"])
+        with patch("tests.bazzite.features.steps.steps._extension_state", side_effect=states), \
+             patch("tests.bazzite.features.steps.steps.time.sleep"):
+            m.extension_is_enabled(_ctx(), "some@uuid")
+
+    def test_polls_past_enabling_state_8(self):
+        """State 8 (ENABLING) is transient — step should poll until state=1."""
+        m = _import_bazzite_steps()
+        states = iter(["8", "8", "1"])
         with patch("tests.bazzite.features.steps.steps._extension_state", side_effect=states), \
              patch("tests.bazzite.features.steps.steps.time.sleep"):
             m.extension_is_enabled(_ctx(), "some@uuid")

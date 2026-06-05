@@ -112,16 +112,30 @@ def quick_settings_is_open(context) -> None:
 
 
 def _extension_state(context, uuid: str) -> str:
-    """Return the extension state integer as a string via Shell.Eval.
+    """Return the extension state integer as a string.
+
+    Uses the stable org.gnome.Shell.Extensions.GetExtensionInfo D-Bus method
+    instead of Shell.Eval, which requires unsafe_mode and is unreliable on
+    GNOME 50 (bazzite/gnomeos).
+
     State values: 1=ENABLED, 2=DISABLED, 3=ERROR, 4=OUT_OF_DATE,
-                  5=DOWNLOADING, 6=INITIALIZED, 99=UNINSTALLED
+                  5=DOWNLOADING, 6=INITIALIZED, 7=DISABLING, 8=ENABLING,
+                  99=UNINSTALLED/unknown
     """
     import re
-    js = f"Main.extensionManager.lookup('{uuid}')?.state ?? 99"
-    out = _shell_eval(js)
-    # _shell_eval returns raw gdbus stdout: (true, 'value')
-    m = re.search(r",\s*'([^']+)'\s*\)", out)
-    return m.group(1).strip() if m else out.strip()
+    result = subprocess.run(
+        ['gdbus', 'call', '--session',
+         '--dest', 'org.gnome.Shell',
+         '--object-path', '/org/gnome/Shell/Extensions',
+         '--method', 'org.gnome.Shell.Extensions.GetExtensionInfo',
+         uuid],
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        return "99"
+    # Output: ({'state': <uint32 1>, 'path': ..., ...},)
+    m = re.search(r"'state':\s*<uint32\s+(\d+)>", result.stdout)
+    return m.group(1) if m else "99"
 
 
 @step('Extension "{uuid}" is enabled')
@@ -135,7 +149,7 @@ def extension_is_enabled(context, uuid: str) -> None:
         state = _extension_state(context, uuid)
         if state == "1":
             return
-        if state not in ("6",):
+        if state not in ("6", "8"):  # 6=INITIALIZED, 8=ENABLING are transient
             break  # non-transient bad state, stop polling early
         time.sleep(2)
     assert state == "1", (
