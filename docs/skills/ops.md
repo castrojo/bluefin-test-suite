@@ -114,6 +114,66 @@ Always probe before using. Never hard-code `--bootloader`.
 
 **Fix:** Both services are in `IGNORED_FAILED_UNITS_IN_VM` in `tests/smoke/features/steps/system_health_steps.py`. Do not remove them.
 
+## systemd-oomd: both .service AND .socket fail in QEMU
+
+**Symptom:** `system_health.feature` fails with "failed units found" — specifically `systemd-oomd.service` or `systemd-oomd.socket`.
+
+**Cause:** `systemd-oomd` monitors PSI (Pressure Stall Information) files under `/proc/pressure/`. QEMU VMs do not expose these files, so both the service and socket activation fail unconditionally.
+
+**Fix:** Both `systemd-oomd.service` **and** `systemd-oomd.socket` are in `IGNORED_FAILED_UNITS_IN_VM`. When adding new entries to the allowlist, remember that `systemd` often activates a service via its companion socket — check if both exist before assuming only the `.service` needs ignoring.
+
+## Bazzite extension state: use GetExtensionInfo, not Shell.Eval
+
+**Symptom:** `extension_is_enabled` always reports state=6 (INITIALIZED) even minutes after boot. Extension presence checks pass but "enabled" checks never succeed.
+
+**Cause:** `Shell.Eval` + `Main.extensionManager.lookup(uuid)?.state` is unreliable on GNOME 50 (Bazzite). It requires `unsafe_mode=true` and returns the enum value at JS evaluation time, but the GNOME 50 extension manager on Bazzite may report INITIALIZED (6) indefinitely for extensions loaded before the session was fully ready.
+
+**Correct approach:** Use the stable `org.gnome.Shell.Extensions.GetExtensionInfo` D-Bus method instead:
+
+```python
+import subprocess, re
+
+def _extension_state(context, uuid: str) -> str:
+    result = subprocess.run(
+        ['gdbus', 'call', '--session',
+         '--dest', 'org.gnome.Shell',
+         '--object-path', '/org/gnome/Shell/Extensions',
+         '--method', 'org.gnome.Shell.Extensions.GetExtensionInfo',
+         f"'{uuid}'"],  # GVariant string literal — see critical note below
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        return "99"
+    m = re.search(r"'state':\s*<uint32\s+(\d+)>", result.stdout)
+    return m.group(1) if m else "99"
+```
+
+**CRITICAL — GVariant quoting:** `gdbus call` arguments are parsed as GVariant literals. Extension UUIDs like `logomenu@aryan_k` contain `@` and `.` which are invalid in a bare GVariant token. The argument **must** be wrapped in single quotes to form a valid GVariant string literal:
+
+```python
+# WRONG — gdbus returns exit code 1, fallback to "99"
+f"{uuid}"              # bare: logomenu@aryan_k  ← invalid GVariant
+
+# CORRECT
+f"'{uuid}'"            # quoted: 'logomenu@aryan_k'  ← valid GVariant string
+```
+
+**Extension state values (GNOME 45+):**
+
+| State | Meaning | Transient? |
+|---|---|---|
+| 1 | ENABLED | — |
+| 2 | DISABLED | — |
+| 3 | ERROR | — |
+| 4 | OUT_OF_DATE | — |
+| 5 | DOWNLOADING | transient |
+| 6 | INITIALIZED | transient |
+| 7 | DISABLING | transient |
+| 8 | ENABLING | transient |
+| 99 | UNINSTALLED / call failed | — |
+
+Poll through states 6 and 8 with a timeout (Bazzite ships 11 extensions; full activation after boot can take up to 90 seconds).
+
 ## Rootless podman load fails in VM (exit 125)
 
 **Symptom:** "Load runner container into VM" step exits 125. Error in the step log:

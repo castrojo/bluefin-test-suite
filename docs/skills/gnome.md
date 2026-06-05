@@ -131,6 +131,37 @@ enabled = [e.strip() for e in result.stdout.splitlines() if e.strip()]
 
 Note: `gnome-extensions` requires the GNOME session to be running. These steps run inside the qecore VM (local subprocess), not over SSH.
 
+## Extension state via D-Bus (bazzite / GNOME 50)
+
+For suites that need to poll an extension's activation state (e.g. the bazzite suite which runs over SSH), **do not** use `Shell.Eval + Main.extensionManager.lookup(uuid)?.state`. On GNOME 50 this API consistently returns state=6 (INITIALIZED) regardless of actual activation.
+
+Use `org.gnome.Shell.Extensions.GetExtensionInfo` instead:
+
+```python
+import subprocess, re
+
+def _extension_state(uuid: str) -> str:
+    """Return extension state as a string integer. 99 = unknown / uninstalled."""
+    result = subprocess.run(
+        ['gdbus', 'call', '--session',
+         '--dest', 'org.gnome.Shell',
+         '--object-path', '/org/gnome/Shell/Extensions',
+         '--method', 'org.gnome.Shell.Extensions.GetExtensionInfo',
+         f"'{uuid}'"],            # ← single-quotes required; see GVariant note below
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        return "99"
+    m = re.search(r"'state':\s*<uint32\s+(\d+)>", result.stdout)
+    return m.group(1) if m else "99"
+```
+
+**GVariant quoting (critical):** Extension UUIDs contain `@` and `.` which are invalid in a bare GVariant token. Always wrap the UUID in single quotes inside the Python string: `f"'{uuid}'"` → produces `'logomenu@aryan_k'` on the command line.
+
+**State values:** 1=ENABLED, 2=DISABLED, 3=ERROR, 4=OUT_OF_DATE, 5=DOWNLOADING, 6=INITIALIZED (transient), 7=DISABLING (transient), 8=ENABLING (transient), 99=UNINSTALLED.
+
+Poll through 6 and 8 with a deadline (Bazzite: use 90s — 11 extensions need time post-boot).
+
 ## Desktop notifications via gdbus (smoke suite)
 
 Send a test notification from inside the VM:
