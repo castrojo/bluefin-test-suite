@@ -344,6 +344,43 @@ for p in site.getsitepackages():
     break
 PONYTAILEOF
 
+# Patch 7: Guard rawinput.py Wayland paths against None ponytail_interface.
+# rawinput.click/point/double_click/press/release all call
+# ponytail_helper.get_ponytail_interface() and immediately access .window_list
+# or .generateButtonEvent without any None guard.  When the ponytail daemon is
+# unavailable, get_ponytail_interface() returns None (Patch 1 above) and the
+# next line crashes with:
+#   AttributeError: 'NoneType' object has no attribute 'window_list'
+# which propagates as a HOOK-ERROR in before_scenario and prevents ALL
+# scenarios from running in any suite that uses click().
+# Fix: insert "if ponytail_interface is None: return" after every
+# "ponytail_interface = ponytail_helper.get_ponytail_interface()" in rawinput.py.
+RUN python3 - <<'RAWINPUTEOF'
+import site, os, re
+
+for p in site.getsitepackages():
+    path = os.path.join(p, 'dogtail', 'rawinput.py')
+    if not os.path.exists(path):
+        continue
+    with open(path) as f:
+        src = f.read()
+
+    patched = re.sub(
+        r'(ponytail_interface\s*=\s*ponytail_helper\.get_ponytail_interface\(\))',
+        r'\1\n        if ponytail_interface is None:\n            return',
+        src,
+    )
+
+    if patched == src:
+        print("WARNING: Patch 7 rawinput target not found — skipping")
+    else:
+        with open(path, 'w') as f:
+            f.write(patched)
+        count = patched.count("if ponytail_interface is None:\n            return")
+        print(f"Patch 7 applied: {count} None guard(s) added to rawinput.py")
+    break
+RAWINPUTEOF
+
 # Create dummy desktop files so qecore's get_application() desktop-file lookup
 # succeeds in the container (which lacks /usr/share/applications/).
 # The files only need [Desktop Entry] + Name + Exec to satisfy the parser.
