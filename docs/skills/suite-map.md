@@ -95,24 +95,22 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-268 scenarios across 32 feature files (last audit: 2026-06-05). 22 quarantined, 225 active, 21 @future/@pending stubs.
+269 scenarios across 32 feature files (last audit: 2026-06-05). 27 quarantined, 239 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 82 | 82 | 0 | All active |
+| smoke | 82 | 81 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
 | developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI |
-| software | 13 | 4 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar); 1 `@pending` Bazaar placeholder tracks issue #419 |
-| common | 37 | 37 | 0 | Shell tools (zsh, fish, fzf, bat, eza, fd, rg, starship) installed in CI via e2e workflow step; adds signing-policy/runtime security assertions |
+| software | 13 | 5 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar) |
+| common | 37 | 33 | 4 | Shell tools (zsh, fish, fzf, bat, eza, fd, rg, starship) installed in CI via e2e workflow step; signing-policy/runtime security assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 20 | 18 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
+| lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
-| security/image_provenance | 10 | 10 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
+| security | 15 | 15 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
-| flatcar/boot | 7 | 7 | 0 | systemd, containerd, networking |
-| flatcar/lifecycle | 6 | 3 | 0 | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
-| security/selinux | 5 | 0 | 0 | `@future` Feature-level — needs `selinux=0` removed from golden disk (Epic E04, PR #280 in merge queue) |
-| nvidia | 12 | 0 | 0 | `@future`/`@hardware_blocked` — needs GPU passthrough (Epic E08) |
+| nvidia | 12 | 12 | 0 | Enabled after GPU passthrough work |
+| flatcar | 13 | 10 | 0 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
 
 ### Remaining quarantine breakdown
 
@@ -124,7 +122,10 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | distrobox enter | dx | pulls `fedora:latest`; no pre-pull in CI, times out |
 | JupyterLab | dx | not preinstalled in DX image |
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
+| ujust report (×1) | smoke | `just` version change parses `{{.Repository}}` as template; common main fixed, awaiting image rebuild |
 | software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
+| common dconf (×2) | common | pending dconf schema changes |
+| common signing (×2) | common | pending signing policy enforcement |
 | bootc pin | lifecycle | pin not supported on all images (race condition in some test environments) |
 | bootc switch | lifecycle | switch target requires a valid alternate image ref in CI |
 
