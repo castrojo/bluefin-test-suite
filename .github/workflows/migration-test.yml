@@ -1,7 +1,11 @@
-# Migration Test — ublue-os/bluefin → projectbluefin/bluefin
+# Migration Test — ublue-os/bluefin → projectbluefin/bluefin (and LTS variant)
 #
-# Manually trigger this workflow to run the full lifecycle migration suite,
+# Manually trigger this workflow to run the @migration lifecycle scenarios,
 # including the @zstd_chunked lane once the target image ships zstd:chunked layers.
+#
+# Supported migration paths:
+#   Non-LTS: ghcr.io/ublue-os/bluefin:latest  → ghcr.io/projectbluefin/bluefin:stable
+#   LTS:     ghcr.io/ublue-os/bluefin-lts:lts → ghcr.io/projectbluefin/bluefin-lts:stable
 #
 # Central toggle for zstd:chunked:
 #   chunked_enabled: false  — runs all migration scenarios EXCEPT @zstd_chunked (default)
@@ -16,9 +20,13 @@ on:
   workflow_dispatch:
     inputs:
       image:
-        description: "Source image to migrate FROM (must be ublue-os/bluefin)"
+        description: "Source image to migrate FROM (ublue-os/bluefin or ublue-os/bluefin-lts)"
         type: string
         default: "ghcr.io/ublue-os/bluefin:latest"
+      migration_target:
+        description: "Target image to migrate TO (leave blank to use suite default)"
+        type: string
+        default: ""
       chunked_enabled:
         description: "Run @zstd_chunked lane (enable when target ships zstd:chunked layers)"
         type: boolean
@@ -42,6 +50,8 @@ jobs:
     with:
       image: ${{ inputs.image }}
       suites: lifecycle
+      migration-target: ${{ inputs.migration_target }}
+      extra-tags: migration
       chunked_enabled: ${{ inputs.chunked_enabled }}
       # workflow_dispatch sees the branch selected in the Actions UI. Keep
       # branch resolution here; github.ref_name inside e2e.yml resolves to main.

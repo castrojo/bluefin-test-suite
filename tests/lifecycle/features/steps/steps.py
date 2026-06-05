@@ -298,7 +298,7 @@ _DEFAULT_MIGRATION_TARGET = "ghcr.io/projectbluefin/bluefin:stable"
 
 def _migration_target():
     """Return the migration target image ref, overridable via MIGRATION_TARGET env var."""
-    return os.environ.get("MIGRATION_TARGET", _DEFAULT_MIGRATION_TARGET)
+    return os.environ.get("MIGRATION_TARGET") or _DEFAULT_MIGRATION_TARGET
 
 
 @step("Switch to migration target")
