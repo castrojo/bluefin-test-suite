@@ -293,114 +293,75 @@ def reboot_and_wait(context):
     )
 
 
-_DEFAULT_MIGRATION_TARGET = "ghcr.io/projectbluefin/bluefin:stable"
-
-
 def _migration_target():
-    """Return the migration target image ref, overridable via MIGRATION_TARGET env var."""
-    return os.environ.get("MIGRATION_TARGET") or _DEFAULT_MIGRATION_TARGET
+    """Return the migration target image ref from MIGRATION_TARGET env var."""
+    return os.environ.get(
+        "MIGRATION_TARGET", "ghcr.io/projectbluefin/bluefin:stable"
+    )
+
+
+MIGRATION_SWITCH_TIMEOUT_S = 900
+MIGRATION_REBOOT_DEADLINE_S = 300
+PODMAN_PULL_TIMEOUT_S = 900
+CONTAINERS_STORAGE_SWITCH_TIMEOUT_S = 120
 
 
 @step("Switch to migration target")
 def switch_to_migration_target(context):
-    """Run sudo bootc switch <MIGRATION_TARGET> with a 900s timeout.
-
-    Reads MIGRATION_TARGET env var (default: ghcr.io/projectbluefin/bluefin:stable).
-    900s timeout covers the full image pull over SLIRP QEMU networking.
-    """
+    """Run bootc switch to the parameterized migration target image."""
     target = _migration_target()
-    stdout, rc = run_ssh(
-        context,
-        f"sudo bootc switch {shlex.quote(target)}",
-        timeout=900,
-    )
-    context.command_stdout = stdout
-    context.ssh_rc = rc
+    run_ssh(context, f"sudo bootc switch {shlex.quote(target)}", timeout=MIGRATION_SWITCH_TIMEOUT_S)
 
 
 @step("Switch to migration target with unified storage")
 def switch_to_migration_target_unified(context):
-    """Run sudo bootc switch --experimental-unified-storage <MIGRATION_TARGET> with 900s timeout.
-
-    Reads MIGRATION_TARGET env var (default: ghcr.io/projectbluefin/bluefin:stable).
-    """
+    """Run bootc switch --experimental-unified-storage to the migration target."""
     target = _migration_target()
-    stdout, rc = run_ssh(
+    run_ssh(
         context,
         f"sudo bootc switch --experimental-unified-storage {shlex.quote(target)}",
-        timeout=900,
+        timeout=MIGRATION_SWITCH_TIMEOUT_S,
     )
-    context.command_stdout = stdout
-    context.ssh_rc = rc
 
 
 @step("Check unified storage support and skip if unavailable")
 def check_unified_storage_support(context):
-    """Skip the scenario if bootc does not support --experimental-unified-storage.
-
-    Probes `bootc switch --help` output for the flag name.  Stable images ship
-    bootc 1.15.x which lacks the flag — this prevents a hard failure on those images.
-    """
-    stdout, _ = run_ssh(context, "bootc switch --help 2>&1", timeout=30)
-    if "experimental-unified-storage" not in stdout:
-        _skip_current_scenario(
-            context,
-            "bootc does not support --experimental-unified-storage on this image — "
-            "skipping unified storage migration scenario.",
+    """Probe bootc switch --help for --experimental-unified-storage; skip if absent."""
+    stdout, rc = run_ssh(context, "sudo bootc switch --help", timeout=30)
+    if "--experimental-unified-storage" not in stdout:
+        context.scenario.skip(
+            "bootc on this image does not support --experimental-unified-storage "
+            "(requires bootc >= 1.16). Skipping unified storage scenario."
         )
 
 
 @step("Pull migration target via podman for zstd:chunked transport")
 def pull_migration_target_podman(context):
-    """Pull the migration target into root containers-storage via podman.
-
-    podman honours the zstd:chunked partial-pull annotations on the registry,
-    so this establishes the zstd:chunked transport lane before the bootc switch.
-    Reads MIGRATION_TARGET env var (default: ghcr.io/projectbluefin/bluefin:stable).
-    """
+    """Pull the migration target into root containers-storage via podman."""
     target = _migration_target()
-    stdout, rc = run_ssh(
-        context,
-        f"sudo podman pull {shlex.quote(target)}",
-        timeout=900,
-    )
-    context.command_stdout = stdout
-    context.ssh_rc = rc
-    assert rc == 0, f"podman pull {target!r} failed with rc={rc}:\n{stdout}"
+    run_ssh(context, f"sudo podman pull {shlex.quote(target)}", timeout=PODMAN_PULL_TIMEOUT_S)
 
 
 @step("Switch to migration target via containers-storage transport")
 def switch_to_migration_target_containers_storage(context):
-    """Switch to the locally-pulled image via the containers-storage transport.
-
-    Used in the zstd:chunked lane after `Pull migration target via podman` has
-    placed the image in /var/lib/containers/storage.
-    120s timeout: the image is already local, so no network pull is needed.
-    """
+    """Switch to the migration target using the local containers-storage copy."""
     target = _migration_target()
-    stdout, rc = run_ssh(
+    run_ssh(
         context,
         f"sudo bootc switch --transport containers-storage {shlex.quote(target)}",
-        timeout=120,
+        timeout=CONTAINERS_STORAGE_SWITCH_TIMEOUT_S,
     )
-    context.command_stdout = stdout
-    context.ssh_rc = rc
 
 
 @step("Reboot VM and wait for SSH after migration")
-def reboot_and_wait_after_migration(context):
-    """Trigger VM reboot and wait up to 300s for SSH to come back.
-
-    The extended deadline (vs 120s in the plain reboot step) covers the
-    rechunker-group-fix service that runs on first boot after a chunkah migration
-    and can take up to ~2 minutes before systemd reaches multi-user.target.
-    """
+def reboot_and_wait_migration(context):
+    """Trigger VM reboot and wait up to 300s for SSH — handles rechunker-group-fix."""
     try:
         run_ssh(context, "sudo reboot")
     except subprocess.TimeoutExpired:
         pass
 
-    deadline = time() + 300
+    deadline = time() + MIGRATION_REBOOT_DEADLINE_S
     last_error = "SSH never became reachable after migration reboot"
     sleep(10)
     while time() < deadline:
@@ -414,8 +375,8 @@ def reboot_and_wait_after_migration(context):
         sleep(5)
 
     raise AssertionError(
-        f"VM at {context.vm_ip} did not come back over SSH within 300s "
-        f"after migration reboot: {last_error}"
+        f"VM at {context.vm_ip} did not come back over SSH within "
+        f"{MIGRATION_REBOOT_DEADLINE_S}s: {last_error}"
     )
 
 

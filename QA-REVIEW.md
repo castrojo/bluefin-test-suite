@@ -3,7 +3,7 @@
 > Last updated: 2026-06-04
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 268 scenarios across 32 feature files (last audit: 2026-06-04). 30 quarantined, 222 active, 16 @future/@pending stubs.
+Current audit: 269 scenarios across 32 feature files (last audit: 2026-06-05). 30 quarantined, 218 active, 21 @future/@pending stubs.
 
 ## What this repo is responsible for
 
@@ -33,14 +33,12 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-229 unit tests across 17 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+177 unit tests across 13 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
 | `test_gnome_shell_steps.py` | 41 | Shell.Eval, AT-SPI step helpers, ShellEval bool variants |
 | `test_ssh_steps.py` | 26 | `run_ssh()`, journal/coredump matchers, output assertions |
-| `test_app_support.py` | 17 | `_desktop_path`, `_flatpak_available`, `launch_target_available`, `launch_background` |
-| `test_system_health_steps.py` | 16 | `_has_image_reference`, `_running_in_vm`, `IGNORED_FAILED_UNITS_IN_VM` |
 | `test_timing.py` | 13 | SLA tag thresholds and timing helpers |
 | `test_screenshot.py` | 11 | Screenshot capture helpers |
 | `test_shared.py` | 9 | Shared step utilities |
@@ -48,9 +46,8 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 | `test_security_steps.py` | 15 | `_cosign_entries()` JSON validation and `_collect_values()` recursive extraction |
 | `test_quarantine.py` | 7 | `@quarantine` / `@pending` skip logic |
 | `test_qemu_screendump.py` | 8 | `_ppm_to_png` conversion and `main()` entry point |
-| `test_brew_steps.py` | 7 | `_terminal_delta()` and `_wait_for_command_result()` marker parsing |
-| `test_quarantine.py` | 7 | `@quarantine` / `@pending` skip logic |
-| `test_gnome_notifications_steps.py` | 5 | `_parse_notification_id()` gdbus output parsing |
+| `test_app_support.py` | 17 | `_desktop_path`, `_flatpak_available`, `launch_target_available`, `launch_background` |
+| `test_system_health_steps.py` | 16 | `_has_image_reference`, `_running_in_vm`, `IGNORED_FAILED_UNITS_IN_VM` |
 | `test_retry.py` | 4 | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | 1 | `scripts/parse_results.py` JSONL output |
 
@@ -59,6 +56,6 @@ The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue 
 ## Current stub posture
 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
-- `security/selinux`: active — SELinux enforcing enabled (E04). Known-acceptable AVC denials documented in `selinux_allowlist.yaml`.
+- `security/selinux`: `@future` scenarios at Feature level — will activate when Bluefin test images stop booting with `selinux=0` (PR #280 in merge queue).
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
 
