@@ -60,7 +60,7 @@ is on `queue/hold` — do not attempt to implement the UEFI lane without checkin
 | Any test authoring task | `docs/skills/index.md` |
 | Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |
 | Submitting improvements, PRs, doc fixes | `docs/skills/contributing.md` |
-| Infra gotchas (GDM autologin, Argo mutex) | `docs/skills/ops.md` |
+| Infra gotchas (GDM autologin, Argo mutex, systemd-oomd.socket, bazzite extension state) | `docs/skills/ops.md` |
 
 Sub-skills are indexed in `docs/skills/index.md` — load them from there on demand.
 
