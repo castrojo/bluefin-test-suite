@@ -33,7 +33,7 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-229 unit tests across 17 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+306 unit tests across 21 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
