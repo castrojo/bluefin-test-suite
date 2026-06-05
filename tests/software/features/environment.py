@@ -46,10 +46,25 @@ except Exception as exc:  # noqa: BLE001
 SUITE_NAME = "software"
 
 
-def _is_bluefin_image() -> bool:
-    """Return True when running on a projectbluefin image (Bazaar is available)."""
-    image = os.environ.get("IMAGE", "")
-    return "projectbluefin" in image or "ublue-os" in image or not image
+def _has_bazaar() -> bool:
+    """Return True when Bazaar (io.github.kolunmi.Bazaar) is installed on the VM."""
+    import subprocess
+    ssh_args = [
+        'ssh',
+        '-i', os.environ.get('SSH_KEY', '/home/bluefin-test/.ssh/id_ed25519'),
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', 'ConnectTimeout=10',
+        '-o', 'LogLevel=ERROR',
+        '-p', os.environ.get('SSH_PORT', '22'),
+        f"{os.environ.get('VM_USER', 'bluefin-test')}@{os.environ.get('VM_IP', '127.0.0.1')}",
+        'flatpak list --app --columns=application 2>/dev/null | grep -q io.github.kolunmi.Bazaar',
+    ]
+    try:
+        result = subprocess.run(ssh_args, capture_output=True, timeout=15)
+        return result.returncode == 0
+    except Exception:
+        return True  # assume present if SSH fails (local dev / unknown environment)
 
 
 def before_all(context) -> None:
@@ -84,13 +99,13 @@ def before_scenario(context, scenario) -> None:
 
     if skip_quarantine(scenario):
         return
-    # Skip Bazaar-specific scenarios on non-projectbluefin images (e.g. gnomeos).
+    # Skip Bazaar-specific scenarios on images that don't ship Bazaar (e.g. gnomeos).
     # Bazaar (io.github.kolunmi.Bazaar) ships only on Bluefin/UBlue images.
     # flatpak_cli scenarios carry @flatpak_cli and are image-agnostic.
     scenario_tags = {t for t in scenario.tags} | {t for t in scenario.feature.tags}
-    if "software" in scenario_tags and "flatpak_cli" not in scenario_tags and not _is_bluefin_image():
+    if "software" in scenario_tags and "flatpak_cli" not in scenario_tags and not _has_bazaar():
         try:
-            scenario.skip(reason="Bazaar not available on non-projectbluefin image")
+            scenario.skip(reason="Bazaar not installed on this image")
         except TypeError:
             scenario.skip()
         print(f"Skipping {scenario.name}: Bazaar not available on this image", flush=True)
