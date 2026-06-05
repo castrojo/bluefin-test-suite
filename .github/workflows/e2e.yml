@@ -575,10 +575,13 @@ jobs:
               done
               echo 'Brew CLI tools install complete (brew path)'
             else
-              echo 'Homebrew not found — falling back to dnf for CLI tools'
+              echo 'Homebrew not found — falling back to rpm-ostree/dnf for CLI tools'
               # Map tool names to Fedora RPM package names.
               # eza may not be in older Fedora repos; ripgrep is 'rg' in path.
               declare -A pkgmap=([bat]=bat [eza]=eza [fd]=fd-find [fzf]=fzf [ripgrep]=ripgrep [starship]=starship)
+              # On ostree-based images /usr is immutable; use rpm-ostree --apply-live.
+              # Fall back to dnf only on mutable (non-ostree) filesystems.
+              MISSING_PKGS=()
               for tool in bat eza fd fzf ripgrep starship; do
                 cmd=\$tool
                 [ \"\$tool\" = ripgrep ] && cmd=rg
@@ -587,12 +590,25 @@ jobs:
                   echo \"  \$tool: already available as \$cmd\"
                 else
                   pkg=\${pkgmap[\$tool]:-\$tool}
-                  echo \"  \$tool: installing via dnf (\$pkg)...\"
-                  sudo dnf install -y --quiet \"\$pkg\" 2>&1 | tail -1 || \
-                    echo \"  WARNING: dnf install \$pkg failed\"
+                  echo \"  \$tool: will install (\$pkg)\"
+                  MISSING_PKGS+=(\"\$pkg\")
                 fi
               done
-              echo 'CLI tools install complete (dnf fallback path)'
+              if [[ \${#MISSING_PKGS[@]} -gt 0 ]]; then
+                echo \"  Installing: \${MISSING_PKGS[*]}\"
+                if test -e /run/ostree-booted; then
+                  echo \"  Using rpm-ostree --apply-live (ostree image)\"
+                  sudo rpm-ostree install --apply-live --allow-inactive -y \${MISSING_PKGS[@]} 2>&1 | tail -3 \
+                    && echo \"  rpm-ostree install complete\" \
+                    || echo \"  WARNING: rpm-ostree install failed — some tools may be missing\"
+                else
+                  echo \"  Using dnf (non-ostree image)\"
+                  sudo dnf install -y --quiet \${MISSING_PKGS[@]} 2>&1 | tail -1 \
+                    && echo \"  dnf install complete\" \
+                    || echo \"  WARNING: dnf install failed — some tools may be missing\"
+                fi
+              fi
+              echo 'CLI tools install complete (rpm-ostree/dnf fallback path)'
             fi
           " || echo "WARNING: shell tools install step had errors — some common scenarios may fail"
 
