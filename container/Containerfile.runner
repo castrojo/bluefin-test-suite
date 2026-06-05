@@ -276,6 +276,34 @@ if old_env_exit in src:
 else:
     print("WARNING: Patch 6 env_exit target not found — skipping")
 
+# 8. When /proc/<pid>/environ is unreadable (IOError/PermissionError — e.g. because
+#    the process runs as a different UID), environment_dictionary is left empty and
+#    the ENVIRONMENT_VARIABLES_TO_PRESERVE loop only copies ~7 vars.
+#    qecore-headless then does os.environ = environment_dictionary, wiping PATH, HOME,
+#    DISPLAY, and everything else the test toolchain needs — even though
+#    DBUS_SESSION_BUS_ADDRESS was preserved.
+#    Fix: on IOError, seed environment_dictionary from the full container os.environ so
+#    the session env is complete.  setdefault() lets any gnome-session vars (if
+#    partially read before the IOError) take priority over container defaults.
+old_ioerror = (
+    '        except IOError as error:\n'
+    '            if verbose:\n'
+    '                print_fail(f"Environment file manipulation failed on: \'{error}\'")\n'
+)
+new_ioerror = (
+    '        except IOError as error:\n'
+    '            if verbose:\n'
+    '                print_fail(f"Environment file manipulation failed on: \'{error}\'")\n'
+    '            # /proc environ unreadable (different UID) — seed dict from container env\n'
+    '            for _k, _v in os.environ.items():\n'
+    '                environment_dictionary.setdefault(_k, _v)\n'
+)
+if old_ioerror in src:
+    src = src.replace(old_ioerror, new_ioerror)
+    print("Patch 8 applied: IOError path seeds environment_dictionary from container os.environ")
+else:
+    print("WARNING: Patch 8 IOError target not found — skipping")
+
 with open('/usr/local/bin/qecore-headless', 'w') as f:
     f.write(src)
 PYEOF
