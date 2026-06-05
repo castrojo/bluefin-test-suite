@@ -598,9 +598,17 @@ jobs:
                 echo \"  Installing: \${MISSING_PKGS[*]}\"
                 if test -e /run/ostree-booted; then
                   echo \"  Using rpm-ostree --apply-live (ostree image)\"
-                  sudo rpm-ostree install --apply-live --allow-inactive -y \${MISSING_PKGS[@]} 2>&1 | tail -3 \
-                    && echo \"  rpm-ostree install complete\" \
-                    || echo \"  WARNING: rpm-ostree install failed — some tools may be missing\"
+                  # Stop services that may hold an rpm-ostree/bootc sysroot lock at boot time.
+                  sudo systemctl stop bootc-unified-storage.service bootc-fetch-apply-updates.service rpm-ostreed.service 2>/dev/null || true
+                  sleep 2
+                  install_out=\$(sudo rpm-ostree install --apply-live --allow-inactive -y \${MISSING_PKGS[@]} 2>&1)
+                  install_exit=\$?
+                  echo \"\$install_out\" | tail -5
+                  if [[ \$install_exit -eq 0 ]]; then
+                    echo \"  rpm-ostree install complete\"
+                  else
+                    echo \"  WARNING: rpm-ostree install failed (exit \$install_exit) — some tools may be missing\"
+                  fi
                 else
                   echo \"  Using dnf (non-ostree image)\"
                   sudo dnf install -y --quiet \${MISSING_PKGS[@]} 2>&1 | tail -1 \
