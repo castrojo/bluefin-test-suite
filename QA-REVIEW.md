@@ -33,11 +33,13 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-177 unit tests across 13 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+229 unit tests across 17 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
 | `test_gnome_shell_steps.py` | 41 | Shell.Eval, AT-SPI step helpers, ShellEval bool variants |
+| `test_gnome_settings_steps.py` | 20 | Settings panel navigation and toggle helpers |
+| `test_lifecycle_steps.py` | 20 | bootc upgrade/rollback/migration step helpers |
 | `test_ssh_steps.py` | 26 | `run_ssh()`, journal/coredump matchers, output assertions |
 | `test_timing.py` | 13 | SLA tag thresholds and timing helpers |
 | `test_screenshot.py` | 11 | Screenshot capture helpers |
@@ -48,6 +50,8 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 | `test_qemu_screendump.py` | 8 | `_ppm_to_png` conversion and `main()` entry point |
 | `test_app_support.py` | 17 | `_desktop_path`, `_flatpak_available`, `launch_target_available`, `launch_background` |
 | `test_system_health_steps.py` | 16 | `_has_image_reference`, `_running_in_vm`, `IGNORED_FAILED_UNITS_IN_VM` |
+| `test_brew_steps.py` | 7 | Brew step helpers and formula detection |
+| `test_gnome_notifications_steps.py` | 5 | Notification step helpers |
 | `test_retry.py` | 4 | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | 1 | `scripts/parse_results.py` JSONL output |
 
