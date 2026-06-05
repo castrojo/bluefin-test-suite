@@ -33,25 +33,17 @@ with:
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
 `security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
 
-**Trigger a lifecycle (upgrade/rollback) run manually:**
+**Trigger a lifecycle run manually** (preferred — same code path as nightly):
 Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml)**.
 Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
 Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
 
-**Trigger a cross-registry migration test (chunka format boundary):**
-Go to **[projectbluefin/actions → Actions → bootc Migration Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/migration-test.yml)**.
-
-| Migration path | `source_image` | `migration_target` |
-|---|---|---|
-| Non-LTS (default) | `ghcr.io/ublue-os/bluefin:latest` | _(leave blank → projectbluefin/bluefin:stable)_ |
-| **LTS** | `ghcr.io/ublue-os/bluefin-lts:lts` | `ghcr.io/projectbluefin/bluefin-lts:stable` |
-| Pinned digest | any ublue-os source | `ghcr.io/projectbluefin/bluefin[-lts]@sha256:…` |
-
-Runs only `@migration` scenarios (switch, rollback, health, rollback-digest, unified-storage lanes).
-
-> **For lifecycle runs, use `upgrade-test.yml` or `migration-test.yml` in `projectbluefin/actions`** — they
-> call `e2e.yml` cross-repo and expose the full input set (`chunked_enabled`, `migration-target`,
-> `extra-tags`, `test_ref`). `manual.yml` in this repo works for non-lifecycle suites only.
+> **For lifecycle runs, use `upgrade-test.yml` in `projectbluefin/actions`** — it
+> calls `e2e.yml` cross-repo and exposes the lifecycle-specific inputs (`chunked_enabled`,
+> `test_ref`). `manual.yml` in this repo works for non-lifecycle suites (startup_failure
+> was fixed in PR #245 by removing the `@main` ref suffix from the `uses:` line — the
+> bare local path `uses: ./.github/workflows/e2e.yml` is fine). For lifecycle, prefer
+> `upgrade-test.yml` because it has the richer input set lifecycle needs.
 
 ## Nightly CI job matrix
 
@@ -103,16 +95,16 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-268 scenarios across 32 feature files (last audit: 2026-06-04). 30 quarantined, 217 active, 21 @future/@pending stubs.
+268 scenarios across 32 feature files (last audit: 2026-06-05). 22 quarantined, 225 active, 21 @future/@pending stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
 | smoke | 82 | 82 | 0 | All active |
 | developer | 19 | 12 | 7 | 6 brew + 1 ptyxis@brew — `brew-setup.service` masked in CI |
 | software | 13 | 4 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar); 1 `@pending` Bazaar placeholder tracks issue #419 |
-| common | 37 | 29 | 8 | zsh, fish, fzf, bat, eza, fd, ripgrep, starship — quarantined pending PATH fix (issue #209); adds signing-policy/runtime security assertions |
+| common | 37 | 37 | 0 | Shell tools (zsh, fish, fzf, bat, eza, fd, rg, starship) installed in CI via e2e workflow step; adds signing-policy/runtime security assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
+| lifecycle | 20 | 18 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
 | security/image_provenance | 10 | 10 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
@@ -132,8 +124,6 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | distrobox enter | dx | pulls `fedora:latest`; no pre-pull in CI, times out |
 | JupyterLab | dx | not preinstalled in DX image |
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
-| zsh, fish | common | installed as RPMs but not on `PATH` for `bluefin-test` user in CI (issue #209) |
-| fzf, bat, eza, fd, ripgrep, starship (×6) | common | installed by `brew-setup.service` (cli.Brewfile) which is masked in CI (issue #209) |
 | software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
 | bootc pin | lifecycle | pin not supported on all images (race condition in some test environments) |
 | bootc switch | lifecycle | switch target requires a valid alternate image ref in CI |
@@ -143,7 +133,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | Area | Priority | Status | Notes |
 |---|---|---|---|
 | Bazaar / Flatpak management on Bluefin | High | Open | `@pending` placeholder exists; current `common` suite is SSH-only with no GNOME session (issue #419) |
-| Common shell tools (zsh, fish, fzf, bat, eza, fd, ripgrep, starship) | Medium | Open | 8 scenarios quarantined — `brew-setup.service` masked in CI and PATH issue for RPM-installed shells (issue #209) |
+| Common shell tools (zsh, fish, fzf, bat, eza, fd, ripgrep, starship) | Medium | Fixed | Resolved by installing tools in CI workflow step before common suite runs (issue #210) |
 | Flatpak permission management | Low | Open | Flatseal / per-app permissions not exercised |
 | OOBE / first-boot | Low | Open | Initial user setup flow not covered |
 
