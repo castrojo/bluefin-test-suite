@@ -33,6 +33,9 @@ IGNORED_FAILED_UNITS_IN_VM = {
     "ublue-nvctk-cdi.service",
     # systemd-oomd needs memory pressure files that QEMU VMs don't expose
     "systemd-oomd.service",
+    # fwupd-refresh.service requires network access to fetch firmware metadata;
+    # fails in isolated QEMU VMs where outbound connectivity is not available
+    "fwupd-refresh.service",
 }
 
 # When behave runs inside the runner container (--pid=host --privileged), system
