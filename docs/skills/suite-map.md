@@ -33,17 +33,25 @@ with:
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
 `security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
 
-**Trigger a lifecycle run manually** (preferred — same code path as nightly):
+**Trigger a lifecycle (upgrade/rollback) run manually:**
 Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml)**.
 Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
 Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
 
-> **For lifecycle runs, use `upgrade-test.yml` in `projectbluefin/actions`** — it
-> calls `e2e.yml` cross-repo and exposes the lifecycle-specific inputs (`chunked_enabled`,
-> `test_ref`). `manual.yml` in this repo works for non-lifecycle suites (startup_failure
-> was fixed in PR #245 by removing the `@main` ref suffix from the `uses:` line — the
-> bare local path `uses: ./.github/workflows/e2e.yml` is fine). For lifecycle, prefer
-> `upgrade-test.yml` because it has the richer input set lifecycle needs.
+**Trigger a cross-registry migration test (chunka format boundary):**
+Go to **[projectbluefin/actions → Actions → bootc Migration Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/migration-test.yml)**.
+
+| Migration path | `source_image` | `migration_target` |
+|---|---|---|
+| Non-LTS (default) | `ghcr.io/ublue-os/bluefin:latest` | _(leave blank → projectbluefin/bluefin:stable)_ |
+| **LTS** | `ghcr.io/ublue-os/bluefin-lts:lts` | `ghcr.io/projectbluefin/bluefin-lts:stable` |
+| Pinned digest | any ublue-os source | `ghcr.io/projectbluefin/bluefin[-lts]@sha256:…` |
+
+Runs only `@migration` scenarios (switch, rollback, health, rollback-digest, unified-storage lanes).
+
+> **For lifecycle runs, use `upgrade-test.yml` or `migration-test.yml` in `projectbluefin/actions`** — they
+> call `e2e.yml` cross-repo and expose the full input set (`chunked_enabled`, `migration-target`,
+> `extra-tags`, `test_ref`). `manual.yml` in this repo works for non-lifecycle suites only.
 
 ## Nightly CI job matrix
 
