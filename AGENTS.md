@@ -59,3 +59,15 @@ Sub-skills are indexed in `docs/skills/index.md` — load them from there on dem
 New test suites → this repo.  
 New infrastructure (Argo templates, VM specs, manifests) → `projectbluefin/testing-lab`.  
 When a PR touches both, split into two PRs.
+
+## CI gates
+
+- **`skill-drift.yml`** — advisory PR gate: warns when `tests/**`, `scripts/**`, or workflow changes land without a docs/skills update.
+- **`nightly.yml`** — runs the full matrix nightly. The `bluefin-gdx:stream10*` jobs were replaced with `bluefin:lts-testing` (PR#384) after the upstream gdx images dropped Homebrew and caused permanent common-suite failures. Do not re-add `ublue-os/bluefin-gdx` refs without verifying Homebrew is restored upstream.
+
+## Mandatory gates
+
+- `ruff check tests/ --select E,F,W --ignore E501` before every commit
+- `python3 -m py_compile <changed step files>` before every commit
+- PR title: Conventional Commits format
+- Attribution on every AI-authored commit: `Assisted-by: <Model> via <Tool>`
