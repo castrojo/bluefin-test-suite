@@ -34,6 +34,13 @@ def _ctx(**attrs):
     return ctx
 
 
+_ENVIRONMENT_STUB_KEYS = [
+    "tests.shared.ssh_steps",
+    "tests.shared.quarantine",
+    "tests.shared.timing",
+]
+
+
 def _import_common_environment(*, run_ssh_returncode=0):
     ssh_steps_stub = types.ModuleType("tests.shared.ssh_steps")
 
@@ -45,6 +52,11 @@ def _import_common_environment(*, run_ssh_returncode=0):
         return "", run_ssh_returncode
 
     ssh_steps_stub.run_ssh = _run_ssh
+
+    # Save originals before overwriting — restored in teardown via the sentinel
+    # dict stored on the returned module so callers can clean up.
+    _saved = {k: sys.modules.get(k) for k in _ENVIRONMENT_STUB_KEYS}
+
     sys.modules["tests.shared"] = sys.modules.get("tests.shared", types.ModuleType("tests.shared"))
     sys.modules["tests.shared.ssh_steps"] = ssh_steps_stub
 
@@ -62,6 +74,15 @@ def _import_common_environment(*, run_ssh_returncode=0):
             del sys.modules[key]
 
     import tests.common.features.environment as m  # noqa: PLC0415
+
+    # Restore sys.modules so the stub does not shadow the real timing module
+    # for subsequent test files (e.g. test_timing.py).
+    for k, v in _saved.items():
+        if v is None:
+            sys.modules.pop(k, None)
+        else:
+            sys.modules[k] = v
+
     return m
 
 
