@@ -206,7 +206,47 @@ It is **skipped** (not failed) when disabled.
 **Enable once** `ghcr.io/projectbluefin/bluefin:latest` ships with `tar+zstd` OCI layers.
 Verify via `skopeo inspect --raw docker://ghcr.io/projectbluefin/bluefin:latest | jq '.layers[0].mediaType'`.
 
-**Run the lifecycle test manually:**
+---
+
+## Running migration tests (chunka format boundary)
+
+Use `migration-test.yml` in `projectbluefin/actions` to run only the `@migration` scenario group
+(not the full lifecycle suite). It supports both the non-LTS and LTS cross-registry migration paths.
+
+**Go to:** [projectbluefin/actions → Actions → bootc Migration Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/migration-test.yml)
+
+| Field | Non-LTS | LTS |
+|---|---|---|
+| `source_image` | `ghcr.io/ublue-os/bluefin:latest` | `ghcr.io/ublue-os/bluefin-lts:lts` |
+| `migration_target` | _(leave blank)_ | `ghcr.io/projectbluefin/bluefin-lts:stable` |
+| `chunked_enabled` | `false` (default) | `false` (default) |
+
+The workflow runs these scenarios (from `migration.feature`):
+- `@migration @switch` — bootc switch + reboot + land verification
+- `@migration @switch @rollback` — rollback returns to source digest
+- `@migration @switch @health` — os-release + bootc status after migration
+- `@migration @chunkah` — rollback deployment digest preserved across format boundary
+- `@migration @switch @unified_storage` — `--experimental-unified-storage` lane
+- `@migration @switch @unified_storage @rollback` — unified storage rollback
+
+**Wire as a consumer post-build gate (e2e.yml inputs used):**
+```yaml
+migration-test:
+  needs: build
+  uses: projectbluefin/actions/.github/workflows/migration-test.yml@<ref>
+  with:
+    source_image: ghcr.io/ublue-os/bluefin-lts:lts
+    migration_target: ghcr.io/projectbluefin/bluefin-lts@${{ needs.build.outputs.digest }}
+```
+
+**New e2e.yml inputs (PR #311):**
+
+| Input | Purpose |
+|---|---|
+| `migration-target` | Passed as `MIGRATION_TARGET` env to behave; empty → Python default |
+| `extra-tags` | Appended to `BEHAVE_TAG_ARGS`; migration-test.yml hardcodes `migration` |
+
+**Run the upgrade test manually (non-migration lifecycle):**
 Go to [projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml).
 - Default: runs lifecycle suite without `@zstd_chunked`
 - With `chunked_enabled: true`: also tests zstd:chunked lane
