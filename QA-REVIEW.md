@@ -3,7 +3,7 @@
 > Last updated: 2026-06-03
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 263 scenarios across 31 feature files (last audit: 2026-06-03). 29 quarantined, 234 active.
+Current audit: 263 scenarios across 31 feature files (last audit: 2026-06-05). 29 quarantined, 239 active.
 
 ## What this repo is responsible for
 
@@ -51,6 +51,6 @@ The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue 
 ## Current stub posture
 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
-- `security/selinux`: still `@future` until Bluefin test images stop booting with `selinux=0`.
+- `security/selinux`: active — `selinux=0` removed from BLS entries, VMs boot with SELinux enforcing.
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
 

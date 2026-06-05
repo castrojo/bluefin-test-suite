@@ -1,0 +1,17 @@
+# Known-acceptable AVC denials for Bluefin test VMs.
+#
+# Each entry documents a denial that is expected during normal operation
+# and should not cause the selinux.feature scenarios to fail.
+#
+# Format:
+#   - scontext: source SELinux context (e.g. system_u:system_r:init_t:s0)
+#     tcontext: target SELinux context
+#     tclass: object class (e.g. file, dir, sock_file)
+#     access: permission denied (e.g. read, write, open)
+#     comm: process command name (optional)
+#     reason: why this denial is acceptable
+#
+# When adding entries: include the full AVC message in the PR description
+# so reviewers can assess whether the denial is truly benign.
+
+allowed_denials: []

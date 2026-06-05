@@ -109,7 +109,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
 | flatcar/boot | 7 | 7 | 0 | systemd, containerd, networking |
 | flatcar/lifecycle | 6 | 4 | 0 | knuckle install, update channel, and afterburn are active; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future` |
-| security/selinux | 5 | 0 | 0 | `@future` — needs `selinux=0` removed from golden disk (Epic E04) |
+| security/selinux | 5 | 5 | 0 | Active — SELinux enforcing enabled (Epic E04) |
 | nvidia | 12 | 0 | 0 | `@future`/`@hardware_blocked` — needs GPU passthrough (Epic E08) |
 
 ### Remaining quarantine breakdown
