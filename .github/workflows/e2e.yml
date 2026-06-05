@@ -1132,6 +1132,7 @@ jobs:
       - name: Push desktop screenshot to GHCR
         if: steps.desktop-screenshot.outputs.found == 'true'
         id: upload-screenshot
+        continue-on-error: true
         run: |
           # Install oras — push the screenshot as an OCI artifact so any workflow
           # in the org can pull it with: oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:latest
