@@ -7,11 +7,11 @@ Feature: Flatpak CLI smoke tests
   Scenario: Flathub remote is configured and reachable
     * Flatpak remote "flathub" is configured
 
-  @software @flatpak_permissions
+  @software @flatpak_cli @flatpak_permissions
   Scenario: Flatpak permissions database is queryable
     * Flatpak permissions table "notifications" is queryable
 
-  @quarantine @software @flatpak_permissions @nightly
+  @quarantine @software @flatpak_cli @flatpak_permissions @nightly
   Scenario: flatpak user override round-trip succeeds
     # Calculator is always present; override doesn't require the app to be installed.
     * Set flatpak user override "--filesystem=home" for "org.gnome.Calculator"

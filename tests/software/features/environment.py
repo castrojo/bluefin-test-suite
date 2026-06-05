@@ -3,6 +3,7 @@ Software test environment — qecore TestSandbox for Bazaar (gnome-software in B
 
 Regressions: bluefin#4062, #4471.
 """
+import os
 import traceback
 
 from qecore.sandbox import TestSandbox
@@ -45,6 +46,12 @@ except Exception as exc:  # noqa: BLE001
 SUITE_NAME = "software"
 
 
+def _is_bluefin_image() -> bool:
+    """Return True when running on a projectbluefin image (Bazaar is available)."""
+    image = os.environ.get("IMAGE", "")
+    return "projectbluefin" in image or "ublue-os" in image or not image
+
+
 def before_all(context) -> None:
     # qecore sandbox.py accesses context.html_formatter in reporting hooks;
     # set to None to avoid AttributeError when behave-html-formatter is absent.
@@ -76,6 +83,17 @@ def before_scenario(context, scenario) -> None:
     from tests.shared.quarantine import skip_quarantine
 
     if skip_quarantine(scenario):
+        return
+    # Skip Bazaar-specific scenarios on non-projectbluefin images (e.g. gnomeos).
+    # Bazaar (io.github.kolunmi.Bazaar) ships only on Bluefin/UBlue images.
+    # flatpak_cli scenarios carry @flatpak_cli and are image-agnostic.
+    scenario_tags = {t for t in scenario.tags} | {t for t in scenario.feature.tags}
+    if "software" in scenario_tags and "flatpak_cli" not in scenario_tags and not _is_bluefin_image():
+        try:
+            scenario.skip(reason="Bazaar not available on non-projectbluefin image")
+        except TypeError:
+            scenario.skip()
+        print(f"Skipping {scenario.name}: Bazaar not available on this image", flush=True)
         return
     if getattr(context, 'failed_setup', None):
         try:
