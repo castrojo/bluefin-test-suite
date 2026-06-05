@@ -159,6 +159,16 @@ src = src.replace(
     'ENVIRONMENT_VARIABLES_TO_PRESERVE = [\n    "XDG_SESSION_TYPE",\n    "XDG_SESSION_DESKTOP",',
 )
 
+# 3. Bypass root-user exit: the Fedora-minimal image has no USER directive so
+#    os.geteuid() == 0 inside the container, firing the "not meant to be run
+#    under root" branch and calling exit_headless_or_propagate_error(sys.exit(1)).
+#    Patch 1 removes recoverable=False from print_fail but the exit call still
+#    fires.  Short-circuit the entire elif branch so headless continues normally.
+src = src.replace(
+    'elif os.geteuid() == 0 and not self.no_automatic_login:',
+    'elif False:  # patched: container runs as root but is isolated inside QEMU/GHA',
+)
+
 with open('/usr/local/bin/qecore-headless', 'w') as f:
     f.write(src)
 PYEOF
