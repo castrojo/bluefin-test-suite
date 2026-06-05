@@ -153,10 +153,11 @@ with open('/usr/local/bin/qecore-headless', 'r') as f:
 # 1. Make ALL print_fail calls recoverable (remove recoverable=False everywhere)
 src = re.sub(r',\s*recoverable\s*=\s*False', '', src)
 
-# 2. Add XDG session vars to the preserve list
+# 2. Add XDG session vars AND D-Bus/AT-SPI addresses to the preserve list
+#    so they survive the os.environ reset on the normal (proc-read-succeeds) path.
 src = src.replace(
     'ENVIRONMENT_VARIABLES_TO_PRESERVE = [',
-    'ENVIRONMENT_VARIABLES_TO_PRESERVE = [\n    "XDG_SESSION_TYPE",\n    "XDG_SESSION_DESKTOP",',
+    'ENVIRONMENT_VARIABLES_TO_PRESERVE = [\n    "XDG_SESSION_TYPE",\n    "XDG_SESSION_DESKTOP",\n    "DBUS_SESSION_BUS_ADDRESS",\n    "AT_SPI_BUS_ADDRESS",\n    "WAYLAND_DISPLAY",\n    "XDG_RUNTIME_DIR",',
 )
 
 # 3. Bypass root-user exit: the Fedora-minimal image has no USER directive so
@@ -256,14 +257,13 @@ if old_stop in src:
 else:
     print("WARNING: Patch 5 stop_display_manager target not found — skipping")
 
-# 6. Patch get_environment_dictionary() failure path to not call sys.exit(1).
-#    When running inside a container with --pid=host, /proc/<pid>/environ for
-#    processes owned by other users (e.g. root-owned system processes) is
-#    unreadable, causing get_environment_dictionary() to return None.  The
-#    caller then calls sys.exit(1) before the user script runs, masking all
-#    test results as a failure.  Since e2e.yml already injects all required
-#    env vars via docker -e flags, we can safely continue without the
-#    /proc-based env read.
+# 6. Patch get_environment_dictionary() failure path to not call sys.exit(1),
+#    AND populate environment_dictionary from the container's os.environ so that
+#    DBUS_SESSION_BUS_ADDRESS / AT_SPI_BUS_ADDRESS (injected via podman -e flags
+#    in e2e.yml) are not wiped when qecore-headless resets os.environ from an
+#    empty dict.  Without this, images where gnome-session runs as a different UID
+#    (e.g. dakota) hit "AT-SPI: Couldn't connect" (exit 250) even though the
+#    session bus address was correctly queried and passed via -e.
 old_env_exit = (
     '            print_info("Attempt to retrieve environmental variables failed.")\n'
     '            self.display_manager_control.stop_display_manager()\n'
@@ -276,11 +276,18 @@ new_env_exit = (
     '            # /proc/<pid>/environ read for host processes is permission-denied,\n'
     '            # but the container already has all required env vars injected via\n'
     '            # docker -e flags from e2e.yml.  Exiting would hide passing tests.\n'
-    '            print_info("WARNING: env retrieval failed — continuing (container env already set via -e flags)")'
+    '            print_info("WARNING: env retrieval failed — copying container env as fallback")\n'
+    '            # Copy session-critical vars from the container environment so\n'
+    '            # headless does not overwrite them with an empty dict.\n'
+    '            for _k in ("DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY",\n'
+    '                       "XDG_RUNTIME_DIR", "AT_SPI_BUS_ADDRESS",\n'
+    '                       "XAUTHORITY", "XDG_SESSION_TYPE", "XDG_SESSION_DESKTOP"):\n'
+    '                if _k in os.environ:\n'
+    '                    environment_dictionary[_k] = os.environ[_k]'
 )
 if old_env_exit in src:
     src = src.replace(old_env_exit, new_env_exit)
-    print("Patch 6 applied: env retrieval failure no longer calls sys.exit(1)")
+    print("Patch 6 applied: env retrieval failure copies container env instead of exiting")
 else:
     print("WARNING: Patch 6 env_exit target not found — skipping")
 
