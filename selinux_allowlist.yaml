@@ -1,0 +1,17 @@
+# Known-acceptable SELinux AVC denials for Bluefin test VMs.
+#
+# Each entry documents an AVC denial observed during CI smoke runs that
+# is either:
+#   - a known upstream issue with an open tracker, or
+#   - benign in the test-VM context (e.g. hardware passthrough paths
+#     that don't exist in QEMU).
+#
+# Format:
+#   - source_context: the scontext from the AVC message
+#     target_context: the tcontext from the AVC message
+#     permission: the denied permission(s)
+#     comm: the process comm field
+#     reason: why this denial is acceptable
+#     upstream_bug: link to upstream tracker (if any)
+
+allowed_denials: []

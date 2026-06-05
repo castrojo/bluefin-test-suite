@@ -174,7 +174,7 @@ runs:
           DEPLOY_HASH="${DEPLOY%.*}"
           BLS_OPTS="root=UUID=${ROOT_UUID} rw ostree=/ostree/boot.1/default/${DEPLOY_HASH}/0 systemd.firstboot=no"
         fi
-        GNOME_E2E_KERNEL_ARGS="${BLS_OPTS} selinux=0 console=ttyS0,115200 quiet"
+        GNOME_E2E_KERNEL_ARGS="${BLS_OPTS} console=ttyS0,115200 quiet"
         echo "GNOME_E2E_KERNEL_ARGS=${GNOME_E2E_KERNEL_ARGS}" >> "$GITHUB_ENV"
         sudo umount /mnt/efi
 
