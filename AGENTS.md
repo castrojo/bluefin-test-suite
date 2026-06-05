@@ -41,6 +41,16 @@ Run via the GitHub Action (no ghost required):
 
 Or trigger manually: Actions → "Manual Test Run" (requires ghost runner access).
 
+## Migration testing — manual only
+
+`migration-test.yml` runs on `workflow_dispatch` only — there is no automated schedule trigger.
+Changes to bootc version pins, image base digests, OCI layer compression format, or `ostree-ext`
+carry **invisible migration risk**. Before promoting, manually trigger the migration test workflow
+if your change could affect upgrade paths from `ublue-os/bluefin` → `projectbluefin/bluefin`.
+
+Issue [#232](https://github.com/projectbluefin/testsuite/issues/232) (UEFI-boot 3-lane workflow)
+is on `queue/hold` — do not attempt to implement the UEFI lane without checking hold criteria.
+
 ## Skills
 
 **Start here:** `docs/skills/index.md` — hard rules + load-on-demand table for all sub-skills.
