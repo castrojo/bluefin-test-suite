@@ -9,10 +9,13 @@
 #   bluefin-nvidia-open  testing / stable                      → smoke,common
 #   dakota               testing / latest                      → smoke,common
 # Images at ghcr.io/ublue-os/:
-#   bluefin-gdx          stream10-testing / stream10 (=lts)    → smoke,developer,dx,common
 #   bazzite-gnome        testing / stable                      → bazzite
 # GNOME OS (quay.io):
 #   gnomeos-latest                                             → vanilla-gnome,software
+#
+# Note: bluefin-gdx:stream10* jobs were replaced by bluefin:lts-testing (see
+# projectbluefin/common#372 — gdx images dropped Homebrew, causing permanent
+# common-suite failures; lts-testing is the equivalent projectbluefin image).
 #
 # No self-hosted runners. No secrets required.
 #
@@ -87,25 +90,17 @@ jobs:
       contents: read
       packages: write
 
-  # ── bluefin-gdx (ublue-os) ───────────────────────────────────────────────────
+  # ── bluefin-gdx replacement: use projectbluefin lts-testing ────────────────
+  # gdx:stream10* images dropped Homebrew, causing permanent common-suite
+  # failures (testsuite#372). Testing against bluefin:lts-testing instead —
+  # the equivalent projectbluefin CentOS Stream 10 image with Homebrew intact.
 
   test-gdx-testing:
-    name: bluefin-gdx:stream10-testing
+    name: bluefin:lts-testing (was gdx:stream10-testing)
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
-      image: ghcr.io/ublue-os/bluefin-gdx:stream10-testing
-      suites: smoke,developer,dx,common
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  test-gdx-lts:
-    name: bluefin-gdx:stream10
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/ublue-os/bluefin-gdx:stream10
-      suites: smoke,developer,dx,common
+      image: ghcr.io/projectbluefin/bluefin:lts-testing
+      suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
@@ -217,7 +212,6 @@ jobs:
       - test-lts-testing
       - test-lts
       - test-gdx-testing
-      - test-gdx-lts
       - test-nvidia-testing
       - test-nvidia-stable
       - test-dakota-testing
