@@ -180,21 +180,21 @@ old_pgrep = (
     '        gnome_session_pid = run(f"pgrep {user_id_grep} gnome-session").split("\\n")[0]\n'
     '    except CalledProcessError:\n'
     '        if verbose:\n'
-    '            print_fail("Failed to retrieve gnome-session-binary pid from pgrep:", recoverable=False)\n'
-    '            print_fail(f"\\n{traceback.format_exc()}", recoverable=False)'
+    '            print_fail("Failed to retrieve gnome-session-binary pid from pgrep:")\n'
+    '            print_fail(f"\\n{traceback.format_exc()}")'
 )
 new_pgrep = (
     '    try:\n'
     '        gnome_session_pid = run(f"pgrep {user_id_grep} gnome-session").split("\\n")[0]\n'
     '    except CalledProcessError:\n'
-    '        # Fallback: try without UID filter (RHEL10/lts: gnome-session runs as GDM user)\n'
+    '        # Fallback: try without UID filter (images where gnome-session runs as a different UID)\n'
     '        try:\n'
     '            gnome_session_pid = run("pgrep gnome-session").split("\\n")[0]\n'
     '        except CalledProcessError:\n'
     '            gnome_session_pid = None\n'
     '        if not gnome_session_pid and verbose:\n'
-    '            print_fail("Failed to retrieve gnome-session-binary pid from pgrep:", recoverable=False)\n'
-    '            print_fail(f"\\n{traceback.format_exc()}", recoverable=False)'
+    '            print_fail("Failed to retrieve gnome-session-binary pid from pgrep:")\n'
+    '            print_fail(f"\\n{traceback.format_exc()}")'
 )
 if old_pgrep in src:
     src = src.replace(old_pgrep, new_pgrep)
@@ -205,24 +205,18 @@ else:
 #     instead of returning an empty dict (which leaves headless with no session env).
 old_fallback = (
     '    if verbose:\n'
-    '        print_fail("Environment file not found, most likely caused by gdm not running.", recoverable=False)\n'
+    '        print_fail("Environment file not found, most likely caused by gdm not running.")\n'
     '\n'
     '    return environment_dictionary'
 )
 new_fallback = (
     '    if verbose:\n'
-    '        print_fail("Environment file not found — using container environment as fallback.", recoverable=False)\n'
-    '    # Use the container\'s existing environment (populated via podman -e flags from session.env)\n'
+    '        print_fail("Environment file not found — using container environment as fallback.")\n'
+    '    # Copy session-critical vars from container env (populated via podman -e flags)\n'
     '    for key in ("DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR",\n'
     '                "AT_SPI_BUS_ADDRESS", "XAUTHORITY", "XDG_SESSION_TYPE", "XDG_SESSION_DESKTOP"):\n'
     '        if key in os.environ:\n'
     '            environment_dictionary[key] = os.environ[key]\n'
-    '    # Ensure XAUTHORITY is set from /run/user if not in env\n'
-    '    if "XAUTHORITY" not in environment_dictionary:\n'
-    '        import glob as _glob\n'
-    '        hits = _glob.glob("/run/user/1001/.mutter-Xwaylandauth.*")\n'
-    '        if hits:\n'
-    '            environment_dictionary["XAUTHORITY"] = hits[0]\n'
     '\n'
     '    return environment_dictionary'
 )
@@ -265,31 +259,49 @@ else:
 #    (e.g. dakota) hit "AT-SPI: Couldn't connect" (exit 250) even though the
 #    session bus address was correctly queried and passed via -e.
 old_env_exit = (
-    '            print_info("Attempt to retrieve environmental variables failed.")\n'
+    '            print_fail("Attempt to retrieve environmental variables failed.")\n'
     '            self.display_manager_control.stop_display_manager()\n'
-    '            print_info("Exiting the headless script.")\n'
-    '            sys.exit(1)'
+    '\n'
+    '            exit_headless_or_propagate_error(propagate_to_sandbox=self.propagate_to_sandbox)'
 )
 new_env_exit = (
-    '            print_info("Attempt to retrieve environmental variables failed.")\n'
-    '            # Patched: do NOT exit here.  In container mode (--pid=host) the\n'
-    '            # /proc/<pid>/environ read for host processes is permission-denied,\n'
-    '            # but the container already has all required env vars injected via\n'
-    '            # docker -e flags from e2e.yml.  Exiting would hide passing tests.\n'
-    '            print_info("WARNING: env retrieval failed — copying container env as fallback")\n'
-    '            # Copy session-critical vars from the container environment so\n'
-    '            # headless does not overwrite them with an empty dict.\n'
-    '            for _k in ("DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY",\n'
-    '                       "XDG_RUNTIME_DIR", "AT_SPI_BUS_ADDRESS",\n'
-    '                       "XAUTHORITY", "XDG_SESSION_TYPE", "XDG_SESSION_DESKTOP"):\n'
-    '                if _k in os.environ:\n'
-    '                    environment_dictionary[_k] = os.environ[_k]'
+    '            print_fail("Attempt to retrieve environmental variables failed.")\n'
+    '            # Patched: do NOT stop GDM or exit here.  Container os.environ already has\n'
+    '            # required session vars from podman -e flags (e2e.yml).  Continue instead.\n'
+    '            print_info("WARNING: env retrieval failed — continuing with container os.environ")'
 )
 if old_env_exit in src:
     src = src.replace(old_env_exit, new_env_exit)
     print("Patch 6 applied: env retrieval failure copies container env instead of exiting")
 else:
     print("WARNING: Patch 6 env_exit target not found — skipping")
+
+# 8. When /proc/<pid>/environ is unreadable (IOError/PermissionError, e.g. because
+#    the process runs as a different UID), environment_dictionary is left empty and
+#    the subsequent ENVIRONMENT_VARIABLES_TO_PRESERVE loop only copies ~6 vars.
+#    qecore-headless then does os.environ = environment_dictionary, wiping PATH, HOME,
+#    DISPLAY, and everything else the test toolchain needs — even if DBUS_SESSION_BUS_ADDRESS
+#    was preserved.  Fix: on IOError, copy the full container os.environ as a baseline
+#    so the session env is complete.  setdefault() ensures gnome-session vars (if
+#    partially read) take priority.
+old_ioerror = (
+    '        except IOError as error:\n'
+    '            if verbose:\n'
+    '                print_fail(f"Environment file manipulation failed on: \'{error}\'")\n'
+)
+new_ioerror = (
+    '        except IOError as error:\n'
+    '            if verbose:\n'
+    '                print_fail(f"Environment file manipulation failed on: \'{error}\'")\n'
+    '            # /proc environ unreadable (different UID) — seed dict from container env\n'
+    '            for _k, _v in os.environ.items():\n'
+    '                environment_dictionary.setdefault(_k, _v)\n'
+)
+if old_ioerror in src:
+    src = src.replace(old_ioerror, new_ioerror)
+    print("Patch 8 applied: IOError path seeds environment_dictionary from container os.environ")
+else:
+    print("WARNING: Patch 8 IOError target not found — skipping")
 
 with open('/usr/local/bin/qecore-headless', 'w') as f:
     f.write(src)
