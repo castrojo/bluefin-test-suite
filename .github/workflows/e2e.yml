@@ -556,16 +556,14 @@ jobs:
             || sudo dnf install -y fish 2>/dev/null \
             || echo 'WARNING: could not install fish')"
 
-          # Brew CLI tools: install via brew if available, skip gracefully if not.
-          # brew-setup.service normally handles this on first login, but it's masked
-          # in CI. Run brew bundle or individual installs instead.
-          BREW_INSTALL_TIMEOUT_S=300
+          # Brew CLI tools: install via brew if available; fall back to dnf for
+          # composed test images where the linuxbrew var isn't initialised.
+          # brew-setup.service is masked in CI, so we install manually.
           $SSH "
             BREW=/home/linuxbrew/.linuxbrew/bin/brew
             if [ -x \"\$BREW\" ]; then
               echo 'Homebrew found — installing CLI tools...'
               eval \"\$(\$BREW shellenv)\"
-              # Install each tool individually so one failure doesn't block others.
               for tool in fzf bat eza fd ripgrep starship; do
                 if command -v \"\$tool\" >/dev/null 2>&1 || \
                    command -v \"\$(echo \$tool | sed 's/ripgrep/rg/')\" >/dev/null 2>&1; then
@@ -575,10 +573,26 @@ jobs:
                   \$BREW install \"\$tool\" 2>&1 | tail -1 || echo \"  WARNING: brew install \$tool failed\"
                 fi
               done
-              echo 'Brew CLI tools install complete'
+              echo 'Brew CLI tools install complete (brew path)'
             else
-              echo 'WARNING: Homebrew not found at /home/linuxbrew/.linuxbrew/bin/brew'
-              echo 'Brew-provided CLI tools will not be available'
+              echo 'Homebrew not found — falling back to dnf for CLI tools'
+              # Map tool names to Fedora RPM package names.
+              # eza may not be in older Fedora repos; ripgrep is 'rg' in path.
+              declare -A pkgmap=([bat]=bat [eza]=eza [fd]=fd-find [fzf]=fzf [ripgrep]=ripgrep [starship]=starship)
+              for tool in bat eza fd fzf ripgrep starship; do
+                cmd=\$tool
+                [ \"\$tool\" = ripgrep ] && cmd=rg
+                [ \"\$tool\" = fd ] && cmd=fd
+                if command -v \"\$cmd\" >/dev/null 2>&1; then
+                  echo \"  \$tool: already available as \$cmd\"
+                else
+                  pkg=\${pkgmap[\$tool]:-\$tool}
+                  echo \"  \$tool: installing via dnf (\$pkg)...\"
+                  sudo dnf install -y --quiet \"\$pkg\" 2>&1 | tail -1 || \
+                    echo \"  WARNING: dnf install \$pkg failed\"
+                fi
+              done
+              echo 'CLI tools install complete (dnf fallback path)'
             fi
           " || echo "WARNING: shell tools install step had errors — some common scenarios may fail"
 
