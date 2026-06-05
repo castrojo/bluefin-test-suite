@@ -410,6 +410,45 @@ RUN mkdir -p /usr/share/applications && \
     printf '[Desktop Entry]\nName=Software\nExec=gnome-software\nType=Application\n' \
         > /usr/share/applications/org.gnome.Software.desktop
 
+# /usr/local/bin/ptyxis — SSH-launch shim so qecore's start_via_command() works
+# inside the runner container where the ptyxis binary is not installed.
+# qecore reads Exec=ptyxis from the dummy .desktop file and calls Popen("ptyxis").
+# This shim fires ptyxis on the GNOME session running in the VM via SSH
+# (fire-and-forget), then exits 0 so qecore's wait_before_app_starts() can poll
+# the AT-SPI tree until ptyxis appears (ponytail bridges AT-SPI over the network).
+RUN python3 - <<'PTYXIS_SHIM_EOF'
+import os, stat
+
+shim = """#!/bin/sh
+# Kill any stale instance so AT-SPI sees a fresh window
+ssh \\
+  -i "${SSH_KEY:-/home/bluefin-test/.ssh/id_ed25519}" \\
+  -o StrictHostKeyChecking=no \\
+  -o UserKnownHostsFile=/dev/null \\
+  -o ConnectTimeout=10 \\
+  -o LogLevel=ERROR \\
+  -p "${SSH_PORT:-22}" \\
+  "${VM_USER:-bluefin-test}@${VM_IP:-127.0.0.1}" \\
+  'pkill -fx ptyxis 2>/dev/null; true'
+# Launch ptyxis detached from the SSH session
+ssh \\
+  -i "${SSH_KEY:-/home/bluefin-test/.ssh/id_ed25519}" \\
+  -o StrictHostKeyChecking=no \\
+  -o UserKnownHostsFile=/dev/null \\
+  -o ConnectTimeout=10 \\
+  -o LogLevel=ERROR \\
+  -p "${SSH_PORT:-22}" \\
+  "${VM_USER:-bluefin-test}@${VM_IP:-127.0.0.1}" \\
+  'source /tmp/session.env 2>/dev/null; nohup ptyxis </dev/null >/dev/null 2>&1 & disown'
+"""
+
+path = "/usr/local/bin/ptyxis"
+with open(path, "w") as f:
+    f.write(shim.lstrip())
+os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+print(f"Ptyxis SSH-launch shim written to {path}")
+PTYXIS_SHIM_EOF
+
 # With --userns=keep-id, the container runs as UID 1001 (no passwd entry in this
 # Fedora-minimal image).  GLib/gsettings falls back to WORKDIR as HOME when no
 # passwd entry exists, and WORKDIR=/tests is owned by root so writes fail.
