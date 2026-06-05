@@ -856,6 +856,21 @@ jobs:
             results/screenshot_lifecycle_upgrade_final.png 2>/dev/null \
             || echo "WARNING: could not retrieve screenshot from VM"
 
+      - name: Collect migration status
+        if: always() && env.SUITE == 'lifecycle'
+        continue-on-error: true
+        run: |
+          SSH_CLEAN="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=no -o ConnectTimeout=30"
+          SSH="ssh ${SSH_CLEAN} -p 2222 bluefin-test@127.0.0.1"
+          mkdir -p results
+          {
+            echo "=== bootc status ==="
+            $SSH "sudo bootc status" 2>&1 || echo "(bootc status failed)"
+            echo ""
+            echo "=== fastfetch ==="
+            $SSH "fastfetch" 2>&1 || echo "(fastfetch not available)"
+          } > results/migration-status.txt
+
       - name: Capture Flatpak screenshots
         if: always() && inputs.screenshot_flatpaks != '' && env.SUITE != 'common'
         continue-on-error: true
