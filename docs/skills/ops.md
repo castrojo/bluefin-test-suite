@@ -568,3 +568,59 @@ runner via SSH and are **not** affected.
 **SHA timeline (testsuite `e2e.yml`):**
 - Before `fcbfd6a`: exit code 1 masking — all smoke runs appeared to fail
 - From `fcbfd6a` onwards: exit code correctly reflects test results
+
+## developer/bazzite/dx HOOK-ERROR: `'NoneType' object has no attribute 'window_list'`
+
+**Symptom:** Developer, bazzite, or dx suite runs show `HOOK-ERROR in before_scenario`
+for every scenario, zero scenarios execute, BEHAVE_RC=1.
+
+```
+HOOK-ERROR in before_scenario: AttributeError: 'NoneType' object has no attribute 'window_list'
+WARNING: ponytail unavailable: ...dbus-launch terminated abnormally...
+```
+
+**Cause:** `sandbox.before_scenario` → `overview_action("hide")` → `click()` →
+`rawinput.click()`. Inside the Wayland path:
+```python
+ponytail_interface = ponytail_helper.get_ponytail_interface()
+window_list = ponytail_interface.window_list  # ← no None guard; crashes
+```
+When ponytail fails, `get_ponytail_interface()` returns `None` (Patch 1), then
+`None.window_list` raises `AttributeError`. The smoke suite catches and continues;
+developer/bazzite/dx suites re-raise → HOOK-ERROR blocks all scenarios.
+
+**Fix** — Patch 7 in `container/Containerfile.runner` adds `if ponytail_interface is None: return`
+after every `ponytail_helper.get_ponytail_interface()` call in `rawinput.py` (12 sites).
+Fixed in PR #348 (commit `cdc9891`).
+
+## env retrieval `sys.exit(1)` before tests start (lts/dakota smoke)
+
+**Symptom:** Smoke suite for `bluefin:lts` or `dakota:*` exits immediately:
+
+```
+headless: Environment file manipulation failed on: '[Errno 13] Permission denied: '/proc/682/environ''
+headless: Attempt to retrieve environmental variables failed.
+```
+
+No `results.json` written. BEHAVE_RC=1. No scenarios execute.
+
+**Cause:** `qecore-headless` reads `/proc/<pid>/environ` for GNOME session env. With
+`--pid=host`, session processes are owned by the host user; the container can't read
+them. Original code called `sys.exit(1)` on failure. This is harmless since container
+env is already set via `-e` flags from `e2e.yml`.
+
+**Fix** — Patch 6 in `container/Containerfile.runner` replaces `sys.exit(1)` with
+warning + continue. Fixed in PR #346 (commit `51b2c54`).
+
+## common shell tools missing on `bluefin:lts` / `bluefin-gdx`
+
+**Symptom:** `common` suite: 7 failures — `zsh`, `fish`, `bat`, `eza`, `fd`,
+`ripgrep`, `starship` not available.
+
+**Cause:** `LockLayering=true` on lts/gdx prevents `rpm-ostree install --apply-live`.
+No Homebrew on these images, so brew fallback also fails. Tools would normally be
+installed by `brew-setup.service` on first login, which is masked in CI.
+
+**Status:** Real image quality issue, not test infrastructure. Tests correctly detect
+missing tools. Report to image maintainers. If tools are not expected, add
+`@requires_brew` tag to scenarios in `common_shell.feature` and skip them.
