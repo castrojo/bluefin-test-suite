@@ -230,6 +230,32 @@ if old_fallback in src:
 else:
     print("WARNING: Patch 4b fallback target not found — skipping")
 
+# 5. Wrap stop_display_manager() in a try/except so CalledProcessError from
+#    "sudo systemctl stop gdm" (which fails inside a container that has no
+#    systemd PID 1) does not propagate as an unhandled exception and cause
+#    Python to exit 1, masking a successful test run (user_script_exit_code=0).
+old_stop = (
+    '        # Stop display manager unless user specifies otherwise.\n'
+    '        if self.enable_stop or self.user_script_exit_code != 0:\n'
+    '            self.display_manager_control.stop_display_manager()'
+)
+new_stop = (
+    '        # Stop display manager unless user specifies otherwise.\n'
+    '        # Wrap in try/except: inside a container (no systemd PID 1) the\n'
+    '        # "sudo systemctl stop gdm" call raises CalledProcessError which\n'
+    '        # would propagate as an unhandled exception and exit Python with 1,\n'
+    '        # hiding a successful test run (user_script_exit_code=0).\n'
+    '        if self.enable_stop or self.user_script_exit_code != 0:\n'
+    '            try:\n'
+    '                self.display_manager_control.stop_display_manager()\n'
+    '            except Exception as _gdm_stop_exc:  # noqa: BLE001\n'
+    '                print(f"headless: GDM stop warning (non-fatal in container): {_gdm_stop_exc}", flush=True)'
+)
+if old_stop in src:
+    src = src.replace(old_stop, new_stop)
+else:
+    print("WARNING: Patch 5 stop_display_manager target not found — skipping")
+
 with open('/usr/local/bin/qecore-headless', 'w') as f:
     f.write(src)
 PYEOF
