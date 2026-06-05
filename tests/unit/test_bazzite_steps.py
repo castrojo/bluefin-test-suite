@@ -92,8 +92,11 @@ class TestExtensionState:
     def test_parses_enabled_state_1(self):
         m = _import_bazzite_steps()
         out = "({'state': <uint32 1>, 'path': <'/usr/share/gnome-shell/extensions/uuid'>},)"
-        with patch("subprocess.run", return_value=self._make_result(out)):
+        with patch("subprocess.run", return_value=self._make_result(out)) as mock_run:
             assert m._extension_state(_ctx(), "some@uuid") == "1"
+            # Verify UUID is wrapped in GVariant string quotes
+            call_args = mock_run.call_args[0][0]
+            assert "'some@uuid'" in call_args
 
     def test_parses_initialized_state_6(self):
         m = _import_bazzite_steps()

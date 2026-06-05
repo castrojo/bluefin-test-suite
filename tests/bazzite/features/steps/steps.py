@@ -128,7 +128,7 @@ def _extension_state(context, uuid: str) -> str:
          '--dest', 'org.gnome.Shell',
          '--object-path', '/org/gnome/Shell/Extensions',
          '--method', 'org.gnome.Shell.Extensions.GetExtensionInfo',
-         uuid],
+         f"'{uuid}'"],  # GVariant string literal — bare UUID fails gdbus parser
         capture_output=True, text=True, timeout=10,
     )
     if result.returncode != 0:
