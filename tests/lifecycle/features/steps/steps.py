@@ -12,7 +12,9 @@ bootc status JSON schema (v1alpha1):
   .status.booted.image.image.image  — image reference string
 """
 import json
+import os
 import re
+import shlex
 import subprocess
 from time import sleep, time
 
@@ -288,6 +290,132 @@ def reboot_and_wait(context):
 
     raise AssertionError(
         f"VM at {context.vm_ip} did not come back over SSH within 120s: {last_error}"
+    )
+
+
+_DEFAULT_MIGRATION_TARGET = "ghcr.io/projectbluefin/bluefin:stable"
+
+
+def _migration_target():
+    """Return the migration target image ref, overridable via MIGRATION_TARGET env var."""
+    return os.environ.get("MIGRATION_TARGET", _DEFAULT_MIGRATION_TARGET)
+
+
+@step("Switch to migration target")
+def switch_to_migration_target(context):
+    """Run sudo bootc switch <MIGRATION_TARGET> with a 900s timeout.
+
+    Reads MIGRATION_TARGET env var (default: ghcr.io/projectbluefin/bluefin:stable).
+    900s timeout covers the full image pull over SLIRP QEMU networking.
+    """
+    target = _migration_target()
+    stdout, rc = run_ssh(
+        context,
+        f"sudo bootc switch {shlex.quote(target)}",
+        timeout=900,
+    )
+    context.command_stdout = stdout
+    context.ssh_rc = rc
+
+
+@step("Switch to migration target with unified storage")
+def switch_to_migration_target_unified(context):
+    """Run sudo bootc switch --experimental-unified-storage <MIGRATION_TARGET> with 900s timeout.
+
+    Reads MIGRATION_TARGET env var (default: ghcr.io/projectbluefin/bluefin:stable).
+    """
+    target = _migration_target()
+    stdout, rc = run_ssh(
+        context,
+        f"sudo bootc switch --experimental-unified-storage {shlex.quote(target)}",
+        timeout=900,
+    )
+    context.command_stdout = stdout
+    context.ssh_rc = rc
+
+
+@step("Check unified storage support and skip if unavailable")
+def check_unified_storage_support(context):
+    """Skip the scenario if bootc does not support --experimental-unified-storage.
+
+    Probes `bootc switch --help` output for the flag name.  Stable images ship
+    bootc 1.15.x which lacks the flag — this prevents a hard failure on those images.
+    """
+    stdout, _ = run_ssh(context, "bootc switch --help 2>&1", timeout=30)
+    if "experimental-unified-storage" not in stdout:
+        _skip_current_scenario(
+            context,
+            "bootc does not support --experimental-unified-storage on this image — "
+            "skipping unified storage migration scenario.",
+        )
+
+
+@step("Pull migration target via podman for zstd:chunked transport")
+def pull_migration_target_podman(context):
+    """Pull the migration target into root containers-storage via podman.
+
+    podman honours the zstd:chunked partial-pull annotations on the registry,
+    so this establishes the zstd:chunked transport lane before the bootc switch.
+    Reads MIGRATION_TARGET env var (default: ghcr.io/projectbluefin/bluefin:stable).
+    """
+    target = _migration_target()
+    stdout, rc = run_ssh(
+        context,
+        f"sudo podman pull {shlex.quote(target)}",
+        timeout=900,
+    )
+    context.command_stdout = stdout
+    context.ssh_rc = rc
+    assert rc == 0, f"podman pull {target!r} failed with rc={rc}:\n{stdout}"
+
+
+@step("Switch to migration target via containers-storage transport")
+def switch_to_migration_target_containers_storage(context):
+    """Switch to the locally-pulled image via the containers-storage transport.
+
+    Used in the zstd:chunked lane after `Pull migration target via podman` has
+    placed the image in /var/lib/containers/storage.
+    120s timeout: the image is already local, so no network pull is needed.
+    """
+    target = _migration_target()
+    stdout, rc = run_ssh(
+        context,
+        f"sudo bootc switch --transport containers-storage {shlex.quote(target)}",
+        timeout=120,
+    )
+    context.command_stdout = stdout
+    context.ssh_rc = rc
+
+
+@step("Reboot VM and wait for SSH after migration")
+def reboot_and_wait_after_migration(context):
+    """Trigger VM reboot and wait up to 300s for SSH to come back.
+
+    The extended deadline (vs 120s in the plain reboot step) covers the
+    rechunker-group-fix service that runs on first boot after a chunkah migration
+    and can take up to ~2 minutes before systemd reaches multi-user.target.
+    """
+    try:
+        run_ssh(context, "sudo reboot")
+    except subprocess.TimeoutExpired:
+        pass
+
+    deadline = time() + 300
+    last_error = "SSH never became reachable after migration reboot"
+    sleep(10)
+    while time() < deadline:
+        try:
+            stdout, returncode = run_ssh(context, "echo ok", timeout=10)
+            if returncode == 0 and stdout == "ok":
+                return
+            last_error = f"rc={returncode}, stdout={stdout!r}"
+        except subprocess.TimeoutExpired as exc:
+            last_error = f"timeout after {exc.timeout}s"
+        sleep(5)
+
+    raise AssertionError(
+        f"VM at {context.vm_ip} did not come back over SSH within 300s "
+        f"after migration reboot: {last_error}"
     )
 
 
