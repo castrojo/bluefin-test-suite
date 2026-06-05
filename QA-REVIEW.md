@@ -3,7 +3,7 @@
 > Last updated: 2026-06-04
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 269 scenarios across 32 feature files (last audit: 2026-06-04). 30 quarantined, 218 active, 21 @future/@pending stubs.
+Current audit: 268 scenarios across 32 feature files (last audit: 2026-06-04). 30 quarantined, 222 active, 16 @future/@pending stubs.
 
 ## What this repo is responsible for
 
@@ -56,6 +56,6 @@ The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue 
 ## Current stub posture
 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
-- `security/selinux`: `@future` scenarios at Feature level — will activate when Bluefin test images stop booting with `selinux=0` (PR #280 in merge queue).
+- `security/selinux`: active — SELinux enforcing enabled (E04). Known-acceptable AVC denials documented in `selinux_allowlist.yaml`.
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
 
