@@ -314,8 +314,24 @@ runs:
           [[ -z \"\${SESSION_BUS}\" ]] && SESSION_BUS=\"unix:path=\${XDG}/bus\"
           WAYLAND_DISP=\$(ls /run/user/1001/wayland-* 2>/dev/null \
             | head -1 | xargs basename 2>/dev/null || echo wayland-0)
+          # Query the real AT-SPI accessibility bus address (separate socket from session bus).
+          ATSPI_ADDR=\"\"
+          for _i in 1 2 3 4 5; do
+            ATSPI_ADDR=\$(DBUS_SESSION_BUS_ADDRESS=\"\${SESSION_BUS}\" \
+              gdbus call --session --dest org.a11y.Bus --object-path /org/a11y/bus \
+              --method org.a11y.Bus.GetAddress 2>/dev/null \
+              | sed \"s/.*'\\(unix:[^']*\\)'.*/\\1/\")
+            [[ -n \"\${ATSPI_ADDR}\" ]] && break
+            sleep 2
+          done
+          if [[ -z \"\${ATSPI_ADDR}\" ]]; then
+            echo 'WARNING: Could not query AT-SPI bus address; falling back to session bus'
+            ATSPI_ADDR=\"\${SESSION_BUS}\"
+          else
+            echo \"AT-SPI bus address: \${ATSPI_ADDR}\"
+          fi
           printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\n' \
-            \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${SESSION_BUS}\" \
+            \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${ATSPI_ADDR}\" \
             > /tmp/gnome_e2e_session.env
           cat /tmp/gnome_e2e_session.env
         "

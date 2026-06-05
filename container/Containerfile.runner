@@ -169,6 +169,67 @@ src = src.replace(
     'elif False:  # patched: container runs as root but is isolated inside QEMU/GHA',
 )
 
+# 4. Handle images (e.g. bluefin:lts / RHEL10) where gnome-session is managed
+#    by the GDM user (UID 65534) rather than the autologin user UID.
+#    When pgrep with user-id filter finds nothing, retry without the filter.
+#    If still nothing, fall back to the existing os.environ (already populated
+#    from session.env via podman -e flags) so tests can proceed.
+old_pgrep = (
+    '    try:\n'
+    '        gnome_session_pid = run(f"pgrep {user_id_grep} gnome-session").split("\\n")[0]\n'
+    '    except CalledProcessError:\n'
+    '        if verbose:\n'
+    '            print_fail("Failed to retrieve gnome-session-binary pid from pgrep:", recoverable=False)\n'
+    '            print_fail(f"\\n{traceback.format_exc()}", recoverable=False)'
+)
+new_pgrep = (
+    '    try:\n'
+    '        gnome_session_pid = run(f"pgrep {user_id_grep} gnome-session").split("\\n")[0]\n'
+    '    except CalledProcessError:\n'
+    '        # Fallback: try without UID filter (RHEL10/lts: gnome-session runs as GDM user)\n'
+    '        try:\n'
+    '            gnome_session_pid = run("pgrep gnome-session").split("\\n")[0]\n'
+    '        except CalledProcessError:\n'
+    '            gnome_session_pid = None\n'
+    '        if not gnome_session_pid and verbose:\n'
+    '            print_fail("Failed to retrieve gnome-session-binary pid from pgrep:", recoverable=False)\n'
+    '            print_fail(f"\\n{traceback.format_exc()}", recoverable=False)'
+)
+if old_pgrep in src:
+    src = src.replace(old_pgrep, new_pgrep)
+else:
+    print("WARNING: Patch 4 pgrep target not found — skipping")
+
+# 4b. When no gnome-session PID found at all, use existing os.environ as fallback
+#     instead of returning an empty dict (which leaves headless with no session env).
+old_fallback = (
+    '    if verbose:\n'
+    '        print_fail("Environment file not found, most likely caused by gdm not running.", recoverable=False)\n'
+    '\n'
+    '    return environment_dictionary'
+)
+new_fallback = (
+    '    if verbose:\n'
+    '        print_fail("Environment file not found — using container environment as fallback.", recoverable=False)\n'
+    '    # Use the container\'s existing environment (populated via podman -e flags from session.env)\n'
+    '    for key in ("DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR",\n'
+    '                "AT_SPI_BUS_ADDRESS", "XAUTHORITY", "XDG_SESSION_TYPE", "XDG_SESSION_DESKTOP"):\n'
+    '        if key in os.environ:\n'
+    '            environment_dictionary[key] = os.environ[key]\n'
+    '    # Ensure XAUTHORITY is set from /run/user if not in env\n'
+    '    if "XAUTHORITY" not in environment_dictionary:\n'
+    '        import glob as _glob\n'
+    '        hits = _glob.glob("/run/user/1001/.mutter-Xwaylandauth.*")\n'
+    '        if hits:\n'
+    '            environment_dictionary["XAUTHORITY"] = hits[0]\n'
+    '\n'
+    '    return environment_dictionary'
+)
+if old_fallback in src:
+    src = src.replace(old_fallback, new_fallback)
+else:
+    print("WARNING: Patch 4b fallback target not found — skipping")
+
 with open('/usr/local/bin/qecore-headless', 'w') as f:
     f.write(src)
 PYEOF
