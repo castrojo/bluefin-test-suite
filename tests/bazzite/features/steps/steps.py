@@ -13,6 +13,7 @@ common_steps from qecore provides standard AT-SPI steps.
 Shell.Eval patterns: docs/skills/gnome.md
 """
 import subprocess
+import time
 
 from behave import step
 from dogtail import tree
@@ -125,7 +126,16 @@ def _extension_state(context, uuid: str) -> str:
 
 @step('Extension "{uuid}" is enabled')
 def extension_is_enabled(context, uuid: str) -> None:
-    state = _extension_state(context, uuid)
+    # State 6 (INITIALIZED) is transient — poll until ENABLED(1) or timeout.
+    deadline = time.monotonic() + 30
+    state = "6"
+    while time.monotonic() < deadline:
+        state = _extension_state(context, uuid)
+        if state == "1":
+            return
+        if state not in ("6",):
+            break  # non-transient bad state, stop polling early
+        time.sleep(2)
     assert state == "1", (
         f"Extension {uuid!r} is not enabled (state={state}). "
         "Expected state=1 (ENABLED)."
