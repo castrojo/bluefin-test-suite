@@ -1111,6 +1111,7 @@ jobs:
       - name: Promote desktop screenshot
         if: always()
         id: desktop-screenshot
+        continue-on-error: true
         run: |
           # GUI suites produce a fastfetch screenshot in after_all; the lifecycle
           # suite produces a post-upgrade screenshot or a post-migration screenshot.
