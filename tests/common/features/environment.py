@@ -8,6 +8,7 @@ import os
 import shlex
 
 from tests.shared.ssh_steps import *  # noqa: F401,F403
+from tests.shared.ssh_steps import run_ssh
 
 try:
     from tests.shared.timing import record_end, record_start
@@ -30,6 +31,19 @@ def _is_bluefin_image(image: str) -> bool:
     """Return True if the image reference looks like a Bluefin image."""
     lower = image.lower()
     return "bluefin" in lower or "bazzite" in lower
+
+
+def _scenario_tags(scenario) -> set[str]:
+    return set(getattr(scenario, "effective_tags", scenario.tags))
+
+
+def _has_brew(context) -> bool:
+    cached = getattr(context, "has_brew", None)
+    if cached is not None:
+        return cached
+    _, returncode = run_ssh(context, "test -x /home/linuxbrew/.linuxbrew/bin/brew")
+    context.has_brew = returncode == 0
+    return context.has_brew
 
 
 def before_all(context):
@@ -98,6 +112,7 @@ def before_all(context):
     context.last_command_output = ""
     context.last_ssh_result = None
     context.ssh_rc = 0
+    context.has_brew = None
 
 
 def before_scenario(context, scenario):
@@ -105,14 +120,18 @@ def before_scenario(context, scenario):
 
     if skip_quarantine(scenario):
         return
+    scenario_tags = _scenario_tags(scenario)
     # Skip @bluefin scenarios when running against a non-Bluefin image (e.g. Dakota).
     # Feature-level @bluefin tags are inherited by all scenarios in those features.
     is_bluefin = getattr(context, "is_bluefin_image", True)
-    if not is_bluefin and "bluefin" in scenario.effective_tags:
+    if not is_bluefin and "bluefin" in scenario_tags:
         scenario.skip(
             f"Skipping @bluefin scenario on non-Bluefin image "
             f"(IMAGE={os.environ.get('IMAGE', 'unknown')})"
         )
+        return
+    if "requires_brew" in scenario_tags and not _has_brew(context):
+        scenario.skip("Homebrew not present on this image")
         return
     context.command_stdout = ""
     context.last_command_output = ""
