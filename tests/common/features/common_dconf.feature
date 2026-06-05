@@ -5,10 +5,14 @@ Feature: Bluefin common dconf and GSettings defaults
   Background:
     * Bluefin VM is booted and reachable over SSH
 
+  # Transitioning to a custom logo menu — these checks are no longer valid.
+  # Track replacement in: https://github.com/projectbluefin/common/issues
+  @quarantine
   Scenario: Logo Menu extension is configured
     * Run SSH command: "gsettings get org.gnome.shell enabled-extensions"
     * Last command output contains "logomenu"
 
+  @quarantine
   Scenario: Logo Menu activities button visibility is configured
     * Run SSH command: "dconf read /org/gnome/shell/extensions/Logo-menu/show-activities-button"
     * Last command output contains "true"
