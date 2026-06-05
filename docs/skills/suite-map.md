@@ -101,7 +101,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 |---|---|---|---|---|
 | smoke | 82 | 81 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
-| software | 13 | 5 | 8 | Bazaar launch + search + Flathub remote + permissions DB are active; GNOME Software scenarios quarantined (Bluefin uses Bazaar) |
+| software | 12 | 4 | 8 | Bazaar launch + search active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
 | common | 37 | 33 | 4 | Shell tools (zsh, fish, fzf, bat, eza, fd, rg, starship) installed in CI via e2e workflow step; signing-policy/runtime security assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
