@@ -120,6 +120,24 @@ class TestExtensionIsEnabled:
             with pytest.raises(AssertionError, match="not enabled"):
                 m.extension_is_enabled(_ctx(), "missing@uuid")
 
+    def test_polls_past_initialized_state_6(self):
+        """State 6 (INITIALIZED) is transient — step should poll until state=1."""
+        m = _import_bazzite_steps()
+        states = iter(["6", "6", "1"])
+        with patch("tests.bazzite.features.steps.steps._extension_state", side_effect=states), \
+             patch("tests.bazzite.features.steps.steps.time.sleep"):
+            m.extension_is_enabled(_ctx(), "some@uuid")
+
+    def test_raises_after_timeout_in_state_6(self):
+        """State 6 that never transitions should raise AssertionError after timeout."""
+        m = _import_bazzite_steps()
+        with patch("tests.bazzite.features.steps.steps._extension_state", return_value="6"), \
+             patch("tests.bazzite.features.steps.steps.time.sleep"), \
+             patch("tests.bazzite.features.steps.steps.time.monotonic",
+                   side_effect=[0.0, 0.0, 31.0]):
+            with pytest.raises(AssertionError, match="not enabled"):
+                m.extension_is_enabled(_ctx(), "stuck@uuid")
+
 
 # ---------------------------------------------------------------------------
 # extension_is_installed
