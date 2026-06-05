@@ -52,21 +52,21 @@ def _import_vanilla_gnome_steps():
 # ---------------------------------------------------------------------------
 
 class TestCommandExists:
-    def test_returns_true_when_which_succeeds(self):
+    def test_returns_true_when_ssh_command_found(self):
         m = _import_vanilla_gnome_steps()
-        mock_result = MagicMock(returncode=0, stdout="/usr/bin/ls\n")
-        with patch("subprocess.run", return_value=mock_result):
-            assert m._command_exists("ls") is True
+        mock_result = MagicMock(returncode=0, stdout="/usr/bin/gnome-files\n")
+        with patch.object(m, "_ssh_run", return_value=mock_result):
+            assert m._command_exists("gnome-files") is True
 
-    def test_returns_false_when_which_fails(self):
+    def test_returns_false_when_ssh_command_not_found(self):
         m = _import_vanilla_gnome_steps()
         mock_result = MagicMock(returncode=1, stdout="")
-        with patch("subprocess.run", return_value=mock_result):
+        with patch.object(m, "_ssh_run", return_value=mock_result):
             assert m._command_exists("nonexistent") is False
 
-    def test_returns_false_when_command_not_found(self):
+    def test_returns_false_when_ssh_not_available(self):
         m = _import_vanilla_gnome_steps()
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch.object(m, "_ssh_run", side_effect=FileNotFoundError):
             assert m._command_exists("anything") is False
 
 
@@ -78,18 +78,18 @@ class TestFlatpakAppExists:
     def test_returns_true_when_app_in_list(self):
         m = _import_vanilla_gnome_steps()
         mock_result = MagicMock(returncode=0, stdout="org.gnome.Nautilus\n")
-        with patch("subprocess.run", return_value=mock_result):
+        with patch.object(m, "_ssh_run", return_value=mock_result):
             assert m._flatpak_app_exists("org.gnome.Nautilus") is True
 
     def test_returns_false_when_app_not_in_list(self):
         m = _import_vanilla_gnome_steps()
         mock_result = MagicMock(returncode=0, stdout="org.gnome.Calculator\n")
-        with patch("subprocess.run", return_value=mock_result):
+        with patch.object(m, "_ssh_run", return_value=mock_result):
             assert m._flatpak_app_exists("org.gnome.Nautilus") is False
 
-    def test_returns_false_when_flatpak_not_found(self):
+    def test_returns_false_when_ssh_not_available(self):
         m = _import_vanilla_gnome_steps()
-        with patch("subprocess.run", side_effect=FileNotFoundError):
+        with patch.object(m, "_ssh_run", side_effect=FileNotFoundError):
             assert m._flatpak_app_exists("org.gnome.Nautilus") is False
 
 

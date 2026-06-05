@@ -167,28 +167,37 @@ def overview_search_bar_contains(context, text) -> None:
     assert text in entry.text, f"Search bar text '{entry.text}' does not contain '{text}'"
 
 
+def _ssh_run(cmd: str, timeout: int = 15) -> subprocess.CompletedProcess:
+    """Run a command on the VM via SSH using the standard connection env vars."""
+    import os
+    ssh_args = [
+        'ssh',
+        '-i', os.environ.get('SSH_KEY', '/home/bluefin-test/.ssh/id_ed25519'),
+        '-o', 'StrictHostKeyChecking=no',
+        '-o', 'UserKnownHostsFile=/dev/null',
+        '-o', f"ConnectTimeout={timeout}",
+        '-o', 'LogLevel=ERROR',
+        '-p', os.environ.get('SSH_PORT', '22'),
+        f"{os.environ.get('VM_USER', 'bluefin-test')}@{os.environ.get('VM_IP', '127.0.0.1')}",
+        cmd,
+    ]
+    return subprocess.run(ssh_args, capture_output=True, text=True, timeout=timeout)
+
+
 def _command_exists(command: str) -> bool:
+    """Check whether a command is available on the VM."""
     try:
-        result = subprocess.run(
-            ['which', command],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except FileNotFoundError:
+        result = _ssh_run(f'command -v {command}')
+    except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
     return result.returncode == 0 and bool(result.stdout.strip())
 
 
 def _flatpak_app_exists(app_id: str) -> bool:
+    """Check whether a Flatpak app is installed on the VM."""
     try:
-        result = subprocess.run(
-            ['flatpak', 'list', '--app', '--columns=application'],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-    except FileNotFoundError:
+        result = _ssh_run('flatpak list --app --columns=application 2>/dev/null', timeout=20)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
     if result.returncode != 0:
         return False
