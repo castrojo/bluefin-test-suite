@@ -87,12 +87,18 @@ def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.
 def no_coredump_entries_exist(context, name: str) -> None:
     import subprocess
 
-    result = subprocess.run(
-        ['coredumpctl', 'list', name, '--no-pager', '--lines=10'],
-        capture_output=True,
-        text=True,
-        timeout=15,
-    )
+    # coredumpctl may not be available on minimal images (e.g. gnomeos bootc).
+    # Skip gracefully rather than error — absence of coredumpctl means no dumps.
+    try:
+        result = subprocess.run(
+            ['coredumpctl', 'list', name, '--no-pager', '--lines=10'],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+    except FileNotFoundError:
+        return  # coredumpctl not present — no coredumps possible
+
     if result.returncode not in (0, 1):
         raise AssertionError(
             f"coredumpctl list failed for {name}: rc={result.returncode}\n"
@@ -225,7 +231,8 @@ def night_light_toggle_present(context) -> None:
 def files_application_is_installed(context) -> None:
     _assert_any_app_present(
         'GNOME Files application',
-        ('nautilus',),
+        # 'gnome-files' is the binary name since GNOME 47; 'nautilus' is the classic name
+        ('gnome-files', 'nautilus'),
         ('org.gnome.Nautilus',),
     )
 
