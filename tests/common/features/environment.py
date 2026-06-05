@@ -69,6 +69,7 @@ def before_all(context):
     # Set up Homebrew PATH so brew-installed tools (bat, eza, fd, rg, etc.) are
     # accessible in non-interactive SSH sessions.
     brew_prefix = (
+        'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH; '
         '[ -x /home/linuxbrew/.linuxbrew/bin/brew ] '
         '&& eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv 2>/dev/null)" '
         '|| true; '
