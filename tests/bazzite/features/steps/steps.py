@@ -127,7 +127,9 @@ def _extension_state(context, uuid: str) -> str:
 @step('Extension "{uuid}" is enabled')
 def extension_is_enabled(context, uuid: str) -> None:
     # State 6 (INITIALIZED) is transient — poll until ENABLED(1) or timeout.
-    deadline = time.monotonic() + 30
+    # Bazzite ships 11 extensions; GNOME Shell can take >90s post-boot to fully
+    # enable all of them, so use a generous timeout here.
+    deadline = time.monotonic() + 90
     state = "6"
     while time.monotonic() < deadline:
         state = _extension_state(context, uuid)

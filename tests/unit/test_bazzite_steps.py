@@ -134,7 +134,7 @@ class TestExtensionIsEnabled:
         with patch("tests.bazzite.features.steps.steps._extension_state", return_value="6"), \
              patch("tests.bazzite.features.steps.steps.time.sleep"), \
              patch("tests.bazzite.features.steps.steps.time.monotonic",
-                   side_effect=[0.0, 0.0, 31.0]):
+                   side_effect=[0.0, 0.0, 91.0]):
             with pytest.raises(AssertionError, match="not enabled"):
                 m.extension_is_enabled(_ctx(), "stuck@uuid")
 
