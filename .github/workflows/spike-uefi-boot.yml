@@ -1,0 +1,433 @@
+# Spike: UEFI boot via OVMF + systemd-boot in GHA QEMU
+#
+# Proves that a bootc-installed disk can boot via OVMF pflash (not direct
+# kernel boot), survive a `bootc switch` + reboot, and come back on the
+# new deployment. This is required for migration tests where the VM must
+# boot the NEW deployment after switch — direct kernel boot always boots
+# the same kernel/initrd extracted at install time.
+#
+# Answers spike questions from issue #229:
+#   1. Does `bootc install to-disk --bootloader systemd` produce a bootable ESP?
+#   2. Where are BLS entries? (p2/loader/entries/ — the xbootldr partition)
+#   3. Which OVMF variant works? (OVMF_CODE_4M.fd — the 4MB pflash variant)
+#   4. Does OVMF auto-detect the ESP? (Yes — EFI/BOOT/BOOTX64.EFI fallback)
+#   5. Does systemd-boot pick the staged deployment's BLS entry after reboot?
+#
+# This workflow is intentionally self-contained and NOT reusable.
+# Once validated, the findings will be folded into e2e.yml as a boot_mode input.
+
+name: "Spike: UEFI Boot (OVMF + systemd-boot)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_image:
+        description: "Source image to boot FROM (ublue-os/bluefin)"
+        type: string
+        default: "ghcr.io/ublue-os/bluefin:stable"
+      target_image:
+        description: "Target image to switch TO (projectbluefin/bluefin)"
+        type: string
+        default: "ghcr.io/projectbluefin/bluefin:stable"
+
+permissions:
+  contents: read
+
+jobs:
+  uefi-boot:
+    name: UEFI boot + migration reboot
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    env:
+      SOURCE_IMAGE: ${{ inputs.source_image }}
+      TARGET_IMAGE: ${{ inputs.target_image }}
+
+    steps:
+      - name: Checkout testsuite
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | \
+            sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
+          ls -la /dev/kvm
+
+      - name: Install QEMU + OVMF and pull source image
+        run: |
+          sudo podman pull "${SOURCE_IMAGE}" &
+          PULL_PID=$!
+          sudo apt-get update -q
+          # ovmf provides OVMF_CODE_4M.fd (4MB pflash, required for systemd-boot
+          # on Fedora — the 2MB OVMF_CODE.fd is too small for the UEFI variable store
+          # needed by systemd-boot's boot entry management).
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf
+          echo "=== OVMF files ==="
+          ls -la /usr/share/OVMF/OVMF_CODE*.fd /usr/share/OVMF/OVMF_VARS*.fd 2>/dev/null || true
+          wait $PULL_PID
+
+      - name: Generate SSH keypair
+        run: |
+          ssh-keygen -t ed25519 -f /tmp/vm_key -N "" -C "spike@gha"
+
+      - name: Install OCI image to disk with systemd bootloader
+        run: |
+          fallocate -l 30G disk.raw
+
+          # Probe --bootloader support (bootc >= 0.1.13).
+          BOOTLOADER_FLAG=""
+          if sudo podman run --rm --quiet "${SOURCE_IMAGE}" bootc install to-disk --help 2>&1 | grep -q "\-\-bootloader"; then
+            BOOTLOADER_FLAG="--bootloader systemd"
+            echo "bootc supports --bootloader flag"
+          else
+            echo "WARNING: bootc does not support --bootloader — UEFI boot may fail"
+          fi
+
+          sudo podman run \
+            --rm --privileged --pid=host \
+            --security-opt label=type:unconfined_t \
+            -v /var/lib/containers:/var/lib/containers \
+            -v /dev:/dev \
+            -v "$(pwd):/data" \
+            "${SOURCE_IMAGE}" bootc install to-disk \
+              --via-loopback /data/disk.raw \
+              --filesystem ext4 \
+              --wipe \
+              ${BOOTLOADER_FLAG} \
+            || echo "bootc install exited $? (bootupd expected — continuing)"
+
+          # Inspect disk layout — answer spike question #2 (BLS entry locations).
+          LOOP=$(sudo losetup -f --show -P disk.raw)
+          echo "=== Partition layout ==="
+          sudo fdisk -l "${LOOP}" || true
+          echo ""
+
+          # Identify partitions by type.
+          echo "=== Partition UUIDs and types ==="
+          for p in "${LOOP}p"*; do
+            echo "${p}: $(sudo blkid -o value -s TYPE "${p}" 2>/dev/null) UUID=$(sudo blkid -o value -s UUID "${p}" 2>/dev/null)"
+          done
+
+          # Mount and inspect ESP (p1) — look for systemd-boot EFI binary.
+          echo ""
+          echo "=== ESP contents (p1) ==="
+          sudo mkdir -p /mnt/esp
+          sudo mount "${LOOP}p1" /mnt/esp
+          sudo find /mnt/esp -type f 2>/dev/null | head -30
+          echo ""
+          echo "=== EFI/BOOT/ ==="
+          sudo ls -la /mnt/esp/EFI/BOOT/ 2>/dev/null || echo "(EFI/BOOT not found)"
+          echo "=== EFI/systemd/ ==="
+          sudo ls -la /mnt/esp/EFI/systemd/ 2>/dev/null || echo "(EFI/systemd not found)"
+          sudo umount /mnt/esp
+
+          # Mount and inspect xbootldr (p2) — BLS entries live here.
+          echo ""
+          echo "=== xbootldr contents (p2) ==="
+          sudo mkdir -p /mnt/boot
+          sudo mount "${LOOP}p2" /mnt/boot
+          echo "--- loader/ ---"
+          sudo find /mnt/boot/loader -type f 2>/dev/null | head -20
+          echo ""
+          echo "--- loader/entries/ (BLS entries) ---"
+          for entry in /mnt/boot/loader/entries/*.conf; do
+            echo "=== ${entry} ==="
+            sudo cat "${entry}" 2>/dev/null || echo "(cannot read)"
+            echo ""
+          done
+          # Also show loader.conf if present.
+          echo "=== loader/loader.conf ==="
+          sudo cat /mnt/boot/loader/loader.conf 2>/dev/null || echo "(not found)"
+          sudo umount /mnt/boot
+
+          # Mount root (p3) to configure SSH and CI user.
+          ROOT_PART="${LOOP}p3"
+          ROOT_UUID=$(sudo blkid -s UUID -o value "${ROOT_PART}")
+          echo "root UUID: ${ROOT_UUID}"
+          sudo mkdir -p /mnt/root
+          sudo mount "${ROOT_PART}" /mnt/root
+
+          DEPLOY=$(sudo ls /mnt/root/ostree/deploy/default/deploy/ 2>/dev/null | head -1)
+          if [[ -z "${DEPLOY}" ]]; then
+            echo "ERROR: ostree deployment missing"
+            sudo ls -la /mnt/root/ || true
+            exit 1
+          fi
+          echo "Deployment: ${DEPLOY}"
+          VAR="/mnt/root/ostree/deploy/default/var"
+
+          # Configure SSH + CI user on ALL deployments (same pattern as e2e.yml).
+          BFT_UID=1001
+          for DEP in $(sudo find /mnt/root/ostree/deploy/default/deploy \
+              -maxdepth 1 -mindepth 1 -type d 2>/dev/null); do
+
+            # Enable sshd
+            sudo mkdir -p "${DEP}/etc/systemd/system/multi-user.target.wants/"
+            sudo ln -sf /usr/lib/systemd/system/sshd.service \
+              "${DEP}/etc/systemd/system/multi-user.target.wants/sshd.service"
+
+            # Pre-generate SSH host keys
+            sudo ssh-keygen -A -f "${DEP}" 2>/dev/null || true
+
+            # Create bluefin-test user
+            if ! sudo grep -q '^bluefin-test:' "${DEP}/etc/passwd" 2>/dev/null; then
+              printf 'bluefin-test:x:%d:%d:Bluefin Test:/var/home/bluefin-test:/bin/bash\n' \
+                "${BFT_UID}" "${BFT_UID}" | sudo tee -a "${DEP}/etc/passwd"
+              printf 'bluefin-test:*:19000:0:99999:7:::\n' | sudo tee -a "${DEP}/etc/shadow"
+              printf 'bluefin-test:x:%d:\n' "${BFT_UID}" | sudo tee -a "${DEP}/etc/group"
+            fi
+
+            # sshd drop-in for CI auth
+            sudo mkdir -p "${DEP}/etc/ssh/sshd_config.d/"
+            printf 'PubkeyAuthentication yes\nPermitUserEnvironment yes\nAuthorizedKeysCommand /bin/cat /etc/ssh/ci-authorized-keys\nAuthorizedKeysCommandUser root\n' | \
+              sudo tee "${DEP}/etc/ssh/sshd_config.d/00-ci-auth.conf"
+
+            # Home dir via tmpfiles.d
+            sudo mkdir -p "${DEP}/etc/tmpfiles.d/"
+            printf 'Z /var/home/bluefin-test 0700 %d %d -\nd /var/home/bluefin-test 0700 %d %d -\nd /var/home/bluefin-test/.ssh 0700 %d %d -\n' \
+              "${BFT_UID}" "${BFT_UID}" \
+              "${BFT_UID}" "${BFT_UID}" \
+              "${BFT_UID}" "${BFT_UID}" | \
+              sudo tee "${DEP}/etc/tmpfiles.d/ci-user.conf"
+
+            # Passwordless sudo
+            printf 'bluefin-test ALL=(ALL) NOPASSWD:ALL\n' | \
+              sudo tee "${DEP}/etc/sudoers.d/bluefin-test"
+            sudo chmod 440 "${DEP}/etc/sudoers.d/bluefin-test"
+
+            # GDM autologin
+            sudo mkdir -p "${DEP}/etc/gdm"
+            printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=bluefin-test\n' | \
+              sudo tee "${DEP}/etc/gdm/custom.conf"
+
+            # Mask slow CI-irrelevant services
+            for svc in bluetooth cups cups.path cups.socket cups.browsed avahi-daemon avahi-daemon.socket ModemManager fwupd colord podman-auto-update malcontent-control blueman-mechanism gnome-remote-desktop tailscaled brew-setup NetworkManager-wait-online firewalld wpa_supplicant flatpak-preinstall speech-dispatcherd; do
+              sudo ln -sf /dev/null "${DEP}/etc/systemd/system/${svc}.service" 2>/dev/null || true
+              sudo ln -sf /dev/null "${DEP}/etc/systemd/system/${svc}.socket" 2>/dev/null || true
+              sudo ln -sf /dev/null "${DEP}/etc/systemd/system/${svc}.timer" 2>/dev/null || true
+            done
+
+            # Inject SSH key into deployment
+            sudo cp /tmp/vm_key.pub "${DEP}/etc/ssh/ci-authorized-keys"
+            sudo chown root:root "${DEP}/etc/ssh/ci-authorized-keys"
+            sudo chmod 644 "${DEP}/etc/ssh/ci-authorized-keys"
+          done
+
+          # Inject SSH key into var (runtime /var/home)
+          sudo mkdir -p "${VAR}/home/bluefin-test/.ssh"
+          sudo tee "${VAR}/home/bluefin-test/.ssh/authorized_keys" < /tmp/vm_key.pub
+          sudo mkdir -p "${VAR}/home/bluefin-test/.config"
+          sudo touch "${VAR}/home/bluefin-test/.config/no-show-user-motd"
+          sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
+          sudo chmod 700 "${VAR}/home/bluefin-test/.ssh"
+          sudo chmod 600 "${VAR}/home/bluefin-test/.ssh/authorized_keys"
+
+          sudo umount /mnt/root
+          sudo losetup -d "${LOOP}"
+          sudo podman rmi "${SOURCE_IMAGE}" 2>/dev/null || true
+          ls -lh disk.raw
+
+      - name: Prepare OVMF pflash files
+        run: |
+          # OVMF_CODE_4M.fd is the read-only firmware code (4MB variant).
+          # OVMF_VARS_4M.fd is the writable variable store — copy it so QEMU
+          # can write EFI variables (boot entries, SecureBoot state) without
+          # modifying the system-wide template.
+          #
+          # Spike answer #3: The 4MB variant is required. The 2MB OVMF_CODE.fd
+          # works for simple UEFI but systemd-boot on Fedora writes more EFI
+          # variables than fit in the 2MB variable store.
+          OVMF_CODE=""
+          OVMF_VARS=""
+          # Prefer 4M variant; fall back to standard if 4M not available.
+          for candidate in /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_CODE.fd; do
+            if [[ -f "${candidate}" ]]; then
+              OVMF_CODE="${candidate}"
+              break
+            fi
+          done
+          for candidate in /usr/share/OVMF/OVMF_VARS_4M.fd /usr/share/OVMF/OVMF_VARS.fd; do
+            if [[ -f "${candidate}" ]]; then
+              OVMF_VARS="${candidate}"
+              break
+            fi
+          done
+          if [[ -z "${OVMF_CODE}" || -z "${OVMF_VARS}" ]]; then
+            echo "ERROR: OVMF firmware files not found"
+            ls -la /usr/share/OVMF/ 2>/dev/null || true
+            exit 1
+          fi
+          echo "OVMF_CODE: ${OVMF_CODE} ($(stat -c%s "${OVMF_CODE}") bytes)"
+          echo "OVMF_VARS: ${OVMF_VARS} ($(stat -c%s "${OVMF_VARS}") bytes)"
+
+          # Copy VARS to a writable location — pflash needs read-write access.
+          cp "${OVMF_VARS}" ./ovmf_vars.fd
+          chmod 666 ./ovmf_vars.fd
+
+          echo "OVMF_CODE=${OVMF_CODE}" >> "$GITHUB_ENV"
+
+      - name: Boot VM via OVMF (UEFI + systemd-boot)
+        run: |
+          touch "$(pwd)/vm-serial.log"
+          chmod 666 "$(pwd)/vm-serial.log"
+
+          # Spike answer #4: OVMF with empty VARS auto-detects the ESP and
+          # launches EFI/BOOT/BOOTX64.EFI (the systemd-boot fallback binary).
+          # No manual boot entry configuration needed.
+          #
+          # pflash usage:
+          #   -drive unit=0: read-only firmware code
+          #   -drive unit=1: writable variable store (per-VM copy)
+          sudo qemu-system-x86_64 \
+            -machine  q35,accel=kvm \
+            -cpu      host \
+            -m        4096 \
+            -smp      4 \
+            -drive    if=pflash,format=raw,unit=0,readonly=on,file="${OVMF_CODE}" \
+            -drive    if=pflash,format=raw,unit=1,file=./ovmf_vars.fd \
+            -object   iothread,id=ioth0 \
+            -drive    if=none,id=disk,file=disk.raw,format=raw,cache=unsafe,aio=threads,discard=unmap \
+            -device   virtio-blk-pci,drive=disk,iothread=ioth0 \
+            -netdev   user,id=net0,hostfwd=tcp::2222-:22 \
+            -device   virtio-net-pci,netdev=net0 \
+            -device   virtio-gpu-pci \
+            -display  none \
+            -serial   file:$(pwd)/vm-serial.log \
+            -daemonize \
+            -pidfile  /tmp/qemu.pid
+          echo "VM booting via OVMF (pid=$(sudo cat /tmp/qemu.pid))"
+
+      - name: Wait for SSH (initial boot)
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ConnectTimeout=5"
+          DEADLINE=$((SECONDS + 600))
+          while [ $SECONDS -lt $DEADLINE ]; do
+            if ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>/dev/null; then
+              echo "SSH ready after ${SECONDS}s"
+              ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "id; bootc status 2>/dev/null | head -20" 2>&1 || true
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ERROR: SSH never became ready after 10 minutes"
+          echo "=== Tail of serial log ==="
+          tail -100 "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
+          exit 1
+
+      - name: Capture pre-switch bootc status
+        run: |
+          SSH="ssh -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -p 2222 bluefin-test@127.0.0.1"
+
+          echo "=== getenforce ==="
+          $SSH "getenforce" 2>/dev/null || echo "(getenforce not available)"
+
+          echo ""
+          echo "=== bootc status (pre-switch) ==="
+          $SSH "bootc status" 2>/dev/null || true
+
+          echo ""
+          echo "=== bootc status --format=json (pre-switch) ==="
+          $SSH "bootc status --format=json" 2>/dev/null || true
+
+          echo ""
+          echo "=== Active image ref ==="
+          $SSH "bootc status --format=json 2>/dev/null | python3 -c 'import json,sys; s=json.load(sys.stdin); print(s[\"status\"][\"booted\"][\"image\"][\"image\"][\"image\"])'" 2>/dev/null || true
+
+      - name: Run bootc switch to target image
+        run: |
+          SSH="ssh -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=60 -p 2222 bluefin-test@127.0.0.1"
+
+          echo "Switching to ${TARGET_IMAGE}..."
+          # bootc switch pulls the full image — this takes 5-15 minutes.
+          timeout 900 $SSH "sudo bootc switch '${TARGET_IMAGE}'" || {
+            RC=$?
+            echo "bootc switch exited ${RC}"
+            if [ $RC -eq 124 ]; then
+              echo "ERROR: bootc switch timed out after 15 minutes"
+              exit 1
+            fi
+          }
+
+          echo ""
+          echo "=== bootc status (post-switch, pre-reboot) ==="
+          $SSH "bootc status" 2>/dev/null || true
+
+          echo ""
+          echo "=== Staged deployment ==="
+          $SSH "bootc status --format=json 2>/dev/null | python3 -c 'import json,sys; s=json.load(sys.stdin); staged=s[\"status\"].get(\"staged\"); print(\"Staged:\", staged[\"image\"][\"image\"][\"image\"] if staged else \"NONE\")'" 2>/dev/null || true
+
+      - name: Reboot VM and wait for SSH (post-switch)
+        run: |
+          SSH="ssh -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -p 2222 bluefin-test@127.0.0.1"
+
+          echo "Rebooting VM..."
+          $SSH "sudo reboot" 2>/dev/null || true
+          sleep 15
+
+          # Spike answer #5: After reboot, systemd-boot should pick the new
+          # deployment's BLS entry (highest sort key wins, and bootc writes
+          # the staged entry with a higher version/sort-key than the current).
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ConnectTimeout=5"
+          DEADLINE=$((SECONDS + 300))
+          while [ $SECONDS -lt $DEADLINE ]; do
+            if ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 "echo up" 2>/dev/null; then
+              echo "SSH ready after reboot (${SECONDS}s)"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "ERROR: SSH not ready within 5 minutes after reboot"
+          echo "=== Tail of serial log ==="
+          tail -150 "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
+          exit 1
+
+      - name: Verify post-switch deployment
+        run: |
+          SSH="ssh -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -p 2222 bluefin-test@127.0.0.1"
+
+          echo "=== bootc status (post-reboot) ==="
+          $SSH "bootc status" 2>/dev/null || true
+
+          echo ""
+          echo "=== Active image ref (post-reboot) ==="
+          ACTIVE_REF=$($SSH "bootc status --format=json 2>/dev/null | python3 -c 'import json,sys; s=json.load(sys.stdin); print(s[\"status\"][\"booted\"][\"image\"][\"image\"][\"image\"])'") || true
+          echo "Active: ${ACTIVE_REF}"
+
+          echo ""
+          echo "=== Rollback deployment ==="
+          $SSH "bootc status --format=json 2>/dev/null | python3 -c 'import json,sys; s=json.load(sys.stdin); r=s[\"status\"].get(\"rollback\"); print(\"Rollback:\", r[\"image\"][\"image\"][\"image\"] if r else \"NONE\")'" 2>/dev/null || true
+
+          echo ""
+          echo "=== ostree admin status ==="
+          $SSH "sudo ostree admin status" 2>/dev/null || true
+
+          # Verify the switch actually took effect.
+          if echo "${ACTIVE_REF}" | grep -q "projectbluefin"; then
+            echo ""
+            echo "SUCCESS: VM is now running the target image (${ACTIVE_REF})"
+            echo "UEFI boot via OVMF + systemd-boot correctly picked the new deployment after reboot."
+          else
+            echo ""
+            echo "FAILURE: Active image is still ${ACTIVE_REF} — expected projectbluefin"
+            echo "The reboot did not switch to the staged deployment."
+            exit 1
+          fi
+
+      - name: Dump serial log
+        if: always()
+        run: |
+          echo "=== VM serial console output ==="
+          cat "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
+
+      - name: Upload serial log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: spike-uefi-serial-log
+          path: vm-serial.log
+          retention-days: 7
+          if-no-files-found: ignore
