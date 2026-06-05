@@ -45,7 +45,7 @@ jobs:
 
   test-testing:
     name: bluefin:testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/projectbluefin/bluefin:testing
       suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
@@ -56,7 +56,7 @@ jobs:
 
   test-stable:
     name: bluefin:stable
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/projectbluefin/bluefin:stable
       suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
@@ -67,7 +67,7 @@ jobs:
 
   test-lts-testing:
     name: bluefin:lts-testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/projectbluefin/bluefin:lts-testing
       suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
@@ -78,7 +78,7 @@ jobs:
 
   test-lts:
     name: bluefin:lts
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/projectbluefin/bluefin:lts
       suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
@@ -91,7 +91,7 @@ jobs:
 
   test-gdx-testing:
     name: bluefin-gdx:stream10-testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/ublue-os/bluefin-gdx:stream10-testing
       suites: smoke,developer,dx,common
@@ -102,7 +102,7 @@ jobs:
 
   test-gdx-lts:
     name: bluefin-gdx:stream10
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/ublue-os/bluefin-gdx:stream10
       suites: smoke,developer,dx,common
@@ -115,7 +115,7 @@ jobs:
 
   test-nvidia-testing:
     name: bluefin-nvidia-open:testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/projectbluefin/bluefin-nvidia-open:testing
       suites: smoke,common
@@ -126,7 +126,7 @@ jobs:
 
   test-nvidia-stable:
     name: bluefin-nvidia-open:stable
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/projectbluefin/bluefin-nvidia-open:stable
       suites: smoke,common
@@ -139,7 +139,7 @@ jobs:
 
   test-dakota-testing:
     name: dakota:testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/projectbluefin/dakota:testing
       suites: smoke
@@ -150,7 +150,7 @@ jobs:
 
   test-dakota:
     name: dakota:latest
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/projectbluefin/dakota:latest
       suites: smoke
@@ -163,7 +163,7 @@ jobs:
 
   test-bazzite-testing:
     name: bazzite-gnome:testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:testing
       suites: bazzite
@@ -174,7 +174,7 @@ jobs:
 
   test-bazzite:
     name: bazzite-gnome:stable
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:stable
       suites: bazzite
@@ -187,7 +187,7 @@ jobs:
 
   test-gnomeos:
     name: gnomeos-latest (vanilla-gnome)
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@574a76ccdad4c9185715fe8b962a169557190291 # main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@fbbd7af6988fa513e90fc78db6f504408822dfc0 # main
     with:
       image: quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest
       suites: vanilla-gnome,software
