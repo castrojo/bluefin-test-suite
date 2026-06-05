@@ -55,8 +55,8 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | `bluefin:stable` | `ghcr.io/projectbluefin/bluefin:stable` | smoke, developer, common |
 | `bluefin:lts-testing` | `ghcr.io/projectbluefin/bluefin:lts-testing` | smoke, developer, common |
 | `bluefin:lts` | `ghcr.io/projectbluefin/bluefin:lts` | smoke, developer, common |
-| `bluefin-gdx:stream10-testing` | `ghcr.io/ublue-os/bluefin-gdx:stream10-testing` | smoke, developer, dx, common |
-| `bluefin-gdx:stream10` | `ghcr.io/ublue-os/bluefin-gdx:stream10` | smoke, developer, dx, common |
+| `bluefin-gdx:stream10-testing` | `ghcr.io/ublue-os/bluefin-gdx:stream10-testing` | smoke, developer, common |
+| `bluefin-gdx:stream10` | `ghcr.io/ublue-os/bluefin-gdx:stream10` | smoke, developer, common |
 | `bluefin-nvidia-open:testing` | `ghcr.io/projectbluefin/bluefin-nvidia-open:testing` | smoke, common |
 | `bluefin-nvidia-open:stable` | `ghcr.io/projectbluefin/bluefin-nvidia-open:stable` | smoke, common |
 | `dakota:testing` | `ghcr.io/projectbluefin/dakota:testing` | smoke, common |

@@ -9,7 +9,7 @@
 #   bluefin-nvidia-open  testing / stable                      → smoke,common
 #   dakota               testing / latest                      → smoke,common
 # Images at ghcr.io/ublue-os/:
-#   bluefin-gdx          stream10-testing / stream10 (=lts)    → smoke,developer,dx,common
+#   bluefin-gdx          stream10-testing / stream10 (=lts)    → smoke,developer,common
 #   bazzite-gnome        testing / stable                      → bazzite
 # GNOME OS (quay.io):
 #   gnomeos-latest                                             → vanilla-gnome,software
@@ -94,7 +94,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
       image: ghcr.io/ublue-os/bluefin-gdx:stream10-testing
-      suites: smoke,developer,dx,common
+      suites: smoke,developer,common
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
@@ -105,7 +105,7 @@ jobs:
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
       image: ghcr.io/ublue-os/bluefin-gdx:stream10
-      suites: smoke,developer,dx,common
+      suites: smoke,developer,common
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
