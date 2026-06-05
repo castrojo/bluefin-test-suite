@@ -85,6 +85,7 @@ class TestIgnoredFailedUnits:
             "cups.service",
             "bootloader-update.service",
             "nvidia-persistenced.service",
+            "fwupd-refresh.service",
         }
         for unit in expected:
             assert unit in system_health_steps.IGNORED_FAILED_UNITS_IN_VM, (
