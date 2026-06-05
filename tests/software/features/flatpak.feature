@@ -51,35 +51,7 @@ Feature: Bazaar (GNOME Software) smoke tests
     * Close application "software" via "shortcut"
     * Application "software" is no longer running
 
-  # ── Flatpak permissions ──────────────────────────────────────────────────
-  # Verify the XDG portal permissions database is queryable and that
-  # per-app overrides can be set and reset without corrupting the DB.
+  # ── Flatpak CLI checks moved to flatpak_cli.feature ─────────────────────
+  # flatpak_permissions and flatpak_cli scenarios are now in flatpak_cli.feature
+  # which has no Background dependency, so they run cleanly on all images.
 
-  @software @flatpak_permissions
-  Scenario: Flatpak permissions database is queryable
-    * Flatpak permissions table "notifications" is queryable
-
-  @quarantine @software @flatpak_permissions @nightly
-  Scenario: flatpak user override round-trip succeeds
-    # Calculator is always present; override doesn't require the app to be installed.
-    * Set flatpak user override "--filesystem=home" for "org.gnome.Calculator"
-    * Flatpak user override "filesystem=home" is active for "org.gnome.Calculator"
-    * Reset flatpak user overrides for "org.gnome.Calculator"
-    * No flatpak user overrides exist for "org.gnome.Calculator"
-
-  @software @flatpak_cli
-  Scenario: Flathub remote is configured and reachable
-    * Flatpak remote "flathub" is configured
-
-  # Still quarantined until GNOME Software's gnomeos/GNOME 50 startup path is
-  # re-verified alongside the other #176 scenarios.
-  @quarantine @software @flatpak_cli @nightly
-  Scenario: flatpak install and uninstall round-trip succeeds
-    # Apostrophe (~5 MB) is a small, stable Flatpak with no heavy runtimes.
-    # Marked @nightly to avoid slow network I/O on every PR run.
-    * Run and save command output: "flatpak install --noninteractive flathub org.gnome.Apostrophe 2>&1; echo rc:$?"
-    * Last command output contains "rc:0"
-    * Flatpak app "org.gnome.Apostrophe" is installed
-    * Run and save command output: "flatpak uninstall --noninteractive org.gnome.Apostrophe 2>&1; echo rc:$?"
-    * Last command output contains "rc:0"
-    * Flatpak app "org.gnome.Apostrophe" is not installed

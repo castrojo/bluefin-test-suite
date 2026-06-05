@@ -103,7 +103,10 @@ def after_scenario(context, scenario) -> None:
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
     if hasattr(context, 'sandbox'):
-        context.sandbox.after_scenario(context, scenario)
+        try:
+            context.sandbox.after_scenario(context, scenario)
+        except Exception as exc:
+            print(f"WARNING: sandbox.after_scenario raised {type(exc).__name__}: {exc}", flush=True)
 
 
 def after_all(context) -> None:
