@@ -532,3 +532,39 @@ If you need to capture the framebuffer from a custom step, call `qemu_screendump
 ```bash
 sudo python3 tests/shared/qemu_screendump.py results/my-screenshot.png
 ```
+
+## E2E smoke always exits code 1 even when all scenarios pass
+
+**Symptom:** All 50 (or 82) behave scenarios in the `smoke` suite appear to pass in the
+CI logs, but the "Fail job if tests failed" step still exits 1 and fails the job.  
+Specifically: `BEHAVE_RC=1` is captured even though the `behave_retry.py` run
+completed with 0 failures.
+
+**Cause:** `qecore-headless` ENTRYPOINT cleanup calls `stop_display_manager()` after the
+user script finishes.  Inside the runner container there is no systemd PID 1, so
+`check_output("sudo systemctl stop gdm")` raises `CalledProcessError`, which propagates
+as an unhandled exception and causes Python to exit 1 — **not 0**.  
+`podman run` mirrors this exit code, so `BEHAVE_RC=1` is written to disk.
+
+**Fix (in `container/Containerfile.runner`)** — Patch 5 wraps the cleanup call:
+```python
+# After user_script finishes, qecore-headless cleanup tries to stop GDM.
+# Inside the container there is no systemd, so this raises CalledProcessError.
+# Wrap it so the container exits 0 when tests pass.
+try:
+    if self.enable_stop or self.user_script_exit_code != 0:
+        self.display_manager_control.stop_display_manager()
+except Exception:
+    pass
+```
+
+Fixed in PR #327 (commit `fcbfd6a`). The `stop_display_manager` exception is now
+swallowed; the container exits with `self.user_script_exit_code` (0 when all tests pass).
+
+**Affected suites:** `smoke`, `developer`, `dx` (all suites run inside `qecore-headless`
+container via `podman run`). The `common` and `lifecycle` suites run directly on the GHA
+runner via SSH and are **not** affected.
+
+**SHA timeline (testsuite `e2e.yml`):**
+- Before `fcbfd6a`: exit code 1 masking — all smoke runs appeared to fail
+- From `fcbfd6a` onwards: exit code correctly reflects test results
