@@ -1,4 +1,4 @@
-"""Unit tests for tests/common/features/steps/steps.py step assertion helpers."""
+"""Unit tests for tests/common features step and environment helpers."""
 import sys
 import types
 from unittest.mock import MagicMock
@@ -32,6 +32,47 @@ def _ctx(**attrs):
     for k, v in attrs.items():
         setattr(ctx, k, v)
     return ctx
+
+
+def _import_common_environment(*, run_ssh_returncode=0):
+    ssh_steps_stub = types.ModuleType("tests.shared.ssh_steps")
+
+    def _run_ssh(context, cmd, timeout=60):
+        context.command_stdout = ""
+        context.last_command_output = ""
+        context.ssh_rc = run_ssh_returncode
+        context.last_ssh_result = None
+        return "", run_ssh_returncode
+
+    ssh_steps_stub.run_ssh = _run_ssh
+    sys.modules["tests.shared"] = sys.modules.get("tests.shared", types.ModuleType("tests.shared"))
+    sys.modules["tests.shared.ssh_steps"] = ssh_steps_stub
+
+    quarantine_stub = types.ModuleType("tests.shared.quarantine")
+    quarantine_stub.skip_quarantine = lambda scenario: False
+    sys.modules["tests.shared.quarantine"] = quarantine_stub
+
+    timing_stub = types.ModuleType("tests.shared.timing")
+    timing_stub.record_start = lambda context: None
+    timing_stub.record_end = lambda context, scenario: None
+    sys.modules["tests.shared.timing"] = timing_stub
+
+    for key in list(sys.modules):
+        if key.endswith("common.features.environment"):
+            del sys.modules[key]
+
+    import tests.common.features.environment as m  # noqa: PLC0415
+    return m
+
+
+class _Scenario:
+    def __init__(self, tags):
+        self.tags = list(tags)
+        self.effective_tags = list(tags)
+        self.skip_message = None
+
+    def skip(self, message=None):
+        self.skip_message = message
 
 
 # ---------------------------------------------------------------------------
@@ -84,3 +125,25 @@ class TestLastCommandExitsWithNonZeroStatus:
         ctx = _ctx(ssh_rc=0, last_ssh_result=last_result)
         with pytest.raises(AssertionError, match="something went wrong"):
             m.last_command_exits_with_non_zero_status(ctx)
+
+
+class TestCommonEnvironmentRequiresBrew:
+    def test_skips_requires_brew_when_brew_is_missing(self):
+        m = _import_common_environment(run_ssh_returncode=1)
+        context = _ctx(is_bluefin_image=True, has_brew=None)
+        scenario = _Scenario(["requires_brew"])
+
+        m.before_scenario(context, scenario)
+
+        assert scenario.skip_message == "Homebrew not present on this image"
+        assert context.has_brew is False
+
+    def test_allows_requires_brew_when_brew_is_present(self):
+        m = _import_common_environment(run_ssh_returncode=0)
+        context = _ctx(is_bluefin_image=True, has_brew=None)
+        scenario = _Scenario(["requires_brew"])
+
+        m.before_scenario(context, scenario)
+
+        assert scenario.skip_message is None
+        assert context.has_brew is True
