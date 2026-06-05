@@ -35,7 +35,14 @@ def run_ssh(context, cmd, timeout=60):
         ssh_opts += ["-p", str(context.ssh_port)]
     ssh_opts.append(f"{context.ssh_user}@{context.vm_ip}")
     ssh_opts.append(final_cmd)
-    result = subprocess.run(ssh_opts, capture_output=True, text=True, timeout=timeout)
+    try:
+        result = subprocess.run(ssh_opts, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        context.command_stdout = ""
+        context.last_command_output = ""
+        context.ssh_rc = -1
+        context.last_ssh_result = None
+        raise
     stdout = result.stdout.strip()
     context.command_stdout = stdout
     context.last_command_output = stdout
