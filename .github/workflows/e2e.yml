@@ -733,6 +733,35 @@ jobs:
               || echo 'WARNING: toolkit-accessibility not set (gsettings failed)'
           "
 
+          # Re-query AT-SPI bus address after enabling toolkit-accessibility.
+          # On images where toolkit-accessibility was not pre-enabled (e.g. older
+          # production images), the AT-SPI bus is only started when the setting is
+          # applied above.  The initial query (before toolkit-accessibility) fell back
+          # to the session bus; now that AT-SPI has had a chance to start, re-query
+          # and update session.env with the real socket address.
+          $SSH "
+            source /tmp/session.env
+            # Only re-query if we used the session-bus fallback.
+            if [[ \"\${AT_SPI_BUS_ADDRESS}\" == \"\${DBUS_SESSION_BUS_ADDRESS}\" ]]; then
+              echo 'AT-SPI address was fallback — re-querying after toolkit-accessibility was set...'
+              ATSPI_ADDR=\"\"
+              for _i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+                ATSPI_ADDR=\$(DBUS_SESSION_BUS_ADDRESS=\"\${DBUS_SESSION_BUS_ADDRESS}\" \
+                  gdbus call --session --dest org.a11y.Bus --object-path /org/a11y/bus \
+                  --method org.a11y.Bus.GetAddress 2>/dev/null \
+                  | sed \"s/.*'\\(unix:[^']*\\)'.*/\\1/\")
+                [[ -n \"\${ATSPI_ADDR}\" ]] && [[ \"\${ATSPI_ADDR}\" != \"\${DBUS_SESSION_BUS_ADDRESS}\" ]] && break
+                sleep 2
+              done
+              if [[ -n \"\${ATSPI_ADDR}\" ]] && [[ \"\${ATSPI_ADDR}\" != \"\${DBUS_SESSION_BUS_ADDRESS}\" ]]; then
+                echo \"AT-SPI bus address (re-queried): \${ATSPI_ADDR}\"
+                sed -i \"s|AT_SPI_BUS_ADDRESS=.*|AT_SPI_BUS_ADDRESS=\${ATSPI_ADDR}|\" /tmp/session.env
+              else
+                echo 'WARNING: AT-SPI bus address still unavailable after retry — tests may fail'
+              fi
+            fi
+          "
+
           # Gracefully terminate gnome-control-center if it started before toolkit-
           # accessibility was set (it would never register with AT-SPI).  The Settings
           # test launches a fresh instance via gio launch (D-Bus activation) which
