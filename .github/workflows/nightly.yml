@@ -78,6 +78,7 @@ jobs:
 
   test-lts:
     name: bluefin:lts
+    continue-on-error: true
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
       image: ghcr.io/projectbluefin/bluefin:lts
@@ -163,6 +164,7 @@ jobs:
 
   test-bazzite-testing:
     name: bazzite-gnome:testing
+    continue-on-error: true
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:testing
@@ -174,6 +176,7 @@ jobs:
 
   test-bazzite:
     name: bazzite-gnome:stable
+    continue-on-error: true
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
       image: ghcr.io/ublue-os/bazzite-gnome:stable

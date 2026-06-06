@@ -56,6 +56,13 @@ RUN dbus-uuidgen > /etc/machine-id && \
     mkdir -p /var/lib/dbus && \
     ln -sf /etc/machine-id /var/lib/dbus/machine-id
 
+# dbus-run-session was removed from dbus-tools in dbus 1.16 (Fedora 44+).
+# qecore-headless still calls it to check/set toolkit-accessibility inside the
+# container.  The container already has DBUS_SESSION_BUS_ADDRESS injected via
+# the `podman run -e` flags, so a pass-through shim is sufficient.
+RUN printf '#!/bin/sh\nexec "$@"\n' > /usr/local/bin/dbus-run-session && \
+    chmod +x /usr/local/bin/dbus-run-session
+
 # Install Python test stack — pinned so bumps are explicit and reviewed
 # Pinned 2026-05-30 — bump manually or via Renovate
 # python-uinput is a C extension and requires gcc + python3-devel to build from source;
