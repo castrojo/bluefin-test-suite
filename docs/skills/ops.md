@@ -684,3 +684,41 @@ installed by `brew-setup.service` on first login, which is masked in CI.
 **Status:** Real image quality issue, not test infrastructure. Tests correctly detect
 missing tools. Report to image maintainers. If tools are not expected, add
 `@requires_brew` tag to scenarios in `common_shell.feature` and skip them.
+
+## `lifecycle / on-pr-opened` fails — missing `pr/needs-review` label
+
+**Symptom:** Every new PR fails the `lifecycle / on-pr-opened` check with exit code 1:
+```
+'pr/needs-review' not found
+```
+
+**Cause:** The `projectbluefin/common` lifecycle workflow automatically labels new PRs
+with `pr/needs-review`. If that label doesn't exist in the target repo, `gh pr edit
+--add-label` fails.
+
+**Fix:** Create the label once in the repo:
+```bash
+gh label create "pr/needs-review" --repo projectbluefin/testsuite \
+  --color "#0075ca" --description "Needs review from a maintainer"
+```
+
+This was fixed in 2026-06-07. Do not delete this label.
+
+## Non-blocking nightly jobs (`continue-on-error`)
+
+Some nightly jobs run with `continue-on-error: true` because they track upstream image
+regressions outside the testsuite's control. A failing `continue-on-error` job turns
+the job status orange (⚠️) but does not fail the overall nightly run.
+
+Current non-blocking jobs (as of 2026-06-07):
+
+| Job | Reason | Tracking issue |
+|---|---|---|
+| `bluefin:lts` | GNOME Shell D-Bus not activatable — image regression | #409 |
+| `dakota:testing` / `dakota:latest` | AT-SPI Files window not found — image regression | — |
+| `bazzite-gnome:testing` / `bazzite-gnome:stable` | All GNOME extensions state=6 (ERROR) | #408 |
+| `bluefin:lifecycle` | Migration fails: `bootupd required for ostree-based installs` | #383 |
+
+**When to remove `continue-on-error`:** Once the upstream image ships the fix and the
+nightly job passes cleanly for two consecutive runs, remove the flag from `nightly.yml`
+and close the tracking issue.
