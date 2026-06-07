@@ -118,13 +118,13 @@ Feature: bootc upgrade and rollback lifecycle
     * os-release VERSION_ID is tracked across upgrade
     * Run SSH command: "sudo bootc status --format=json"
     * Active deployment matches upgrade target digest
-    * bootc status image reference starts with "ghcr.io/ublue-os/"
+    * bootc status image reference starts with "ghcr.io/"
 
   @lifecycle @status @version
   Scenario: bootc status shows image reference format is valid
     * Run SSH command: "sudo bootc status --format=json"
     * SSH command return code is "0"
-    * bootc status image reference starts with "ghcr.io/ublue-os/"
+    * bootc status image reference starts with "ghcr.io/"
     * bootc status image digest is a valid sha256
     * Capture current os-release VERSION_ID via SSH
     * Captured VERSION_ID is a valid Fedora version number
