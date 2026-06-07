@@ -49,23 +49,25 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job name is visible in the Actions UI.
 
-| Job name | Image | Suites |
-|---|---|---|
-| `bluefin:testing` | `ghcr.io/projectbluefin/bluefin:testing` | smoke, developer, common |
-| `bluefin:stable` | `ghcr.io/projectbluefin/bluefin:stable` | smoke, developer, common |
-| `bluefin:lts-testing` | `ghcr.io/projectbluefin/bluefin:lts-testing` | smoke, developer, common |
-| `bluefin:lts` | `ghcr.io/projectbluefin/bluefin:lts` | smoke, developer, common |
-| `bluefin-gdx:stream10-testing` | `ghcr.io/ublue-os/bluefin-gdx:stream10-testing` | smoke, developer, common |
-| `bluefin-gdx:stream10` | `ghcr.io/ublue-os/bluefin-gdx:stream10` | smoke, developer, common |
-| `bluefin-nvidia-open:testing` | `ghcr.io/projectbluefin/bluefin-nvidia-open:testing` | smoke, common |
-| `bluefin-nvidia-open:stable` | `ghcr.io/projectbluefin/bluefin-nvidia-open:stable` | smoke, common |
-| `dakota:testing` | `ghcr.io/projectbluefin/dakota:testing` | smoke, common |
-| `dakota:latest` | `ghcr.io/projectbluefin/dakota:latest` | smoke, common |
-| `bazzite-gnome:testing` | `ghcr.io/ublue-os/bazzite-gnome:testing` | bazzite |
-| `bazzite-gnome:stable` | `ghcr.io/ublue-os/bazzite-gnome:stable` | bazzite |
-| `gnomeos` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
-| `bluefin:lifecycle` | `ghcr.io/ublue-os/bluefin:latest` | lifecycle (via `upgrade-test.yml`) |
-| `persist-results` | n/a | Downloads nightly result artifacts and publishes `data/results-YYYY-MM-DD.jsonl` to `gh-pages` |
+| Job name | Image | Suites | Blocking? |
+|---|---|---|---|
+| `bluefin:testing` | `ghcr.io/projectbluefin/bluefin:testing` | smoke, developer, common | ✅ yes |
+| `bluefin:stable` | `ghcr.io/projectbluefin/bluefin:stable` | smoke, developer, common | ✅ yes |
+| `bluefin:lts-testing` | `ghcr.io/projectbluefin/bluefin:lts-testing` | smoke, developer, common | ✅ yes |
+| `bluefin:lts` | `ghcr.io/projectbluefin/bluefin:lts` | smoke, developer, common | ⚠️ `continue-on-error` (issue #409) |
+| `bluefin-gdx:stream10-testing` | `ghcr.io/ublue-os/bluefin-gdx:stream10-testing` | smoke, developer, common | ✅ yes |
+| `bluefin-gdx:stream10` | `ghcr.io/ublue-os/bluefin-gdx:stream10` | smoke, developer, common | ✅ yes |
+| `bluefin-nvidia-open:testing` | `ghcr.io/projectbluefin/bluefin-nvidia-open:testing` | smoke, common | ✅ yes |
+| `bluefin-nvidia-open:stable` | `ghcr.io/projectbluefin/bluefin-nvidia-open:stable` | smoke, common | ✅ yes |
+| `dakota:testing` | `ghcr.io/projectbluefin/dakota:testing` | smoke, common | ⚠️ `continue-on-error` (image regression) |
+| `dakota:latest` | `ghcr.io/projectbluefin/dakota:latest` | smoke, common | ⚠️ `continue-on-error` (image regression) |
+| `bazzite-gnome:testing` | `ghcr.io/ublue-os/bazzite-gnome:testing` | bazzite | ⚠️ `continue-on-error` (issue #408) |
+| `bazzite-gnome:stable` | `ghcr.io/ublue-os/bazzite-gnome:stable` | bazzite | ⚠️ `continue-on-error` (issue #408) |
+| `gnomeos` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software | ✅ yes |
+| `bluefin:lifecycle` | `ghcr.io/ublue-os/bluefin:latest` | lifecycle (via `upgrade-test.yml`) | ⚠️ `continue-on-error` (issue #383) |
+| `persist-results` | n/a | Downloads nightly result artifacts and publishes `data/results-YYYY-MM-DD.jsonl` to `gh-pages` | n/a |
+
+**Non-blocking jobs** (`continue-on-error: true`) track upstream image regressions that are outside the testsuite's control. Remove `continue-on-error` once the upstream issue resolves and the nightly is green for that job.
 
 **Registry split:** `bluefin`, `bluefin-nvidia-open`, `dakota` → `ghcr.io/projectbluefin`. `bluefin-gdx`, `bazzite-gnome` → `ghcr.io/ublue-os`.
 
