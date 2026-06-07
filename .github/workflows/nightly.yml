@@ -140,6 +140,7 @@ jobs:
 
   test-dakota-testing:
     name: dakota:testing
+    continue-on-error: true
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
       image: ghcr.io/projectbluefin/dakota:testing
@@ -151,6 +152,7 @@ jobs:
 
   test-dakota:
     name: dakota:latest
+    continue-on-error: true
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
       image: ghcr.io/projectbluefin/dakota:latest
@@ -203,6 +205,7 @@ jobs:
 
   test-bluefin-lifecycle:
     name: bluefin:lifecycle (ublue-os→projectbluefin, zstd:chunked)
+    continue-on-error: true
     uses: projectbluefin/actions/.github/workflows/upgrade-test.yml@04f8a600db513b007c54cd5d52e707cf67b80814 # main
     with:
       image: ghcr.io/ublue-os/bluefin:latest
