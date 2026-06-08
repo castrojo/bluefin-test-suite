@@ -17,7 +17,7 @@ def run_ssh(context, cmd, timeout=60):
     prefix = getattr(context, "ssh_command_prefix", "")
     final_cmd = cmd
     if prefix:
-        final_cmd = f"bash -lc {shlex.quote(f'{prefix}; {cmd}')}"
+        final_cmd = f"bash -c {shlex.quote(f'{prefix}; {cmd}')}"
     ssh_opts = [
         "ssh",
         "-i",

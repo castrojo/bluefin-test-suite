@@ -96,16 +96,17 @@ class TestRunSsh:
         # The raw command should be the last element
         assert call_args[-1] == "echo direct"
 
-    def test_prefix_wraps_in_bash_lc(self):
+    def test_prefix_wraps_in_bash_c(self):
         ctx = _make_context(ssh_command_prefix="export VAR=1")
         proc = _make_proc(stdout="ok\n")
         with patch("subprocess.run", return_value=proc) as mock_run:
             self.mod.run_ssh(ctx, "echo wrapped")
         call_args = mock_run.call_args[0][0]
-        # The prefix+command is embedded in the final SSH argument as "bash -lc '...'"
+        # The prefix+command is embedded in the final SSH argument as "bash -c '...'"
         last_arg = call_args[-1]
         assert "bash" in last_arg
-        assert "-lc" in last_arg
+        assert "-c" in last_arg
+        assert "-lc" not in last_arg
         assert "export VAR=1" in last_arg
         assert "echo wrapped" in last_arg
 
