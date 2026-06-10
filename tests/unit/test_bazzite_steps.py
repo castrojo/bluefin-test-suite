@@ -193,8 +193,9 @@ class TestOverviewSteps:
 
     def test_overview_is_open_raises_when_not_visible(self):
         m = _import_bazzite_steps()
-        with patch("tests.bazzite.features.steps.steps._eval_bool", return_value=False):
-            with pytest.raises(AssertionError, match="Overview is not open"):
+        with patch("tests.bazzite.features.steps.steps._eval_bool", return_value=False), \
+             patch("tests.bazzite.features.steps.steps.time.sleep"):
+            with pytest.raises(AssertionError, match="did not open after 4s"):
                 m.overview_is_open(_ctx())
 
     def test_overview_is_closed_passes_when_not_visible(self):
@@ -204,8 +205,9 @@ class TestOverviewSteps:
 
     def test_overview_is_closed_raises_when_visible(self):
         m = _import_bazzite_steps()
-        with patch("tests.bazzite.features.steps.steps._eval_bool", return_value=True):
-            with pytest.raises(AssertionError, match="Overview is still open"):
+        with patch("tests.bazzite.features.steps.steps._eval_bool", return_value=True), \
+             patch("tests.bazzite.features.steps.steps.time.sleep"):
+            with pytest.raises(AssertionError, match="still showing after 4s"):
                 m.overview_is_closed(_ctx())
 
 
