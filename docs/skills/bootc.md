@@ -1,3 +1,10 @@
+---
+name: bootc-lifecycle
+description: "bootc lifecycle testing reference — upgrade, rollback, migration step patterns, bootc status JSON schema, and known gotchas for lifecycle and migration test suites."
+metadata:
+  type: reference
+---
+
 # bootc Lifecycle Testing Reference
 
 Load when: writing or debugging lifecycle, upgrade, or rollback tests.

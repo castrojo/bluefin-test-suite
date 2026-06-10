@@ -1,3 +1,10 @@
+---
+name: uefi-boot
+description: "UEFI boot via OVMF + systemd-boot in testsuite CI — why UEFI matters for migration tests, QEMU boot pipeline, known issues, and the hold criteria for the 3-lane UEFI workflow (issue #232)."
+metadata:
+  type: reference
+---
+
 # UEFI Boot via OVMF + systemd-boot
 
 Load when: working on migration tests that require VM reboots, modifying the QEMU boot pipeline, or debugging UEFI/systemd-boot issues in CI.
