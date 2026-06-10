@@ -43,6 +43,16 @@ New suites → this repo. New infra (VM specs, manifests) → testing-lab. PRs t
 | Full PR review gate, coverage posture | `QA-REVIEW.md` |
 | Commands, operational guidance | `RUNBOOK.md` |
 
+## Project agents
+
+Project-local agents live in `.pi/agents/`. Load with `agentScope: "project"` or `"both"`.
+
+| Agent | Purpose |
+|---|---|
+| `test-author` | Write behave scenarios for coverage gaps, implement @future stubs |
+| `triage` | Label issues, close duplicates, classify upstream regressions vs testsuite bugs |
+| `pr-reviewer` | Review PRs against contribution gates before merge queue |
+
 ## Improving skill docs
 
 All files in `docs/skills/` are community-maintained operational knowledge. Any agent or contributor can update them.
