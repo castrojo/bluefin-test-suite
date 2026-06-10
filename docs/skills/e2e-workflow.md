@@ -1,3 +1,10 @@
+---
+name: e2e-workflow
+description: "Reusable E2E workflow reference — how to integrate the testsuite into another repo's CI, QEMU boot pipeline details, workflow inputs/outputs, and debugging guidance."
+metadata:
+  type: reference
+---
+
 # Reusable E2E Workflow — GNOME in QEMU
 
 Load when: integrating the testsuite into another repo's CI (e.g. `projectbluefin/dakota`), debugging e2e workflow failures, or understanding how the QEMU boot pipeline works.

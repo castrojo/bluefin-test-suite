@@ -1,3 +1,10 @@
+---
+name: suite-map
+description: "Suite map and coverage snapshot for projectbluefin/testsuite — variant matrix, suite-to-image mapping, @future gaps, nightly CI job matrix, and active/quarantined scenario counts."
+metadata:
+  type: reference
+---
+
 # Suite Map and Coverage
 
 Load when: deciding which suite to add a test to, checking existing coverage, or reviewing @future gaps.

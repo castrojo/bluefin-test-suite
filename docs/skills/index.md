@@ -37,5 +37,16 @@ New suites → this repo. New infra (VM specs, manifests) → testing-lab. PRs t
 | UEFI boot via OVMF + systemd-boot (migration reboot testing) | `docs/skills/uefi-boot.md` |
 | Flatpak screenshot gallery (screenshot_flatpaks input, GHCR artifact tags) | `docs/flatpak-screenshots.md` |
 | Submitting improvements, PRs, doc updates | `docs/skills/contributing.md` |
+| When to stop and request human input (design/security/breakage gates) | `docs/skills/human-gates.md` |
+| What counts as a skill update, how to write and commit it | `docs/skills/skill-improvement.md` |
+| How the skill-drift CI check works, path mapping, waiver process | `docs/skills/skill-drift.md` |
 | Full PR review gate, coverage posture | `QA-REVIEW.md` |
 | Commands, operational guidance | `RUNBOOK.md` |
+
+## Improving skill docs
+
+All files in `docs/skills/` are community-maintained operational knowledge. Any agent or contributor can update them.
+
+**When to update a skill:** any time a session surfaces a workaround, non-obvious pattern, or convention while working in this repo. See [`docs/skills/skill-improvement.md`](skill-improvement.md) for the full mandate and checklist.
+
+The skill-drift CI check (`skill-drift.yml`) warns when implementation changes land without a matching skill update. Treat warnings as hard requirements.

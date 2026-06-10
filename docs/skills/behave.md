@@ -1,3 +1,10 @@
+---
+name: behave-patterns
+description: "Behave test patterns for projectbluefin/testsuite — step structure, shared SSH helpers, suite scaffolding, and debugging step resolution errors."
+metadata:
+  type: reference
+---
+
 # Behave Patterns Reference
 
 Load when: writing behave tests, scaffolding new suites, or debugging step resolution errors.

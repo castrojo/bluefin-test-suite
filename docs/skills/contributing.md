@@ -1,3 +1,10 @@
+---
+name: contributing
+description: "Agent contribution guide for projectbluefin/testsuite — branch naming, pre-PR validation, what to update in a PR, merge queue process, and how to review PRs before merging."
+metadata:
+  type: procedure
+---
+
 # Agent Contribution Guide
 
 Load when: you found a bug, gap, or improvement while working in this repo.
@@ -121,6 +128,8 @@ If a skill doc (`docs/skills/*.md`) is wrong or incomplete:
 4. No need for the scenario count section if it's docs-only
 
 **Do not add hard rules to individual skill docs** — rules go in `docs/skills/index.md` (single source). Skill docs hold patterns and examples only.
+
+**The skill-improvement mandate:** every PR that changes `tests/**`, `.github/workflows/**`, or `scripts/**` should include a matching skill file update. See [`docs/skills/skill-improvement.md`](skill-improvement.md) for what counts as a learning, which skill to update, and how to commit it together. The skill-drift CI check will warn if this is skipped.
 
 ## Testing your changes with the GitHub Action
 

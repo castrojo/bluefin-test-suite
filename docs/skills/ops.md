@@ -1,3 +1,10 @@
+---
+name: ops-gotchas
+description: "Operational gotchas for projectbluefin/testsuite — VM boot failures, GDM autologin, Argo mutex, systemd-oomd.socket, bazzite extension state, and other infra-layer issues agents hit mid-task."
+metadata:
+  type: reference
+---
+
 # Operational Gotchas
 
 Load when: a VM boots to GDM greeter, or you're debugging infra-layer failures.

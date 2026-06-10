@@ -1,3 +1,10 @@
+---
+name: gnome-testing
+description: "GNOME desktop testing reference — AT-SPI/dogtail patterns, GNOME Shell interaction via Shell.Eval, known GNOME version quirks, and reliable automation techniques for headless QEMU environments."
+metadata:
+  type: reference
+---
+
 # GNOME Desktop Testing Reference
 
 Load when: writing or debugging GNOME Shell, AT-SPI, or dogtail interactions.
