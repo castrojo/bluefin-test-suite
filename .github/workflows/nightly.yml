@@ -7,7 +7,7 @@
 # Images at ghcr.io/projectbluefin/:
 #   bluefin              testing / stable / lts-testing / lts  → smoke,developer,common
 #   bluefin-nvidia-open  testing / stable                      → smoke,common
-#   dakota               testing / latest                      → smoke,common
+#   dakota               testing / latest                      → smoke
 # Images at ghcr.io/ublue-os/:
 #   bluefin-gdx          stream10-testing / stream10 (=lts)    → smoke,developer,common
 #   bazzite-gnome        testing / stable                      → bazzite
@@ -41,161 +41,103 @@ permissions:
   packages: write
 
 jobs:
-  # ── bluefin (projectbluefin) ─────────────────────────────────────────────────
+  # ── variant × suite matrix ───────────────────────────────────────────────────
+  #
+  # All images that use the standard e2e action are expressed as a single
+  # configurable include list.  Adding a new variant means adding one entry.
+  #
+  # Fields per entry:
+  #   name              — display name shown in the GitHub Actions UI
+  #   image             — fully-qualified OCI image reference
+  #   suites            — comma-separated suite names (default when no override)
+  #   bluefin_dispatch  — true = honour the workflow_dispatch `suites` override
+  #   continue_on_error — true = known-unstable image; failure is non-blocking
+  #
+  # SSH-mode suites (lifecycle, security, hardware) are tracked in epics #43/#44.
+  # NVIDIA suites are blocked on GPU passthrough (epic E08).
 
-  test-testing:
-    name: bluefin:testing
+  test-matrix:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── bluefin (projectbluefin) — suites overrideable via workflow_dispatch
+          - name: "bluefin:testing"
+            image: ghcr.io/projectbluefin/bluefin:testing
+            suites: "smoke,developer,common"
+            bluefin_dispatch: true
+            continue_on_error: false
+          - name: "bluefin:stable"
+            image: ghcr.io/projectbluefin/bluefin:stable
+            suites: "smoke,developer,common"
+            bluefin_dispatch: true
+            continue_on_error: false
+          - name: "bluefin:lts-testing"
+            image: ghcr.io/projectbluefin/bluefin:lts-testing
+            suites: "smoke,developer,common"
+            bluefin_dispatch: true
+            continue_on_error: false
+          - name: "bluefin:lts"
+            image: ghcr.io/projectbluefin/bluefin:lts
+            suites: "smoke,developer,common"
+            bluefin_dispatch: true
+            continue_on_error: true
+          # ── bluefin-gdx (ublue-os)
+          - name: "bluefin-gdx:stream10-testing"
+            image: ghcr.io/ublue-os/bluefin-gdx:stream10-testing
+            suites: "smoke,developer,common"
+            bluefin_dispatch: false
+            continue_on_error: false
+          - name: "bluefin-gdx:stream10"
+            image: ghcr.io/ublue-os/bluefin-gdx:stream10
+            suites: "smoke,developer,common"
+            bluefin_dispatch: false
+            continue_on_error: false
+          # ── bluefin-nvidia-open (projectbluefin)
+          - name: "bluefin-nvidia-open:testing"
+            image: ghcr.io/projectbluefin/bluefin-nvidia-open:testing
+            suites: "smoke,common"
+            bluefin_dispatch: false
+            continue_on_error: false
+          - name: "bluefin-nvidia-open:stable"
+            image: ghcr.io/projectbluefin/bluefin-nvidia-open:stable
+            suites: "smoke,common"
+            bluefin_dispatch: false
+            continue_on_error: false
+          # ── dakota (projectbluefin) — experimental; non-blocking
+          - name: "dakota:testing"
+            image: ghcr.io/projectbluefin/dakota:testing
+            suites: "smoke"
+            bluefin_dispatch: false
+            continue_on_error: true
+          - name: "dakota:latest"
+            image: ghcr.io/projectbluefin/dakota:latest
+            suites: "smoke"
+            bluefin_dispatch: false
+            continue_on_error: true
+          # ── bazzite (ublue-os) — non-blocking (upstream image regressions)
+          - name: "bazzite-gnome:testing"
+            image: ghcr.io/ublue-os/bazzite-gnome:testing
+            suites: "bazzite"
+            bluefin_dispatch: false
+            continue_on_error: true
+          - name: "bazzite-gnome:stable"
+            image: ghcr.io/ublue-os/bazzite-gnome:stable
+            suites: "bazzite"
+            bluefin_dispatch: false
+            continue_on_error: true
+          # ── upstream GNOME OS (vanilla-gnome baseline)
+          - name: "gnomeos-latest (vanilla-gnome)"
+            image: quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest
+            suites: "vanilla-gnome,software"
+            bluefin_dispatch: false
+            continue_on_error: false
+    continue-on-error: ${{ matrix.continue_on_error }}
     uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
     with:
-      image: ghcr.io/projectbluefin/bluefin:testing
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  test-stable:
-    name: bluefin:stable
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/projectbluefin/bluefin:stable
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  test-lts-testing:
-    name: bluefin:lts-testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/projectbluefin/bluefin:lts-testing
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  test-lts:
-    name: bluefin:lts
-    continue-on-error: true
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/projectbluefin/bluefin:lts
-      suites: ${{ github.event.inputs.suites || 'smoke,developer,common' }}
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  # ── bluefin-gdx (ublue-os) ───────────────────────────────────────────────────
-
-  test-gdx-testing:
-    name: bluefin-gdx:stream10-testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/ublue-os/bluefin-gdx:stream10-testing
-      suites: smoke,developer,common
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  test-gdx-lts:
-    name: bluefin-gdx:stream10
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/ublue-os/bluefin-gdx:stream10
-      suites: smoke,developer,common
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  # ── bluefin-nvidia-open (projectbluefin) ─────────────────────────────────────
-
-  test-nvidia-testing:
-    name: bluefin-nvidia-open:testing
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/projectbluefin/bluefin-nvidia-open:testing
-      suites: smoke,common
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  test-nvidia-stable:
-    name: bluefin-nvidia-open:stable
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/projectbluefin/bluefin-nvidia-open:stable
-      suites: smoke,common
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  # ── dakota (projectbluefin) ──────────────────────────────────────────────────
-
-  test-dakota-testing:
-    name: dakota:testing
-    continue-on-error: true
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/projectbluefin/dakota:testing
-      suites: smoke
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  test-dakota:
-    name: dakota:latest
-    continue-on-error: true
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/projectbluefin/dakota:latest
-      suites: smoke
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  # ── bazzite (ublue-os) ───────────────────────────────────────────────────────
-
-  test-bazzite-testing:
-    name: bazzite-gnome:testing
-    continue-on-error: true
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/ublue-os/bazzite-gnome:testing
-      suites: bazzite
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  test-bazzite:
-    name: bazzite-gnome:stable
-    continue-on-error: true
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: ghcr.io/ublue-os/bazzite-gnome:stable
-      suites: bazzite
-      skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
-    permissions:
-      contents: read
-      packages: write
-
-  # ── upstream GNOME OS (vanilla-gnome baseline) ───────────────────────────────
-
-  test-gnomeos:
-    name: gnomeos-latest (vanilla-gnome)
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@e7f9c65095a0cbf62689a8cd64a471ee4824630c
-    with:
-      image: quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest
-      suites: vanilla-gnome,software
+      image: ${{ matrix.image }}
+      suites: ${{ (matrix.bluefin_dispatch && github.event.inputs.suites) || matrix.suites }}
       skip_native_apps: ${{ github.event.inputs.skip_native_apps == 'true' }}
     permissions:
       contents: read
@@ -218,19 +160,7 @@ jobs:
   persist-results:
     name: persist-results
     needs:
-      - test-testing
-      - test-stable
-      - test-lts-testing
-      - test-lts
-      - test-gdx-testing
-      - test-gdx-lts
-      - test-nvidia-testing
-      - test-nvidia-stable
-      - test-dakota-testing
-      - test-dakota
-      - test-bazzite-testing
-      - test-bazzite
-      - test-gnomeos
+      - test-matrix
       - test-bluefin-lifecycle
     if: always()
     runs-on: ubuntu-latest
