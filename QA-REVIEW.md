@@ -33,12 +33,14 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-485 unit tests across 32 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+569 unit tests across 34 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
 | `test_gnome_shell_steps.py` | 41 | Shell.Eval, AT-SPI step helpers, ShellEval bool variants |
 | `test_gnome_settings_steps.py` | 20 | Settings panel navigation and toggle helpers |
+| `test_gnome_files_steps.py` | 36 | Nautilus app/window finders, sidebar, location bar, search bar, folder dialog |
+| `test_gnome_text_editor_steps.py` | 48 | Text Editor app/window finders, buffer text, save/discard dialogs, _node_text |
 | `test_lifecycle_steps.py` | 20 | bootc upgrade/rollback/migration step helpers |
 | `test_ssh_steps.py` | 26 | `run_ssh()`, journal/coredump matchers, output assertions |
 | `test_timing.py` | 13 | SLA tag thresholds and timing helpers |
