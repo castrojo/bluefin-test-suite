@@ -1,9 +1,22 @@
-@software_suite @pending
-Feature: Bazaar coverage placeholder for Bluefin
-  Bluefin ships Bazaar (`io.github.kolunmi.Bazaar`) instead of GNOME Software.
-  Issue #419 tracks replacing the quarantined GNOME Software smoke coverage with
-  Bluefin-valid Bazaar validation once CI has a GUI-capable harness or Bazaar
-  CLI fallback.
+@software_suite
+Feature: Bazaar CLI validation for Bluefin
+  Validates Bazaar (io.github.kolunmi.Bazaar) Flatpak presence and metadata
+  without requiring AT-SPI GUI access. These scenarios run on Bluefin images
+  only — gnomeos and images that do not ship Bazaar are skipped via the
+  _has_bazaar() guard in environment.py.
 
-  Scenario: Bazaar Flatpak management coverage is pending issue #419
-    * Wait 1 second before action
+  Replaces the @pending placeholder from issue #419. AT-SPI-based Bazaar
+  navigation scenarios remain quarantined in flatpak.feature pending GNOME 50
+  AT-SPI re-validation (#176).
+
+  @software @bazaar
+  Scenario: Bazaar is installed
+    * Flatpak app "io.github.kolunmi.Bazaar" is installed
+
+  @software @bazaar
+  Scenario: Bazaar app info is queryable
+    * Flatpak app info is queryable for "io.github.kolunmi.Bazaar"
+
+  @software @bazaar
+  Scenario: Bazaar is sourced from Flathub
+    * Flatpak app "io.github.kolunmi.Bazaar" is from remote "flathub"

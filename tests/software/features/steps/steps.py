@@ -111,6 +111,31 @@ def flatpak_app_is_installed(context, app_id: str) -> None:
     assert app_id in apps, f'Flatpak app {app_id!r} not found in installed apps'
 
 
+@step('Flatpak app info is queryable for "{app_id}"')
+def flatpak_app_info_is_queryable(context, app_id: str) -> None:
+    result = _flatpak(['info', app_id])
+    assert result.returncode == 0, (
+        f'flatpak info {app_id!r} failed: rc={result.returncode}\n'
+        f'stdout={result.stdout}\nstderr={result.stderr}'
+    )
+    assert app_id in result.stdout, (
+        f'App ID {app_id!r} not found in flatpak info output:\n{result.stdout}'
+    )
+
+
+@step('Flatpak app "{app_id}" is from remote "{remote}"')
+def flatpak_app_is_from_remote(context, app_id: str, remote: str) -> None:
+    result = _flatpak(['info', app_id])
+    assert result.returncode == 0, (
+        f'flatpak info {app_id!r} failed: rc={result.returncode}\n'
+        f'stdout={result.stdout}\nstderr={result.stderr}'
+    )
+    output_lower = result.stdout.lower()
+    assert remote.lower() in output_lower, (
+        f'Remote {remote!r} not found in flatpak info output for {app_id}:\n{result.stdout}'
+    )
+
+
 @step('Flatpak app "{app_id}" is not installed')
 def flatpak_app_is_not_installed(context, app_id: str) -> None:
     result = _flatpak(['list', '--app', '--columns=application'])

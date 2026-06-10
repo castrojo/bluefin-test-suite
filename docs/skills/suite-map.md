@@ -21,7 +21,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
-| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, Flathub remote, and permissions DB are active; upstream GNOME Software scenarios quarantined (Bluefin ships Bazaar `io.github.kolunmi.Bazaar`); `@pending` Bazaar placeholder tracks issue #419 |
+| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios remain quarantined (#176) |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env, signing/security invariants |
 | `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
@@ -85,7 +85,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 - `dakota`: `testing` + `latest`
 
 **Why these assignments:**
-- `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → the GNOME Software suite stays quarantined and Bazaar coverage is tracked separately until issue #419 is implemented
+- `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → the GNOME Software navigation scenarios stay quarantined (#176); Bazaar CLI presence/info/remote coverage is active in `bazaar.feature`
 - `bazzite` is not vanilla GNOME → only the bazzite suite runs against it (no vanilla-gnome)
 - `bluefin-nvidia-open` is used because nvidia-open is built daily; nvidia services (`nvidia-persistenced`, `ublue-nvctk-cdi`) are in `IGNORED_FAILED_UNITS_IN_VM` — they always fail in QEMU without a physical GPU
 
@@ -104,13 +104,13 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 
 ## Coverage snapshot
 
-269 scenarios across 32 feature files (last audit: 2026-06-05). 32 quarantined, 237 active, 3 @future stubs.
+272 scenarios across 32 feature files (last audit: 2026-06-10). 32 quarantined, 240 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
 | smoke | 82 | 81 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
-| software | 12 | 4 | 8 | Bazaar launch + search active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
+| software | 15 | 7 | 8 | Bazaar launch + search + CLI presence/info/remote active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
 | common | 37 | 33 | 4 | Shell tools (zsh, fish, fzf, bat, eza, fd, rg, starship) installed in CI via e2e workflow step; signing-policy/runtime security assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |

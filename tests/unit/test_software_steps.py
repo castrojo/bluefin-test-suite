@@ -170,3 +170,70 @@ class TestFlatpakUserOverrideIsActive:
             ctx = MagicMock()
             with pytest.raises(AssertionError, match="failed"):
                 m.flatpak_user_override_is_active(ctx, "--filesystem=home", "myapp")
+
+
+# ---------------------------------------------------------------------------
+# flatpak_app_info_is_queryable — new step
+# ---------------------------------------------------------------------------
+
+class TestFlatpakAppInfoIsQueryable:
+    def test_passes_when_app_id_in_output(self):
+        m = _import_software_steps()
+        app_id = "io.github.kolunmi.Bazaar"
+        output = f"Application ID: {app_id}\nBranch: stable\nOrigin: flathub\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            ctx = MagicMock()
+            m.flatpak_app_info_is_queryable(ctx, app_id)
+
+    def test_raises_when_rc_nonzero(self):
+        m = _import_software_steps()
+        import pytest
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="", rc=1)):
+            ctx = MagicMock()
+            with pytest.raises(AssertionError, match="failed"):
+                m.flatpak_app_info_is_queryable(ctx, "io.github.kolunmi.Bazaar")
+
+    def test_raises_when_app_id_missing_from_output(self):
+        m = _import_software_steps()
+        import pytest
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="some other app", rc=0)):
+            ctx = MagicMock()
+            with pytest.raises(AssertionError, match="not found"):
+                m.flatpak_app_info_is_queryable(ctx, "io.github.kolunmi.Bazaar")
+
+
+# ---------------------------------------------------------------------------
+# flatpak_app_is_from_remote — new step
+# ---------------------------------------------------------------------------
+
+class TestFlatpakAppIsFromRemote:
+    def test_passes_when_remote_in_output(self):
+        m = _import_software_steps()
+        output = "Application ID: io.github.kolunmi.Bazaar\nOrigin: flathub\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            ctx = MagicMock()
+            m.flatpak_app_is_from_remote(ctx, "io.github.kolunmi.Bazaar", "flathub")
+
+    def test_case_insensitive_remote_match(self):
+        m = _import_software_steps()
+        output = "Application ID: io.github.kolunmi.Bazaar\nOrigin: FLATHUB\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            ctx = MagicMock()
+            m.flatpak_app_is_from_remote(ctx, "io.github.kolunmi.Bazaar", "flathub")
+
+    def test_raises_when_remote_missing(self):
+        m = _import_software_steps()
+        import pytest
+        output = "Application ID: io.github.kolunmi.Bazaar\nOrigin: sideload\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            ctx = MagicMock()
+            with pytest.raises(AssertionError, match="not found"):
+                m.flatpak_app_is_from_remote(ctx, "io.github.kolunmi.Bazaar", "flathub")
+
+    def test_raises_when_rc_nonzero(self):
+        m = _import_software_steps()
+        import pytest
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="", rc=1)):
+            ctx = MagicMock()
+            with pytest.raises(AssertionError, match="failed"):
+                m.flatpak_app_is_from_remote(ctx, "io.github.kolunmi.Bazaar", "flathub")

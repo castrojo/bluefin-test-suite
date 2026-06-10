@@ -100,3 +100,23 @@ Future: automated diff via `just compare-results` (see #22).
 
 Results are visible in the GitHub Actions job summary, as 30-day artifacts, and as persisted JSONL snapshots on the `gh-pages` branch under `data/results-YYYY-MM-DD.jsonl`.
 
+
+## Non-blocking nightly jobs
+
+Some nightly jobs run with `continue-on-error: true` to track upstream image regressions outside the testsuite's control. A failing non-blocking job turns orange (⚠️) but does not fail the overall nightly run.
+
+Check current non-blocking state in `nightly.yml` (`continue_on_error: true` in the matrix). When an upstream fix ships and the nightly passes cleanly for two consecutive runs, remove the flag and close the tracking issue.
+
+```bash
+# Check which jobs are currently non-blocking
+grep -A3 "continue_on_error" .github/workflows/nightly.yml | grep -B1 "true"
+
+# Watch a nightly run
+gh run list --repo projectbluefin/testsuite --workflow nightly.yml --limit 1
+```
+
+## Update checklist for docs + tests
+
+When scenario counts change, update both files (they are co-authoritative):
+- `docs/skills/suite-map.md` — per-suite table
+- `QA-REVIEW.md` — total line at the top

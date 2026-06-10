@@ -243,3 +243,101 @@ When calling this workflow from another repo, the following are explicitly banne
 - No display output: `virtio-gpu` with `-display none`. Tests must use AT-SPI (dogtail/qecore), not pixel-based assertions.
 - No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests require SSH-mode suites not yet in the GHA action (epics #43/#44).
 - Partition layout assumes `p3` is the root partition. Tested against standard Anaconda/bootc partition tables. Non-standard layouts may break the disk-configure step.
+
+---
+
+## test_ref and github.ref_name
+
+**Symptom:** Tests always run from `main` even when dispatching `manual.yml` from a feature branch.
+
+**Cause:** `github.ref_name` inside a `workflow_call` reusable workflow always resolves to the **default branch** (`main`), not the caller's branch. This is a GitHub Actions platform behavior — it does not reflect the dispatched branch.
+
+**Fix:** Set `test_ref` in the `workflow_dispatch` caller (`manual.yml`, `migration-test.yml`), where `github.ref_name` correctly reflects the dispatched branch:
+
+```yaml
+jobs:
+  test:
+    uses: ./.github/workflows/e2e.yml
+    with:
+      test_ref: ${{ github.event.inputs.test_ref || github.ref_name }}
+```
+
+Never use `github.ref_name` as a test-checkout ref inside `e2e.yml` itself — always `inputs.test_ref`.
+
+---
+
+## manual.yml: do not add @ref to same-repo workflow calls
+
+**Symptom:** `manual.yml` workflow_dispatch runs fail immediately with `startup_failure`.
+
+**Cause:** GitHub Actions returns `startup_failure` when a `workflow_dispatch` workflow calls a same-repo reusable workflow with an explicit ref (`uses: ./.github/workflows/e2e.yml@main`).
+
+**Fix:** Use the bare local path with no ref:
+```yaml
+uses: ./.github/workflows/e2e.yml    # correct
+# NOT:
+# uses: ./.github/workflows/e2e.yml@main   # causes startup_failure
+```
+
+Cross-repo calls (`projectbluefin/testsuite/.github/workflows/e2e.yml@<sha>`) work correctly.
+
+For lifecycle manual runs, dispatch `upgrade-test.yml` in `projectbluefin/actions` — it calls `e2e.yml` cross-repo with full lifecycle inputs.
+
+---
+
+## zstd:chunked migration toggle
+
+The `@zstd_chunked` tag gates the final-state migration scenario. It is **skipped** (not failed) when disabled.
+
+| Workflow input | Effect |
+|---|---|
+| `chunked_enabled: false` (default) | `@zstd_chunked` scenarios skip |
+| `chunked_enabled: true` | `@zstd_chunked` scenarios run |
+
+Enable once `ghcr.io/projectbluefin/bluefin:latest` ships `tar+zstd` OCI layers. Verify:
+```bash
+skopeo inspect --raw docker://ghcr.io/projectbluefin/bluefin:latest \
+  | jq '.layers[0].mediaType'
+```
+
+---
+
+## Running migration tests manually
+
+Use `migration-test.yml` in `projectbluefin/actions` to run only the `@migration` scenario group.
+
+**Go to:** [projectbluefin/actions → Actions → bootc Migration Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/migration-test.yml)
+
+| Field | Non-LTS | LTS |
+|---|---|---|
+| `source_image` | `ghcr.io/ublue-os/bluefin:latest` | `ghcr.io/ublue-os/bluefin-lts:lts` |
+| `migration_target` | _(leave blank)_ | `ghcr.io/projectbluefin/bluefin-lts:stable` |
+| `chunked_enabled` | `false` (default) | `false` (default) |
+
+Wire as a consumer post-build gate:
+```yaml
+migration-test:
+  needs: build
+  uses: projectbluefin/actions/.github/workflows/migration-test.yml@<ref>
+  with:
+    source_image: ghcr.io/ublue-os/bluefin-lts:lts
+    migration_target: ghcr.io/projectbluefin/bluefin-lts@${{ needs.build.outputs.digest }}
+```
+
+For non-migration lifecycle runs: dispatch `upgrade-test.yml` in `projectbluefin/actions`.
+
+---
+
+## Post-upgrade desktop screenshot
+
+After a lifecycle suite run, `e2e.yml` captures a full-screen GNOME screenshot:
+```bash
+gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
+  --method org.gnome.Shell.Eval \
+  "const Shell = imports.gi.Shell; const s = new Shell.Screenshot(); \
+   s.screenshot(false, false, '/tmp/upgrade_screenshot.png', () => {}); 'ok'"
+```
+
+Saved to `results/screenshot_lifecycle_upgrade_final.png` and promoted to the `desktop-screenshot` artifact.
+
+The step uses `ControlMaster=no` because the VM may have rebooted during the lifecycle suite, invalidating any existing SSH multiplex socket. It waits up to 60s for `/run/user/1001/wayland-0` before attempting the screenshot.

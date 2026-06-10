@@ -69,6 +69,31 @@ for suite in tests/*/features/; do
 done
 ```
 
+**GNOME suite dry-run requires a D-Bus session.** Suites that import `qecore.sandbox` load `gi.repository.Atspi` at import time. Without an AT-SPI bus, `libatspi` calls `g_error()` → `SIGTRAP` even during `--dry-run`.
+
+Required packages (Fedora 41):
+```bash
+dnf install -y python3-gobject at-spi2-core dbus-daemon gtk3 gsettings-desktop-schemas
+```
+
+Run inside a session bus:
+```bash
+cat > /tmp/dry-run.sh << 'DRYEOF'
+/usr/libexec/at-spi-bus-launcher --launch-immediately &
+sleep 1
+for suite in tests/*/features/; do
+  PYTHONPATH=. python3 -m behave "$suite" --dry-run --no-capture
+done
+DRYEOF
+chmod +x /tmp/dry-run.sh
+dbus-run-session -- bash /tmp/dry-run.sh
+```
+
+Key package notes:
+- `dbus-run-session` is in the `dbus-daemon` package on Fedora 41 (not `dbus-tools` or `dbus`)
+- `at-spi-bus-launcher` is at `/usr/libexec/at-spi-bus-launcher` from `at-spi2-core`
+- PyGObject from Ubuntu always fights ABI with the GHA toolcache Python — always use a Fedora container
+
 ### Recommended local checks (not in CI but catch common mistakes)
 
 ```bash
