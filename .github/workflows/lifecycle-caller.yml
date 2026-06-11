@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   lifecycle:
-    uses: projectbluefin/common/.github/workflows/lifecycle.yml@233102e81ce425839dc5dcf00f830f14b9631d71
+    uses: projectbluefin/actions/.github/workflows/lifecycle.yml@4d46a63f49ed0159e2f5958a2109cc936a50417e # main
     with:
       brand_name: "Testsuite"
     secrets: inherit

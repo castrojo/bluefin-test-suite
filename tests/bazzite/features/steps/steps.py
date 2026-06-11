@@ -48,6 +48,23 @@ def _eval_bool(js: str) -> bool:
     raise AssertionError(f"Could not parse boolean from Shell.Eval output: {out}")
 
 
+def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.5) -> bool:
+    """Poll Shell.Eval until the JS expression matches *expected* or retries are exhausted.
+
+    Mirrors the same helper in tests/shared/gnome_shell_steps.py.
+    Required for animated UI state (overview open/close, Quick Settings) where
+    a single-shot check races against GNOME's CSS animation.
+    """
+    for _ in range(retries):
+        try:
+            if _eval_bool(js) == expected:
+                return True
+        except AssertionError:
+            pass
+        time.sleep(delay)
+    return False
+
+
 # ── AT-SPI connectivity ───────────────────────────────────────────────────────
 
 @step('GNOME Shell is accessible via AT-SPI')
@@ -88,12 +105,14 @@ def close_activities_overview(context) -> None:
 
 @step('Overview is open')
 def overview_is_open(context) -> None:
-    assert _eval_bool("Main.overview.visible"), "Overview is not open"
+    if not _wait_eval_bool('Main.overview.visible.toString()', expected=True, retries=8):
+        raise AssertionError("Activities overview did not open after 4s")
 
 
 @step('Overview is closed')
 def overview_is_closed(context) -> None:
-    assert not _eval_bool("Main.overview.visible"), "Overview is still open"
+    if not _wait_eval_bool('Main.overview.visible.toString()', expected=False, retries=8):
+        raise AssertionError("Activities overview is still showing after 4s")
 
 
 # ── Quick Settings ────────────────────────────────────────────────────────────
@@ -105,9 +124,11 @@ def open_quick_settings(context) -> None:
 
 @step('Quick Settings panel is open via Shell.Eval')
 def quick_settings_is_open(context) -> None:
-    assert _eval_bool(
-        "Main.panel.statusArea.quickSettings.menu.isOpen"
-    ), "Quick Settings panel is not open"
+    if not _wait_eval_bool(
+        'Main.panel.statusArea.quickSettings.menu.isOpen.toString()',
+        expected=True, retries=8,
+    ):
+        raise AssertionError("Quick Settings panel did not open after 4s")
 
 
 
