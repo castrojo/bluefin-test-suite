@@ -249,3 +249,55 @@ def ujust_report_confirm_missing_number(context) -> None:
         return
     assert returncode == 1, f"Expected exit code 1, got {returncode}. Output: {output}"
     assert "requires an issue number" in output, f"Expected parameter error, got: {output}"
+
+
+# ---------------------------------------------------------------------------
+# composefs file-capability regression (dakota#841)
+# Multi-layer OCI images silently strip security.capability xattrs; getcap
+# verifies the xattrs survived the composefs replay.
+# ---------------------------------------------------------------------------
+
+@step("newuidmap, newgidmap, and ping retain their security.capability xattrs")
+def composefs_file_capabilities_preserved(context) -> None:
+    binaries = {
+        "/usr/bin/newuidmap": "cap_setuid",
+        "/usr/bin/newgidmap": "cap_setgid",
+        "/usr/bin/ping":      "cap_net_raw",
+    }
+    missing = []
+    for path, expected_cap in binaries.items():
+        output, returncode, stderr = _run_host(f"getcap {path}")
+        assert returncode == 0, f"getcap failed for {path}: {stderr or output}"
+        if expected_cap not in output:
+            missing.append(f"{path}: expected '{expected_cap}' in '{output}'")
+    assert not missing, (
+        "composefs file-capability regression (projectbluefin/dakota#841) — "
+        f"missing capabilities: {missing}. "
+        "A multi-layer OCI image may have stripped security.capability xattrs."
+    )
+
+
+# ---------------------------------------------------------------------------
+# GDM boot regression (bluefin-lts emergency-console incident 2026-06-13)
+# Asserts the system reached the graphical display manager, not emergency
+# console.  Applies to all variants (testing + production).
+# ---------------------------------------------------------------------------
+
+@step("gdm.service is active")
+def gdm_service_is_active(context) -> None:
+    output, returncode, stderr = _run_host("systemctl is-active gdm.service")
+    assert output == "active", (
+        f"gdm.service is not active (got '{output}'; stderr={stderr!r}) — "
+        "system may have booted to emergency console. "
+        "Check composefs xattr regression (projectbluefin/dakota#841) and "
+        "GDM autologin config (/etc/gdm/custom.conf)."
+    )
+
+
+@step("graphical.target is active")
+def graphical_target_is_active(context) -> None:
+    output, returncode, stderr = _run_host("systemctl is-active graphical.target")
+    assert output == "active", (
+        f"graphical.target is not active (got '{output}'; stderr={stderr!r}) — "
+        "display manager did not reach the graphical session target."
+    )
