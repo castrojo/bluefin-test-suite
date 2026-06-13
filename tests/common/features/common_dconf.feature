@@ -17,6 +17,15 @@ Feature: Bluefin common dconf and GSettings defaults
     * Run SSH command: "dconf read /org/gnome/shell/extensions/Logo-menu/show-activities-button"
     * Last command output contains "true"
 
+  Scenario: custom-command-list extension is enabled
+    * Run SSH command: "gsettings get org.gnome.shell enabled-extensions"
+    * Last command output contains "custom-command-list@storageb.github.com"
+
+  Scenario: custom-command-list menu icon is configured
+    * Run SSH command: "dconf read /org/gnome/shell/extensions/custom-command-list/menuicon-setting"
+    * SSH command return code is "0"
+    * SSH command output is not empty
+
   Scenario: dconf locked keys cannot be overridden
     * Run SSH command: "gsettings set org.gnome.software allow-updates true"
     * Last command exits with non-zero status
