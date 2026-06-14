@@ -81,7 +81,7 @@ jobs:
     name: GNOME 50 — ${{ matrix.suite }}
     needs: matrix
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     permissions:
       contents: read
       packages: write   # needed to push desktop screenshot OCI artifact to GHCR
@@ -885,7 +885,7 @@ jobs:
 
       - name: Run behave suite
         id: run
-        timeout-minutes: 80
+        timeout-minutes: 110
         env:
           BEHAVE_RETRIES: 2
           SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
