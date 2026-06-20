@@ -23,7 +23,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
 | `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios remain quarantined (#176) |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env, signing/security invariants |
-| `lifecycle` | ✅ | — | ✅ | — | — | — | — | bootc upgrade/rollback; SSH-mode |
+| `lifecycle` | ✅ | — | ✅ | ✅ `@homed_migration` | — | — | — | bootc upgrade/rollback; SSH-mode; dakota: homed migration only |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
 | `hardware` | ✅ | — | — | — | — | — | — | Emulated peripherals; SSH-mode |
 | `dx` | — | ✅ | — | — | — | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
@@ -101,6 +101,7 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | `@nightly` | Runs nightly; may be slow or destructive |
 | `@pending` | Placeholder coverage gap; intentionally skipped until a valid harness exists |
 | `@future` | Not yet implemented or blocked on infra |
+| `@homed_migration` | systemd-homed migration scenarios; dakota lifecycle; SSH-mode; skip-safe when homed absent |
 
 ## Coverage snapshot
 

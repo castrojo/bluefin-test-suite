@@ -607,3 +607,112 @@ def ostree_two_deployments(context):
     assert deployment_count >= 2, (
         f"Expected at least 2 ostree deployments, found {deployment_count}\n{output}"
     )
+
+
+# ---------------------------------------------------------------------------
+# systemd-homed migration steps (dakota:testing → dakota:next)
+# MIGRATION_TARGET env var — defaults to ghcr.io/projectbluefin/dakota:next
+# ---------------------------------------------------------------------------
+
+def _is_homed_active(context):
+    """Return True if systemd-homed is active on the booted VM."""
+    stdout, rc = run_ssh(context, "systemctl is-active systemd-homed", timeout=15)
+    return rc == 0 and stdout.strip() == "active"
+
+
+@step("systemd-homed service is active after migration")
+def homed_service_active(context):
+    """Assert systemd-homed.service is active; skip gracefully if not present."""
+    stdout, rc = run_ssh(context, "systemctl is-active systemd-homed", timeout=15)
+    state = stdout.strip()
+    if state in ("inactive", "unknown", "not-found"):
+        _skip_current_scenario(
+            context,
+            f"systemd-homed is not present on this image (state: {state!r}). "
+            "Skipping homed migration scenario.",
+        )
+        return
+    assert rc == 0 and state == "active", (
+        f"Expected systemd-homed to be active, got {state!r} (rc={rc})"
+    )
+
+
+@step("Traditional user is resolvable via id after homed migration")
+def traditional_user_resolvable(context):
+    """Assert the SSH user (a traditional /etc/passwd user) resolves via id."""
+    user = getattr(context, "ssh_user", "user")
+    stdout, rc = run_ssh(context, f"id {shlex.quote(user)}", timeout=15)
+    assert rc == 0, (
+        f"id {user!r} failed (rc={rc}). "
+        "Traditional /etc/passwd user not resolvable after homed migration."
+    )
+    assert user in stdout, (
+        f"Expected {user!r} in id output, got: {stdout!r}"
+    )
+
+
+@step("pam_systemd_home is present in system-auth PAM config")
+def pam_systemd_home_in_system_auth(context):
+    """Assert pam_systemd_home.so appears in /etc/pam.d/system-auth; skip if homed absent."""
+    if not _is_homed_active(context):
+        _skip_current_scenario(
+            context,
+            "systemd-homed is not active; PAM system-auth check skipped.",
+        )
+        return
+    stdout, rc = run_ssh(context, "grep pam_systemd_home /etc/pam.d/system-auth", timeout=15)
+    assert rc == 0 and "pam_systemd_home" in stdout, (
+        "pam_systemd_home.so not found in /etc/pam.d/system-auth. "
+        f"grep rc={rc}, output={stdout!r}"
+    )
+
+
+@step("No PAM authentication failures in journal for traditional user")
+def no_pam_auth_failures(context):
+    """Assert the journal has no PAM authentication failures for the traditional user."""
+    user = getattr(context, "ssh_user", "user")
+    stdout, rc = run_ssh(
+        context,
+        "journalctl --no-pager -n 200 -g 'authentication failure'",
+        timeout=30,
+    )
+    failures = [
+        line for line in stdout.splitlines()
+        if "authentication failure" in line and user in line
+    ]
+    assert not failures, (
+        f"PAM authentication failures found in journal for user {user!r}:\n"
+        + "\n".join(failures)
+    )
+
+
+@step("GDM journal shows no authentication failures after homed migration")
+def gdm_no_auth_failures(context):
+    """Assert GDM journal has no authentication failure entries after homed migration."""
+    stdout, rc = run_ssh(
+        context,
+        "journalctl --no-pager -u gdm -n 200 -g 'authentication failure'",
+        timeout=30,
+    )
+    failures = [line for line in stdout.splitlines() if "authentication failure" in line]
+    assert not failures, (
+        "GDM journal shows authentication failures after homed migration:\n"
+        + "\n".join(failures)
+    )
+
+
+@step("homectl list does not contain traditional user entry")
+def homectl_no_traditional_user(context):
+    """Assert homectl list has no record for the traditional /etc/passwd user."""
+    if not _is_homed_active(context):
+        _skip_current_scenario(
+            context,
+            "systemd-homed is not active; homectl list check skipped.",
+        )
+        return
+    user = getattr(context, "ssh_user", "user")
+    stdout, rc = run_ssh(context, "sudo homectl list", timeout=15)
+    assert user not in stdout, (
+        f"homectl list unexpectedly contains an entry for traditional user {user!r}.\n"
+        f"Output:\n{stdout}"
+    )
