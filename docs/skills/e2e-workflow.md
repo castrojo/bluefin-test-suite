@@ -202,6 +202,9 @@ Stable URL format:
 https://projectbluefin.github.io/testsuite/screenshots/{slug}-{suite}-latest.png
 ```
 
+The same workflow also appends one JSONL record per suite to `data/results-YYYYMMDD.jsonl` on `gh-pages`.
+Those records are the source of truth for the static build-health dashboard: keep them append-only, store the raw `workflow_run.id`, and record the upstream `workflow_run.conclusion` even when no fresh screenshot is available.
+
 ### Flatpak screenshot gallery
 
 Set `screenshot_flatpaks` to capture per-app screenshots useful for app authors:
