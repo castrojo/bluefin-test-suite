@@ -34,6 +34,7 @@ New suites → this repo. New infra (VM specs, manifests) → testing-lab. PRs t
 | Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |
 | Infra gotchas (GDM autologin, systemd-oomd.socket, bazzite extension state, GVariant quoting) | `docs/skills/ops.md` |
 | Reusable e2e workflow (calling from another repo, debugging QEMU pipeline) | `docs/skills/e2e-workflow.md` |
+| Quarantine expiry CI (`scripts/check_quarantine_age.py`, `pr-validate.yml`) | `docs/skills/quarantine-age.md` |
 | UEFI boot via OVMF + systemd-boot (migration reboot testing) | `docs/skills/uefi-boot.md` |
 | Flatpak screenshot gallery (screenshot_flatpaks input, GHCR artifact tags) | `docs/flatpak-screenshots.md` |
 | Submitting improvements, PRs, doc updates | `docs/skills/contributing.md` |
