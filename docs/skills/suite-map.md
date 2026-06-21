@@ -17,7 +17,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 
 | Suite | `bluefin` | `bluefin-gdx` | `bluefin-nvidia-open` | `dakota` | `bazzite` | `gnomeos` | `flatcar` | Notes |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| `smoke` | ✅ | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; all Bluefin variants |
+| `smoke` | ✅ | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; automatically sharded into `smoke-a` + `smoke-b` parallel jobs |
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
@@ -37,6 +37,8 @@ with:
   image: <your-bootc-image>
   suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software, common, lifecycle
 ```
+Passing `suites: smoke` automatically expands to two parallel jobs (`smoke-a` and `smoke-b`), cutting smoke wall time by ~50%. Both shards push screenshots to `smoke-latest` (last writer wins).
+
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
 `security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
 

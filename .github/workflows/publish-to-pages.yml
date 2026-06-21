@@ -61,7 +61,7 @@ jobs:
             bluefin-lts-testing
             dakota-testing
           )
-          SUITES=(smoke common vanilla-gnome)
+          SUITES=(smoke-a smoke-b common vanilla-gnome)
           DATE=$(date +%Y%m%d)
           UPDATED=0
 
