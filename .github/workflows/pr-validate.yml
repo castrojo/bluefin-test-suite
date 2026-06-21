@@ -37,12 +37,31 @@ jobs:
         run: pip install ruff
 
       - name: Python lint (ruff)
-        run: ruff check tests/ --select E,F,W --ignore E501
+        run: ruff check tests/ scripts/ --select E,F,W --ignore E501
 
       - name: Python syntax check
         run: |
-          python -m py_compile $(find tests/ -name '*.py' | tr '\n' ' ')
+          python -m py_compile $(find tests/ scripts/ -name '*.py' | tr '\n' ' ')
           echo "All Python files compile cleanly."
+
+  quarantine-age:
+    name: Quarantine age
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.14"
+
+      - name: Check quarantine age
+        run: python3 scripts/check_quarantine_age.py --grace-days 30
 
   dry-run:
     name: Behave dry-run
