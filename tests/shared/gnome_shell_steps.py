@@ -295,7 +295,7 @@ def activities_toggle_in_panel(context: Context) -> None:
 @step('Close Activities overview via Shell.Eval')
 def close_overview_eval(context: Context) -> None:
     _shell_eval('Main.overview.hide()')
-    sleep(0.5)
+    sleep(0.2)
 
 
 @step('Open Quick Settings via Shell.Eval')
@@ -307,19 +307,19 @@ def open_quick_settings_eval(context: Context) -> None:
             'if (!Main.panel.statusArea.quickSettings.menu.isOpen)'
             ' Main.panel.statusArea.quickSettings.menu.open(0)'
         )
-        sleep(0.5)
+        sleep(0.2)
         try:
             if _eval_bool('Main.panel.statusArea.quickSettings.menu.isOpen.toString()'):
                 return
         except AssertionError:
             pass
-        sleep(0.5)
+        sleep(0.2)
     # Final fallback: toggle into open state.
     _shell_eval(
         'if (!Main.panel.statusArea.quickSettings.menu.isOpen)'
         ' Main.panel.statusArea.quickSettings.menu.toggle()'
     )
-    sleep(0.5)
+    sleep(0.2)
 
 
 @step('Quick Settings panel is closed via Shell.Eval')
@@ -341,31 +341,31 @@ def open_date_menu_eval(context: Context) -> None:
             'if (!Main.panel.statusArea.dateMenu.menu.isOpen)'
             ' Main.panel.statusArea.dateMenu.menu.open(0)'
         )
-        sleep(0.5)
+        sleep(0.2)
         try:
             if _eval_bool('Main.panel.statusArea.dateMenu.menu.isOpen.toString()'):
                 return
         except AssertionError:
             pass
-        sleep(0.5)
+        sleep(0.2)
     # Final fallback: toggle into open state.
     _shell_eval(
         'if (!Main.panel.statusArea.dateMenu.menu.isOpen)'
         ' Main.panel.statusArea.dateMenu.menu.toggle()'
     )
-    sleep(0.5)
+    sleep(0.2)
 
 
 @step('Close Quick Settings via Shell.Eval')
 def close_quick_settings_eval(context: Context) -> None:
     _shell_eval('Main.panel.statusArea.quickSettings.menu.close(0)')
-    sleep(0.5)
+    sleep(0.2)
 
 
 @step('Close date menu via Shell.Eval')
 def close_date_menu_eval(context: Context) -> None:
     _shell_eval('Main.panel.statusArea.dateMenu.menu.close(0)')
-    sleep(0.5)
+    sleep(0.2)
 
 
 @step('Date menu panel is closed via Shell.Eval')

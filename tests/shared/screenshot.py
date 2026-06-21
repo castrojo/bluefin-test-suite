@@ -258,9 +258,9 @@ def _flatpak_installed(app_id: str) -> bool:
 def take_fastfetch_screenshot(context: Any | None = None) -> str | None:
     """Open a terminal, run fastfetch, screenshot it, then close."""
     candidates = [
-        ('ptyxis', ['ptyxis', '--', 'bash', '-c', 'fastfetch; sleep 10']),
-        ('kgx', ['kgx', '--', 'bash', '-c', 'fastfetch; sleep 10']),
-        ('gnome-terminal', ['gnome-terminal', '--', 'bash', '-c', 'fastfetch; sleep 10']),
+        ('ptyxis', ['ptyxis', '--', 'bash', '-c', 'fastfetch; sleep 3']),
+        ('kgx', ['kgx', '--', 'bash', '-c', 'fastfetch; sleep 3']),
+        ('gnome-terminal', ['gnome-terminal', '--', 'bash', '-c', 'fastfetch; sleep 3']),
     ]
 
     attempted = False
@@ -271,7 +271,7 @@ def take_fastfetch_screenshot(context: Any | None = None) -> str | None:
         proc = None
         try:
             proc = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            time.sleep(4)
+            time.sleep(2)  # ponytail: 2s is enough for terminal+fastfetch to render; was 4
             path = take_screenshot('fastfetch', context)
             if path is not None:
                 return path

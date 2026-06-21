@@ -49,7 +49,6 @@ def launch_firefox_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
     context.firefox_launch_target = launch_background(FIREFOX_LAUNCH_TARGETS)
-    sleep(1)
 
 
 def _firefox_window(context):
@@ -111,7 +110,7 @@ def navigate_firefox_to(context, url) -> None:
     context.execute_steps(f'''* Key combo: "<Ctrl><A>" with uinput
 * Type text: "{url}" with uinput
 * Press key: "Return" with uinput''')
-    sleep(1)
+    sleep(0.3)
     assert url in (_address_bar(context).text or ""), f"Firefox did not navigate to {url!r}"
 
 

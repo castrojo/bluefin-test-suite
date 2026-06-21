@@ -58,7 +58,6 @@ def launch_calculator_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
     context.calculator_launch_target = launch_background(CALCULATOR_LAUNCH_TARGETS)
-    sleep(1)
 
 
 def _calculator_window():
@@ -143,7 +142,7 @@ def click_calculator_button(context, name: str) -> None:
     button = _calculator_button(name)
     button.click()
     context.last_calculator_button = name
-    sleep(0.2)
+    sleep(0.1)
 
 
 @step('Calculator display shows "{expected}"')
@@ -170,7 +169,7 @@ def clear_calculator_display(context) -> None:
     for candidate in ("clear", "C", "AC"):
         try:
             _calculator_button(candidate).click()
-            sleep(0.2)
+            sleep(0.1)
             return
         except Exception:  # noqa: BLE001
             continue

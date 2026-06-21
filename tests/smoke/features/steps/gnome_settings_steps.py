@@ -104,7 +104,6 @@ def launch_settings_via_command(context) -> None:
         )
         sleep(0.5)
     context.settings_launch_target = launch_background(SETTINGS_LAUNCH_TARGETS)
-    sleep(1)
 
 
 @step("Settings window is accessible")
@@ -205,8 +204,6 @@ def navigate_to_settings_panel(context, name: str) -> None:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
-    # Wait for Settings window to appear and the panel to load.
-    sleep(2)
     context.last_settings_panel = name
 
 
