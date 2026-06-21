@@ -51,7 +51,6 @@ Use this when the check fires and you need to know which skill to update:
 | `tests/shared/**` | `behave.md` (shared helper conventions) |
 | `tests/unit/**` | No skill update required — unit tests are internal quality tools |
 | `.github/workflows/e2e.yml`, `e2e-*.yml` | `e2e-workflow.md` |
-| `.github/workflows/nightly.yml` | `suite-map.md` (nightly matrix section) |
 | `.github/workflows/skill-drift.yml` | `skill-drift.md` (this file) |
 | `.github/actions/gnome-e2e/**` | `e2e-workflow.md` |
 | `scripts/parse_results.py` | `e2e-workflow.md` (results persistence section) |
@@ -68,7 +67,7 @@ A passing update must:
 - State the new rule, behavior, or expectation
 - Explain what an agent should now do differently
 
-**Passing:** "Added `strategy.fail-fast: false` to nightly matrix — a failure in one image leg no longer cancels pending legs. Added entry to suite-map.md nightly matrix section."
+**Passing:** "Added a new `test_ref` input to `manual.yml` so dispatches can run branch-local test content. Documented the new input and when to use it in `e2e-workflow.md`."
 
 **Failing:** rewrapping text, adding unrelated notes, or touching any markdown file without explaining the implementation change.
 

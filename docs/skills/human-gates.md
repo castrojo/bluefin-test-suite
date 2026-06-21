@@ -22,8 +22,8 @@ Four situations require stopping and requesting human input. Never guess past th
 
 Stop before acting on any of these:
 
-- Adding a new test suite (new directory under `tests/`) — affects nightly matrix, runner image, coverage docs
-- Changing which suites run for a given image in the nightly matrix — affects coverage SLA
+- Adding a new test suite (new directory under `tests/`) — affects the variant matrix, runner image, and coverage docs
+- Changing which suites run for a given image in the variant matrix — affects coverage expectations for that image
 - Changing the `e2e.yml` reusable workflow interface (adding/removing inputs, changing defaults) — consuming repos call this workflow
 - Migrating from one test tool to another (e.g. adding playwright alongside behave)
 - Adding a new QEMU boot mode or VM configuration

@@ -31,7 +31,7 @@ Feature: Bluefin DX variant smoke tests
     * Run DX SSH command: "which distrobox || echo missing"
     * Last command output does not contain "missing"
 
-  @quarantine @dx @distrobox @plain_ssh @nightly
+  @quarantine @dx @distrobox @plain_ssh
   Scenario: distrobox enter works with default container
     # Quarantined: requires pulling fedora:latest from registry; times out in CI.
     * DX distrobox "test-dx" can be created from "fedora:latest"

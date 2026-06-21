@@ -21,16 +21,18 @@ If a change touches both repos, split into two PRs.
 just list-stubs
 ```
 
-## Nightly CI
+## Manual CI runs
 
-The nightly is driven by `.github/workflows/nightly.yml` (GitHub Actions, no self-hosted runners).
+PR validation is the only standing CI gate. For ad hoc image and suite runs, use `.github/workflows/manual.yml` (GitHub Actions, no self-hosted runners).
 
 ```bash
-# Trigger a nightly run manually
-gh workflow run nightly.yml --repo projectbluefin/testsuite --ref main
+# Trigger a manual run
+gh workflow run manual.yml --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing \
+  -f suites=smoke
 
-# Check latest nightly status
-gh run list --repo projectbluefin/testsuite --workflow nightly.yml --limit 3
+# Check recent manual runs
+gh run list --repo projectbluefin/testsuite --workflow manual.yml --limit 3
 
 # View job-level results for a specific run
 gh run view <RUN_ID> --repo projectbluefin/testsuite
@@ -38,17 +40,6 @@ gh run view <RUN_ID> --repo projectbluefin/testsuite
 # Tail logs for a failing job
 gh run view --job=<JOB_ID> --log-failed --repo projectbluefin/testsuite
 ```
-
-**10 named jobs** (see `docs/skills/suite-map.md` for the full matrix):
-
-| Job | Image | Suites |
-|---|---|---|
-| `bluefin:latest/gts/lts` | `ghcr.io/ublue-os/bluefin:{tag}` | smoke, developer, common |
-| `bluefin-dx:latest/gts/lts` | `ghcr.io/ublue-os/bluefin-dx:{tag}` | smoke, developer, dx, common |
-| `bluefin-nvidia-open:latest` | `ghcr.io/ublue-os/bluefin-nvidia-open:latest` | smoke, common |
-| `bazzite-gnome:latest` | `ghcr.io/ublue-os/bazzite-gnome:latest` | bazzite |
-| `gnomeos-latest` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software |
-| `persist-results` | n/a | Downloads nightly result artifacts and publishes `data/results-YYYY-MM-DD.jsonl` to `gh-pages` |
 
 **Diagnosing failures** — check `docs/skills/ops.md` for the most common causes.
 
@@ -76,7 +67,9 @@ a comparison baseline:
 
 Currently this comparison is manual. Procedure:
 
-1. Wait for the nightly run to complete (GitHub Actions — `nightly.yml`)
+1. Dispatch and wait for two manual runs to complete:
+   - Bluefin baseline: `image=ghcr.io/projectbluefin/bluefin:testing`, `suites=smoke`
+   - GNOME OS baseline: `image=quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest`, `suites=vanilla-gnome`
 2. Compare results for the overlapping scenarios between `smoke` and `vanilla-gnome`:
    - `gnome_calculator` — launch and basic interaction
    - `gnome_text_editor` — launch and typing
@@ -98,22 +91,7 @@ Future: automated diff via `just compare-results` (see #22).
 | `smoke=failed`, `vanilla-gnome=failed` | ↑ Upstream GNOME issue |
 | all other combinations | Informational |
 
-Results are visible in the GitHub Actions job summary, as 30-day artifacts, and as persisted JSONL snapshots on the `gh-pages` branch under `data/results-YYYY-MM-DD.jsonl`.
-
-
-## Non-blocking nightly jobs
-
-Some nightly jobs run with `continue-on-error: true` to track upstream image regressions outside the testsuite's control. A failing non-blocking job turns orange (⚠️) but does not fail the overall nightly run.
-
-Check current non-blocking state in `nightly.yml` (`continue_on_error: true` in the matrix). When an upstream fix ships and the nightly passes cleanly for two consecutive runs, remove the flag and close the tracking issue.
-
-```bash
-# Check which jobs are currently non-blocking
-grep -A3 "continue_on_error" .github/workflows/nightly.yml | grep -B1 "true"
-
-# Watch a nightly run
-gh run list --repo projectbluefin/testsuite --workflow nightly.yml --limit 1
-```
+Results are visible in the GitHub Actions job summary and as run artifacts.
 
 ## Update checklist for docs + tests
 

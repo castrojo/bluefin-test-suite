@@ -1,6 +1,6 @@
 ---
 name: suite-map
-description: "Suite map and coverage snapshot for projectbluefin/testsuite — variant matrix, suite-to-image mapping, @future gaps, nightly CI job matrix, and active/quarantined scenario counts."
+description: "Suite map and coverage snapshot for projectbluefin/testsuite — variant matrix, suite-to-image mapping, @future gaps, and active/quarantined scenario counts."
 metadata:
   type: reference
 ---
@@ -40,7 +40,7 @@ with:
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
 `security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
 
-**Trigger a lifecycle run manually** (preferred — same code path as nightly):
+**Trigger a lifecycle run manually**:
 Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml)**.
 Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
 Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
@@ -52,29 +52,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 > bare local path `uses: ./.github/workflows/e2e.yml` is fine). For lifecycle, prefer
 > `upgrade-test.yml` because it has the richer input set lifecycle needs.
 
-## Nightly CI job matrix
-
-The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job name is visible in the Actions UI.
-
-| Job name | Image | Suites | Blocking? |
-|---|---|---|---|
-| `bluefin:testing` | `ghcr.io/projectbluefin/bluefin:testing` | smoke, developer, common | ✅ yes |
-| `bluefin:stable` | `ghcr.io/projectbluefin/bluefin:stable` | smoke, developer, common | ✅ yes |
-| `bluefin:lts-testing` | `ghcr.io/projectbluefin/bluefin:lts-testing` | smoke, developer, common | ✅ yes |
-| `bluefin:lts` | `ghcr.io/projectbluefin/bluefin:lts` | smoke, developer, common | ⚠️ `continue-on-error` (issue #409) |
-| `bluefin-gdx:stream10-testing` | `ghcr.io/ublue-os/bluefin-gdx:stream10-testing` | smoke, developer, common | ✅ yes |
-| `bluefin-gdx:stream10` | `ghcr.io/ublue-os/bluefin-gdx:stream10` | smoke, developer, common | ✅ yes |
-| `bluefin-nvidia-open:testing` | `ghcr.io/projectbluefin/bluefin-nvidia-open:testing` | smoke, common | ✅ yes |
-| `bluefin-nvidia-open:stable` | `ghcr.io/projectbluefin/bluefin-nvidia-open:stable` | smoke, common | ✅ yes |
-| `dakota:testing` | `ghcr.io/projectbluefin/dakota:testing` | smoke, common | ⚠️ `continue-on-error` (image regression) |
-| `dakota:latest` | `ghcr.io/projectbluefin/dakota:latest` | smoke, common | ⚠️ `continue-on-error` (image regression) |
-| `bazzite-gnome:testing` | `ghcr.io/ublue-os/bazzite-gnome:testing` | bazzite | ⚠️ `continue-on-error` (issue #408) |
-| `bazzite-gnome:stable` | `ghcr.io/ublue-os/bazzite-gnome:stable` | bazzite | ⚠️ `continue-on-error` (issue #408) |
-| `gnomeos` | `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` | vanilla-gnome, software | ✅ yes |
-| `bluefin:lifecycle` | `ghcr.io/ublue-os/bluefin:latest` | lifecycle (via `upgrade-test.yml`) | ⚠️ `continue-on-error` (issue #383) |
-| `persist-results` | n/a | Downloads nightly result artifacts and publishes `data/results-YYYY-MM-DD.jsonl` to `gh-pages` | n/a |
-
-**Non-blocking jobs** (`continue-on-error: true`) track upstream image regressions that are outside the testsuite's control. Remove `continue-on-error` once the upstream issue resolves and the nightly is green for that job.
+## Variant notes
 
 **Registry split:** `bluefin`, `bluefin-nvidia-open`, `dakota` → `ghcr.io/projectbluefin`. `bluefin-gdx`, `bazzite-gnome` → `ghcr.io/ublue-os`.
 
@@ -98,7 +76,6 @@ The `nightly.yml` workflow runs 14 named jobs (plus `persist-results`). Each job
 | `@nvidia_only` | NVIDIA variant only |
 | `@flatcar_suite` | Flatcar OS only |
 | `@hardware_emulation` | Requires full-hw VM spec (TPM, audio, watchdog) |
-| `@nightly` | Runs nightly; may be slow or destructive |
 | `@pending` | Placeholder coverage gap; intentionally skipped until a valid harness exists |
 | `@future` | Not yet implemented or blocked on infra |
 

@@ -37,7 +37,7 @@ Feature: Homebrew package management
     * Run brew command in ptyxis and capture result: "brew doctor"
     * brew doctor exits cleanly or only reports warnings
 
-  @quarantine @brew_install @nightly
+  @quarantine @brew_install
   Scenario: brew install and uninstall round-trip succeeds
     # cowsay: tiny formula, no C compilation, installs in seconds
     * Run brew command in ptyxis and capture result: "brew install --formula cowsay"
