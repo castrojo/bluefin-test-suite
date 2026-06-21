@@ -5,17 +5,18 @@ Feature: Bluefin common dconf and GSettings defaults
   Background:
     * Bluefin VM is booted and reachable over SSH
 
-  # Transitioning to a custom logo menu — these checks are no longer valid.
-  # Track replacement in: https://github.com/projectbluefin/common/issues
-  @quarantine
-  Scenario: Logo Menu extension is configured
+  Scenario: custom-command-list extension is enabled
     * Run SSH command: "gsettings get org.gnome.shell enabled-extensions"
-    * Last command output contains "logomenu"
+    * Last command output contains "custom-command-list@storageb.github.com"
 
-  @quarantine
-  Scenario: Logo Menu activities button visibility is configured
-    * Run SSH command: "dconf read /org/gnome/shell/extensions/Logo-menu/show-activities-button"
-    * Last command output contains "true"
+  Scenario: legacy Logo Menu extension is not enabled
+    * Run SSH command: "gsettings get org.gnome.shell enabled-extensions"
+    * SSH command output does not contain "logomenu@aryan_k"
+
+  Scenario: custom-command-list menu icon is configured
+    * Run SSH command: "dconf read /org/gnome/shell/extensions/custom-command-list/menuicon-setting"
+    * SSH command return code is "0"
+    * SSH command output is not empty
 
   Scenario: dconf locked keys cannot be overridden
     * Run SSH command: "gsettings set org.gnome.software allow-updates true"

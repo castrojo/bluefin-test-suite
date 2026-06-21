@@ -1,9 +1,9 @@
 # testsuite QA review
 
-> Last updated: 2026-06-07
+> Last updated: 2026-06-16
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 272 scenarios across 32 feature files (last audit: 2026-06-10). 32 quarantined, 240 active, 3 @future stubs.
+Current audit: 272 scenarios across 33 feature files (last audit: 2026-06-16). 30 quarantined, 239 active, 3 @future stubs.
 
 ## What this repo is responsible for
 
