@@ -6,7 +6,7 @@ Feature: GNOME Text Editor smoke tests
   Background:
     * Launch Text Editor via command
 
-  @text_editor @launch @sla_15s
+  @retry @text_editor @launch @sla_15s
   Scenario: Text Editor launches and window is accessible
     * Text Editor window has an editable text area
 

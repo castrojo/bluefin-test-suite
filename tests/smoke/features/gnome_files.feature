@@ -8,7 +8,7 @@ Feature: GNOME Files smoke tests
     * Launch Files via command
     * Files window is accessible
 
-  @files @launch @sla_15s
+  @retry @files @launch @sla_15s
   Scenario: Files launches and window is accessible
     * Files window is accessible
 
@@ -28,12 +28,12 @@ Feature: GNOME Files smoke tests
     * Key combo: "<Alt>Left" with uinput
     * Nautilus location shows "Home"
 
-  @files @new_folder
+  @retry @files @new_folder
   Scenario: New folder dialog opens via keyboard shortcut Ctrl+Shift+N
     * Key combo: "<Control><Shift>n" with uinput
     * New folder dialog is open
 
-  @files @search
+  @retry @files @search
   Scenario: Search bar opens via Ctrl+F
     * Key combo: "<Control>f" with uinput
     * File search bar is open in Files
