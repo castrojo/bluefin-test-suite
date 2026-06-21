@@ -42,6 +42,7 @@ OPTION_FLAGS_WITH_VALUES = {
 }
 REPORTER_FLAGS = {"-f", "--format", "-o", "--outfile", "--junit", "--junit-directory"}
 RERUN_ENTRY_RE = re.compile(r".+\.feature(?::\d+)?$")
+TAG_RE = re.compile(r"@([A-Za-z0-9_.-]+)")
 
 
 def parse_cli_args(argv: list[str]) -> tuple[int, list[str]]:
@@ -125,6 +126,57 @@ def read_rerun_entries(rerun_path: Path) -> list[str]:
     return deduped
 
 
+def parse_rerun_entry(entry: str) -> tuple[Path, int | None]:
+    feature_path, sep, line = entry.rpartition(":")
+    if sep and line.isdigit() and feature_path.endswith(".feature"):
+        return Path(feature_path), int(line)
+    return Path(entry), None
+
+
+def retry_tags_for_entry(entry: str) -> set[str]:
+    feature_path, target_line = parse_rerun_entry(entry)
+    if not feature_path.exists():
+        return set()
+
+    feature_tags: set[str] = set()
+    pending_tags: list[str] = []
+    scenario_start: int | None = None
+    scenario_tags: set[str] = set()
+
+    for line_number, raw_line in enumerate(feature_path.read_text(encoding="utf-8").splitlines(), start=1):
+        stripped = raw_line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        lowered = stripped.lower()
+        if stripped.startswith("@"):
+            pending_tags.extend(TAG_RE.findall(stripped))
+            continue
+        if lowered.startswith("feature:"):
+            feature_tags.update(pending_tags)
+            pending_tags = []
+            continue
+        if lowered.startswith("scenario:") or lowered.startswith("scenario outline:"):
+            if target_line is not None and scenario_start is not None and target_line < line_number:
+                return scenario_tags
+            scenario_start = line_number
+            scenario_tags = feature_tags | set(pending_tags)
+            pending_tags = []
+            if target_line == line_number:
+                return scenario_tags
+            continue
+        pending_tags = []
+
+    if target_line is None:
+        return feature_tags
+    if scenario_start is not None and target_line >= scenario_start:
+        return scenario_tags
+    return feature_tags
+
+
+def should_retry_entry(entry: str) -> bool:
+    return "retry" in retry_tags_for_entry(entry)
+
+
 def _find_python() -> str:
     """Return a usable Python interpreter path.
 
@@ -173,20 +225,31 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     retry_args = strip_reporter_args(extract_option_args(base_args))
+    retryable_entries = [entry for entry in failed_entries if should_retry_entry(entry)]
+    non_retryable_entries = [entry for entry in failed_entries if entry not in retryable_entries]
     last_rc = rc
-    for attempt in range(1, retries + 1):
-        if not failed_entries:
-            print("Retry data unavailable; cannot re-run failed scenarios.", flush=True)
-            break
+
+    if non_retryable_entries:
         print(
-            f"Retry {attempt}/{retries}: re-running {len(failed_entries)} failed scenarios",
+            f"Not retrying {len(non_retryable_entries)} untagged failures; "
+            "add @retry only to infrastructure-flaky scenarios.",
             flush=True,
         )
-        last_rc, failed_entries = run_behave([*retry_args, *failed_entries], rerun_path)
-        if last_rc == 0:
-            return 0
 
-    return last_rc
+    for attempt in range(1, retries + 1):
+        if not retryable_entries:
+            print("No @retry-tagged failed scenarios remain to re-run.", flush=True)
+            break
+        print(
+            f"Retry {attempt}/{retries}: re-running {len(retryable_entries)} @retry scenarios",
+            flush=True,
+        )
+        last_rc, failed_entries = run_behave([*retry_args, *retryable_entries], rerun_path)
+        if last_rc == 0:
+            return 0 if not non_retryable_entries else rc
+        retryable_entries = [entry for entry in failed_entries if should_retry_entry(entry)]
+
+    return rc if non_retryable_entries else last_rc
 
 
 if __name__ == "__main__":

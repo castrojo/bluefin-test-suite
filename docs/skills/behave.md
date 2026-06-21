@@ -87,6 +87,18 @@ just list-stubs
 grep -r "@future" tests/*/features/*.feature
 ```
 
+## Selective reruns with @retry
+
+Use a plain `@retry` tag on scenarios whose common failure mode is
+infrastructure timing (GNOME session startup, AT-SPI render races, slow app
+launch in QEMU). `tests/shared/behave_retry.py` only re-runs failing rerun
+entries whose effective tags include `retry`; untagged failures fail the job
+immediately after the first pass.
+
+The retry budget comes from `BEHAVE_RETRIES` / `--retries` (default: `2`), so
+`@retry` means "eligible for the normal retry loop" rather than a per-scenario
+count override.
+
 ## Suite layout
 
 ```

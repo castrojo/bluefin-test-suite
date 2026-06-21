@@ -11,7 +11,10 @@ from tests.shared.behave_retry import (
     _split_long_option,
     extract_option_args,
     parse_cli_args,
+    parse_rerun_entry,
     read_rerun_entries,
+    retry_tags_for_entry,
+    should_retry_entry,
     strip_reporter_args,
     with_quarantine_filter,
 )
@@ -262,3 +265,50 @@ class TestReadRerunEntries:
             "tests/smoke/features/foo.feature:5",
             "tests/smoke/features/bar.feature:9",
         ]
+
+
+# ---------------------------------------------------------------------------
+# retry tag parsing
+# ---------------------------------------------------------------------------
+
+class TestRetryTagParsing:
+    def test_parse_rerun_entry_splits_line_number(self):
+        path, line = parse_rerun_entry("tests/smoke/features/foo.feature:9")
+        assert str(path) == "tests/smoke/features/foo.feature"
+        assert line == 9
+
+    def test_retry_tags_for_entry_reads_scenario_tags(self, tmp_path):
+        feature = tmp_path / "demo.feature"
+        feature.write_text(
+            "@smoke_suite\n"
+            "Feature: Demo\n\n"
+            "  @retry @launch\n"
+            "  Scenario: Retry me\n"
+            "    * step\n",
+            encoding="utf-8",
+        )
+        assert retry_tags_for_entry(f"{feature}:5") == {"smoke_suite", "retry", "launch"}
+        assert should_retry_entry(f"{feature}:5") is True
+
+    def test_retry_tags_for_entry_inherits_feature_tags(self, tmp_path):
+        feature = tmp_path / "demo.feature"
+        feature.write_text(
+            "@retry @smoke_suite\n"
+            "Feature: Demo\n\n"
+            "  Scenario: Retry via feature tag\n"
+            "    * step\n",
+            encoding="utf-8",
+        )
+        assert retry_tags_for_entry(f"{feature}:4") == {"retry", "smoke_suite"}
+        assert should_retry_entry(f"{feature}:4") is True
+
+    def test_should_retry_entry_false_when_tag_absent(self, tmp_path):
+        feature = tmp_path / "demo.feature"
+        feature.write_text(
+            "@smoke_suite\n"
+            "Feature: Demo\n\n"
+            "  Scenario: Do not retry\n"
+            "    * step\n",
+            encoding="utf-8",
+        )
+        assert should_retry_entry(f"{feature}:4") is False

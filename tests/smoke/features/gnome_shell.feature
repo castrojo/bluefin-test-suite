@@ -6,28 +6,28 @@ Feature: GNOME Shell smoke tests
 
   # ── Top bar ──────────────────────────────────────────────────────────────
 
-  @top_bar
+  @retry @top_bar
   Scenario: GNOME Shell process is running and accessible via AT-SPI
     * GNOME Shell is accessible via AT-SPI
     * Dump panel children to log
     * Dump gnome-shell AT-SPI tree to results
 
-  @top_bar
+  @retry @top_bar
   Scenario: Panel is present in AT-SPI tree
     * GNOME Shell is accessible via AT-SPI
     * Panel is present in AT-SPI tree
 
-  @top_bar
+  @retry @top_bar
   Scenario: Activities toggle button is visible in panel
     * GNOME Shell is accessible via AT-SPI
     * Activities toggle button is present in gnome-shell panel
 
-  @top_bar
+  @retry @top_bar
   Scenario: Clock toggle button is visible in panel
     * GNOME Shell is accessible via AT-SPI
     * Clock toggle is visible in top bar
 
-  @top_bar
+  @retry @top_bar
   Scenario: System menu toggle button is visible in panel
     * GNOME Shell is accessible via AT-SPI
     * System menu toggle is visible in top bar
@@ -36,7 +36,7 @@ Feature: GNOME Shell smoke tests
   # NOTE: uinput Super key (KEY_LEFTMETA) is unreliable on GNOME 50 Wayland —
   # Mutter does not route it from python-uinput devices. Use Shell.Eval instead.
 
-  @activities @sla_5s
+  @retry @activities @sla_5s
   Scenario: Super key opens Activities overview
     * GNOME Shell is accessible via AT-SPI
     * Open Activities overview via Shell.Eval
@@ -65,7 +65,7 @@ Feature: GNOME Shell smoke tests
   # NOTE: Clock/System toggle buttons have AT-SPI position INT_MIN on GNOME 50.
   # Drive via Shell.Eval; verify via isOpen JS property.
 
-  @quick_settings @sla_5s
+  @retry @quick_settings @sla_5s
   Scenario: Clicking System menu opens Quick Settings
     * GNOME Shell is accessible via AT-SPI
     * Open Quick Settings via Shell.Eval
@@ -101,7 +101,7 @@ Feature: GNOME Shell smoke tests
 
   # ── Calendar popup ────────────────────────────────────────────────────────
 
-  @calendar @sla_5s
+  @retry @calendar @sla_5s
   Scenario: Clicking clock opens calendar popup
     * GNOME Shell is accessible via AT-SPI
     * Open date menu via Shell.Eval

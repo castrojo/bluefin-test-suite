@@ -2,10 +2,10 @@
 Feature: GNOME app launch smoke tests
   Validates core Bluefin desktop apps launch, show a visible window, and exit cleanly.
 
-  @apps @ptyxis @terminal @sla_15s
+  @retry @apps @ptyxis @terminal @sla_15s
   Scenario: Ptyxis terminal launches successfully
     * the Ptyxis terminal launches successfully
 
-  @apps @files @sla_15s
+  @retry @apps @files @sla_15s
   Scenario: Files file manager launches successfully
     * the Files file manager launches successfully

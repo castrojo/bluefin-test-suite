@@ -34,6 +34,24 @@ def test_skip_pending_marks_scenario_skipped():
 
 def test_retry_reruns_failed_scenarios_until_success(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
+    features_dir = tmp_path / "features"
+    features_dir.mkdir()
+    (features_dir / "demo.feature").write_text(
+        "@smoke_suite\n"
+        "Feature: Demo\n\n"
+        "  @retry\n"
+        "  Scenario: Retry me\n"
+        "    * step\n",
+        encoding="utf-8",
+    )
+    (features_dir / "other.feature").write_text(
+        "@smoke_suite\n"
+        "Feature: Other\n\n"
+        "  @retry\n"
+        "  Scenario: Retry me too\n"
+        "    * step\n",
+        encoding="utf-8",
+    )
     rerun_path = tmp_path / behave_retry.RERUN_FILENAME
     commands = []
     returncodes = [1, 0]
@@ -81,6 +99,44 @@ def test_retry_reruns_failed_scenarios_until_success(monkeypatch, tmp_path):
         "~@quarantine",
         "features/demo.feature:12",
         "features/other.feature:7",
+    ]
+
+
+def test_retry_skips_untagged_failures(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    features_dir = tmp_path / "features"
+    features_dir.mkdir()
+    (features_dir / "retry.feature").write_text(
+        "@smoke_suite\n"
+        "Feature: Retry\n\n"
+        "  @retry\n"
+        "  Scenario: Retry me\n"
+        "    * step\n",
+        encoding="utf-8",
+    )
+    (features_dir / "plain.feature").write_text(
+        "@smoke_suite\n"
+        "Feature: Plain\n\n"
+        "  Scenario: Fail once\n"
+        "    * step\n",
+        encoding="utf-8",
+    )
+    calls = []
+
+    def fake_run_behave(args, rerun_path):
+        calls.append(args)
+        if len(calls) == 1:
+            return 1, ["features/retry.feature:5", "features/plain.feature:4"]
+        return 0, []
+
+    monkeypatch.setattr(behave_retry, "run_behave", fake_run_behave)
+
+    rc = behave_retry.main(["tests/smoke/features", "--retries", "1"])
+
+    assert rc == 1
+    assert calls == [
+        ["tests/smoke/features", "--tags", "~@quarantine"],
+        ["--tags", "~@quarantine", "features/retry.feature:5"],
     ]
 
 
