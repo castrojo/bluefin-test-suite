@@ -9,6 +9,10 @@ permissions:
   contents: write
   packages: read
 
+concurrency:
+  group: gh-pages-publish
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -51,27 +55,31 @@ jobs:
             [[ -f "$META" ]] || continue
             IMAGE=$(jq -r .image "$META")
             SLUG=$(echo "$IMAGE" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
-            SHOT_PATH="scratch/${suite}.png"
+            SHOT_DIR="scratch/${suite}"
 
-            if oras pull "${REGISTRY}:${suite}-latest" --output "$SHOT_PATH" 2>/dev/null; then
-              cp "$SHOT_PATH" "screenshots/${SLUG}-${suite}-latest.png"
-              echo "Published screenshots/${SLUG}-${suite}-latest.png"
+            mkdir -p "$SHOT_DIR"
+            if oras pull "${REGISTRY}:${suite}-latest" -o "$SHOT_DIR/" 2>/dev/null; then
+              SHOT=$(find "$SHOT_DIR/" -name "*.png" | head -1)
+              if [[ -n "$SHOT" ]]; then
+                cp "$SHOT" "screenshots/${SLUG}-${suite}-latest.png"
+                echo "Published screenshots/${SLUG}-${suite}-latest.png"
+              fi
             fi
           done
 
           # JSONL persistence
           DATE=$(date +%Y%m%d)
           RUN_ID="${{ github.event.workflow_run.id }}"
-          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
 
           for suite in smoke common vanilla-gnome developer dx lifecycle; do
             META="meta-${suite}/e2e-metadata.json"
             [[ -f "$META" ]] || continue
             IMAGE=$(jq -r .image "$META")
             SLUG=$(echo "$IMAGE" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
+            SUITE_RESULT=$(jq -r '.conclusion // "unknown"' "$META")
             mkdir -p data
             printf '{"date":"%s","run_id":"%s","image":"%s","slug":"%s","suite":"%s","result":"%s"}\n' \
-              "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$RUN_ID" "$IMAGE" "$SLUG" "$suite" "$CONCLUSION" \
+              "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$RUN_ID" "$IMAGE" "$SLUG" "$suite" "$SUITE_RESULT" \
               >> "data/results-${DATE}.jsonl"
           done
 
