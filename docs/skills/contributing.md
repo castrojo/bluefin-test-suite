@@ -50,6 +50,41 @@ docs/skills/add-contributing-guide
 feat/smoke/add-calendar-scenario
 ```
 
+## Git worktree hygiene
+
+Worktrees are the standard way to work on multiple branches in parallel without cloning the repo again.
+
+```bash
+# Create a worktree in the canonical location
+git worktree add .worktrees/<short-desc> -b <branch-name>
+
+# List all live worktrees
+git worktree list
+
+# Remove after the branch is merged or abandoned
+git worktree remove .worktrees/<short-desc>
+git worktree remove --force .worktrees/<short-desc>  # if branch has uncommitted changes
+```
+
+Rules agents must follow:
+- Always place worktrees under `.worktrees/` (gitignored). Never create them at repo root or in `/tmp`.
+- Remove worktrees immediately after the PR merges or you abandon the branch. Orphaned worktrees accumulate quickly and confuse future agents.
+- Keep at most 5 live worktrees at any time. More than 5 is a sign of deferred cleanup.
+- After removing a worktree, prune the stale ref: `git worktree prune`
+- Never name a worktree directory the same as a tracked directory in the repo.
+
+To audit and bulk-prune stale worktrees:
+```bash
+git worktree list                     # shows all worktrees with branch and prunable status
+git worktree prune --dry-run          # lists refs that can be cleaned up
+git worktree prune                    # cleans up stale internal refs
+```
+
+A worktree is stale when:
+- Its branch has been squash-merged into main (check: `git log --oneline origin/main.. 2>/dev/null` returns empty)
+- It is marked `prunable` in `git worktree list` output
+- The feature it was created for was superseded by another PR
+
 ## Pre-PR validation checklist
 
 ### CI checks (`.github/workflows/pr-validate.yml` — must pass)
