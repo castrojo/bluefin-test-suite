@@ -36,6 +36,11 @@ jobs:
           ref: gh-pages
           fetch-depth: 1
 
+      - name: Sync index.html from main
+        run: |
+          curl -sSfL "https://raw.githubusercontent.com/projectbluefin/testsuite/main/docs/dashboard/index.html" \
+            -o index.html
+
       - name: Install oras
         run: |
           ORAS_VERSION="1.2.3"
@@ -61,7 +66,7 @@ jobs:
             bluefin-lts-testing
             dakota-testing
           )
-          SUITES=(smoke-a smoke-b common vanilla-gnome)
+          SUITES=(smoke common vanilla-gnome)
           DATE=$(date +%Y%m%d)
           UPDATED=0
 
@@ -98,6 +103,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add screenshots/ data/
+          git add screenshots/ data/ index.html
           git diff --cached --quiet || git commit -m "chore: update screenshots [skip ci]"
           git push

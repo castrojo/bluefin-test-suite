@@ -176,10 +176,11 @@ The screenshot is:
 
 | Tag | Meaning |
 |-----|---------|
-| `ghcr.io/projectbluefin/testsuite/desktop-screenshot:latest` | Most recent run (any suite) |
 | `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<suite>-latest` | Most recent run for that suite, e.g. `:smoke-latest` |
 | `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<slug>-<suite>-latest` | Per-image slug tag, e.g. `bluefin-testing-smoke-latest` — used by publish-to-pages |
 | `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<short-sha>` | Immutable per-commit tag |
+
+**No `:latest` tag is pushed.** `latest` is not a tag used in this repo — do not add it.
 
 Pull the latest screenshot locally:
 ```bash
@@ -201,6 +202,11 @@ The working approach:
    Slug derivation: strip `ghcr.io/<org>/` from `inputs.image`, replace `:` with `-`.
    Example: `ghcr.io/projectbluefin/bluefin:testing` → `bluefin-testing-smoke-latest`
 
+   **SCREENSHOT_SUITE normalization:** smoke sharding pushes `SCREENSHOT_SUITE=smoke` for both
+   `smoke-a` and `smoke-b`. The GHCR tag is always `{slug}-smoke-latest`, never `{slug}-smoke-a-latest`.
+   If you add new shards, update the `SCREENSHOT_SUITE` normalization block in e2e.yml and keep
+   `SUITES=(smoke common vanilla-gnome)` in `publish-to-pages.yml` unchanged.
+
    The tag is annotated with `io.github.projectbluefin.run_id` and `io.github.projectbluefin.caller_repo` for JSONL traceability.
 
 2. **`publish-to-pages.yml` runs on a 2-hour schedule** (+ `workflow_dispatch` for manual trigger). It pulls the known slug-specific tags directly from GHCR — no metadata artifacts, no cross-repo auth. JSONL reads `run_id` and `caller_repo` from OCI manifest annotations via `oras manifest fetch`.
@@ -208,8 +214,11 @@ The working approach:
 Known slugs hardcoded in `publish-to-pages.yml`:
 ```bash
 SLUGS=(bluefin-testing bluefin-lts-testing dakota-testing)
+SUITES=(smoke common vanilla-gnome)
 ```
-Add new slugs here when the fleet grows.
+Add new slugs here when the fleet grows. **Do not add `dx`, `developer`, or `lifecycle` to SUITES** — these suites are not tracked by publish-to-pages (dx/developer run on gdx images not in the SLUGS list; lifecycle is a migration workflow with no desktop screenshots).
+
+**Dashboard source of truth:** `docs/dashboard/index.html` in `main` is the canonical dashboard HTML. `publish-to-pages.yml` syncs it to `gh-pages` on every run. Edit the source in `main`, not the copy on `gh-pages` directly.
 
 Stable URL format:
 ```text

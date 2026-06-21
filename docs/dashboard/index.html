@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Testsuite Build Health Dashboard</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b1220;
+      --panel: #111827;
+      --panel-border: #243041;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --pass-bg: #16341f;
+      --pass-fg: #86efac;
+      --fail-bg: #3a1616;
+      --fail-fg: #fca5a5;
+      --unknown-bg: #1f2937;
+      --unknown-fg: #d1d5db;
+      --link: #93c5fd;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 2rem;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    main { max-width: 1200px; margin: 0 auto; }
+    h1, h2, h3, p { margin-top: 0; }
+    .meta { color: var(--muted); margin-bottom: 1.5rem; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+    }
+    th, td {
+      border: 1px solid var(--panel-border);
+      padding: 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    td.slug {
+      white-space: nowrap;
+      font-weight: 600;
+    }
+    td.pass { background: var(--pass-bg); color: var(--pass-fg); }
+    td.fail { background: var(--fail-bg); color: var(--fail-fg); }
+    td.unknown { background: var(--unknown-bg); color: var(--unknown-fg); }
+    td a {
+      color: inherit;
+      text-decoration: none;
+      display: inline-flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+    td a:hover { text-decoration: underline; }
+    .status-label { font-weight: 700; }
+    .status-raw, .run-link { font-size: 0.82rem; color: var(--muted); }
+    .screenshots {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card a { color: var(--link); text-decoration: none; }
+    .card a:hover { text-decoration: underline; }
+    .card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      background: #000;
+    }
+    .card-body { padding: 0.85rem 1rem 1rem; }
+    .small { font-size: 0.85rem; color: var(--muted); }
+    .empty, .loading { color: var(--muted); }
+    @media (max-width: 720px) {
+      body { padding: 1rem; }
+      th, td { padding: 0.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="panel">
+      <h1>Testsuite Build Health Dashboard</h1>
+      <p class="meta" id="last-updated">Loading recent build health data.</p>
+      <p class="small">Source: gh-pages JSONL files written by the publish-to-pages workflow.</p>
+    </header>
+
+    <section class="panel">
+      <h2>Recent suite results</h2>
+      <div id="grid" class="loading">Loading last 7 days of data.</div>
+    </section>
+
+    <section>
+      <h2>Smoke screenshots</h2>
+      <div id="screenshots" class="screenshots"></div>
+    </section>
+  </main>
+
+  <script>
+    const SUITES = ['smoke', 'common', 'vanilla-gnome'];
+    const DAYS_TO_FETCH = 7;
+    const OWNER_REPO = 'projectbluefin/testsuite';
+
+    function dateStamp(offset) {
+      const now = new Date();
+      const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - offset));
+      const y = utc.getUTCFullYear();
+      const m = String(utc.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(utc.getUTCDate()).padStart(2, '0');
+      return `${y}${m}${d}`;
+    }
+
+    async function fetchJsonl(stamp) {
+      const response = await fetch(`data/results-${stamp}.jsonl`, { cache: 'no-store' });
+      if (!response.ok) {
+        return [];
+      }
+      const text = await response.text();
+      return text
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) => {
+          try {
+            return JSON.parse(line);
+          } catch {
+            return null;
+          }
+        })
+        .filter((entry) => entry && entry.slug && entry.suite && entry.run_id && entry.result && entry.date);
+    }
+
+    function latestEntries(entries) {
+      const latest = new Map();
+      for (const entry of entries) {
+        const key = `${entry.slug}::${entry.suite}`;
+        const ts = Date.parse(entry.date) || 0;
+        const current = latest.get(key);
+        if (!current || ts >= current.ts) {
+          latest.set(key, { entry, ts });
+        }
+      }
+      return latest;
+    }
+
+    function renderGrid(entries) {
+      const container = document.getElementById('grid');
+      if (!entries.length) {
+        container.className = 'empty';
+        container.textContent = 'No JSONL results found for the last 7 days.';
+        return;
+      }
+
+      const byKey = latestEntries(entries);
+      const slugs = Array.from(new Set(entries.map((entry) => entry.slug))).sort();
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const headerRow = document.createElement('tr');
+      const slugHead = document.createElement('th');
+      slugHead.textContent = 'Image';
+      headerRow.appendChild(slugHead);
+      for (const suite of SUITES) {
+        const th = document.createElement('th');
+        th.textContent = suite;
+        headerRow.appendChild(th);
+      }
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      for (const slug of slugs) {
+        const row = document.createElement('tr');
+        const slugCell = document.createElement('td');
+        slugCell.className = 'slug';
+        slugCell.textContent = slug;
+        row.appendChild(slugCell);
+
+        for (const suite of SUITES) {
+          const cell = document.createElement('td');
+          const record = byKey.get(`${slug}::${suite}`);
+          if (!record) {
+            cell.className = 'unknown';
+            cell.textContent = 'No data';
+            row.appendChild(cell);
+            continue;
+          }
+
+          const { entry } = record;
+          const passed = entry.result === 'success';
+          cell.className = passed ? 'pass' : 'fail';
+          const link = document.createElement('a');
+          link.href = `https://github.com/${OWNER_REPO}/actions/runs/${encodeURIComponent(entry.run_id)}`;
+          link.target = '_blank';
+          link.rel = 'noreferrer';
+
+          const label = document.createElement('span');
+          label.className = 'status-label';
+          label.textContent = passed ? 'Pass' : 'Fail';
+          link.appendChild(label);
+
+          const raw = document.createElement('span');
+          raw.className = 'status-raw';
+          raw.textContent = entry.result;
+          link.appendChild(raw);
+
+          const run = document.createElement('span');
+          run.className = 'run-link';
+          run.textContent = `Run ${entry.run_id}`;
+          link.appendChild(run);
+
+          cell.appendChild(link);
+          row.appendChild(cell);
+        }
+        tbody.appendChild(row);
+      }
+      table.appendChild(tbody);
+      container.className = '';
+      container.innerHTML = '';
+      container.appendChild(table);
+    }
+
+    function renderScreenshots(entries) {
+      const container = document.getElementById('screenshots');
+      const slugs = Array.from(new Set(entries.map((entry) => entry.slug))).sort();
+      if (!slugs.length) {
+        container.innerHTML = '<p class="empty">No screenshots available yet.</p>';
+        return;
+      }
+      container.innerHTML = '';
+      for (const slug of slugs) {
+        const card = document.createElement('article');
+        card.className = 'card';
+
+        const imageLink = document.createElement('a');
+        imageLink.href = `screenshots/${slug}-smoke-latest.png`;
+        imageLink.target = '_blank';
+        imageLink.rel = 'noreferrer';
+
+        const img = document.createElement('img');
+        img.src = `screenshots/${slug}-smoke-latest.png`;
+        img.alt = `${slug} smoke screenshot`;
+        img.loading = 'lazy';
+        img.onerror = () => {
+          img.replaceWith(Object.assign(document.createElement('div'), {
+            className: 'card-body small',
+            textContent: 'Smoke screenshot not available yet.'
+          }));
+        };
+        imageLink.appendChild(img);
+        card.appendChild(imageLink);
+
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        const title = document.createElement('h3');
+        title.textContent = slug;
+        body.appendChild(title);
+        const link = document.createElement('a');
+        link.href = `screenshots/${slug}-smoke-latest.png`;
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.textContent = 'Open latest smoke screenshot';
+        body.appendChild(link);
+        card.appendChild(body);
+        container.appendChild(card);
+      }
+    }
+
+    function renderLastUpdated(entries) {
+      const node = document.getElementById('last-updated');
+      if (!entries.length) {
+        node.textContent = 'No recent JSONL results found.';
+        return;
+      }
+      const latest = entries
+        .map((entry) => Date.parse(entry.date))
+        .filter((value) => !Number.isNaN(value))
+        .sort((a, b) => b - a)[0];
+      node.textContent = `Last updated: ${new Date(latest).toLocaleString()} from recent workflow results.`;
+    }
+
+    async function main() {
+      const stamps = Array.from({ length: DAYS_TO_FETCH }, (_, index) => dateStamp(index));
+      const results = await Promise.all(stamps.map(fetchJsonl));
+      const entries = results.flat();
+      renderLastUpdated(entries);
+      renderGrid(entries);
+      renderScreenshots(entries);
+    }
+
+    main().catch((error) => {
+      document.getElementById('grid').className = 'empty';
+      document.getElementById('grid').textContent = `Failed to load dashboard data: ${error.message}`;
+      document.getElementById('last-updated').textContent = 'Dashboard data load failed.';
+    });
+  </script>
+</body>
+</html>
