@@ -1,9 +1,16 @@
 # testsuite QA review
 
-> Last updated: 2026-06-16
+> Last updated: 2026-06-21
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
 Current audit: 272 scenarios across 33 feature files (last audit: 2026-06-16). 30 quarantined, 239 active, 3 @future stubs.
+
+## Architecture changes (2026-06-21)
+
+- Nightly removed — PR gates are now the sole CI mechanism.
+- `e2e.yml` now uses OCI layer caching and a 45-minute timeout.
+- `pr-validate.yml` now enforces 30-day quarantine expiry.
+- Known infrastructure-flaky smoke scenarios now use `@retry`.
 
 ## What this repo is responsible for
 
@@ -62,4 +69,3 @@ The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
 - `security/selinux`: `@future` scenarios at Feature level — will activate when Bluefin test images stop booting with `selinux=0` (PR #280 in merge queue).
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
-
