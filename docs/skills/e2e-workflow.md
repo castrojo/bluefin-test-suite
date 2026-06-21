@@ -46,6 +46,9 @@ The script walks `git log --follow` history for each `@quarantine` scenario and 
 Because the check needs full history, the checkout step for that job must use `fetch-depth: 0`.
 Rollouts should start with `--grace-days` in CI (currently `--grace-days 30`) so the threshold can harden without instantly blocking every PR.
 
+`e2e.yml` reuses the same script for job-summary reporting via `python3 scripts/check_quarantine_age.py --json`.
+That summary path is informational only, but it still needs the same prerequisites: the workflow checkout must include `scripts/check_quarantine_age.py`, the `tests/` tree, and full git history (`fetch-depth: 0`) or the age calculations will be incomplete.
+
 ## How to call it from another repo
 
 ```yaml
@@ -176,6 +179,27 @@ The screenshot is:
 Pull the latest screenshot locally:
 ```bash
 oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:smoke-latest
+```
+
+### gh-pages screenshot publishing
+
+Stable HTTP screenshot URLs are published from a separate `publish-to-pages.yml` workflow triggered by `workflow_run` on `E2E — GNOME in QEMU`.
+
+Why the extra workflow: when `e2e.yml` is called cross-repo, the reusable workflow runs with the caller's token and repository context. Publishing to `projectbluefin/testsuite`'s `gh-pages` branch therefore has to happen in a workflow that runs in this repo after the reusable workflow completes.
+
+The flow is:
+
+1. `e2e.yml` writes `meta/e2e-metadata.json` with `image`, `suite`, and `conclusion`
+2. `e2e.yml` uploads that file as `e2e-metadata-<suite>`
+3. `publish-to-pages.yml` downloads the metadata artifacts for the completed run
+4. `publish-to-pages.yml` pulls `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<suite>-latest`
+5. It derives the HTTP filename slug by stripping `ghcr.io/<org>/` from the image ref and replacing `:` with `-`
+6. It copies the PNG to `screenshots/{slug}-{suite}-latest.png` on the `gh-pages` branch
+
+Stable URL format:
+
+```text
+https://projectbluefin.github.io/testsuite/screenshots/{slug}-{suite}-latest.png
 ```
 
 ### Flatpak screenshot gallery

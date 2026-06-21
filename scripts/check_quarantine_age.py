@@ -4,8 +4,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Iterable
@@ -57,6 +58,14 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Additional rollout grace days on top of --max-days "
             "(default: %(default)s)"
+        ),
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help=(
+            "Print all current quarantine entries as JSON and exit 0. "
+            "Used by workflow summaries; does not enforce expiration."
         ),
     )
     return parser.parse_args()
@@ -276,6 +285,17 @@ def format_report(
     return "\n".join(lines).rstrip()
 
 
+def format_json(entries: Iterable[QuarantineEntry]) -> str:
+    payload = []
+    for entry in entries:
+        item = asdict(entry)
+        item["feature_file"] = str(entry.feature_file)
+        item["quarantined_on"] = entry.quarantined_on.isoformat()
+        item["days"] = item.pop("age_days")
+        payload.append(item)
+    return json.dumps(payload, sort_keys=True)
+
+
 def validate_args(args: argparse.Namespace) -> None:
     if args.max_days < 0:
         raise ValueError("--max-days must be zero or greater")
@@ -297,6 +317,9 @@ def main() -> int:
         grace_days=args.grace_days,
         repo_root=repo_root,
     )
+    if args.json:
+        print(format_json(entries))
+        return 0
     expired = find_expired_quarantines(entries)
     print(format_report(expired, max_days=args.max_days, grace_days=args.grace_days))
     return 1 if expired else 0

@@ -6,6 +6,7 @@ from pathlib import Path
 from scripts.check_quarantine_age import (
     QuarantineEntry,
     RECOMMENDED_ACTION,
+    format_json,
     find_expired_quarantines,
     format_report,
 )
@@ -43,3 +44,11 @@ def test_output_format_lists_actionable_details():
     assert "Date quarantined: 2026-01-01" in report
     assert "Age: 45 days" in report
     assert f"Action: {RECOMMENDED_ACTION}" in report
+
+
+def test_json_output_uses_days_field():
+    payload = format_json([_entry(age_days=12)])
+
+    assert '"days": 12' in payload
+    assert '"quarantined_on": "2026-01-01"' in payload
+    assert '"feature_file": "tests/smoke/features/example.feature"' in payload

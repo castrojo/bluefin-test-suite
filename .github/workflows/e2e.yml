@@ -110,10 +110,10 @@ jobs:
         with:
           repository: projectbluefin/testsuite
           ref: ${{ inputs.test_ref }}
+          fetch-depth: 0
           sparse-checkout: |
-            tests/${{ matrix.suite }}
-            tests/shared
-            tests/__init__.py
+            tests
+            scripts/check_quarantine_age.py
           sparse-checkout-cone-mode: false
 
       - name: Free disk space
@@ -1204,6 +1204,7 @@ jobs:
           if [[ -f results/results.json ]]; then
             python3 - << 'PY'
           import json, os
+          import subprocess, json as _json
           data    = json.load(open('results/results.json'))
           failed  = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'failed')
           skipped = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'skipped')
@@ -1253,6 +1254,33 @@ jobs:
               '_Desktop screenshot (fastfetch open) pushed to GHCR as an OCI artifact. '
               'Pull from any org workflow for release notes or visual regression._',
             ]
+
+          # gh-pages stable URL
+          image_env = os.environ.get('IMAGE', '')
+          if '/' in image_env:
+            parts = image_env.replace('ghcr.io/', '').split('/')
+            slug = parts[-1] if len(parts) > 1 else parts[0]
+          else:
+            slug = 'bluefin-testing'
+          slug = slug.replace(':', '-')
+          suite = os.environ.get('SUITE', 'smoke')
+          gh_pages_url = f'https://projectbluefin.github.io/testsuite/screenshots/{slug}-{suite}-latest.png'
+          lines += [
+            '',
+            '### Desktop Screenshot (gh-pages)',
+            f'![{slug} {suite}]({gh_pages_url})',
+            '_Note: URL updates after the publish-to-pages workflow completes (~1 min after this job)_',
+          ]
+
+          try:
+            result = subprocess.run(['python3', 'scripts/check_quarantine_age.py', '--json'], capture_output=True, text=True)
+            if result.returncode == 0 and result.stdout.strip():
+              qdata = _json.loads(result.stdout)
+              count = len(qdata)
+              oldest = max((s['days'] for s in qdata), default=0)
+              lines.append(f'\n> {count} scenarios quarantined (oldest: {oldest} days)')
+          except Exception:
+            pass
 
           # Flatpak gallery — one entry per requested app
           flatpak_refs_raw = os.environ.get('SCREENSHOT_FLATPAK_REFS', '').strip()
@@ -1332,3 +1360,19 @@ jobs:
       - name: Fail job if tests failed
         if: steps.run.outputs.behave_rc != '0'
         run: exit "${{ steps.run.outputs.behave_rc }}"
+
+      - name: Write e2e metadata
+        if: always()
+        run: |
+          mkdir -p meta
+          printf '{"image":"%s","suite":"%s","conclusion":"%s"}\n' \
+            "${{ inputs.image }}" "${{ matrix.suite }}" "${{ job.status }}" \
+            > meta/e2e-metadata.json
+
+      - name: Upload e2e metadata
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: e2e-metadata-${{ matrix.suite }}
+          path: meta/e2e-metadata.json
+          retention-days: 1
