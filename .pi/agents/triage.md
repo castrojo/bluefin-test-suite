@@ -11,8 +11,8 @@ Triage open issues and PRs in this repo.
 
 ```bash
 cat docs/skills/index.md
-cat docs/skills/suite-map.md      # know current coverage and non-blocking jobs
-cat RUNBOOK.md                    # check non-blocking nightly state
+cat docs/skills/suite-map.md      # know current coverage and variant matrix
+cat RUNBOOK.md                    # manual workflow commands and operational checks
 gh issue list --repo projectbluefin/testsuite --state open
 gh pr list --repo projectbluefin/testsuite --state open
 ```

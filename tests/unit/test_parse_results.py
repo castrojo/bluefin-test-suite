@@ -1,4 +1,4 @@
-"""Unit tests for the nightly results parser."""
+"""Unit tests for the results parser."""
 
 from __future__ import annotations
 

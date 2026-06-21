@@ -1,4 +1,4 @@
-@hardware_emulation @nightly
+@hardware_emulation
 Feature: Emulated hardware peripheral validation
   Validates GNOME/systemd interaction with KubeVirt-emulated hardware.
   All devices are virtual — no physical hardware required.

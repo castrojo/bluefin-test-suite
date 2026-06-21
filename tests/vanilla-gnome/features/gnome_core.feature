@@ -1,4 +1,4 @@
-@gnome_core @vanilla_gnome @nightly
+@gnome_core @vanilla_gnome
 Feature: Vanilla GNOME baseline smoke tests
   Validates core GNOME Shell behaviour on upstream Fedora (no Bluefin customizations).
   Used as a comparison baseline: failures here indicate upstream GNOME issues;
@@ -7,7 +7,7 @@ Feature: Vanilla GNOME baseline smoke tests
 
   # Golden disk: quay.io/fedora/fedora-bootc:latest (vanilla GNOME, no extensions)
   # Namespace: gnome-baseline-test
-  # Runs: nightly, not per-PR (expensive)
+  # Runs: manual comparison, not per-PR (expensive)
   # See QA-REVIEW.md Epic E07
 
   @gnome_core

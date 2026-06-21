@@ -123,7 +123,7 @@
         test: /tests/smoke
 
 /vanilla-gnome:
-    summary: Vanilla GNOME upstream baseline (nightly comparison)
+    summary: Vanilla GNOME upstream baseline (manual comparison)
     inherit: /main
     discover:
         how: fmf
