@@ -72,7 +72,13 @@ jobs:
           JSON=$(python3 -c "
           import json, sys
           parts = [s.strip() for s in sys.argv[1].split(',') if s.strip()]
-          print(json.dumps(parts))
+          expanded = []
+          for p in parts:
+              if p == 'smoke':
+                  expanded.extend(['smoke-a', 'smoke-b'])
+              else:
+                  expanded.append(p)
+          print(json.dumps(expanded))
           " "${{ inputs.suites }}")
           echo "suites=${JSON}" >> "$GITHUB_OUTPUT"
           echo "Suites: ${JSON}"
@@ -115,6 +121,30 @@ jobs:
             tests
             scripts/check_quarantine_age.py
           sparse-checkout-cone-mode: false
+
+      # smoke-a and smoke-b are parallel shards of the smoke suite.
+      # SUITE_DIR is the physical directory (always "smoke" for both shards).
+      # FEATURE_ARGS lists the specific feature files for this shard (empty = run all).
+      - name: Resolve suite shard
+        run: |
+          SUITE_DIR="${SUITE}"
+          FEATURE_ARGS=""
+          case "${SUITE}" in
+            smoke-a)
+              SUITE_DIR="smoke"
+              FEATURE_ARGS="tests/smoke/features/system_health.feature tests/smoke/features/gnome_shell.feature tests/smoke/features/gnome_apps.feature tests/smoke/features/gnome_calculator.feature tests/smoke/features/gnome_notifications.feature"
+              ;;
+            smoke-b)
+              SUITE_DIR="smoke"
+              FEATURE_ARGS="tests/smoke/features/firefox.feature tests/smoke/features/gnome_extensions.feature tests/smoke/features/gnome_files.feature tests/smoke/features/gnome_settings.feature tests/smoke/features/gnome_text_editor.feature"
+              ;;
+          esac
+          echo "SUITE_DIR=${SUITE_DIR}" >> "$GITHUB_ENV"
+          echo "FEATURE_ARGS=${FEATURE_ARGS}" >> "$GITHUB_ENV"
+          # Canonical suite name for screenshot tags — both shards share smoke-latest.
+          SCREENSHOT_SUITE="${SUITE}"
+          [[ "${SUITE}" == smoke-[ab] ]] && SCREENSHOT_SUITE="smoke"
+          echo "SCREENSHOT_SUITE=${SCREENSHOT_SUITE}" >> "$GITHUB_ENV"
 
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
@@ -916,11 +946,18 @@ jobs:
             # Copy into tests/ subdir so 'from tests.shared import ...' resolves.
             # PYTHONPATH=/tmp/bluefin-tests exposes the tests package to behave.
             $SSH "mkdir -p /tmp/bluefin-tests/tests /tmp/results"
-            $SCP "tests/${SUITE}" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/tests/"
+            $SCP "tests/${SUITE_DIR}" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/tests/"
             [[ -d "tests/shared" ]] && \
               $SCP "tests/shared" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/tests/" || true
             [[ -f "tests/__init__.py" ]] && \
               $SCP "tests/__init__.py" "bluefin-test@127.0.0.1:/tmp/bluefin-tests/tests/__init__.py" || true
+
+            # Build the behave path: specific feature files for shards, directory otherwise.
+            if [[ -n "${FEATURE_ARGS}" ]]; then
+              REMOTE_FEATURE_ARGS="${FEATURE_ARGS//tests\//\/tmp\/bluefin-tests\/tests\/}"
+            else
+              REMOTE_FEATURE_ARGS="/tmp/bluefin-tests/tests/${SUITE_DIR}/features/"
+            fi
 
             $SSH "
               set -e
@@ -953,7 +990,7 @@ jobs:
                 -e TARGET_IMAGE=\"${TARGET_IMAGE}\" \
                 -e PYTHONPATH=/tmp/bluefin-tests \
                 ghcr.io/projectbluefin/testsuite:runner \
-                \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py /tmp/bluefin-tests/tests/${SUITE}/features/ --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}\"
+                \"python3 /tmp/bluefin-tests/tests/shared/behave_retry.py ${REMOTE_FEATURE_ARGS} --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}\"
             " || BEHAVE_RC=$?
 
             $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
@@ -1155,7 +1192,7 @@ jobs:
             --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
             desktop-screenshot.png:image/png
-          oras push "${SCREENSHOT_IMAGE}:${SUITE}-latest" \
+          oras push "${SCREENSHOT_IMAGE}:${SCREENSHOT_SUITE}-latest" \
             --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
@@ -1169,19 +1206,19 @@ jobs:
           # Push image-slug-specific tag so publish-to-pages can pull without metadata artifacts.
           # Slug: strip ghcr.io/<org>/, replace : with - (e.g. bluefin-testing)
           IMAGE_SLUG=$(echo "${IMAGE}" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
-          oras push "${SCREENSHOT_IMAGE}:${IMAGE_SLUG}-${SUITE}-latest" \
+          oras push "${SCREENSHOT_IMAGE}:${IMAGE_SLUG}-${SCREENSHOT_SUITE}-latest" \
             --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
             --annotation "io.github.projectbluefin.run_id=${{ github.run_id }}" \
             --annotation "io.github.projectbluefin.caller_repo=${{ github.repository }}" \
             desktop-screenshot.png:image/png
-          echo "Pushed ${SCREENSHOT_IMAGE}:${IMAGE_SLUG}-${SUITE}-latest"
+          echo "Pushed ${SCREENSHOT_IMAGE}:${IMAGE_SLUG}-${SCREENSHOT_SUITE}-latest"
 
           echo "ref=${SCREENSHOT_IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "suite_tag=${SCREENSHOT_IMAGE}:${SUITE}-latest" >> "$GITHUB_OUTPUT"
+          echo "suite_tag=${SCREENSHOT_IMAGE}:${SCREENSHOT_SUITE}-latest" >> "$GITHUB_OUTPUT"
           echo "image_slug=${IMAGE_SLUG}" >> "$GITHUB_OUTPUT"
-          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA}, :${SUITE}-latest, :${IMAGE_SLUG}-${SUITE}-latest, and :latest"
+          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA}, :${SCREENSHOT_SUITE}-latest, :${IMAGE_SLUG}-${SCREENSHOT_SUITE}-latest, and :latest"
 
           # Push any per-Flatpak screenshots captured by the "Screenshot requested Flatpaks" step.
           # Filename pattern: screenshot_<suite>_<app_slug>_flatpak_gallery.png

@@ -84,6 +84,12 @@ with:
   suites: smoke,developer
 ```
 
+**Smoke sharding**: `suites: smoke` automatically expands to `smoke-a` + `smoke-b` as two parallel matrix jobs. Each shard runs half the feature files:
+- `smoke-a`: `system_health`, `gnome_shell`, `gnome_apps`, `gnome_calculator`, `gnome_notifications`
+- `smoke-b`: `firefox`, `gnome_extensions`, `gnome_files`, `gnome_settings`, `gnome_text_editor`
+
+Both shards use `tests/smoke/` (same directory, same environment.py and steps/) and push screenshots to `:smoke-latest` (last writer wins). Wall time ~50% of a single smoke run.
+
 ### Lifecycle suite — special execution model
 
 The `lifecycle` and `common` suites do **not** run inside the VM container. They run from the GHA runner via SSH — `lifecycle` because the test process must survive the mid-upgrade reboot; `common` because it only needs dconf/shell access, not a full AT-SPI bus. The pipeline branches at the "Run behave suite" step:
