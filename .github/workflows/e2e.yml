@@ -1186,18 +1186,13 @@ jobs:
           echo "${{ github.token }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
 
           SHORT_SHA="${GITHUB_SHA::8}"
-          # Tag with short SHA (immutable), suite-stable tag, and :latest (always current)
+          # Tag with short SHA (immutable) and suite-stable tag.
           oras push "${SCREENSHOT_IMAGE}:${SHORT_SHA}" \
             --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
             desktop-screenshot.png:image/png
           oras push "${SCREENSHOT_IMAGE}:${SCREENSHOT_SUITE}-latest" \
-            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
-            --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
-            --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
-            desktop-screenshot.png:image/png
-          oras push "${SCREENSHOT_IMAGE}:latest" \
             --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
@@ -1218,7 +1213,7 @@ jobs:
           echo "ref=${SCREENSHOT_IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "suite_tag=${SCREENSHOT_IMAGE}:${SCREENSHOT_SUITE}-latest" >> "$GITHUB_OUTPUT"
           echo "image_slug=${IMAGE_SLUG}" >> "$GITHUB_OUTPUT"
-          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA}, :${SCREENSHOT_SUITE}-latest, :${IMAGE_SLUG}-${SCREENSHOT_SUITE}-latest, and :latest"
+          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA}, :${SCREENSHOT_SUITE}-latest, :${IMAGE_SLUG}-${SCREENSHOT_SUITE}-latest"
 
           # Push any per-Flatpak screenshots captured by the "Screenshot requested Flatpaks" step.
           # Filename pattern: screenshot_<suite>_<app_slug>_flatpak_gallery.png
