@@ -1,13 +1,36 @@
 ---
 name: e2e-workflow
-description: "Reusable E2E workflow reference — how to integrate the testsuite into another repo's CI, QEMU boot pipeline details, workflow inputs/outputs, and debugging guidance."
+description: "Use when integrating or debugging the reusable E2E workflow, changing QEMU boot pipeline steps, or adjusting GitHub Actions cache and workflow_call behavior."
 metadata:
   type: reference
+  context7-sources:
+    - /websites/github_en_actions
+    - /actions/cache
 ---
 
 # Reusable E2E Workflow — GNOME in QEMU
 
 Load when: integrating the testsuite into another repo's CI (e.g. `projectbluefin/dakota`), debugging e2e workflow failures, or understanding how the QEMU boot pipeline works.
+
+## When to Use
+
+- Changing `.github/workflows/e2e.yml` inputs, matrix behavior, job timeouts, or artifact handling
+- Debugging OCI image pulls, QEMU boot/setup stages, or reusable `workflow_call` behavior
+- Adding or troubleshooting GitHub Actions caching for the root podman image store
+
+## When NOT to Use
+
+- Writing or debugging behave steps inside `tests/**` — use `behave.md`, `gnome.md`, or `bootc.md`
+- Changing Argo/KubeVirt lab infrastructure — that belongs in `projectbluefin/testing-lab`
+- Updating repo-wide contribution policy — use `contributing.md`, `human-gates.md`, or `skill-drift.md`
+
+## Core Process
+
+1. Confirm the change belongs in the reusable workflow and not in a consumer repo or infra repo.
+2. Preserve hard CI rules: SHA-pin external actions, keep `workflow_call` semantics stable, and respect human gates for interface changes.
+3. For OCI pull performance work, cache the root podman store (`/var/lib/containers/storage`) because `e2e.yml` pulls with `sudo podman`.
+4. Validate the workflow file parses, then run the repo's required local checks before committing.
+5. Write back any non-obvious workflow pattern discovered during the change in this skill file.
 
 ## What it is
 
@@ -15,6 +38,13 @@ Load when: integrating the testsuite into another repo's CI (e.g. `projectbluefi
 It boots a bootc OCI image in a KVM-accelerated QEMU VM on `ubuntu-latest`, starts a GNOME session (via GDM autologin), and runs behave suites via qecore-headless.
 
 **No self-hosted runners. Pure GitHub Actions.**
+
+## PR validation sidecars
+
+`pr-validate.yml` now includes a `quarantine-age` job that runs `python3 scripts/check_quarantine_age.py`.
+The script walks `git log --follow` history for each `@quarantine` scenario and fails once the tag ages past the configured threshold.
+Because the check needs full history, the checkout step for that job must use `fetch-depth: 0`.
+Rollouts should start with `--grace-days` in CI (currently `--grace-days 30`) so the threshold can harden without instantly blocking every PR.
 
 ## How to call it from another repo
 
@@ -74,11 +104,12 @@ A **"Collect migration status"** step also runs (`always()`, `continue-on-error:
 ## Pipeline stages
 
 1. **Resolve matrix** — splits `suites` CSV into a JSON array for the strategy matrix
-2. **Free disk space** — uses `ublue-os/remove-unwanted-software` to reclaim ~20 GB
+2. **Free disk space** — fast inline cleanup removes the hosted runner's large unused SDK trees (`/usr/share/dotnet`, Android, GHC, CodeQL) plus `php*`, `dotnet*`, `mono*`, and `llvm*`; this keeps the 30 GB `disk.raw` allocation viable without the slower `ublue-os/remove-unwanted-software` action
 3. **Enable KVM** — udev rule for `/dev/kvm` access
-4. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `podman pull` runs in background
-5. **Install OCI image to disk** — `bootc install to-disk` writes ostree layers to a 30 GB raw disk; bootupd failure is expected and caught (direct QEMU kernel boot is used instead of OVMF/systemd-boot)
-6. **Configure disk** — mounts the raw disk and:
+4. **Resolve digest + cache OCI layers** — restore `/var/lib/containers/storage` with `actions/cache`, keyed by the test image digest. The workflow uses `sudo podman pull`, so the cache must target root's podman store, not the runner user's storage.
+5. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `podman pull` runs in background. On an OCI cache hit, both image pulls are skipped entirely.
+6. **Install OCI image to disk** — `bootc install to-disk` writes ostree layers to a 30 GB raw disk; bootupd failure is expected and caught (direct QEMU kernel boot is used instead of OVMF/systemd-boot)
+7. **Configure disk** — mounts the raw disk and:
    - Copies `vmlinuz` + `initramfs.img` to workspace for direct kernel boot
    - Creates `bluefin-test` user (UID 1001)
    - Injects SSH public key
@@ -86,13 +117,13 @@ A **"Collect migration status"** step also runs (`always()`, `continue-on-error:
    - Enables sshd, pre-generates SSH host keys
    - Masks irrelevant services (bluetooth, cups, avahi…)
    - Sets `PermitUserEnvironment yes` for AT-SPI env forwarding
-7. **Boot VM** — `qemu-system-x86_64` with KVM, 4 GB RAM, 4 vCPUs, `virtio-gpu`, forwarded SSH on port 2222; daemonized
-8. **Wait for SSH** — polls port 2222 up to 5 minutes
-9. **Wait for GNOME session** — polls `/run/user/1001/wayland-0` up to 3 minutes
-10. **Load runner container + install test stack** — pipes the pre-built `ghcr.io/projectbluefin/testsuite:runner` container into the VM via `podman save | ssh podman load` (rootless, as `bluefin-test`). Before loading, ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid` entries and runs `podman system migrate`. Then: loads kernel module (`uinput`), sets device permissions, copies SSH key for @plain_ssh scenarios, captures GNOME session environment (`DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, etc.) into `/tmp/session.env`.
-11. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
-12. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
-13. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
+8. **Boot VM** — `qemu-system-x86_64` with KVM, 4 GB RAM, 4 vCPUs, `virtio-gpu`, forwarded SSH on port 2222; daemonized
+9. **Wait for SSH** — polls port 2222 up to 5 minutes
+10. **Wait for GNOME session** — polls `/run/user/1001/wayland-0` up to 3 minutes
+11. **Load runner container + install test stack** — pipes the pre-built `ghcr.io/projectbluefin/testsuite:runner` container into the VM via `podman save | ssh podman load` (rootless, as `bluefin-test`). Before loading, ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid` entries and runs `podman system migrate`. Then: loads kernel module (`uinput`), sets device permissions, copies SSH key for @plain_ssh scenarios, captures GNOME session environment (`DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, etc.) into `/tmp/session.env`.
+12. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
+13. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
+14. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
 
 ## Image requirements
 
@@ -104,6 +135,15 @@ The OCI image under test **must**:
 - Have `python3` available for pip bootstrap
 
 The workflow injects the test user, SSH keys, and autologin config at disk-prep time — nothing needs to be baked into the image for those.
+
+## Common Rationalizations
+
+- "The cache can target the runner user's podman storage."  
+  It cannot here — the pulls run under `sudo`, so cache the root store or the pull will still miss.
+- "A floating `uses:` tag is fine for a speedup-only change."  
+  It is not; external actions in this repo must stay SHA-pinned.
+- "We can keep the slow disk cleanup because it already works."  
+  No — if a faster inline cleanup frees enough space for `disk.raw`, prefer the faster path.
 
 ## Screenshots and GHCR artifacts
 
@@ -225,9 +265,9 @@ The "Wait for GNOME session" step runs `journalctl -u gdm --no-pager -n 50` on t
 
 The testsuite is checked out sparse (`tests/<suite>` + `tests/shared` only). If the suite imports from a path outside those two directories, the copy will be incomplete. Verify the suite's `environment.py` imports.
 
-### Timeout (90 min job limit)
+### Timeout (45 min job limit)
 
-The install + configure step is the heaviest (~10–15 min depending on image size). If hitting the limit, reduce suite scope or check if the image pull is unusually large.
+The install + configure step is the heaviest (~10–15 min depending on image size). OCI layer caching should remove most repeat pull time; if jobs still hit the 45-minute limit, reduce suite scope or check for unusually large uncached images.
 
 ## Consumer constraints — what you cannot do from the reusable action
 
@@ -243,6 +283,20 @@ When calling this workflow from another repo, the following are explicitly banne
 - No display output: `virtio-gpu` with `-display none`. Tests must use AT-SPI (dogtail/qecore), not pixel-based assertions.
 - No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests require SSH-mode suites not yet in the GHA action (epics #43/#44).
 - Partition layout assumes `p3` is the root partition. Tested against standard Anaconda/bootc partition tables. Non-standard layouts may break the disk-configure step.
+
+## Red Flags
+
+- A cache step targets `~/.local/share/containers` or another non-root path even though pulls use `sudo podman`
+- `workflow_call` checkout logic starts using `github.ref_name` inside `e2e.yml`
+- External actions are added with floating tags instead of full SHAs
+- A workflow change lands without updating this skill file with the discovered rule or workaround
+
+## Verification
+
+- [ ] `.github/workflows/e2e.yml` parses with `yaml.safe_load`
+- [ ] Every external `uses:` line in `e2e.yml` is SHA-pinned with a version comment
+- [ ] Repo-required local check passes: `python3 -m ruff check tests/ --select E,F,W --ignore E501`
+- [ ] Any new workflow-specific workaround or convention discovered in the session is captured here
 
 ---
 
