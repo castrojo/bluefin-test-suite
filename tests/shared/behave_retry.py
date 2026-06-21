@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -40,6 +41,7 @@ OPTION_FLAGS_WITH_VALUES = {
     "--tags",
 }
 REPORTER_FLAGS = {"-f", "--format", "-o", "--outfile", "--junit", "--junit-directory"}
+RERUN_ENTRY_RE = re.compile(r".+\.feature(?::\d+)?$")
 
 
 def parse_cli_args(argv: list[str]) -> tuple[int, list[str]]:
@@ -107,10 +109,14 @@ def read_rerun_entries(rerun_path: Path) -> list[str]:
         return []
     # behave 1.3.x adds "# -- RERUN: N failing scenarios..." header comments.
     # Strip them so they are not passed as feature file paths on retry.
+    # Also ignore any non-feature noise to avoid ConfigError when behave changes
+    # rerun formatting again.
     lines = [
         line.strip()
         for line in rerun_path.read_text(encoding="utf-8").splitlines()
-        if line.strip() and not line.strip().startswith("#")
+        if line.strip()
+        and not line.strip().startswith("#")
+        and RERUN_ENTRY_RE.fullmatch(line.strip())
     ]
     deduped: list[str] = []
     for line in lines:

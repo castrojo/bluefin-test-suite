@@ -7,6 +7,7 @@ from tests.shared.behave_retry import (
     DEFAULT_RETRIES,
     OPTION_FLAGS_WITH_VALUES,
     REPORTER_FLAGS,
+    RERUN_ENTRY_RE,
     _split_long_option,
     extract_option_args,
     parse_cli_args,
@@ -36,6 +37,12 @@ class TestConstants:
         # All reporter flags that take values must be in OPTION_FLAGS_WITH_VALUES
         value_reporters = {f for f in REPORTER_FLAGS if f in OPTION_FLAGS_WITH_VALUES}
         assert len(value_reporters) > 0
+
+    def test_rerun_entry_pattern_matches_feature_targets(self):
+        assert RERUN_ENTRY_RE.fullmatch("tests/smoke/features/demo.feature:12")
+
+    def test_rerun_entry_pattern_rejects_comment_noise(self):
+        assert RERUN_ENTRY_RE.fullmatch("# -- RERUN: 7 failing scenarios") is None
 
 
 # ---------------------------------------------------------------------------
@@ -241,3 +248,17 @@ class TestReadRerunEntries:
         rerun.write_text("\n".join(lines) + "\n")
         result = read_rerun_entries(rerun)
         assert result == lines
+
+    def test_filters_non_feature_lines(self, tmp_path):
+        rerun = tmp_path / "rerun.txt"
+        rerun.write_text(
+            "# -- RERUN: 2 failing scenarios\n"
+            "tests/smoke/features/foo.feature:5\n"
+            "rerun summary follows\n"
+            "tests/smoke/features/bar.feature:9\n"
+        )
+        result = read_rerun_entries(rerun)
+        assert result == [
+            "tests/smoke/features/foo.feature:5",
+            "tests/smoke/features/bar.feature:9",
+        ]

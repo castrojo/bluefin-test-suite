@@ -42,13 +42,11 @@ AT-SPI nodes for clock and system-status have `INT_MIN` position — coordinate-
 - Date/calendar menu
 
 ```python
-# Enable unsafe mode first (once per session)
-context.sandbox.shell.eval_js("global.context.unsafe_mode = true")
+from tests.shared.gnome_shell_steps import _shell_eval
 
-# Open quick-settings via Shell.Eval
-context.sandbox.shell.eval_js(
-    "Main.panel.statusArea.quickSettings.menu.open()"
-)
+# qecore's context.sandbox.shell is an AT-SPI Accessible, not a JS bridge.
+# Drive Shell.Eval with gdbus via the shared helper instead.
+_shell_eval("Main.panel.statusArea.quickSettings.menu.open()")
 ```
 
 `gdbus` equivalent:
@@ -105,20 +103,32 @@ _shell_eval('Main.overview.searchEntry.clutter_text.get_text()')
 # returns: (true, 'Files')  — parse with regex on the second element
 ```
 
+## Quick Settings DND property drift
+
+GNOME Shell has exposed the Do Not Disturb toggle under multiple private names:
+- `_doNotDisturb`
+- `_do_not_disturb`
+- `_dnd`
+
+Smoke helpers should resolve all known aliases before touching `.checked` or
+`.toggle()`. If no quick-settings object exists, fall back to the canonical
+`org.gnome.desktop.notifications show-banners` gsettings key.
+
 ## Screenshot on failure
 
 Hook in `after_scenario`, before sandbox cleanup:
 
 ```python
+from tests.shared.screenshot import take_screenshot
+
 def after_scenario(context, scenario):
     if scenario.status == "failed":
-        path = f"/tmp/results/screenshot-{scenario.name}.png"
-        context.sandbox.shell.eval_js(
-            f"imports.gi.Shell.Screenshot.screenshot(true, true, '{path}')"
-        )
+        take_screenshot("failed", context)
 ```
 
-Output path `/tmp/results/screenshot-<name>.png` is SCP'd back by the runner.
+`take_screenshot()` calls the native `org.gnome.Shell.Screenshot` D-Bus API.
+Do not call `context.sandbox.shell.eval_js(...)` for screenshots — in qecore
+4.16 `sandbox.shell` is an accessibility object and has no `eval_js` method.
 
 ## GNOME Extensions CLI (subprocess)
 
@@ -195,4 +205,3 @@ When scaffolding multiple feature areas at once:
 python3 -m py_compile tests/<suite>/features/steps/*.py
 grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d
 ```
-
