@@ -1,6 +1,6 @@
 ---
 name: suite-map
-description: "Suite map and coverage snapshot for projectbluefin/testsuite — variant matrix, suite-to-image mapping, @future gaps, and active/quarantined scenario counts."
+description: "Suite map and coverage snapshot for projectbluefin/testsuite — variant matrix, suite-to-image mapping, PR gate model, @future gaps, and active/quarantined scenario counts."
 metadata:
   type: reference
 ---
@@ -40,6 +40,14 @@ with:
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
 `security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
 
+## PR gate model
+
+- All consumer repos should gate on the `smoke` suite only.
+- Nightly CI is gone; PR gates are now the only CI signal for promotion decisions.
+- `e2e.yml` now caches OCI layers by image digest to speed repeated runs.
+- For workflow internals, cache behavior, and troubleshooting, see [`docs/skills/e2e-workflow.md`](e2e-workflow.md).
+
+
 **Trigger a lifecycle run manually**:
 Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml)**.
 Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
@@ -51,8 +59,6 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 > was fixed in PR #245 by removing the `@main` ref suffix from the `uses:` line — the
 > bare local path `uses: ./.github/workflows/e2e.yml` is fine). For lifecycle, prefer
 > `upgrade-test.yml` because it has the richer input set lifecycle needs.
-
-## Variant notes
 
 **Registry split:** `bluefin`, `bluefin-nvidia-open`, `dakota` → `ghcr.io/projectbluefin`. `bluefin-gdx`, `bazzite-gnome` → `ghcr.io/ublue-os`.
 

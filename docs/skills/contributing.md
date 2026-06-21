@@ -11,6 +11,8 @@ Load when: you found a bug, gap, or improvement while working in this repo.
 
 This is an agent-first repo — agents MAY file issues and PRs directly. No human gating required.
 
+Nightly CI is gone. PR gates are the only CI signal, and `smoke` is the standard gate suite for all consumer repos.
+
 ## Decision: which repo?
 
 | Found in | Fix goes in |
@@ -120,6 +122,7 @@ All CI checks must pass cleanly before pushing. Local checks should also be clea
 | Infra gotcha (GDM, VM) | `docs/skills/ops.md` |
 | New hard rule for all agents | `docs/skills/index.md` (rules section) |
 | e2e workflow changes (inputs, stages, image requirements) | `docs/skills/e2e-workflow.md` |
+| Quarantine expiry enforcement or stale `@quarantine` policy | `docs/skills/quarantine-age.md` |
 | Behavior or command change | `README.md` and/or `RUNBOOK.md` if agent-facing docs describe the old behavior |
 | @future scenario now implemented | Remove `@future` tag; update `QA-REVIEW.md` + `docs/skills/suite-map.md` status |
 | Coverage gap resolved | Update `QA-REVIEW.md` known gaps + `docs/skills/suite-map.md` known gaps |
@@ -174,6 +177,14 @@ jobs:
 Or use the composite action directly for full control over artifact names and failure handling (see `README.md`).
 
 For scenarios in the `developer` or `dx` suites, swap `bluefin:latest` for the appropriate DX image.
+
+For consumer repos, keep the standard PR gate on `suites: smoke` unless a human explicitly asks for broader coverage.
+
+## Tagging infrastructure-flaky scenarios
+
+Tag infrastructure-flaky scenarios with `@retry`. Use it for failures that usually clear on rerun (for example slow app launch, GNOME Shell timing, or transient notification races), not for real product regressions.
+
+See `tests/shared/behave_retry.py` for the retry harness behavior.
 
 ## Reviewing PRs before merging
 
