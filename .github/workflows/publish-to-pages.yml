@@ -12,7 +12,6 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: github.event.workflow_run.conclusion == 'success'
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -60,10 +59,26 @@ jobs:
             fi
           done
 
+          # JSONL persistence
+          DATE=$(date +%Y%m%d)
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+
+          for suite in smoke common vanilla-gnome developer dx lifecycle; do
+            META="meta-${suite}/e2e-metadata.json"
+            [[ -f "$META" ]] || continue
+            IMAGE=$(jq -r .image "$META")
+            SLUG=$(echo "$IMAGE" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
+            mkdir -p data
+            printf '{"date":"%s","run_id":"%s","image":"%s","slug":"%s","suite":"%s","result":"%s"}\n' \
+              "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$RUN_ID" "$IMAGE" "$SLUG" "$suite" "$CONCLUSION" \
+              >> "data/results-${DATE}.jsonl"
+          done
+
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add screenshots/
+          git add screenshots/ data/
           git diff --cached --quiet || git commit -m "chore: update screenshots [skip ci]"
           git push
