@@ -124,6 +124,22 @@ Each suite loads only its own `steps/*.py` files plus `qecore.common_steps`. A s
 
 Lesson surfaced 2026-05-30: `No journal entries match "{pattern}"` was added to `software/steps.py` but `ptyxis.feature` (developer suite) also used it — causing `UndefinedStep` at runtime.
 
+## behave rerun output can contain non-path noise
+
+`behave --format rerun` on 1.3.x adds header comments like:
+
+```text
+# -- RERUN: 7 failing scenarios during last test run.
+tests/smoke/features/foo.feature:5
+```
+
+`tests/shared/behave_retry.py` must filter out comment or non-`.feature[:line]`
+entries before retrying. Passing those lines back to behave causes:
+
+```text
+ConfigError: No steps directory in '/.../# -- RERUN: 7 failing scenarios ...'
+```
+
 ## `Last command output stripped "is"` vs multiline output
 
 `stripped "is" "<value>"` strips whitespace from the **entire** captured output and checks equality. This only works correctly for **single-line** command output (e.g. `grep -c`, `echo X`).

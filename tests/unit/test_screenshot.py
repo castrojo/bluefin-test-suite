@@ -99,6 +99,27 @@ def test_step_launch_and_screenshot_asserts_on_none():
             screenshot_steps.step_launch_and_screenshot(_FakeContext(), "org.gnome.Foo")
 
 
+def test_gdbus_screenshot_uses_ssh_in_container(monkeypatch):
+    monkeypatch.setattr(screenshot, "_IN_CONTAINER", True)
+    with patch.object(screenshot, "_take_screenshot_via_ssh", return_value=True) as helper:
+        assert screenshot._gdbus_screenshot("/tmp/results/foo.png") is True
+    helper.assert_called_once_with("/tmp/results/foo.png")
+
+
+def test_take_screenshot_does_not_require_sandbox_context(tmp_path, monkeypatch):
+    context = SimpleNamespace(config=SimpleNamespace(userdata={"results_dir": str(tmp_path)}))
+    monkeypatch.setattr(screenshot, "_CURRENT_CONTEXT", context)
+    monkeypatch.setattr(screenshot, "_CURRENT_SUITE", "Smoke")
+    monkeypatch.setattr(screenshot, "_CURRENT_SCENARIO", "Scenario")
+
+    target = tmp_path / "shot.png"
+    with patch.object(screenshot, "_screenshot_path", return_value=str(target)), \
+         patch.object(screenshot, "_gdbus_screenshot", return_value=True), \
+         patch.object(screenshot.os, "makedirs"), \
+         patch.object(screenshot.os.path, "exists", side_effect=[False, False, True]):
+        assert screenshot.take_screenshot("passed", context) == str(target)
+
+
 # ── take_fastfetch_screenshot fallback ───────────────────────────────────────
 
 

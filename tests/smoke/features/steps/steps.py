@@ -145,23 +145,41 @@ def _gsettings_get_bool(schema: str, key: str) -> bool:
     raise AssertionError(f"Unexpected gsettings value for {schema} {key}: {stdout!r}")
 
 
+_DND_TOGGLE_JS = (
+    "(() => { "
+    "const quickSettings = Main.panel.statusArea.quickSettings; "
+    "return quickSettings._doNotDisturb || "
+    "quickSettings._do_not_disturb || "
+    "quickSettings._dnd || null; "
+    "})()"
+)
+
+
+def _dnd_toggle_exists_js() -> str:
+    return f"({_DND_TOGGLE_JS}) !== null"
+
+
+def _dnd_toggle_checked_js() -> str:
+    return f"({_DND_TOGGLE_JS}).checked.toString()"
+
+
+def _dnd_toggle_toggle_js() -> str:
+    return f"({_DND_TOGGLE_JS}).toggle()"
+
+
 def _set_dnd_enabled(expected: bool) -> None:
     # In GNOME 48+, the _do_not_disturb property on quickSettings may not exist
     # or may have been relocated.  Try the Shell.Eval UI path first; if the
     # toggle object is absent, fall back to the gsettings canonical source.
     # (DND is active when org.gnome.desktop.notifications show-banners = false)
-    exists_js = (
-        "Main.panel.statusArea.quickSettings._do_not_disturb !== null && "
-        "Main.panel.statusArea.quickSettings._do_not_disturb !== undefined"
-    )
     try:
-        toggle_exists = _eval_bool(exists_js)
+        toggle_exists = _eval_bool(_dnd_toggle_exists_js())
     except AssertionError:
         toggle_exists = False
 
     if toggle_exists:
-        checked_js = "Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()"
-        toggle_js = "Main.panel.statusArea.quickSettings._do_not_disturb.toggle()"
+        checked_js = _dnd_toggle_checked_js()
+        toggle_js = _dnd_toggle_toggle_js()
         if _eval_bool(checked_js) != expected:
             _shell_eval(toggle_js)
         if not _wait_eval_bool(checked_js, expected=expected, retries=8, delay=0.5):
@@ -282,7 +300,7 @@ def enable_do_not_disturb_via_shell_eval_toggle(context) -> None:
 @step('Do-Not-Disturb is enabled via Shell.Eval')
 def do_not_disturb_is_enabled_via_shell_eval(context) -> None:
     # Prefer Shell.Eval UI check; fall back to gsettings if toggle not available.
-    checked_js = 'Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()'
+    checked_js = _dnd_toggle_checked_js()
     try:
         ok = _wait_eval_bool(checked_js, expected=True, retries=8, delay=0.5)
     except AssertionError:
@@ -303,7 +321,7 @@ def disable_do_not_disturb_via_shell_eval_toggle(context) -> None:
 @step('Do-Not-Disturb is disabled via Shell.Eval')
 def do_not_disturb_is_disabled_via_shell_eval(context) -> None:
     # Prefer Shell.Eval UI check; fall back to gsettings if toggle not available.
-    checked_js = 'Main.panel.statusArea.quickSettings._do_not_disturb.checked.toString()'
+    checked_js = _dnd_toggle_checked_js()
     try:
         ok = _wait_eval_bool(checked_js, expected=False, retries=8, delay=0.5)
     except AssertionError:

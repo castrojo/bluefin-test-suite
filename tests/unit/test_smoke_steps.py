@@ -195,6 +195,38 @@ class TestWaitEvalBool:
 
 
 # ---------------------------------------------------------------------------
+# DND helpers
+# ---------------------------------------------------------------------------
+
+class TestDoNotDisturbHelpers:
+    def test_dnd_toggle_js_checks_all_known_property_names(self):
+        m = _import_steps()
+        assert "_doNotDisturb" in m._DND_TOGGLE_JS
+        assert "_do_not_disturb" in m._DND_TOGGLE_JS
+        assert "_dnd" in m._DND_TOGGLE_JS
+
+    def test_set_dnd_enabled_toggles_when_alias_exists_and_state_differs(self):
+        m = _import_steps()
+        with patch.object(m, "_eval_bool", side_effect=[True, False]), \
+             patch.object(m, "_wait_eval_bool", return_value=True), \
+             patch.object(m, "_shell_eval") as shell_eval:
+            m._set_dnd_enabled(True)
+        shell_eval.assert_called_once_with(m._dnd_toggle_toggle_js())
+
+    def test_set_dnd_enabled_falls_back_to_gsettings_when_toggle_missing(self):
+        m = _import_steps()
+        with patch.object(m, "_eval_bool", side_effect=AssertionError("missing")), \
+             patch.object(m, "_gsettings_set_bool") as set_bool, \
+             patch.object(m, "_gsettings_get_bool", return_value=False):
+            m._set_dnd_enabled(True)
+        set_bool.assert_called_once_with(
+            "org.gnome.desktop.notifications",
+            "show-banners",
+            False,
+        )
+
+
+# ---------------------------------------------------------------------------
 # _run_host — routing logic (container vs. direct)
 # ---------------------------------------------------------------------------
 
