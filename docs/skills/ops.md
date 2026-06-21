@@ -430,3 +430,43 @@ Ghost branches auto-delete after 2 hours via the hook's background process. Manu
 ```bash
 git push origin :ghost/<branch-name>
 ```
+
+---
+
+## oras pull: always use a directory, never a file path
+
+`oras pull <ref> --output <path>` (or `-o <path>`) expects a **directory**. Passing a file path creates a directory with that name and puts the artifact inside it.
+
+```bash
+# WRONG — creates scratch/smoke.png/ directory, cp fails silently
+oras pull "${REGISTRY}:smoke-latest" --output scratch/smoke.png
+
+# CORRECT — pull to dir, then find the PNG inside
+mkdir -p scratch/smoke
+oras pull "${REGISTRY}:smoke-latest" -o scratch/smoke/
+SHOT=$(find scratch/smoke/ -name "*.png" | head -1)
+cp "$SHOT" screenshots/target.png
+```
+
+The artifact filename inside the OCI artifact is `desktop-screenshot.png` (set at push time with `oras push ... desktop-screenshot.png:image/png`).
+
+---
+
+## GitHub API: rulesets require PUT not PATCH
+
+`PATCH /repos/{owner}/{repo}/rulesets/{id}` returns 404 even with `repo` scope and admin access.
+
+Use `PUT` with the **full** ruleset body (including `name`, `enforcement`, `conditions`, `bypass_actors`, and all `rules`):
+
+```bash
+gh api --method PUT repos/projectbluefin/bluefin/rulesets/17070404 \
+  --input /tmp/full-ruleset.json \
+  --jq '.rules[] | select(.type=="pull_request") | .parameters.required_approving_review_count'
+```
+
+To get the current body for editing:
+```bash
+gh api repos/projectbluefin/bluefin/rulesets/17070404 \
+  | jq '{name, enforcement, conditions, bypass_actors, rules}' > /tmp/ruleset.json
+# edit /tmp/ruleset.json, then PUT
+```

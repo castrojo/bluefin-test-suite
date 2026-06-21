@@ -51,21 +51,19 @@ That summary path is informational only, but it still needs the same prerequisit
 
 ## How to call it from another repo
 
+**Pin to `@v1`** — testsuite auto-updates v1 to main after every merge. Renovate does not need to manage this SHA.
+
 ```yaml
-# .github/workflows/e2e.yml  (in the consumer repo)
-name: E2E tests
-
-on:
-  pull_request:
-  workflow_dispatch:
-
+# .github/workflows/run-testsuite.yml  (in the consumer repo)
 jobs:
   e2e:
-    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
     with:
-      image: ghcr.io/projectbluefin/dakota:latest
-      suites: smoke
+      image: ghcr.io/projectbluefin/bluefin:testing
+      suites: smoke,common,vanilla-gnome
 ```
+
+Do **not** use a full SHA pin (creates Renovate churn) or `@main` (floating, security risk).
 
 ### Inputs
 
@@ -174,6 +172,7 @@ The screenshot is:
 |-----|---------|
 | `ghcr.io/projectbluefin/testsuite/desktop-screenshot:latest` | Most recent run (any suite) |
 | `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<suite>-latest` | Most recent run for that suite, e.g. `:smoke-latest` |
+| `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<slug>-<suite>-latest` | Per-image slug tag, e.g. `bluefin-testing-smoke-latest` — used by publish-to-pages |
 | `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<short-sha>` | Immutable per-commit tag |
 
 Pull the latest screenshot locally:
@@ -183,27 +182,35 @@ oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:smoke-latest
 
 ### gh-pages screenshot publishing
 
-Stable HTTP screenshot URLs are published from a separate `publish-to-pages.yml` workflow triggered by `workflow_run` on `E2E — GNOME in QEMU`.
+**Architecture: schedule-based polling, not workflow_run.**
 
-Why the extra workflow: when `e2e.yml` is called cross-repo, the reusable workflow runs with the caller's token and repository context. Publishing to `projectbluefin/testsuite`'s `gh-pages` branch therefore has to happen in a workflow that runs in this repo after the reusable workflow completes.
+`workflow_run` only fires for workflows running in the **same repository**. When consumer repos (bluefin, bluefin-lts, dakota) call `e2e.yml` via `workflow_call`, the run is recorded in the **caller's** repo — testsuite's `workflow_run` never fires. The metadata-artifact handoff approach is dead for cross-repo calls.
 
-The flow is:
+The working approach:
 
-1. `e2e.yml` writes `meta/e2e-metadata.json` with `image`, `suite`, and `conclusion`
-2. `e2e.yml` uploads that file as `e2e-metadata-<suite>`
-3. `publish-to-pages.yml` downloads the metadata artifacts for the completed run
-4. `publish-to-pages.yml` pulls `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<suite>-latest`
-5. It derives the HTTP filename slug by stripping `ghcr.io/<org>/` from the image ref and replacing `:` with `-`
-6. It copies the PNG to `screenshots/{slug}-{suite}-latest.png` on the `gh-pages` branch
+1. **`e2e.yml` pushes a slug-specific GHCR tag per run** alongside the existing suite tag:
+   ```
+   ghcr.io/projectbluefin/testsuite/desktop-screenshot:<slug>-<suite>-latest
+   ```
+   Slug derivation: strip `ghcr.io/<org>/` from `inputs.image`, replace `:` with `-`.
+   Example: `ghcr.io/projectbluefin/bluefin:testing` → `bluefin-testing-smoke-latest`
+
+   The tag is annotated with `io.github.projectbluefin.run_id` and `io.github.projectbluefin.caller_repo` for JSONL traceability.
+
+2. **`publish-to-pages.yml` runs on a 2-hour schedule** (+ `workflow_dispatch` for manual trigger). It pulls the known slug-specific tags directly from GHCR — no metadata artifacts, no cross-repo auth. JSONL reads `run_id` and `caller_repo` from OCI manifest annotations via `oras manifest fetch`.
+
+Known slugs hardcoded in `publish-to-pages.yml`:
+```bash
+SLUGS=(bluefin-testing bluefin-lts-testing dakota-testing)
+```
+Add new slugs here when the fleet grows.
 
 Stable URL format:
-
 ```text
 https://projectbluefin.github.io/testsuite/screenshots/{slug}-{suite}-latest.png
 ```
 
-The same workflow also appends one JSONL record per suite to `data/results-YYYYMMDD.jsonl` on `gh-pages`.
-Those records are the source of truth for the static build-health dashboard: keep them append-only, store the raw `workflow_run.id`, and record the upstream `workflow_run.conclusion` even when no fresh screenshot is available.
+The JSONL records at `data/results-YYYYMMDD.jsonl` on `gh-pages` feed the static build-health dashboard at `https://projectbluefin.github.io/testsuite/`.
 
 ### Flatpak screenshot gallery
 
