@@ -81,7 +81,7 @@ def send_test_desktop_notification(context) -> None:
     assert returncode == 0, f"gdbus notification send failed: {stderr or output}"
     context.notification_gdbus_output = output
     context.notification_id = _parse_notification_id(output)
-    sleep(1)
+    sleep(0.3)
 
 
 @step("Notification request returns a positive notification ID")

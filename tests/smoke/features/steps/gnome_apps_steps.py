@@ -85,7 +85,7 @@ def _shell_eval_force_close(app_names: tuple[str, ...]) -> None:
              js],
             capture_output=True, text=True, timeout=5,
         )
-    sleep(1)
+    sleep(0.2)  # ponytail: brief settle for mutter delete; _wait_for_app_to_close polls the rest
 
 
 def _ssh_args() -> list[str]:
@@ -121,7 +121,6 @@ def _launch_app(app_id: str) -> None:
             capture_output=True, text=True, timeout=15,
         )
         if result.returncode == 0:
-            sleep(1)
             return
         raise AssertionError(
             f"Failed to launch {app_id!r} via SSH: {result.stderr.strip() or result.stdout.strip()}"
@@ -145,7 +144,6 @@ def _launch_app(app_id: str) -> None:
         last_cmd = cmd
         last_err = result.stderr.strip() or result.stdout.strip()
         if result.returncode == 0:
-            sleep(1)
             return
     raise AssertionError(
         f"Failed to launch {app_id!r}: last command {last_cmd!r} rc=1 — {last_err}"
@@ -241,7 +239,6 @@ def _launch_assert_and_close(
             )
         else:
             subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
-        sleep(1)
     _wait_for_app_to_close(app_names, label)
 
 

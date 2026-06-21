@@ -58,7 +58,6 @@ def launch_files_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
     context.files_launch_target = launch_background(FILES_LAUNCH_TARGETS)
-    sleep(1)
 
 
 def _nautilus_window(timeout: int = 10):
@@ -88,8 +87,6 @@ def files_window_is_accessible(context) -> None:
         atspi_click(context.files_window)
     except Exception:  # noqa: BLE001
         pass
-    # Brief pause so Nautilus finishes its focus transition before key combos.
-    sleep(0.5)
 
 
 @step("Files is no longer running")
@@ -160,11 +157,11 @@ def navigate_to_in_files_sidebar(context, name: str) -> None:
         if items:
             try:
                 atspi_click(items[0])
-                sleep(0.5)
+                sleep(0.2)
                 return
             except RuntimeError:
                 break  # AT-SPI actions not available; fall through to URI navigation
-        sleep(0.5)
+        sleep(0.2)
 
     # Fallback: navigate via URI so Nautilus opens the correct location directly.
     uri = FILES_SIDEBAR_URIS.get(name)
@@ -177,7 +174,7 @@ def navigate_to_in_files_sidebar(context, name: str) -> None:
             )
         else:
             launch_background(["nautilus", uri])
-        sleep(1)
+        sleep(0.3)
         return
     raise AssertionError(f"Sidebar item {name!r} not found in Files window and no URI fallback available")
 

@@ -51,7 +51,6 @@ def launch_text_editor_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
     context.text_editor_launch_target = launch_background(TEXT_EDITOR_LAUNCH_TARGETS)
-    sleep(1)
 
 
 def _text_editor_window():
