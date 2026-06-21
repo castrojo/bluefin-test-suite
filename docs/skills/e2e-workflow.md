@@ -429,3 +429,30 @@ gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
 Saved to `results/screenshot_lifecycle_upgrade_final.png` and promoted to the `desktop-screenshot` artifact.
 
 The step uses `ControlMaster=no` because the VM may have rebooted during the lifecycle suite, invalidating any existing SSH multiplex socket. It waits up to 60s for `/run/user/1001/wayland-0` before attempting the screenshot.
+
+## dconf local.d overrides and test interference (2026-06-21)
+
+**Pattern**: The e2e.yml VM setup writes `enabled-extensions=['unsafe-mode@bluefin-test']` to `/etc/dconf/db/local.d/00-ci-testing`. The dconf profile shipped by bluefin images is:
+```
+user-db:user
+system-db:local
+system-db:site
+system-db:distro
+```
+
+`local` has higher priority than `distro`. Any `gsettings get` call on a key set in `local.d/00-ci-testing` will return the CI value, NOT the distribution default. This means tests that check `gsettings get org.gnome.shell enabled-extensions` will see only `['unsafe-mode@bluefin-test']`, not what the distro configured.
+
+**Fix for tests checking distribution defaults**: Use `Gio.Settings.get_default_value()` which reads the compiled gschema default, bypassing ALL dconf databases:
+```gherkin
+* Run SSH command: "python3 -c \"import gi; gi.require_version('Gio','2.0'); from gi.repository import Gio; v = Gio.Settings.new('org.gnome.shell').get_default_value('enabled-extensions'); print(v.unpack() if v else [])\""
+* Last command output contains "custom-command-list@storageb.github.com"
+```
+
+**When to use `gsettings get` vs `get_default_value`**:
+- `gsettings get`: tests the EFFECTIVE value (what a real user sees). Affected by `local.d` CI overrides.
+- `get_default_value`: tests whether the DISTRIBUTION ships a default. Immune to CI overrides.
+- Use `gsettings get` for tests of locked keys (in `distro.d/locks/`) — locked keys aren't overridable by `local.d`.
+
+**Keys written by local.d/00-ci-testing**:
+- `org.gnome.shell allow-extension-installation` = `true`
+- `org.gnome.shell enabled-extensions` = `['unsafe-mode@bluefin-test']`

@@ -25,6 +25,7 @@ Feature: Bluefin common shell environment
   # brew-setup is masked for boot speed; the e2e workflow installs them
   # explicitly before the common suite runs.
 
+  @requires_brew
   Scenario: fzf fuzzy finder is available
     * Run SSH command: "fzf --version"
     * SSH command return code is "0"
