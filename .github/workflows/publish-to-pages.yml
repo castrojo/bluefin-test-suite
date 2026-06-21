@@ -1,0 +1,69 @@
+name: Publish screenshots to gh-pages
+
+on:
+  workflow_run:
+    workflows: ["E2E — GNOME in QEMU"]
+    types: [completed]
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: gh-pages
+          fetch-depth: 1
+
+      - name: Install oras
+        run: |
+          ORAS_VERSION="1.2.3"
+          curl -sSfL \
+            "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz" \
+            | tar xz oras
+          sudo mv oras /usr/local/bin/oras
+
+      - name: Download metadata artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for suite in smoke common vanilla-gnome developer dx lifecycle; do
+            gh run download ${{ github.event.workflow_run.id }} \
+              --repo ${{ github.repository }} \
+              --name "e2e-metadata-${suite}" \
+              --dir "meta-${suite}" 2>/dev/null || true
+          done
+
+      - name: Pull screenshots and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "${{ github.token }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
+          mkdir -p screenshots scratch
+
+          REGISTRY="ghcr.io/projectbluefin/testsuite/desktop-screenshot"
+
+          for suite in smoke common vanilla-gnome developer dx lifecycle; do
+            META="meta-${suite}/e2e-metadata.json"
+            [[ -f "$META" ]] || continue
+            IMAGE=$(jq -r .image "$META")
+            SLUG=$(echo "$IMAGE" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
+            SHOT_PATH="scratch/${suite}.png"
+
+            if oras pull "${REGISTRY}:${suite}-latest" --output "$SHOT_PATH" 2>/dev/null; then
+              cp "$SHOT_PATH" "screenshots/${SLUG}-${suite}-latest.png"
+              echo "Published screenshots/${SLUG}-${suite}-latest.png"
+            fi
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add screenshots/
+          git diff --cached --quiet || git commit -m "chore: update screenshots [skip ci]"
+          git push

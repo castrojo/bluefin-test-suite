@@ -29,6 +29,7 @@ metadata:
 3. Record the first commit where each scenario appears with `@quarantine`; if history cannot prove it, fall back to the file's last git modification date.
 4. Calculate age in days and fail when `age_days > (--max-days + --grace-days)`.
 5. Print an actionable report with feature path, scenario name, quarantine date, age, and the required next action.
+6. Use `--json` only for informational consumers (for example an Actions job summary); keep default CLI mode as the enforcement path that exits non-zero on expired quarantines.
 
 ## What it does
 
@@ -42,11 +43,14 @@ default threshold   = 30 + 0 = 30 days
 CI rollout threshold = 30 + 30 = 60 days
 ```
 
+JSON mode (`--json`) emits every current quarantine entry, including `days`, `quarantined_on`, `threshold_days`, and `date_source`, and always exits 0 so workflow summaries can render counts without turning a reporting call into a job failure.
+
 ## Workflow requirements
 
 - The `quarantine-age` job lives in `.github/workflows/pr-validate.yml`.
 - That job must check out the repository with `fetch-depth: 0`; shallow history breaks age detection.
 - The rollout job currently runs `python3 scripts/check_quarantine_age.py --grace-days 30` to avoid blocking PRs immediately while still aging out stale quarantines.
+- Any workflow using `--json` still needs full history and the full `tests/` tree checked out; otherwise age calculations and counts will be incomplete.
 
 ## Operator expectations
 
