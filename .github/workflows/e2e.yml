@@ -1166,9 +1166,22 @@ jobs:
             --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
             desktop-screenshot.png:image/png
 
+          # Push image-slug-specific tag so publish-to-pages can pull without metadata artifacts.
+          # Slug: strip ghcr.io/<org>/, replace : with - (e.g. bluefin-testing)
+          IMAGE_SLUG=$(echo "${IMAGE}" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
+          oras push "${SCREENSHOT_IMAGE}:${IMAGE_SLUG}-${SUITE}-latest" \
+            --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
+            --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
+            --annotation "io.github.projectbluefin.run_id=${{ github.run_id }}" \
+            --annotation "io.github.projectbluefin.caller_repo=${{ github.repository }}" \
+            desktop-screenshot.png:image/png
+          echo "Pushed ${SCREENSHOT_IMAGE}:${IMAGE_SLUG}-${SUITE}-latest"
+
           echo "ref=${SCREENSHOT_IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "suite_tag=${SCREENSHOT_IMAGE}:${SUITE}-latest" >> "$GITHUB_OUTPUT"
-          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA}, :${SUITE}-latest, and :latest"
+          echo "image_slug=${IMAGE_SLUG}" >> "$GITHUB_OUTPUT"
+          echo "Pushed ${SCREENSHOT_IMAGE}:${SHORT_SHA}, :${SUITE}-latest, :${IMAGE_SLUG}-${SUITE}-latest, and :latest"
 
           # Push any per-Flatpak screenshots captured by the "Screenshot requested Flatpaks" step.
           # Filename pattern: screenshot_<suite>_<app_slug>_flatpak_gallery.png
