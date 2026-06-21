@@ -1,9 +1,23 @@
 name: Publish screenshots to gh-pages
 
+# Runs on a schedule to pull slug-specific screenshot tags from GHCR and publish
+# them to gh-pages as stable HTTP URLs. Also triggered manually for immediate publish.
+#
+# Why schedule instead of workflow_run:
+#   e2e.yml is workflow_call-only; runs created by consumer repos (bluefin, dakota, lts)
+#   do not appear in testsuite's own run list, so workflow_run would never fire.
+#   The schedule polls every 2 hours, after all consumer nightly/testing e2e runs complete.
+#
+# Why slug-specific GHCR tags:
+#   e2e.yml pushes ghcr.io/projectbluefin/testsuite/desktop-screenshot:<slug>-<suite>-latest
+#   where slug = strip(ghcr.io/<org>/) + replace(:,-) from inputs.image.
+#   Example: ghcr.io/projectbluefin/bluefin:testing → bluefin-testing
+#   This allows publish-to-pages to pull per-image screenshots without cross-repo auth.
+
 on:
-  workflow_run:
-    workflows: ["E2E — GNOME in QEMU"]
-    types: [completed]
+  schedule:
+    - cron: '0 */2 * * *'  # every 2 hours; covers nightly (02:00 UTC) and post-merge runs
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -30,17 +44,6 @@ jobs:
             | tar xz oras
           sudo mv oras /usr/local/bin/oras
 
-      - name: Download metadata artifacts
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          for suite in smoke common vanilla-gnome developer dx lifecycle; do
-            gh run download ${{ github.event.workflow_run.id }} \
-              --repo ${{ github.repository }} \
-              --name "e2e-metadata-${suite}" \
-              --dir "meta-${suite}" 2>/dev/null || true
-          done
-
       - name: Pull screenshots and publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -50,38 +53,46 @@ jobs:
 
           REGISTRY="ghcr.io/projectbluefin/testsuite/desktop-screenshot"
 
-          for suite in smoke common vanilla-gnome developer dx lifecycle; do
-            META="meta-${suite}/e2e-metadata.json"
-            [[ -f "$META" ]] || continue
-            IMAGE=$(jq -r .image "$META")
-            SLUG=$(echo "$IMAGE" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
-            SHOT_DIR="scratch/${suite}"
-
-            mkdir -p "$SHOT_DIR"
-            if oras pull "${REGISTRY}:${suite}-latest" -o "$SHOT_DIR/" 2>/dev/null; then
-              SHOT=$(find "$SHOT_DIR/" -name "*.png" | head -1)
-              if [[ -n "$SHOT" ]]; then
-                cp "$SHOT" "screenshots/${SLUG}-${suite}-latest.png"
-                echo "Published screenshots/${SLUG}-${suite}-latest.png"
-              fi
-            fi
-          done
-
-          # JSONL persistence
+          # Known image slugs — add new images here when the fleet grows.
+          # Slug derivation: strip ghcr.io/<org>/ from image ref, replace : with -
+          # e.g. ghcr.io/projectbluefin/bluefin:testing → bluefin-testing
+          SLUGS=(
+            bluefin-testing
+            bluefin-lts-testing
+            dakota-testing
+          )
+          SUITES=(smoke common vanilla-gnome)
           DATE=$(date +%Y%m%d)
-          RUN_ID="${{ github.event.workflow_run.id }}"
+          UPDATED=0
 
-          for suite in smoke common vanilla-gnome developer dx lifecycle; do
-            META="meta-${suite}/e2e-metadata.json"
-            [[ -f "$META" ]] || continue
-            IMAGE=$(jq -r .image "$META")
-            SLUG=$(echo "$IMAGE" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
-            SUITE_RESULT=$(jq -r '.conclusion // "unknown"' "$META")
-            mkdir -p data
-            printf '{"date":"%s","run_id":"%s","image":"%s","slug":"%s","suite":"%s","result":"%s"}\n' \
-              "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$RUN_ID" "$IMAGE" "$SLUG" "$suite" "$SUITE_RESULT" \
-              >> "data/results-${DATE}.jsonl"
+          for SLUG in "${SLUGS[@]}"; do
+            for SUITE in "${SUITES[@]}"; do
+              TAG="${SLUG}-${SUITE}-latest"
+              SHOT_DIR="scratch/${SLUG}/${SUITE}"
+              mkdir -p "$SHOT_DIR"
+
+              if oras pull "${REGISTRY}:${TAG}" -o "$SHOT_DIR/" 2>/dev/null; then
+                SHOT=$(find "$SHOT_DIR/" -name "*.png" | head -1)
+                if [[ -n "$SHOT" ]]; then
+                  cp "$SHOT" "screenshots/${TAG}.png"
+                  echo "Published screenshots/${TAG}.png"
+                  UPDATED=$((UPDATED + 1))
+
+                  # Read annotations for JSONL — run_id and caller_repo
+                  MANIFEST=$(oras manifest fetch "${REGISTRY}:${TAG}" 2>/dev/null || echo "{}")
+                  RUN_ID=$(echo "$MANIFEST" | jq -r '.annotations["io.github.projectbluefin.run_id"] // ""')
+                  CALLER=$(echo "$MANIFEST" | jq -r '.annotations["io.github.projectbluefin.caller_repo"] // ""')
+
+                  mkdir -p data
+                  printf '{"date":"%s","run_id":"%s","caller_repo":"%s","slug":"%s","suite":"%s","result":"success"}\n' \
+                    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$RUN_ID" "$CALLER" "$SLUG" "$SUITE" \
+                    >> "data/results-${DATE}.jsonl"
+                fi
+              fi
+            done
           done
+
+          echo "Published ${UPDATED} screenshots"
 
       - name: Commit and push
         run: |
