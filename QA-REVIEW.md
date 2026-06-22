@@ -3,8 +3,7 @@
 > Last updated: 2026-06-22
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 287 scenarios across 36 feature files (last audit: 2026-06-22). 30 quarantined, 242 active, 15 @future stubs.
-Per-suite breakdown: smoke 91, common 38, lifecycle 27, bazzite 20, developer 19, dx 15, security 15, software 15, flatcar 13, nvidia 12, vanilla-gnome 12, hardware 10.
+Current audit: 311 scenarios across 40 feature files (last audit: 2026-06-22). 30 quarantined, 278 active, 3 @future stubs.
 
 ## Architecture changes (2026-06-21)
 
