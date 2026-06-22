@@ -50,34 +50,39 @@ docs/skills/add-contributing-guide
 feat/smoke/add-calendar-scenario
 ```
 
-## Git worktree hygiene
+## Cross-repo work and worktree hygiene
 
-Worktrees are the standard way to work on multiple branches in parallel without cloning the repo again.
+The factory pattern for cross-repo work is **sibling directories under `~/src/`**, named `<repo>-<short-desc>`. Do not clone into `/tmp` or create ad-hoc directories elsewhere.
 
 ```bash
-# Create a worktree in the canonical location
-git worktree add .worktrees/<short-desc> -b <branch-name>
+# The repos you need are already on disk at ~/src/
+ls ~/src/         # common, dakota, bluefin, bluefin-lts, testsuite, ...
 
-# List all live worktrees
-git worktree list
+# For a new branch on an existing repo, use a git worktree at the sibling location:
+cd ~/src/common
+git worktree add ../common-fix-e2e -b fix/e2e-foo
 
-# Remove after the branch is merged or abandoned
-git worktree remove .worktrees/<short-desc>
-git worktree remove --force .worktrees/<short-desc>  # if branch has uncommitted changes
+# Work in the sibling dir; it's a full working tree
+cd ~/src/common-fix-e2e
+# ... make changes, pre-commit, push ...
+
+# Remove when done
+cd ~/src/common
+git worktree remove ../common-fix-e2e
+git worktree prune
 ```
 
 Rules agents must follow:
-- Always place worktrees under `.worktrees/` (gitignored). Never create them at repo root or in `/tmp`.
-- Remove worktrees immediately after the PR merges or you abandon the branch. Orphaned worktrees accumulate quickly and confuse future agents.
-- Keep at most 5 live worktrees at any time. More than 5 is a sign of deferred cleanup.
-- After removing a worktree, prune the stale ref: `git worktree prune`
-- Never name a worktree directory the same as a tracked directory in the repo.
+- **Never clone into `/tmp`** — the repos are already on disk. Cloning wastes time and loses pre-commit hooks, git config, and branch context.
+- Sibling dirs are named `<repo>-<short-desc>`, e.g. `dakota-fix-sync-next`, `common-fix-e2e`.
+- Remove the worktree immediately after the PR merges or you abandon the branch.
+- Always run `pre-commit run --all-files` inside the worktree before committing — hooks are inherited from the main clone.
+- `git worktree prune` after removal to clean stale refs.
 
-To audit and bulk-prune stale worktrees:
+To audit live worktrees:
 ```bash
 git worktree list                     # shows all worktrees with branch and prunable status
 git worktree prune --dry-run          # lists refs that can be cleaned up
-git worktree prune                    # cleans up stale internal refs
 ```
 
 A worktree is stale when:

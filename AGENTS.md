@@ -27,6 +27,8 @@ When a PR touches two repos, split it.
 4. behave --dry-run              # before pushing any .feature change
 ```
 
+**Cross-repo work:** repos are on disk at `~/src/`. Never clone into `/tmp`. Use `git worktree add ../repo-desc -b branch` for parallel branches. See `docs/skills/contributing.md` — Git worktree hygiene.
+
 ## GNOME 50 Crowdsourcing
 
 This repo is **agent-first** — agents are the primary maintainers of GNOME 50 test coverage. No human gating required to file issues or submit PRs (within the gates below).
