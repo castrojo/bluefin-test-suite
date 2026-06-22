@@ -29,10 +29,17 @@ jobs:
           python-version: "3.14"
 
       - name: Install test dependencies
-        run: pip install pytest pytest-cov behave
+        run: pip install coverage pytest pytest-xdist behave
 
       - name: Run unit tests
-        run: pytest tests/unit/ -v --cov=tests --cov-report=xml --cov-report=term-missing --cov-fail-under=75
+        env:
+          COVERAGE_PROCESS_START: .coveragerc
+        run: |
+          coverage erase
+          coverage run -m pytest -n auto tests/unit/ -v
+          coverage combine
+          coverage xml
+          coverage report --fail-under=75
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v6

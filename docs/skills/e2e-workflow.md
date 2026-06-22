@@ -85,11 +85,30 @@ with:
   suites: smoke,developer
 ```
 
-**Smoke sharding**: `suites: smoke` automatically expands to `smoke-a` + `smoke-b` as two parallel matrix jobs. Each shard runs half the feature files:
-- `smoke-a`: `system_health`, `gnome_shell`, `gnome_apps`, `gnome_calculator`, `gnome_notifications`
-- `smoke-b`: `firefox`, `gnome_extensions`, `gnome_files`, `gnome_settings`, `gnome_text_editor`
+**Dynamic suite sharding**: `suites: smoke` expands to `smoke-a` + `smoke-b`, and `suites: common` expands to `common-a` + `common-b`. After checkout, the workflow glob-resolves `tests/<suite>/features/*.feature`, sorts alphabetically, and splits into two deterministic shards:
 
-Both shards use `tests/smoke/` (same directory, same environment.py and steps/) and push screenshots to `:smoke-latest` (last writer wins). Wall time ~50% of a single smoke run.
+```python
+files = sorted(glob.glob(f"tests/{suite}/features/*.feature"))
+chunk_size = math.ceil(len(files) / 2)
+chunk = files[shard_index * chunk_size:(shard_index + 1) * chunk_size]
+```
+
+Do **not** hardcode per-shard feature lists. New `.feature` files must land in a shard automatically or they will be silently skipped.
+
+Smoke shards still use `tests/smoke/` (same directory, same `environment.py`, same steps) and normalize screenshot publishing to `:smoke-latest` (last writer wins). Common shards use `tests/common/` and pass their feature-file paths directly to the runner-side behave invocation.
+
+### Unit-test parallelism
+
+`unit-tests.yml` runs pytest with `-n auto`, but coverage must stay on `coverage.py`, not a bare `pytest-cov` invocation. In this repo, xdist plus `pytest-cov` under-reports coverage. Keep this pattern:
+
+```bash
+COVERAGE_PROCESS_START=.coveragerc coverage run -m pytest -n auto tests/unit/ -v
+coverage combine
+coverage xml
+coverage report --fail-under=75
+```
+
+`.coveragerc` must keep `parallel = True` and `patch = subprocess` so worker coverage files are written and merged correctly.
 
 ### Lifecycle suite — special execution model
 
@@ -111,7 +130,7 @@ A **"Collect migration status"** step also runs (`always()`, `continue-on-error:
 
 ## Pipeline stages
 
-1. **Resolve matrix** — splits `suites` CSV into a JSON array for the strategy matrix
+1. **Resolve matrix** — splits `suites` CSV into a JSON array for the strategy matrix; `smoke` becomes `smoke-a,smoke-b` and `common` becomes `common-a,common-b`
 2. **Free disk space** — fast inline cleanup removes the hosted runner's large unused SDK trees (`/usr/share/dotnet`, Android, GHC, CodeQL) plus `php*`, `dotnet*`, `mono*`, and `llvm*`; this keeps the 30 GB `disk.raw` allocation viable without the slower `ublue-os/remove-unwanted-software` action
 3. **Enable KVM** — udev rule for `/dev/kvm` access
 4. **Resolve digest + cache OCI layers** — restore `/var/lib/containers/storage` with `actions/cache`, keyed by the test image digest. The workflow uses `sudo podman pull`, so the cache must target root's podman store, not the runner user's storage.
