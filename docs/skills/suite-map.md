@@ -122,7 +122,9 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 | Tag | Meaning |
 |---|---|
-| `@smoke_suite` | Runs as part of the standard Bluefin smoke suite |
+| `@smoke_suite` | Runs as part of the standard smoke suite |
+| `@bluefin` | Smoke scenario runs only when the image name contains `bluefin`; smoke `environment.py` skips it elsewhere |
+| `@dakota_only` | Smoke scenario runs only when the image name contains `dakota`; smoke `environment.py` skips it elsewhere |
 | `@dx_only` / `@developer_suite` | DX variant only |
 | `@nvidia_only` | NVIDIA variant only |
 | `@flatcar_suite` | Flatcar OS only |

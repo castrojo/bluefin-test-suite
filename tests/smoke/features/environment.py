@@ -267,17 +267,18 @@ def before_all(context) -> None:
     else:
         print("WARNING: clock/system toggles not found after 15s — proceeding anyway", flush=True)
 
-    # Detect image family so @bluefin-tagged scenarios can be skipped on
-    # non-Bluefin images (e.g. dakota).  Match only the image name component
-    # (last path segment before ':' or '@') — the org "projectbluefin" must
-    # not be treated as a Bluefin image name.
+    # Detect image family so variant-tagged scenarios can be skipped on the
+    # wrong image. Match only the image name component (last path segment before
+    # ':' or '@') — the org "projectbluefin" must not be treated as an image name.
     image_ref = os.environ.get("IMAGE", "")
     if image_ref:
         _lower = image_ref.lower()
         _name = _lower.split("/")[-1].split(":")[0].split("@")[0]
-        context.is_bluefin_image = "bluefin" in _name or "bazzite" in _lower
+        context.is_bluefin_image = "bluefin" in _name or "bazzite" in _name
+        context.is_dakota_image = "dakota" in _name
     else:
         context.is_bluefin_image = True  # default to Bluefin when IMAGE is unset
+        context.is_dakota_image = False
 
     try:
         context.optional_scenario_availability = {
@@ -321,9 +322,11 @@ def before_scenario(context, scenario) -> None:
             print(f"Skipping {scenario.name}: no Wi-Fi interface detected", flush=True)
             return
 
+    scenario_tags = set(getattr(scenario, "effective_tags", scenario.tags))
+
     # Skip @bluefin scenarios on non-Bluefin images (e.g. dakota).
     if not getattr(context, "is_bluefin_image", True):
-        if "bluefin" in set(getattr(scenario, "effective_tags", scenario.tags)):
+        if "bluefin" in scenario_tags:
             try:
                 scenario.skip(
                     f"Skipping @bluefin scenario on non-Bluefin image "
@@ -332,6 +335,18 @@ def before_scenario(context, scenario) -> None:
             except TypeError:
                 scenario.skip()
             print(f"Skipping {scenario.name}: @bluefin on non-Bluefin image", flush=True)
+            return
+
+    if not getattr(context, "is_dakota_image", False):
+        if "dakota_only" in scenario_tags:
+            try:
+                scenario.skip(
+                    f"Skipping @dakota_only scenario on non-Dakota image "
+                    f"(IMAGE={os.environ.get('IMAGE', 'unknown')})"
+                )
+            except TypeError:
+                scenario.skip()
+            print(f"Skipping {scenario.name}: @dakota_only on non-Dakota image", flush=True)
             return
 
     if getattr(context, 'failed_setup', None):
@@ -346,7 +361,6 @@ def before_scenario(context, scenario) -> None:
     record_start(context)
     availability = getattr(context, "optional_scenario_availability", {})
     for tag, present in availability.items():
-        scenario_tags = set(getattr(scenario, "effective_tags", scenario.tags))
         feature_name = os.path.basename(getattr(getattr(scenario, "feature", None), "filename", ""))
         if feature_name == "firefox.feature":
             scenario_tags.add("firefox")
