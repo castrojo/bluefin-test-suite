@@ -1,6 +1,6 @@
 ---
 name: gnome-testing
-description: "GNOME desktop testing reference — AT-SPI/dogtail patterns, GNOME Shell interaction via Shell.Eval, known GNOME version quirks, and reliable automation techniques for headless QEMU environments."
+description: "Use when writing or debugging GNOME Shell, AT-SPI/dogtail, or headless QEMU desktop tests in testsuite."
 metadata:
   type: reference
 ---
@@ -17,6 +17,27 @@ metadata:
 - SSH-based system checks → `docs/skills/behave.md` shared SSH steps
 - CI workflow or runner container setup → `docs/skills/ops.md`
 - Suite scaffolding or step hygiene → `docs/skills/behave.md`
+
+## When to Use
+
+- Adding or debugging GNOME smoke scenarios that assert windows or widgets via AT-SPI
+- Driving GNOME Shell behavior via `org.gnome.Shell.Eval`
+- Handling GNOME 50+ quirks in dogtail or qecore-headless runs
+- Adding launch checks for preinstalled desktop or Flatpak apps
+
+## When NOT to Use
+
+- SSH-mode lifecycle, hardware, or security suites that do not touch the local GNOME session
+- Pure CLI/state assertions that can be expressed with qecore command-capture steps alone
+- Infrastructure or workflow issues that belong in `ops.md` or `e2e-workflow.md`
+
+## Core Process
+
+1. Identify whether the scenario needs AT-SPI interaction, Shell.Eval, or only subprocess/CLI checks.
+2. Reuse existing smoke helpers first (`launch_background()`, `_run_host()`, `_eval_bool()`, `_wait_eval_bool()`).
+3. Prefer desktop-file launch targets before direct commands for GUI apps so D-Bus activation and AT-SPI registration work in CI.
+4. Poll for visible widgets or windows; avoid unconditional sleeps when a retry loop can prove readiness.
+5. Validate locally with `python3 -m py_compile tests/<suite>/features/steps/*.py`, duplicate-step detection, `ruff`, and `behave --dry-run`.
 
 ## Stack
 
@@ -157,6 +178,28 @@ enabled = [e.strip() for e in result.stdout.splitlines() if e.strip()]
 
 Note: `gnome-extensions` requires the GNOME session to be running. These steps run inside the qecore VM (local subprocess), not over SSH.
 
+## Preinstalled Flatpak desktop app launch checks
+
+For smoke tests that only need to prove a preinstalled Flatpak desktop app
+launches, reuse the `gnome_apps.feature` pattern: launch, wait for one visible
+top-level frame in the AT-SPI tree, send `<Alt><F4>`, then assert the frame is
+gone.
+
+Use `app_support.launch_background()` with **desktop-first** targets and a
+Flatpak fallback:
+
+```python
+LAUNCH_TARGETS = (
+    ("desktop", "io.missioncenter.MissionCenter.desktop"),
+    ("flatpak", "io.missioncenter.MissionCenter"),
+)
+```
+
+Why: in CI/container runs the helper resolves desktop files from Flatpak export
+dirs (`/var/lib/flatpak/exports/...`) and launches them on the VM via SSH, so
+you should not hardcode `/usr/share/applications/<app>.desktop` for Flatpak-only
+apps.
+
 ## Extension state via D-Bus (bazzite / GNOME 50)
 
 For suites that need to poll an extension's activation state (e.g. the bazzite suite which runs over SSH), **do not** use `Shell.Eval + Main.extensionManager.lookup(uuid)?.state`. On GNOME 50 this API consistently returns state=6 (INITIALIZED) regardless of actual activation.
@@ -293,3 +336,25 @@ grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d
 - [ ] UUID wrapped in single quotes for GVariant: `f"'{uuid}'"` not `uuid`
 - [ ] Smoke suite steps use `subprocess.run`, not SSH helpers
 - [ ] `behave --dry-run tests/smoke/features/` passes before pushing
+## Common Rationalizations
+
+- "A direct command launch is simpler." → For GUI apps, desktop-file activation is usually more reliable for AT-SPI registration.
+- "I'll just sleep after launch." → Poll for the visible window instead; fixed sleeps bloat the suite and still flake.
+- "This title match is good enough." → Prefer app-level AT-SPI lookup first, then use title fallback only when the app name is unstable.
+
+## Red Flags
+
+- New smoke app steps hardcode `/usr/share/applications/...` for Flatpak-only apps
+- Step code uses `findChild(..., requireResult=...)`
+- New GNOME steps duplicate existing step phrases in the suite
+- New launch steps add unconditional post-launch sleeps instead of relying on accessibility polling
+
+## Verification
+
+- [ ] Reused existing GNOME/smoke helpers before adding new ones
+- [ ] Launch targets prefer desktop files, with Flatpak or command fallback only when needed
+- [ ] AT-SPI polling or Shell.Eval assertions replace fixed waits where possible
+- [ ] `python3 -m py_compile tests/<suite>/features/steps/*.py` passes
+- [ ] `grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d` returns no duplicates
+- [ ] `ruff check tests/ --select E,F,W --ignore E501` passes
+- [ ] `behave --dry-run tests/<suite>/features/` passes for the touched suite
