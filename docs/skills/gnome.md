@@ -194,6 +194,18 @@ gdbus call --session \
 
 Parse the ID from `context.notify_output` with `re.search(r'\(uint32 (\d+),\)', output)`. An ID of `0` means failure.
 
+## Smoke desktop-identity checks: use `_run_host` + session env
+
+For smoke steps that need session-scoped shell state (`XDG_SESSION_TYPE`,
+`DISPLAY`, `WAYLAND_DISPLAY`) or VM-installed tools like `glxinfo`, prefer the
+suite-local `_run_host(...)` helper over plain `subprocess.run(...)`.
+
+Why: local smoke scenarios execute inside the VM during ad-hoc runs, but CI can
+run them from the Fedora runner container. `_run_host(...)` transparently hops
+to the VM over SSH in that case, and `source /tmp/session.env 2>/dev/null; ...`
+preserves the GNOME user-session environment before probing Wayland or renderer
+state.
+
 ## Sleep discipline in step definitions
 
 Unconditional `sleep(N)` calls inflate suite time — avoid them. Rules:
