@@ -1,0 +1,4 @@
+# Flatpaks current CI explicitly launches or asserts on for Bluefin-family images.
+# Keep this list small so cold-cache warm-up stays cheaper than first-boot installs.
+org.mozilla.firefox
+io.github.kolunmi.Bazaar

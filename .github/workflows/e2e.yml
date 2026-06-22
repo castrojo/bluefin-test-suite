@@ -118,6 +118,7 @@ jobs:
           ref: ${{ inputs.test_ref }}
           fetch-depth: 0
           sparse-checkout: |
+            flatpak-app-list.txt
             tests
             scripts/check_quarantine_age.py
           sparse-checkout-cone-mode: false
@@ -164,6 +165,41 @@ jobs:
           echo "SUITE_DIR=${{ steps.shard.outputs.suite_dir }}" >> "$GITHUB_ENV"
           echo "FEATURE_ARGS=${{ steps.shard.outputs.feature_args }}" >> "$GITHUB_ENV"
           echo "SCREENSHOT_SUITE=${{ steps.shard.outputs.screenshot_suite }}" >> "$GITHUB_ENV"
+
+      # flatpak-preinstall.service is masked in KERNEL_ARGS, so Bluefin-family GUI
+      # suites must preload any explicitly-tested Flatpaks after SSH comes up.
+      # Cache a small user Flatpak repo on the runner, then inject and deploy it in-VM.
+      - name: Restore Flatpak download cache
+        if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' }}
+        id: flatpak-cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ github.workspace }}/.flatpak-cache-home/.local/share/flatpak
+          key: flatpak-home-${{ runner.os }}-${{ hashFiles('flatpak-app-list.txt') }}
+          restore-keys: |
+            flatpak-home-${{ runner.os }}-
+
+      - name: Prime Flatpak download cache
+        if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' && steps.flatpak-cache.outputs.cache-hit != 'true' }}
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends flatpak
+
+          export HOME="${GITHUB_WORKSPACE}/.flatpak-cache-home"
+          export XDG_DATA_HOME="${HOME}/.local/share"
+          mkdir -p "${XDG_DATA_HOME}"
+
+          flatpak --user remote-add --if-not-exists \
+            flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+          mapfile -t APPS < <(grep -vE '^[[:space:]]*(#|$)' flatpak-app-list.txt)
+          if [[ ${#APPS[@]} -eq 0 ]]; then
+            echo "No Flatpak apps listed for cache priming."
+            exit 0
+          fi
+
+          flatpak install --user --assumeyes --noninteractive --no-deploy \
+            flathub "${APPS[@]}"
 
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
@@ -616,6 +652,63 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           echo "${BOOT_TIME}" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Install cached Flatpaks in VM
+        if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          CACHE_ROOT="${GITHUB_WORKSPACE}/.flatpak-cache-home/.local/share"
+          CACHE_TAR="${GITHUB_WORKSPACE}/flatpak-user-cache.tar"
+          REMOTE_CACHE_DIR="/var/home/bluefin-test/.cache/flatpak-ci"
+
+          if [[ ! -d "${CACHE_ROOT}/flatpak" ]]; then
+            echo "No restored Flatpak cache found on the runner; skipping VM preload."
+            exit 0
+          fi
+
+          tar -C "${CACHE_ROOT}" -cf "${CACHE_TAR}" flatpak
+          ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 \
+            "mkdir -p ${REMOTE_CACHE_DIR} \$HOME/.local/share"
+          scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o ControlPath=/tmp/ssh-ctrl-%C -P 2222 "${CACHE_TAR}" \
+            "bluefin-test@127.0.0.1:${REMOTE_CACHE_DIR}/flatpak-user-cache.tar"
+          scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o ControlPath=/tmp/ssh-ctrl-%C -P 2222 flatpak-app-list.txt \
+            "bluefin-test@127.0.0.1:${REMOTE_CACHE_DIR}/flatpak-app-list.txt"
+
+          ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 'bash -s' <<'EOF'
+          set -euo pipefail
+
+          CACHE_DIR="$HOME/.cache/flatpak-ci"
+          mkdir -p "$CACHE_DIR"
+          tar -xf "$CACHE_DIR/flatpak-user-cache.tar" -C "$CACHE_DIR"
+          rm -f "$CACHE_DIR/flatpak-user-cache.tar"
+
+          sudo flatpak remote-add --if-not-exists \
+            flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+
+          mapfile -t APPS < <(grep -vE '^[[:space:]]*(#|$)' "$CACHE_DIR/flatpak-app-list.txt")
+          if [[ ${#APPS[@]} -eq 0 ]]; then
+            echo "No Flatpak apps requested for VM preload."
+            exit 0
+          fi
+
+          for app in "${APPS[@]}"; do
+            if flatpak info --system "$app" >/dev/null 2>&1; then
+              echo "$app already installed in VM; skipping."
+              continue
+            fi
+
+            if sudo flatpak install --system --assumeyes --noninteractive \
+              --sideload-repo="$CACHE_DIR/flatpak/repo" flathub "$app"; then
+              echo "Installed $app from restored sideload cache."
+            else
+              echo "Cache incomplete for $app; falling back to Flathub."
+              sudo flatpak install --system --assumeyes --noninteractive flathub "$app"
+            fi
+          done
+          EOF
+
+          rm -f "${CACHE_TAR}"
 
       # brew-setup.service is masked in CI to save ~60s boot time. Install the
       # CLI tools the common suite validates (zsh, fish, eza, fd, rg, bat, fzf,

@@ -131,10 +131,10 @@ A **"Collect migration status"** step also runs (`always()`, `continue-on-error:
 ## Pipeline stages
 
 1. **Resolve matrix** — splits `suites` CSV into a JSON array for the strategy matrix; `smoke` becomes `smoke-a,smoke-b` and `common` becomes `common-a,common-b`
-2. **Free disk space** — fast inline cleanup removes the hosted runner's large unused SDK trees (`/usr/share/dotnet`, Android, GHC, CodeQL) plus `php*`, `dotnet*`, `mono*`, and `llvm*`; this keeps the 30 GB `disk.raw` allocation viable without the slower `ublue-os/remove-unwanted-software` action
-3. **Enable KVM** — udev rule for `/dev/kvm` access
-4. **Resolve digest + cache OCI layers** — restore `/var/lib/containers/storage` with `actions/cache`, keyed by the test image digest. The workflow uses `sudo podman pull`, so the cache must target root's podman store, not the runner user's storage.
-5. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `podman pull` runs in background. On an OCI cache hit, both image pulls are skipped entirely.
+2. **Resolve Flatpak manifest + cache** — sparse checkout must include `flatpak-app-list.txt` so `hashFiles()` can key an `actions/cache` entry for the runner-side Flatpak repo when Bluefin GUI suites preload app installs.
+3. **Free disk space** — fast inline cleanup removes the hosted runner's large unused SDK trees (`/usr/share/dotnet`, Android, GHC, CodeQL) plus `php*`, `dotnet*`, `mono*`, and `llvm*`; this keeps the 30 GB `disk.raw` allocation viable without the slower `ublue-os/remove-unwanted-software` action
+4. **Enable KVM** — udev rule for `/dev/kvm` access
+5. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `podman pull` runs in background.
 6. **Install OCI image to disk** — `bootc install to-disk` writes ostree layers to a 30 GB raw disk; a non-zero exit is only tolerated after the workflow logs the full install output and proves `/ostree/deploy/default/deploy/` is non-empty. This matches the bootc install docs, which treat the deployment tree as the post-install target for follow-up customization. Direct QEMU kernel boot is used instead of OVMF/systemd-boot.
 7. **Configure disk** — mounts the raw disk and:
    - Copies `vmlinuz` + `initramfs.img` to workspace for direct kernel boot
@@ -152,6 +152,9 @@ A **"Collect migration status"** step also runs (`always()`, `continue-on-error:
 13. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
 
 Smoke-suite correctness rule: commands launched with plain `subprocess.run()` execute in the qecore runner container, not necessarily against the VM host state. In `tests/smoke/features/steps/system_health_steps.py`, host-facing probes (`systemctl`, `journalctl`, `df`, `getent hosts`, etc.) must use the VM helper (`_run_host()`). Using `_run()` for those checks only tests the runner container and can miss VM regressions.
+11. **Inject cached Flatpaks (Bluefin GUI suites only)** — SCPs a tarred runner-side Flatpak repo plus `flatpak-app-list.txt`, then installs missing apps with `sudo flatpak install --system --sideload-repo=...`.
+12. **Load runner container + install test stack** — pipes the pre-built `ghcr.io/projectbluefin/testsuite:runner` container into the VM via `podman save | ssh podman load` (rootless, as `bluefin-test`). Before loading, ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid` entries and runs `podman system migrate`. Then: loads kernel module (`uinput`), sets device permissions, copies SSH key for @plain_ssh scenarios, captures GNOME session environment (`DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, etc.) into `/tmp/session.env`.
+13. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
 14. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
 15. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
 
@@ -174,6 +177,17 @@ The workflow injects the test user, SSH keys, and autologin config at disk-prep 
   It is not; external actions in this repo must stay SHA-pinned.
 - "We can keep the slow disk cleanup because it already works."  
   No — if a faster inline cleanup frees enough space for `disk.raw`, prefer the faster path.
+
+## Flatpak cache pattern for Bluefin GUI suites
+
+`e2e.yml` masks `flatpak-preinstall.service` in `KERNEL_ARGS`, so CI first boot never waits on the image's bulk Flathub pull. When a Bluefin-family GUI suite still needs specific Flatpaks (currently `org.mozilla.firefox` and `io.github.kolunmi.Bazaar`), cache a **user** Flatpak repo on the GHA runner and inject it over SSH after GNOME is up:
+
+1. Add the manifest file (currently `flatpak-app-list.txt`) to the sparse checkout, or both `hashFiles()` and SCP will miss it.
+2. Cache `${GITHUB_WORKSPACE}/.flatpak-cache-home/.local/share/flatpak` with `actions/cache`.
+3. On a miss, run `flatpak install --user --no-deploy ...` on the runner to download refs/runtimes without deploying them.
+4. Copy that repo into the VM, then deploy missing apps system-wide with `sudo flatpak install --system --sideload-repo=<copied repo> ...`, falling back to a normal pull only if the cache is incomplete.
+
+Do **not** preload these apps on non-Bluefin images: that mutates dakota/gnomeos coverage instead of testing what those images actually ship.
 
 ## Screenshots and GHCR artifacts
 
