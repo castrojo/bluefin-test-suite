@@ -12,8 +12,9 @@ Feature: Bazaar (GNOME Software) smoke tests
     * Application "software" is running
     * Item "Software" "frame" is "showing" in "software"
 
-  # Quarantined on gnomeos/GNOME 50 pending re-validation of Bazaar's
-  # AT-SPI roles and names after /org/a11y/atspi/cache errors tracked in #176.
+  # Quarantined: these target GNOME Software's Explore/Installed widgets, not
+  # Bazaar's real AdwViewStack layout. Replaced by bazaar_ui.feature for
+  # Bluefin images; keep quarantined for potential vanilla-gnome coverage (#176).
   @quarantine @software @navigation
   Scenario: Explore tab is present and accessible
     * Item "Explore" "toggle button" is "showing" in "software"
@@ -33,8 +34,9 @@ Feature: Bazaar (GNOME Software) smoke tests
     * Type text: "Firefox" with uinput
     * Wait until "Firefox" "label" appears in "software"
 
-  # These crash/close checks depend on the same GNOME 50 navigation widgets,
-  # so keep them quarantined until the UI structure is re-verified on gnomeos.
+  # These crash/close checks also target the old GNOME Software widget model.
+  # Replaced by bazaar_ui.feature for Bluefin images; retain quarantine here
+  # for potential upstream GNOME Software coverage on vanilla-gnome images.
   @quarantine @software @regression @bluefin_4062
   Scenario: Flatpak updates section is reachable without crash (bluefin#4062)
     * Left click "Installed" "toggle button" in "software"
