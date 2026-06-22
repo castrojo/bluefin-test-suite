@@ -134,14 +134,14 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-311 scenarios across 40 feature files (last audit: 2026-06-22). 30 quarantined, 278 active, 3 @future stubs.
+308 scenarios across 39 feature files (last audit: 2026-06-22). 30 quarantined, 266 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
 | smoke | 89 | 88 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding); xdg-mime default-handler coverage now checks Firefox, Papers, Loupe, Text Editor, and video-player registration; composefs capability and GDM boot regression coverage added |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
-| software | 15 | 7 | 8 | Bazaar launch + search + CLI presence/info/remote active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
-| common | 59 | 57 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions; portal health plus FileChooser/Screenshot/OpenURI/Notification/Settings/document fuse integration checks active; shell sourcing checks added for zsh/bash/starship; Flatpak first-boot coverage asserts Flathub-only remote state because `flatpak-preinstall.service` is masked in CI |
+| software | 19 | 11 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
+| common | 52 | 50 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions; portal and podman health checks active; shell sourcing checks added for zsh/bash/starship; named systemd service health and safe `ujust` smoke checks active |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
