@@ -3,6 +3,8 @@ name: behave-patterns
 description: "Use when writing behave tests, scaffolding suites, or debugging step resolution in projectbluefin/testsuite."
 metadata:
   type: reference
+  context7-sources:
+    - /behave/behave
 ---
 
 # Behave Patterns Reference
@@ -206,7 +208,6 @@ Each suite has:
     steps/
       steps.py   (+ additional step files)
 ```
-
 
 ## Cross-suite step isolation
 
