@@ -9,6 +9,27 @@ metadata:
 
 Load when: writing behave tests, scaffolding new suites, or debugging step resolution errors.
 
+## When to Use
+
+- Adding or refactoring behave feature files and step definitions
+- Debugging undefined or ambiguous steps
+- Verifying local validation commands before pushing a PR
+
+## When NOT to Use
+
+- GNOME Shell / AT-SPI behaviour questions specific to desktop automation — use `docs/skills/gnome.md`
+- VM / runner infrastructure failures — use `docs/skills/ops.md`
+- Suite selection, coverage counts, or gap tracking — use `docs/skills/suite-map.md`
+
+## Core Process
+
+1. Pick the correct suite and keep feature files plus step files in sync.
+2. Reuse the canonical helper for the suite context (shared SSH helpers or smoke local subprocess).
+3. Check for duplicate step phrases before committing.
+4. Run `behave --dry-run` to catch undefined or ambiguous steps before pushing.
+5. Update related docs and counts when scenario coverage changes.
+
+
 ## Shared SSH helpers
 
 `tests/shared/ssh_steps.py` is canonical for:
@@ -87,6 +108,8 @@ grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d
 ```
 
 All step files under a suite directory are loaded together — duplicates across files in the same suite are also ambiguous.
+
+For per-image GNOME extension coverage, keep suite-local phrases distinct even when the helper logic is identical. Example: bazzite uses `Extension "{uuid}" is enabled`, while smoke uses `GNOME extension "{uuid}" is enabled` in `tests/smoke/features/steps/steps.py` so new per-UUID Bluefin scenarios can coexist without colliding with existing generic extension steps.
 
 ## Feature scaffolding with @future
 
@@ -188,3 +211,27 @@ For commands that produce multiline output (e.g. `flatpak install ... 2>&1; echo
 # CORRECT — substring check works with multiline output
 * Last command output contains "rc:0"
 ```
+
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "This step phrase is close enough." | Behave decorator text must match the feature step exactly; near-duplicates create undefined or ambiguous steps. |
+| "I can run `behave --dry-run tests/<suite>/` and it should work." | In this repo, run from the repo root with `tests/<suite>/features/` so Behave finds the steps directory. |
+| "Smoke can just reuse the SSH helpers." | Smoke runs locally in-VM; importing shared SSH helpers there is the wrong harness and causes collisions. |
+| "Any Bluefin-only tag name will trigger the smoke image guard." | `tests/smoke/features/environment.py` only checks for the exact `bluefin` tag, so smoke scenarios that should skip on dakota must use `@bluefin`, not `@bluefin_suite` or other variants. |
+
+## Red Flags
+
+- Adding a new generic step phrase without checking `tests/shared/ssh_steps.py` first
+- Using `SSH command exit code is 0` or another non-canonical phrase in a feature file
+- Running `behave --dry-run` against the suite root and getting `No steps directory`
+- Importing `tests.shared.ssh_steps` into smoke steps or environment files
+- Fixing a step mismatch in a feature file without updating this skill when the pattern was non-obvious
+
+## Verification
+
+- [ ] New or edited feature steps use existing canonical phrases where available
+- [ ] `grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d` is empty
+- [ ] `behave --dry-run tests/<suite>/features/` passes for each touched suite
+- [ ] Skill content that depends on Behave step-matching behavior is source-verified against Context7 (`/behave/behave`)

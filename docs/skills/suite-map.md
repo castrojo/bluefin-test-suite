@@ -9,6 +9,46 @@ metadata:
 
 Load when: deciding which suite to add a test to, checking existing coverage, or reviewing @future gaps.
 
+## When to Use
+
+- Deciding which suite or image variant should own a new scenario
+- Updating scenario counts, active/quarantined totals, or feature-file totals
+- Reviewing known gaps or `@future` inventory before adding coverage
+
+## When NOT to Use
+
+- Implementing behave step structure or duplicate-step fixes — use `docs/skills/behave.md`
+- Debugging GNOME Shell automation specifics — use `docs/skills/gnome.md`
+- Investigating runner or VM infra failures — use `docs/skills/ops.md`
+
+## Core Process
+
+1. Confirm the target suite from the variant matrix and suite ownership notes.
+2. Recalculate scenario deltas from the touched suite rather than guessing totals.
+3. Update both this file and `QA-REVIEW.md` together when counts change.
+4. Re-check active versus quarantined totals so the global snapshot still sums correctly.
+5. Keep notes timeless: record coverage posture, not dated session logs.
+
+## Common Rationalizations
+
+- "Only `QA-REVIEW.md` needs the new count." → The two files are co-authoritative and must stay in sync.
+- "I can estimate the new totals from memory." → Recalculate from the table or feature inventory; bad totals rot quickly.
+- "A one-line scenario note doesn't need a suite note." → Coverage changes belong in the suite notes so future agents see what moved.
+
+## Red Flags
+
+- Global scenario totals do not equal the sum of the suite table
+- Feature-file totals lag after adding or removing a `.feature` file
+- A coverage gap is resolved in code but still listed as open here
+- Notes include ephemeral PR/session state instead of evergreen coverage guidance
+
+## Verification
+
+- [ ] Global scenario, active, and quarantined totals add up from the suite table
+- [ ] Feature-file total matches the current repository inventory
+- [ ] `QA-REVIEW.md` and `docs/skills/suite-map.md` were updated together
+- [ ] Suite notes describe the enduring coverage state, not a one-off session
+
 > Coverage snapshot here and in `QA-REVIEW.md` are co-authoritative — update both when scenario counts or gap status change.
 
 ## Variant matrix
@@ -91,11 +131,11 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-311 scenarios across 40 feature files (last audit: 2026-06-22). 30 quarantined, 278 active, 3 @future stubs.
+309 scenarios across 40 feature files (last audit: 2026-06-22). 30 quarantined, 267 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 89 | 88 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding); xdg-mime default-handler coverage now checks Firefox, Papers, Loupe, Text Editor, and video-player registration; composefs capability and GDM boot regression coverage added |
+| smoke | 98 | 97 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding); Bluefin desktop identity coverage now checks Wayland, Dash-to-Dock, hardware rendering, and top-bar tray presence; Bluefin default GNOME extension coverage now validates each shipped UUID |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
 | software | 15 | 7 | 8 | Bazaar launch + search + CLI presence/info/remote active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
 | common | 59 | 57 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions; portal health plus FileChooser/Screenshot/OpenURI/Notification/Settings/document fuse integration checks active; shell sourcing checks added for zsh/bash/starship; Flatpak first-boot coverage asserts Flathub-only remote state because `flatpak-preinstall.service` is masked in CI |

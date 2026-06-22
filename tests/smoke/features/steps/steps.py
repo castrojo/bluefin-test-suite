@@ -17,7 +17,9 @@ Step patterns sourced from: modehnal/GNOMETerminalAutomation steps.py
 dogtail API: root.application(), Node.findChild(), Node.child(roleName=)
 """
 import os
+import re
 import subprocess
+import time
 from time import sleep
 
 from behave import step
@@ -143,6 +145,40 @@ def _gsettings_get_bool(schema: str, key: str) -> bool:
     if value == "false":
         return False
     raise AssertionError(f"Unexpected gsettings value for {schema} {key}: {stdout!r}")
+
+
+def _extension_state(context, uuid: str) -> str:
+    """Return GNOME Shell extension state as a string integer."""
+    result = subprocess.run(
+        [
+            "gdbus", "call", "--session",
+            "--dest", "org.gnome.Shell",
+            "--object-path", "/org/gnome/Shell/Extensions",
+            "--method", "org.gnome.Shell.Extensions.GetExtensionInfo",
+            f"'{uuid}'",
+        ],
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        return "99"
+    match = re.search(r"'state':\s*<uint32\s+(\d+)>", result.stdout)
+    return match.group(1) if match else "99"
+
+
+@step('GNOME extension "{uuid}" is enabled')
+def gnome_extension_is_enabled(context, uuid: str) -> None:
+    deadline = time.monotonic() + 90
+    state = "6"
+    while time.monotonic() < deadline:
+        state = _extension_state(context, uuid)
+        if state == "1":
+            return
+        if state not in ("6", "8"):
+            break
+        time.sleep(2)
+    assert state == "1", (
+        f"Extension {uuid!r} is not enabled (state={state}). Expected state=1 (ENABLED)."
+    )
 
 
 _DND_TOGGLE_JS = (
