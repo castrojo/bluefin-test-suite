@@ -123,6 +123,8 @@ A **"Collect migration status"** step also runs (`always()`, `continue-on-error:
 10. **Wait for GNOME session** — polls `/run/user/1001/wayland-0` up to 3 minutes
 11. **Load runner container + install test stack** — pipes the pre-built `ghcr.io/projectbluefin/testsuite:runner` container into the VM via `podman save | ssh podman load` (rootless, as `bluefin-test`). Before loading, ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid` entries and runs `podman system migrate`. Then: loads kernel module (`uinput`), sets device permissions, copies SSH key for @plain_ssh scenarios, captures GNOME session environment (`DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, etc.) into `/tmp/session.env`.
 12. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
+
+Smoke-suite correctness rule: commands launched with plain `subprocess.run()` execute in the qecore runner container, not necessarily against the VM host state. In `tests/smoke/features/steps/system_health_steps.py`, host-facing probes (`systemctl`, `journalctl`, `df`, `getent hosts`, etc.) must use the VM helper (`_run_host()`). Using `_run()` for those checks only tests the runner container and can miss VM regressions.
 13. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
 14. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
 

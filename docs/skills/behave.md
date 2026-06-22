@@ -23,12 +23,6 @@ Load when: writing behave tests, scaffolding new suites, or debugging step resol
 - `SSH command output is not "<a>" and not "<b>"`
 - `SSH command output is not empty`
 
-When validating shell/profile startup over SSH, remember that `run_ssh()` saves
-only stdout on `context.command_stdout`. If the shell prints startup errors on
-stderr, redirect `2>&1` inside the SSH command string and then assert with the
-canonical `SSH command return code is "<code>"` / `SSH command output contains`
-phrases rather than inventing an `exit code` step.
-
 Import in suite `environment.py`:
 ```python
 from tests.shared.ssh_steps import *  # noqa: F401,F403

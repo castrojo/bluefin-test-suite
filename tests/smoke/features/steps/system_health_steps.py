@@ -177,7 +177,7 @@ def bootc_status_shows_a_valid_image_reference(context) -> None:
 
 @step("External DNS resolves external hosts")
 def external_dns_resolves_external_hosts(context) -> None:
-    output, returncode, _ = _run("getent hosts ghcr.io")
+    output, returncode, _ = _run_host("getent hosts ghcr.io")
     assert returncode == 0 and output.strip(), (
         f"DNS resolution for ghcr.io failed (rc={returncode}): {output!r}"
     )
