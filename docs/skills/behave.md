@@ -41,6 +41,17 @@ When a scenario is meant to fail on a bad command, never append `; true` (or
 similar success-forcing trailers) to the SSH command. That masks the real exit
 status and turns `SSH command return code is "0"` into a no-op. Use `2>&1` to
 capture diagnostics, but preserve the original command's exit code.
+## Common suite `ujust` recipe coverage
+
+Keep SSH-based `ujust` recipe checks in `tests/common/features/common_ujust.feature`.
+Prefer assertions against the wrapper's own output, not the underlying tool's raw
+output — for example `ujust bios-info` prints `Manufacturer:` / `Release Date:`
+labels itself, so checking for raw `dmidecode` keys like `Vendor` is brittle.
+
+If a recipe is gated by `gum choose`, `pkexec`, or package-install side effects,
+land the coverage as `@pending @wip` until a non-interactive harness exists.
+Current example: `ujust toggle-updates` is interactive and flips `uupd.timer`
+or `rpm-ostreed-automatic.timer` (not `ublue-update.timer`).
 
 ## Smoke suite — local subprocess (not SSH)
 
