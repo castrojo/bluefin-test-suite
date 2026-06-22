@@ -536,3 +536,21 @@ Fix: `podman build --squash-all` in the export recipe
 If `getcap` returns no capabilities for these binaries, the image build
 pipeline produced a multi-layer OCI artifact. File the regression against the
 image build repo, not the test suite.
+## Red Flags
+
+- Using `_run(cmd)` in smoke suite for DNS or network checks (runs on container, not VM)
+- Setting `sys.exit(1)` inside `before_scenario` (kills all subsequent scenarios silently)
+- Lowering the SSH timeout below 60 seconds (hardware commands are slow in QEMU)
+- Adding a second `-monitor` flag to QEMU (breaks `qemu_screendump.py`)
+- Using `hasattr(context, 'failed_setup')` instead of `getattr(..., None)` (always True)
+- Calling `sudo podman load` instead of rootless load (image goes to root storage)
+- Using `oras pull` with a file path instead of a directory
+
+## Verification
+
+- [ ] Smoke suite network/DNS checks use `_run_host()` not `_run()`
+- [ ] No `sys.exit()` calls in `before_scenario` / `after_scenario`
+- [ ] `before_scenario` guard uses `getattr(context, 'failed_setup', None)`, not `hasattr()`
+- [ ] SSH step timeout is 60s or higher for hardware/bootc commands
+- [ ] `oras pull` targets a directory, not a file path
+- [ ] Runner container changes followed by `build-runner.yml` dispatch before test runs

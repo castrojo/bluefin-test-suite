@@ -7,7 +7,16 @@ metadata:
 
 # GNOME Desktop Testing Reference
 
-Load when: writing or debugging GNOME Shell, AT-SPI, or dogtail interactions.
+## When to Use
+- Writing or debugging GNOME Shell, AT-SPI, or dogtail interactions
+- Implementing Shell.Eval-based steps (quick settings, overview, extensions)
+- Adding extension-state checks for smoke or bazzite suites
+- Debugging AT-SPI accessibility node failures in headless QEMU
+
+## When NOT to Use
+- SSH-based system checks → `docs/skills/behave.md` shared SSH steps
+- CI workflow or runner container setup → `docs/skills/ops.md`
+- Suite scaffolding or step hygiene → `docs/skills/behave.md`
 
 ## Stack
 
@@ -241,3 +250,22 @@ When scaffolding multiple feature areas at once:
 python3 -m py_compile tests/<suite>/features/steps/*.py
 grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d
 ```
+
+## Red Flags
+
+- Using `'true' in out` to check a Shell.Eval result (success_bool is always true)
+- Calling `Shell.Eval` without first setting `global.context.unsafe_mode = true`
+- Using `requireResult=False` with `findChild` (removed in dogtail 4.16)
+- Importing `tests.shared.ssh_steps` into the smoke suite
+- Using AT-SPI coordinate clicks on the top-bar (unreliable on GNOME 50+)
+- Polling `Main.extensionManager.lookup(uuid)?.state` via Shell.Eval (returns 6 on GNOME 50)
+- Using the SSH-based `_extension_state()` pattern in the smoke suite (smoke uses local subprocess)
+
+## Verification
+
+- [ ] Shell.Eval results extracted with `_eval_bool()` / regex on second tuple element, never `'true' in out`
+- [ ] `unsafe_mode=true` set before any Shell.Eval that reads protected state
+- [ ] Extension state checked via `org.gnome.Shell.Extensions.GetExtensionInfo`, not `Shell.Eval`
+- [ ] UUID wrapped in single quotes for GVariant: `f"'{uuid}'"` not `uuid`
+- [ ] Smoke suite steps use `subprocess.run`, not SSH helpers
+- [ ] `behave --dry-run tests/smoke/features/` passes before pushing
