@@ -28,9 +28,16 @@ def _first_value(*values: str) -> str:
 
 
 def _is_bluefin_image(image: str) -> bool:
-    """Return True if the image reference looks like a Bluefin image."""
+    """Return True if the image reference looks like a Bluefin image.
+
+    Matches the image name component only (e.g. "bluefin" in
+    "ghcr.io/projectbluefin/bluefin:testing") to avoid false-positives where
+    the org name "projectbluefin" would match a dakota image URL.
+    """
     lower = image.lower()
-    return "bluefin" in lower or "bazzite" in lower
+    # Extract image name: last path segment before any tag/digest
+    name = lower.split("/")[-1].split(":")[0].split("@")[0]
+    return "bluefin" in name or "bazzite" in lower
 
 
 def _scenario_tags(scenario) -> set[str]:
