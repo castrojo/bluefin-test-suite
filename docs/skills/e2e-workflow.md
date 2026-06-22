@@ -558,3 +558,41 @@ echo "image=ghcr.io/${{ github.repository_owner }}/bluefin-lts-hwe@${DIGEST}" >>
 | `bluefin` | `post-testing-e2e.yml` | digest artifact → smoke,common → promote |
 | `bluefin-lts` | `post-merge-e2e.yml` | digest artifact → smoke,common → promote; `build-regular-hwe.yml` sets `publish_stream_tag: false` |
 | `dakota` | `publish.yml` (`smoke` job) | `:sha` image → smoke → `promote` job; SBOM runs in parallel |
+
+---
+
+## GHCR screenshot push — cross-repo token scope
+
+**Symptom:** `e2e.yml` "Push desktop screenshot to GHCR" step silently succeeds (exit 0) but no tag appears in `ghcr.io/projectbluefin/testsuite/desktop-screenshot`. Dashboard shows 0 screenshots.
+
+**Cause:** When consumer repos (bluefin, bluefin-lts, dakota) call `e2e.yml` via `workflow_call`, `github.token` is scoped to the **caller's** repository. It can write to that repo's own GHCR packages, but NOT to `ghcr.io/projectbluefin/testsuite/desktop-screenshot` (owned by this repo). The push step has `continue-on-error: true`, so the failure is silent.
+
+**Fix:** Grant explicit write access to each consumer repo on the `desktop-screenshot` package:
+1. Go to [ghcr.io/projectbluefin/testsuite/desktop-screenshot](https://github.com/orgs/projectbluefin/packages/container/testsuite%2Fdesktop-screenshot/settings)
+2. Package Settings → Manage Access
+3. Add each consumer repo (`bluefin`, `bluefin-lts`, `dakota`) with `Write` role
+
+This is a one-time UI operation — there is no programmatic API for cross-repo package grants.
+
+---
+
+## Dashboard seeding — initial population
+
+If the `https://projectbluefin.github.io/testsuite/` dashboard shows "No JSONL results found" or no screenshots, the GHCR slug tags don't exist yet. Trigger manual e2e runs to populate them:
+
+```bash
+# Trigger smoke runs for each image (each takes ~2h)
+gh workflow run "Manual Test Run" --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing -f suites=smoke
+
+gh workflow run "Manual Test Run" --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin-lts:testing -f suites=smoke
+
+gh workflow run "Manual Test Run" --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/dakota:testing -f suites=smoke
+
+# After runs complete, trigger publish immediately (instead of waiting 2h schedule):
+gh workflow run publish-to-pages.yml --repo projectbluefin/testsuite
+```
+
+Prerequisites: GHCR cross-repo package write access must be granted first (see above).

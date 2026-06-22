@@ -54,8 +54,6 @@ Open an issue in the image repo referencing `bib-disk-configure`. Do not add thi
 
 **GDM boot regression guard:** A `@health @gdm @regression` scenario in `system_health.feature` explicitly asserts `gdm.service` and `graphical.target` are both `active`. This catches the 2026-06-13 bluefin-lts emergency-console incident — if `gdm.service` fails, the VM boots to emergency console and all AT-SPI tests silently skip without a clear failure. If this scenario fails, check GDM autologin config above before investigating further.
 
-**GDM boot regression guard:** A `@health @gdm @regression` scenario in `system_health.feature` explicitly asserts `gdm.service` and `graphical.target` are both `active`. This catches the 2026-06-13 bluefin-lts emergency-console incident — if `gdm.service` fails, the VM boots to emergency console and all AT-SPI tests silently skip without a clear failure. If this scenario fails, check GDM autologin config above before investigating further.
-
 ---
 
 ## SSH step timeout
