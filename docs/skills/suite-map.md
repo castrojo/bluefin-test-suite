@@ -88,17 +88,17 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-277 scenarios across 34 feature files (last audit: 2026-06-22). 30 quarantined, 244 active, 3 @future stubs.
+286 scenarios across 36 feature files (last audit: 2026-06-22). 30 quarantined, 253 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 87 | 86 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
+| smoke | 82 | 81 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
 | software | 15 | 7 | 8 | Bazaar launch + search + CLI presence/info/remote active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
-| common | 38 | 36 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions |
+| common | 43 | 41 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions; portal and podman health checks active |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
-| hardware | 10 | 10 | 0 | Driven by shared SSH steps |
+| lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
+| hardware | 13 | 13 | 0 | Driven by shared SSH steps; includes custom udev rule validation |
 | security | 15 | 15 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
