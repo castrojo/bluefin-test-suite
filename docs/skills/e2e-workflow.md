@@ -6,6 +6,7 @@ metadata:
   context7-sources:
     - /websites/github_en_actions
     - /actions/cache
+    - /bootc-dev/bootc
 ---
 
 # Reusable E2E Workflow — GNOME in QEMU
@@ -115,7 +116,7 @@ A **"Collect migration status"** step also runs (`always()`, `continue-on-error:
 3. **Enable KVM** — udev rule for `/dev/kvm` access
 4. **Resolve digest + cache OCI layers** — restore `/var/lib/containers/storage` with `actions/cache`, keyed by the test image digest. The workflow uses `sudo podman pull`, so the cache must target root's podman store, not the runner user's storage.
 5. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `podman pull` runs in background. On an OCI cache hit, both image pulls are skipped entirely.
-6. **Install OCI image to disk** — `bootc install to-disk` writes ostree layers to a 30 GB raw disk; bootupd failure is expected and caught (direct QEMU kernel boot is used instead of OVMF/systemd-boot)
+6. **Install OCI image to disk** — `bootc install to-disk` writes ostree layers to a 30 GB raw disk; a non-zero exit is only tolerated after the workflow logs the full install output and proves `/ostree/deploy/default/deploy/` is non-empty. This matches the bootc install docs, which treat the deployment tree as the post-install target for follow-up customization. Direct QEMU kernel boot is used instead of OVMF/systemd-boot.
 7. **Configure disk** — mounts the raw disk and:
    - Copies `vmlinuz` + `initramfs.img` to workspace for direct kernel boot
    - Creates `bluefin-test` user (UID 1001)
@@ -328,7 +329,7 @@ When calling this workflow from another repo, the following are explicitly banne
 
 ## Known limitations
 
-- `bootupd` is expected to fail (not in bootc images by default) — the workflow catches this and uses direct kernel boot. This is intentional.
+- `bootupd` may fail (not in bootc images by default), but a non-zero `bootc install to-disk` exit is only acceptable if the ostree deployment directory is populated. The workflow now logs the full install output, records the exit code, and hard-fails if the deployment directory is empty.
 - No display output: `virtio-gpu` with `-display none`. Tests must use AT-SPI (dogtail/qecore), not pixel-based assertions.
 - No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests require SSH-mode suites not yet in the GHA action (epics #43/#44).
 - Partition layout assumes `p3` is the root partition. Tested against standard Anaconda/bootc partition tables. Non-standard layouts may break the disk-configure step.
