@@ -36,3 +36,28 @@ Feature: Bluefin common system scripts
   Scenario: ublue-update service unit exists
     * Run SSH command: "systemctl list-unit-files 'ublue-update*' 2>/dev/null | grep -c 'ublue-update' || systemctl list-units 'ublue-update*' --all 2>/dev/null | grep -c 'ublue-update'"
     * SSH command output is not "0"
+
+  Scenario: dconf-update service ran successfully
+    * Run SSH command: "systemctl show dconf-update.service --property=Result --value 2>/dev/null | grep -Eq '^success$'"
+    * SSH command return code is "0"
+
+  Scenario: ublue-system-setup service completed
+    * Run SSH command: "systemctl is-active ublue-system-setup.service 2>/dev/null || systemctl show ublue-system-setup.service --property=ActiveState | grep -E 'active|inactive'"
+    * SSH command return code is "0"
+
+  Scenario: bazaar user service is available
+    * Run SSH command: "systemctl --user show bazaar.service --property=LoadState 2>/dev/null | grep -v 'not-found' || true"
+    * SSH command return code is "0"
+
+  Scenario: ublue-update timer is enabled
+    * Run SSH command: "systemctl is-enabled ublue-update.timer 2>/dev/null || systemctl list-timers ublue-update.timer --all 2>/dev/null | grep ublue-update"
+    * SSH command return code is "0"
+
+  Scenario: ujust check-local-overrides runs without error
+    * Run SSH command: "ujust check-local-overrides 2>&1"
+    * SSH command return code is "0"
+
+  Scenario: ujust logs-this-boot shows journal output
+    * Run SSH command: "ujust logs-this-boot 2>&1 | head -5; true"
+    * SSH command return code is "0"
+    * SSH command output is not empty

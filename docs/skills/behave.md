@@ -31,6 +31,17 @@ from tests.shared.ssh_steps import *  # noqa: F401,F403
 Never duplicate `_ssh()` or generic step definitions in suite-specific `steps.py`.  
 Default `run_ssh()` timeout: **60s** (not 30s — hardware commands are slow).
 
+For common-suite systemd health checks, named oneshot services often finish in
+`inactive (dead)` after a successful run. Do not assert `systemctl is-active`
+alone for units like `dconf-update.service` or `ublue-system-setup.service`;
+wrap the command with a fallback `systemctl show/status` probe and assert the
+SSH return code instead of requiring persistent `active` state.
+
+When a scenario is meant to fail on a bad command, never append `; true` (or
+similar success-forcing trailers) to the SSH command. That masks the real exit
+status and turns `SSH command return code is "0"` into a no-op. Use `2>&1` to
+capture diagnostics, but preserve the original command's exit code.
+
 ## Smoke suite — local subprocess (not SSH)
 
 The smoke suite runs **inside** the VM via qecore-headless. Steps in `tests/smoke/features/steps/` execute locally using `subprocess.run`, **not** over SSH.
