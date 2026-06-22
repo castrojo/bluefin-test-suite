@@ -26,6 +26,10 @@ def _import_gnome_apps(tree_available: bool = True, in_container: bool = False):
     sys.modules["qecore"] = qecore_stub
     sys.modules["qecore.common_steps"] = qecore_common_stub
 
+    app_support_stub = types.ModuleType("app_support")
+    app_support_stub.launch_background = MagicMock()
+    sys.modules["app_support"] = app_support_stub
+
     for key in list(sys.modules):
         if "gnome_apps_steps" in key:
             del sys.modules[key]
