@@ -1,7 +1,9 @@
-@smoke_suite
+@smoke_suite @bluefin
 Feature: Firefox smoke tests
   Validates Firefox launches and core browser UI elements are accessible.
   Covers startup, navigation, tab management, and coredump regressions.
+  Skipped on non-Bluefin images (e.g. dakota) where Firefox is a Flatpak
+  and Flatpak startup latency causes suite-wide timeouts.
 
   Background:
     * Launch Firefox via command

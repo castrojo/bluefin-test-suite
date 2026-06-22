@@ -267,6 +267,18 @@ def before_all(context) -> None:
     else:
         print("WARNING: clock/system toggles not found after 15s — proceeding anyway", flush=True)
 
+    # Detect image family so @bluefin-tagged scenarios can be skipped on
+    # non-Bluefin images (e.g. dakota).  Match only the image name component
+    # (last path segment before ':' or '@') — the org "projectbluefin" must
+    # not be treated as a Bluefin image name.
+    image_ref = os.environ.get("IMAGE", "")
+    if image_ref:
+        _lower = image_ref.lower()
+        _name = _lower.split("/")[-1].split(":")[0].split("@")[0]
+        context.is_bluefin_image = "bluefin" in _name or "bazzite" in _lower
+    else:
+        context.is_bluefin_image = True  # default to Bluefin when IMAGE is unset
+
     try:
         context.optional_scenario_availability = {
             tag: launch_target_available(targets)
@@ -307,6 +319,19 @@ def before_scenario(context, scenario) -> None:
             except TypeError:
                 scenario.skip()
             print(f"Skipping {scenario.name}: no Wi-Fi interface detected", flush=True)
+            return
+
+    # Skip @bluefin scenarios on non-Bluefin images (e.g. dakota).
+    if not getattr(context, "is_bluefin_image", True):
+        if "bluefin" in set(getattr(scenario, "effective_tags", scenario.tags)):
+            try:
+                scenario.skip(
+                    f"Skipping @bluefin scenario on non-Bluefin image "
+                    f"(IMAGE={os.environ.get('IMAGE', 'unknown')})"
+                )
+            except TypeError:
+                scenario.skip()
+            print(f"Skipping {scenario.name}: @bluefin on non-Bluefin image", flush=True)
             return
 
     if getattr(context, 'failed_setup', None):

@@ -90,11 +90,11 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-272 scenarios across 33 feature files (last audit: 2026-06-16). 30 quarantined, 239 active, 3 @future stubs.
+277 scenarios across 34 feature files (last audit: 2026-06-22). 30 quarantined, 244 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 82 | 81 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
+| smoke | 87 | 86 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
 | software | 15 | 7 | 8 | Bazaar launch + search + CLI presence/info/remote active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
 | common | 38 | 36 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions |

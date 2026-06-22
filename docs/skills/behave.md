@@ -45,6 +45,16 @@ def _run(cmd: str):
 
 For system-level checks in `system_health.feature`, define named steps in `system_health_steps.py` that call `_run()` directly.
 
+For lightweight smoke-suite CLI assertions (for example `gsettings`, `pgrep`, or `journalctl` checks), prefer qecore's built-in command capture steps in the `.feature` file instead of adding wrappers:
+
+```gherkin
+* Run and save command output: "gsettings get org.gnome.desktop.a11y.keyboard enable"
+* Return code of last command output "is" "0"
+* Last command output "contains" "true"
+```
+
+Do **not** invent alternate phrases like `Run command:` / `Command output contains ...` in smoke features unless you are also intentionally adding matching step definitions.
+
 ## Avoiding AmbiguousStep with qecore.common_steps
 
 `from qecore.common_steps import *` registers qecore's steps in behave's global registry on first import. If your `steps.py` defines the **same pattern string** you get `AmbiguousStep` at runtime (not import time).
