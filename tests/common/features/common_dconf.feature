@@ -26,22 +26,22 @@ Feature: Bluefin common dconf and GSettings defaults
     * Run SSH command: "gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings"
     * SSH command output is not empty
 
-  Scenario: GNOME interface color scheme preference is set
+  Scenario: GNOME interface color scheme preference matches the shipped Bluefin default
     * Run SSH command: "gsettings get org.gnome.desktop.interface color-scheme"
     * SSH command return code is "0"
-    * SSH command output is not empty
+    * SSH command output contains "prefer-dark"
 
-  Scenario: GNOME clock format is configured
+  Scenario: GNOME clock format matches the shipped Bluefin default
     * Run SSH command: "gsettings get org.gnome.desktop.interface clock-format"
     * SSH command return code is "0"
-    * SSH command output is not empty
+    * SSH command output contains "12h"
 
-  Scenario: GNOME font-name setting is present
+  Scenario: GNOME font-name matches the shipped Bluefin default
     * Run SSH command: "gsettings get org.gnome.desktop.interface font-name"
     * SSH command return code is "0"
-    * SSH command output is not empty
+    * SSH command output stripped "is" "'Adwaita Sans 11'"
 
-  Scenario: GNOME show-battery-percentage setting is readable
+  Scenario: GNOME show-battery-percentage matches the shipped Bluefin default
     * Run SSH command: "gsettings get org.gnome.desktop.interface show-battery-percentage"
     * SSH command return code is "0"
 
@@ -79,3 +79,4 @@ Feature: Bluefin common dconf and GSettings defaults
     * Run SSH command: "dconf read /org/gnome/Ptyxis/Profiles/2871e8027773ae74d6c87a5f659bbc74/palette"
     * SSH command return code is "0"
     * SSH command output stripped "is" "'catppuccin-dynamic'"
+    * SSH command output stripped "is" "false"
