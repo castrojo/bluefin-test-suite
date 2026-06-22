@@ -192,6 +192,8 @@ jobs:
             BOOTLOADER_FLAG="--bootloader systemd"
           fi
 
+          BOOTC_INSTALL_LOG="$(pwd)/bootc-install.log"
+          set +e
           sudo podman run \
             --rm --privileged --pid=host \
             --security-opt label=type:unconfined_t \
@@ -203,7 +205,13 @@ jobs:
               --filesystem ext4 \
               --wipe \
               ${BOOTLOADER_FLAG} \
-            || echo "bootc install exited $? (bootupd expected — continuing)"
+            2>&1 | tee "${BOOTC_INSTALL_LOG}"
+          BOOTC_INSTALL_RC=${PIPESTATUS[0]}
+          set -e
+          if [[ ${BOOTC_INSTALL_RC} -ne 0 ]]; then
+            echo "bootc install exited ${BOOTC_INSTALL_RC}; checking whether deployment was written before continuing"
+            echo "bootc install log saved to ${BOOTC_INSTALL_LOG}"
+          fi
 
           LOOP=$(sudo losetup -f --show -P disk.raw)
           echo "Loop: ${LOOP}"
@@ -215,11 +223,18 @@ jobs:
 
           sudo mount "${ROOT_PART}" /mnt/root
 
-          DEPLOY=$(sudo ls /mnt/root/ostree/deploy/default/deploy/ 2>/dev/null | head -1)
+          DEPLOY=$(sudo find /mnt/root/ostree/deploy/default/deploy/ -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -1)
           if [[ -z "${DEPLOY}" ]]; then
             echo "ERROR: ostree deployment missing — bootc install failed before writing layers"
+            if [[ ${BOOTC_INSTALL_RC} -ne 0 ]]; then
+              echo "bootc install exited ${BOOTC_INSTALL_RC}; full install log:"
+              cat "${BOOTC_INSTALL_LOG}"
+            fi
             sudo ls -la /mnt/root/ || true
             exit 1
+          fi
+          if [[ ${BOOTC_INSTALL_RC} -ne 0 ]]; then
+            echo "bootc install exited ${BOOTC_INSTALL_RC} after writing deployment ${DEPLOY}; continuing with direct kernel boot"
           fi
           D="/mnt/root/ostree/deploy/default/deploy/${DEPLOY}"
           VAR="/mnt/root/ostree/deploy/default/var"
