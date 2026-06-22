@@ -90,21 +90,21 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-277 scenarios across 34 feature files (last audit: 2026-06-22). 30 quarantined, 244 active, 3 @future stubs.
+337 scenarios across 46 feature files (last audit: 2026-06-22). 30 quarantined, 304 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 87 | 86 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
-| developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
-| software | 15 | 7 | 8 | Bazaar launch + search + CLI presence/info/remote active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
-| common | 38 | 36 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions |
+| smoke | 101 | 100 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding); a11y, xdg-open MIME handlers, per-UUID extension checks, and Bluefin desktop identity coverage are active |
+| developer | 17 | 5 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
+| software | 17 | 9 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
+| common | 76 | 74 | 2 | custom-command-list dconf checks active; portal health + FileChooser/Screenshot/OpenURI/Notification/Settings/document-fuse integration checks active; shell sourcing, Flatpak first-boot, service health, `ujust`, polkit, container runtime, and zero-layered-RPM coverage active |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
-| hardware | 10 | 10 | 0 | Driven by shared SSH steps |
+| lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
+| hardware | 13 | 13 | 0 | Driven by shared SSH steps; includes custom udev rule validation |
 | security | 15 | 15 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
-| nvidia | 12 | 12 | 0 | Enabled after GPU passthrough work |
+| nvidia | 11 | 11 | 0 | Enabled after GPU passthrough work |
 | flatcar | 13 | 10 | 0 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
 
 ### Remaining quarantine breakdown
@@ -128,7 +128,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 | Area | Priority | Status | Notes |
 |---|---|---|---|
-| Bazaar / Flatpak management on Bluefin | High | Open | `@pending` placeholder exists; current `common` suite is SSH-only with no GNOME session (issue #419) |
+| Bazaar / Flatpak management on Bluefin | High | Open | Bazaar CLI/config integrity coverage is active; GUI navigation/interaction coverage is still pending GNOME 50 AT-SPI re-validation |
 | Common shell tools (zsh, fish, fzf, bat, eza, fd, ripgrep, starship) | Medium | Fixed | Resolved by installing tools in CI workflow step before common suite runs (issue #210) |
 | Flatpak permission management | Low | Open | Flatseal / per-app permissions not exercised |
 | OOBE / first-boot | Low | Open | Initial user setup flow not covered |

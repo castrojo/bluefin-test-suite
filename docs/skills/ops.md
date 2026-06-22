@@ -54,6 +54,24 @@ Open an issue in the image repo referencing `bib-disk-configure`. Do not add thi
 
 ---
 
+## Smoke runner vs VM command routing
+
+**Symptom:** A smoke check passes even though the booted VM is broken (DNS, network, or user-session state is actually bad inside the guest).
+
+**Cause:** In the smoke suite, `_run()` executes on the **runner context**. For guest assertions that must run inside the booted VM, use `_run_host()` instead.
+
+```python
+# WRONG — checks the runner environment
+result = _run("getent hosts ghcr.io")
+
+# CORRECT — checks the booted VM
+result = _run_host("getent hosts ghcr.io")
+```
+
+Use `_run_host()` for DNS, network, or other guest-state validations where the distinction matters. PR #476 fixed the smoke DNS check after it was accidentally validating the runner instead of the VM.
+
+---
+
 ## SSH step timeout
 
 Default `run_ssh()` timeout is **60 seconds**, not 30. Hardware commands (bootc upgrade, disk ops) are slow in emulated VMs.
