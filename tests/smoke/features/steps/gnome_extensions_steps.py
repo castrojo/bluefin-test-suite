@@ -1,7 +1,9 @@
 """Custom step definitions for GNOME Extensions smoke tests."""
 import os
 import re
+import shlex
 import subprocess
+import time
 from time import sleep
 
 from behave import step
@@ -76,6 +78,51 @@ def _run(cmd: list[str]):
         check=False,
     )
     return result.stdout.strip(), result.returncode, result.stderr.strip()
+
+
+def _extension_state(uuid: str) -> str:
+    quoted_uuid = shlex.quote(f"'{uuid}'")
+    commands = (
+        f"source /tmp/session.env 2>/dev/null; "
+        f"gdbus call --session "
+        f"--dest org.gnome.Shell "
+        f"--object-path /org/gnome/Shell "
+        f"--method org.gnome.Shell.Extensions.GetExtensionInfo "
+        f"{quoted_uuid}",
+        f"source /tmp/session.env 2>/dev/null; "
+        f"gdbus call --session "
+        f"--dest org.gnome.Shell "
+        f"--object-path /org/gnome/Shell/Extensions "
+        f"--method org.gnome.Shell.Extensions.GetExtensionInfo "
+        f"{quoted_uuid}",
+    )
+    for command in commands:
+        output, returncode, _ = _run_host(command)
+        if returncode != 0:
+            continue
+        match = re.search(r"'state':\s*<uint32\s+(\d+)>", output)
+        if match:
+            return match.group(1)
+    return "99"
+
+
+@step('GNOME extension "{uuid}" is enabled')
+def gnome_extension_is_enabled(context, uuid: str) -> None:
+    # State 6 (INITIALIZED) and 8 (ENABLING) are transient; Bluefin's bundled
+    # extensions can still be settling shortly after session startup.
+    deadline = time.monotonic() + 90
+    state = "6"
+    while time.monotonic() < deadline:
+        state = _extension_state(uuid)
+        if state == "1":
+            return
+        if state not in ("6", "8"):
+            break
+        sleep(2)
+    assert state == "1", (
+        f"Extension {uuid!r} is not enabled (state={state}). "
+        "Expected state=1 (ENABLED)."
+    )
 
 
 def _extensions_app():
