@@ -1,6 +1,6 @@
 ---
 name: suite-map
-description: "Suite map and coverage snapshot for projectbluefin/testsuite — variant matrix, suite-to-image mapping, PR gate model, @future gaps, and active/quarantined scenario counts."
+description: "Use when deciding which testsuite suite or variant tag to touch, checking coverage counts, or updating scenario totals after adding/removing behave scenarios."
 metadata:
   type: reference
 ---
@@ -8,6 +8,49 @@ metadata:
 # Suite Map and Coverage
 
 Load when: deciding which suite to add a test to, checking existing coverage, or reviewing @future gaps.
+
+## When to Use
+
+- Choosing the correct suite for new coverage
+- Determining which image variants run a suite
+- Updating scenario counts after feature-file changes
+- Verifying variant-specific tag semantics such as `@bluefin` and `@dakota_only`
+
+## When NOT to Use
+
+- GNOME AT-SPI implementation details → use `gnome.md`
+- Behave step-authoring patterns or collision avoidance → use `behave.md`
+- CI workflow internals or reusable action behavior → use `e2e-workflow.md`
+
+## Core Process
+
+1. Identify the suite affected by the change.
+2. Confirm the suite/image matrix before adding variant-specific coverage.
+3. Verify the correct scenario tags for that image family.
+4. Update the coverage snapshot and per-suite counts when scenario totals change.
+5. Cross-check the same totals in `QA-REVIEW.md` before opening the PR.
+
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "It is only one scenario, the counts can wait." | Coverage drift compounds quickly; `suite-map.md` and `QA-REVIEW.md` are co-authoritative. |
+| "The tag name is obvious." | Variant gating is implemented in suite hooks; confirm the actual tag semantics before writing image-specific scenarios. |
+| "Another skill file already mentions this suite." | This file is the source for suite-to-image mapping and coverage totals. |
+
+## Red Flags
+
+- Scenario totals changed but `suite-map.md` was not updated
+- A variant-specific scenario was added without checking whether the image actually runs that suite
+- A new tag was used without documenting its meaning here
+- `suite-map.md` and `QA-REVIEW.md` disagree on counts
+
+## Verification
+
+- [ ] Suite/image matrix still matches the intended coverage
+- [ ] Variant tag semantics match the actual suite hook behavior
+- [ ] Scenario totals here match `QA-REVIEW.md`
+- [ ] Notes describe timeless operating rules, not session history
 
 > Coverage snapshot here and in `QA-REVIEW.md` are co-authoritative — update both when scenario counts or gap status change.
 
@@ -21,8 +64,8 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
-| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios remain quarantined (#176) |
-| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env, signing/security invariants |
+| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, config YAML validation, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios remain quarantined (#176) |
+| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env, shell sourcing, signing/security invariants |
 | `lifecycle` | ✅ | — | ✅ | ✅ `@homed_migration` | — | — | — | bootc upgrade/rollback; SSH-mode; dakota: homed migration only |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
 | `hardware` | ✅ | — | — | — | — | — | — | Emulated peripherals; SSH-mode |
@@ -71,7 +114,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 - `dakota`: `testing` + `latest`
 
 **Why these assignments:**
-- `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → the GNOME Software navigation scenarios stay quarantined (#176); Bazaar CLI presence/info/remote coverage is active in `bazaar.feature`
+- `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → the GNOME Software navigation scenarios stay quarantined (#176); Bazaar CLI presence/info/remote coverage is active in `bazaar.feature` and Bazaar config integrity coverage is active in `bazaar_config.feature`
 - `bazzite` is not vanilla GNOME → only the bazzite suite runs against it (no vanilla-gnome)
 - `bluefin-nvidia-open` is used because nvidia-open is built daily; nvidia services (`nvidia-persistenced`, `ublue-nvctk-cdi`) are in `IGNORED_FAILED_UNITS_IN_VM` — they always fail in QEMU without a physical GPU
 
@@ -126,7 +169,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 | JupyterLab | dx | not preinstalled in DX image |
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
 | ujust report (×1) | smoke | `just` version change parses `{{.Repository}}` as template; common main fixed, awaiting image rebuild |
-| software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar, so upstream GNOME Software coverage is quarantined until issue #419 lands Bazaar coverage |
+| software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar; upstream GNOME Software GUI coverage remains quarantined while Bazaar-specific GUI coverage is still pending |
 | common signing (×2) | common | pending signing policy enforcement |
 | bootc pin | lifecycle | pin not supported on all images (race condition in some test environments) |
 | bootc switch | lifecycle | switch target requires a valid alternate image ref in CI |
@@ -135,7 +178,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 | Area | Priority | Status | Notes |
 |---|---|---|---|
-| Bazaar / Flatpak management on Bluefin | High | Open | `@pending` placeholder exists; current `common` suite is SSH-only with no GNOME session (issue #419) |
+| Bazaar / Flatpak management on Bluefin | High | Open | Bazaar CLI/config integrity coverage is active; GUI navigation/interaction coverage is still pending GNOME 50 AT-SPI re-validation |
 | Common shell tools (zsh, fish, fzf, bat, eza, fd, ripgrep, starship) | Medium | Fixed | Resolved by installing tools in CI workflow step before common suite runs (issue #210) |
 | Flatpak permission management | Low | Open | Flatseal / per-app permissions not exercised |
 | OOBE / first-boot | Low | Open | Initial user setup flow not covered |
