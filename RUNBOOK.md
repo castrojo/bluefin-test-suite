@@ -26,10 +26,20 @@ just list-stubs
 PR validation is the only standing CI gate. For ad hoc image and suite runs, use `.github/workflows/manual.yml` (GitHub Actions, no self-hosted runners).
 
 ```bash
-# Trigger a manual run
+# Trigger a manual run (smoke suite, auto-shards into smoke-a + smoke-b)
 gh workflow run manual.yml --repo projectbluefin/testsuite --ref main \
   -f image=ghcr.io/projectbluefin/bluefin:testing \
   -f suites=smoke
+
+# Trigger common suite (auto-shards into common-a + common-b)
+gh workflow run manual.yml --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing \
+  -f suites=common
+
+# Multiple suites in one run
+gh workflow run manual.yml --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing \
+  -f suites=smoke,common,vanilla-gnome
 
 # Check recent manual runs
 gh run list --repo projectbluefin/testsuite --workflow manual.yml --limit 3
@@ -42,6 +52,8 @@ gh run view --job=<JOB_ID> --log-failed --repo projectbluefin/testsuite
 ```
 
 **Diagnosing failures** — check `docs/skills/ops.md` for the most common causes.
+
+**Suite sharding**: `suites: smoke` and `suites: common` each automatically expand into two parallel jobs. New `.feature` files are picked up automatically — no shard configuration needed.
 
 ## Merge queue
 

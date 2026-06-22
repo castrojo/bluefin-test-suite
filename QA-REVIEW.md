@@ -3,15 +3,16 @@
 > Last updated: 2026-06-22
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 308 scenarios across 39 feature files (last audit: 2026-06-22). 30 quarantined, 266 active, 3 @future stubs.
+Current audit: 358 scenarios across 48 feature files (last audit: 2026-06-22). 30 quarantined, 324 active, 4 @future stubs.
 
-## Architecture changes (2026-06-21)
+## Architecture changes (2026-06-21 – 2026-06-22)
 
 - Nightly removed — PR gates are now the sole CI mechanism.
-- `e2e.yml` now uses OCI layer caching and a 45-minute timeout.
-- `pr-validate.yml` now enforces 30-day quarantine expiry.
-- Known infrastructure-flaky smoke scenarios now use `@retry`.
-Current audit: 311 scenarios across 40 feature files (last audit: 2026-06-22). 30 quarantined, 278 active, 3 @future stubs.
+- `e2e.yml` uses OCI layer caching and dynamic suite sharding — `smoke` and `common` each split into two parallel jobs automatically.
+- `pr-validate.yml` enforces 30-day quarantine expiry.
+- Known infrastructure-flaky smoke scenarios use `@retry`.
+- Boot-time step summary and zero-layered-RPM gate added to CI job summary output.
+- 13 new feature files added in the 2026-06-22 sprint (common, smoke, hardware, software suites).
 
 ## What this repo is responsible for
 
