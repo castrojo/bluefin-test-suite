@@ -555,3 +555,62 @@ def system_tray_present(context) -> None:
         "})().toString()"
     )
     assert present, "System tray area is not present in GNOME Shell panel"
+
+DOCUMENT_VIEWERS = {"org.gnome.Papers.desktop", "evince.desktop", "okular.desktop"}
+IMAGE_VIEWERS = {"org.gnome.Loupe.desktop", "eog.desktop", "gthumb.desktop", "shotwell.desktop"}
+TEXT_EDITORS = {"org.gnome.TextEditor.desktop", "gedit.desktop", "gnome-text-editor.desktop"}
+VIDEO_PLAYERS = {"io.github.celluloid_player.Celluloid.desktop", "totem.desktop", "vlc.desktop", "mpv.desktop"}
+
+
+def _xdg_mime_default(mime_type: str) -> str:
+    result = subprocess.run(
+        ["xdg-mime", "query", "default", mime_type],
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+@step('xdg-mime query default for "{mime_type}" returns "{desktop_file}"')
+def xdg_mime_exact(context, mime_type: str, desktop_file: str) -> None:
+    actual = _xdg_mime_default(mime_type)
+    assert actual == desktop_file, (
+        f"MIME type {mime_type!r}: expected {desktop_file!r}, got {actual!r}"
+    )
+
+
+@step('xdg-mime query default for "{mime_type}" returns a document viewer')
+def xdg_mime_doc_viewer(context, mime_type: str) -> None:
+    actual = _xdg_mime_default(mime_type)
+    assert actual in DOCUMENT_VIEWERS, (
+        f"MIME type {mime_type!r}: {actual!r} is not a known document viewer. "
+        f"Expected one of {DOCUMENT_VIEWERS}"
+    )
+
+
+@step('xdg-mime query default for "{mime_type}" returns an image viewer')
+def xdg_mime_image_viewer(context, mime_type: str) -> None:
+    actual = _xdg_mime_default(mime_type)
+    assert actual in IMAGE_VIEWERS, (
+        f"MIME type {mime_type!r}: {actual!r} is not a known image viewer. "
+        f"Expected one of {IMAGE_VIEWERS}"
+    )
+
+
+@step('xdg-mime query default for "{mime_type}" returns a text editor')
+def xdg_mime_text_editor(context, mime_type: str) -> None:
+    actual = _xdg_mime_default(mime_type)
+    assert actual in TEXT_EDITORS, (
+        f"MIME type {mime_type!r}: {actual!r} is not a known text editor. "
+        f"Expected one of {TEXT_EDITORS}"
+    )
+
+
+@step('xdg-mime query default for "{mime_type}" returns a video player')
+def xdg_mime_video_player(context, mime_type: str) -> None:
+    actual = _xdg_mime_default(mime_type)
+    assert actual in VIDEO_PLAYERS, (
+        f"MIME type {mime_type!r}: {actual!r} is not a known video player. "
+        f"Expected one of {VIDEO_PLAYERS}"
+    )
+

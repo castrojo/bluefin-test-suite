@@ -91,6 +91,8 @@ This validates the MIME database end-to-end (xdg-mime, .desktop file registratio
 
 For lightweight smoke-suite CLI assertions (for example `gsettings`, `pgrep`, or `journalctl` checks), prefer qecore's built-in command capture steps in the `.feature` file instead of adding wrappers:
 
+For MIME-handler coverage, prefer direct `subprocess.run(["xdg-mime", "query", "default", mime])` helpers in `tests/smoke/features/steps/steps.py` and assert the resolved `.desktop` file (or an allowed viewer set) instead of launching the app with `xdg-open`. This keeps smoke checks local to the VM and avoids window-management flake while still validating Bluefin's handler registration end to end.
+
 ```gherkin
 * Run and save command output: "gsettings get org.gnome.desktop.a11y.keyboard enable"
 * Return code of last command output "is" "0"
