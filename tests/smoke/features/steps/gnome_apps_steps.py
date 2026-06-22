@@ -121,6 +121,7 @@ def _launch_app(app_id: str) -> None:
             capture_output=True, text=True, timeout=15,
         )
         if result.returncode == 0:
+            sleep(1)  # D-Bus activation settle: app must register with AT-SPI before polling begins
             return
         raise AssertionError(
             f"Failed to launch {app_id!r} via SSH: {result.stderr.strip() or result.stdout.strip()}"
@@ -144,6 +145,7 @@ def _launch_app(app_id: str) -> None:
         last_cmd = cmd
         last_err = result.stderr.strip() or result.stdout.strip()
         if result.returncode == 0:
+            sleep(1)  # D-Bus activation settle: app must register with AT-SPI before polling begins
             return
     raise AssertionError(
         f"Failed to launch {app_id!r}: last command {last_cmd!r} rc=1 — {last_err}"
