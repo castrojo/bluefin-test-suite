@@ -179,6 +179,14 @@ def _extension_state(uuid: str) -> str:
 
 Poll through 6 and 8 with a deadline (Bazzite: use 90s — 11 extensions need time post-boot).
 
+## Extension state in smoke suite (local subprocess)
+
+The smoke suite's extension checks use the same `GetExtensionInfo` D-Bus call but via local `subprocess.run` (not SSH). Bluefin's 7 default extensions each get a named scenario in `tests/smoke/features/bluefin_extensions.feature`.
+
+Key difference from bazzite: the object path is `/org/gnome/Shell` (not `/org/gnome/Shell/Extensions`). Use whichever path the running GNOME Shell responds to — both are valid on GNOME 50, test with `gdbus introspect --session --dest org.gnome.Shell --object-path /org/gnome/Shell` first.
+
+The step phrase is `GNOME extension "{uuid}" is enabled` (distinct from bazzite's `Extension "{uuid}" is enabled` to avoid cross-suite collision).
+
 ## Desktop notifications via gdbus (smoke suite)
 
 Send a test notification from inside the VM:

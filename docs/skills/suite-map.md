@@ -99,13 +99,19 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 | software | 15 | 7 | 8 | Bazaar launch + search + CLI presence/info/remote active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
 | common | 38 | 36 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 21 | 19 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
+| lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
 | hardware | 10 | 10 | 0 | Driven by shared SSH steps |
 | security | 15 | 15 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
-| nvidia | 12 | 12 | 0 | Enabled after GPU passthrough work |
+| nvidia | 12 | 0 | 0 | All 12 scenarios remain `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
 | flatcar | 13 | 10 | 0 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
+
+### 2026-06-21 sprint feature additions
+
+- `smoke`: `gnome_accessibility.feature`, `bluefin_extensions.feature`, `xdg_open.feature`, `bluefin_desktop.feature`
+- `common`: `common_portals.feature`, `common_shell.feature` (updated), `common_flatpak_state.feature`, `common_services.feature` or `common_scripts.feature` (updated), `common_polkit.feature`, `common_container.feature`, `common_immutable.feature`
+- `hardware`: `udev_rules.feature`
 
 ### Remaining quarantine breakdown
 

@@ -66,6 +66,25 @@ Never lower the default below 60s.
 
 ---
 
+## Smoke suite: _run() vs _run_host() for network checks
+
+**Symptom:** DNS health check in `system_health.feature` passes even when the VM has no connectivity.
+
+**Cause:** `_run(cmd)` in the smoke suite executes on the test runner (inside the VM-side container), NOT in the actual VM guest OS. For network or system checks that need to reflect the VM's actual state, use `_run_host(cmd)` which executes in the VM via a shell bridge.
+
+```python
+# WRONG — tests the container's DNS, not the VM's
+_run("getent hosts ghcr.io")
+
+# CORRECT — tests DNS inside the VM
+_run_host("getent hosts ghcr.io")
+```
+
+Use `_run_host()` for: DNS lookups, network connectivity, firewall state, systemd service status from the host OS.
+Use `_run()` for: subprocess calls within the test runner environment (extension state via gdbus, GNOME shell interactions).
+
+---
+
 ## sys.exit(1) in before_scenario kills behave
 
 **Symptom:** All scenarios after the first failure appear to pass (not run). Behave exits non-zero but only shows the first failure.

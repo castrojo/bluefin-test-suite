@@ -45,6 +45,19 @@ def _run(cmd: str):
 
 For system-level checks in `system_health.feature`, define named steps in `system_health_steps.py` that call `_run()` directly.
 
+## MIME type handler verification (smoke suite)
+
+Use `xdg-mime query default <mime-type>` to verify handler registration without launching apps. Assert against known `.desktop` file names or an allow-set:
+
+```python
+DOCUMENT_VIEWERS = {"org.gnome.Papers.desktop", "evince.desktop"}
+actual = subprocess.run(["xdg-mime", "query", "default", "application/pdf"],
+                        capture_output=True, text=True).stdout.strip()
+assert actual in DOCUMENT_VIEWERS
+```
+
+This validates the MIME database end-to-end (xdg-mime, .desktop file registration, mimeapps.list) without window management flake.
+
 For lightweight smoke-suite CLI assertions (for example `gsettings`, `pgrep`, or `journalctl` checks), prefer qecore's built-in command capture steps in the `.feature` file instead of adding wrappers:
 
 ```gherkin
