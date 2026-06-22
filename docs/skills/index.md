@@ -29,9 +29,12 @@ New suites → this repo. New infra (VM specs, manifests) → testing-lab. PRs t
 | Task | Load |
 |---|---|
 | Writing behave tests, scaffolding suites, debugging step resolution | `docs/skills/behave.md` |
+| MIME handler verification, xdg-open patterns | `docs/skills/behave.md` |
 | GNOME Shell / AT-SPI / dogtail interactions | `docs/skills/gnome.md` |
+| GNOME extension testing patterns | `docs/skills/gnome.md` |
 | bootc lifecycle, upgrade, rollback tests | `docs/skills/bootc.md` |
 | Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |
+| Flatpak remote state, portal health | `docs/skills/suite-map.md` |
 | Infra gotchas (GDM autologin, systemd-oomd.socket, bazzite extension state, GVariant quoting) | `docs/skills/ops.md` |
 | Reusable e2e workflow (calling from another repo, debugging QEMU pipeline) | `docs/skills/e2e-workflow.md` |
 | Quarantine expiry CI (`scripts/check_quarantine_age.py`, `pr-validate.yml`) | `docs/skills/quarantine-age.md` |
