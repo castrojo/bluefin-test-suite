@@ -87,14 +87,15 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 | `@pending` | Placeholder coverage gap; intentionally skipped until a valid harness exists |
 | `@future` | Not yet implemented or blocked on infra |
 | `@homed_migration` | systemd-homed migration scenarios; dakota lifecycle; SSH-mode; skip-safe when homed absent |
+| `@regression` | Anchors a known incident regression guard; must remain active indefinitely |
 
 ## Coverage snapshot
 
-287 scenarios across 36 feature files (last audit: 2026-06-22). 30 quarantined, 242 active, 15 @future stubs.
+309 scenarios across 39 feature files (last audit: 2026-06-22). 30 quarantined, 276 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 91 | 90 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding); Bluefin desktop identity coverage now checks Wayland, Dash-to-Dock, hardware rendering, and top-bar tray presence |
+| smoke | 89 | 88 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding); xdg-mime default-handler coverage now checks Firefox, Papers, Loupe, Text Editor, and video-player registration; composefs capability and GDM boot regression coverage added |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
 | software | 15 | 7 | 8 | Bazaar launch + search + CLI presence/info/remote active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
 | common | 38 | 36 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions |

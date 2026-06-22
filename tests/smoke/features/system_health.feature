@@ -37,3 +37,12 @@ Feature: System health smoke checks
     * ujust is on PATH and returns exit 0
     * ujust report --confirm rejects non-integer issue number
     * ujust report --confirm without issue number prints error
+
+  @health @composefs @regression @sla_10s
+  Scenario: composefs preserves file capabilities on newuidmap, newgidmap, and ping
+    * newuidmap, newgidmap, and ping retain their security.capability xattrs
+
+  @health @gdm @regression @sla_10s
+  Scenario: System boots to display manager, not emergency console
+    * gdm.service is active
+    * graphical.target is active

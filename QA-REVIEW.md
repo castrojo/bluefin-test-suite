@@ -12,6 +12,7 @@ Per-suite breakdown: smoke 91, common 38, lifecycle 27, bazzite 20, developer 19
 - `e2e.yml` now uses OCI layer caching and a 45-minute timeout.
 - `pr-validate.yml` now enforces 30-day quarantine expiry.
 - Known infrastructure-flaky smoke scenarios now use `@retry`.
+Current audit: 309 scenarios across 39 feature files (last audit: 2026-06-22). 30 quarantined, 276 active, 3 @future stubs.
 
 ## What this repo is responsible for
 

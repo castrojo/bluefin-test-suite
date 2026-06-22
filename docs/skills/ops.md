@@ -52,6 +52,10 @@ AutomaticLogin=bluefin-test
 
 Open an issue in the image repo referencing `bib-disk-configure`. Do not add this workaround to step code.
 
+**GDM boot regression guard:** A `@health @gdm @regression` scenario in `system_health.feature` explicitly asserts `gdm.service` and `graphical.target` are both `active`. This catches the 2026-06-13 bluefin-lts emergency-console incident — if `gdm.service` fails, the VM boots to emergency console and all AT-SPI tests silently skip without a clear failure. If this scenario fails, check GDM autologin config above before investigating further.
+
+**GDM boot regression guard:** A `@health @gdm @regression` scenario in `system_health.feature` explicitly asserts `gdm.service` and `graphical.target` are both `active`. This catches the 2026-06-13 bluefin-lts emergency-console incident — if `gdm.service` fails, the VM boots to emergency console and all AT-SPI tests silently skip without a clear failure. If this scenario fails, check GDM autologin config above before investigating further.
+
 ---
 
 ## SSH step timeout
@@ -396,6 +400,7 @@ Do not delete this label.
 
 ---
 
+<<<<<<< HEAD
 ## ARC ghost runners — local dev routing
 
 The testsuite can run on the ghost k3s cluster's ARC runners instead of GitHub-hosted runners. ARC replicates the `ubuntu-latest` GHA environment exactly, which is required for reliable debugging.
@@ -515,3 +520,21 @@ This extracts the image name component (`bluefin`, `dakota`, etc.) before checki
 
 The smoke suite environment replicates this same pattern so `@bluefin` tags are
 respected in AT-SPI tests as well.
+=======
+## composefs file-capability regression (dakota#841)
+
+A `@health @composefs @regression` scenario in `system_health.feature` checks
+that `newuidmap`, `newgidmap`, and `ping` retain their `security.capability`
+xattrs after a composefs-backed ostree deployment.
+
+**Root cause of the 2026-06-13 incident:** `buildah commit` (without
+`--squash`) produced a multi-layer OCI image. The composefs xattr injection
+expected a flat single-layer input; the multi-layer output silently stripped
+`security.capability` xattrs. The composefs tree could not mount at boot.
+Fix: `podman build --squash-all` in the export recipe
+(projectbluefin/dakota#846).
+
+If `getcap` returns no capabilities for these binaries, the image build
+pipeline produced a multi-layer OCI artifact. File the regression against the
+image build repo, not the test suite.
+>>>>>>> f583bd8 (test(smoke): add composefs capability and GDM boot regression tests; gate lts+dakota)

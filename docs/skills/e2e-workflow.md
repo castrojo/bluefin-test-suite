@@ -472,3 +472,47 @@ system-db:distro
 **Keys written by local.d/00-ci-testing**:
 - `org.gnome.shell allow-extension-installation` = `true`
 - `org.gnome.shell enabled-extensions` = `['unsafe-mode@bluefin-test']`
+
+---
+
+## Gating :testing behind a post-build smoke check
+
+Every consuming repo has a local `run-testsuite.yml` wrapper that pins the testsuite SHA. **Always call the wrapper — never call `projectbluefin/testsuite/.github/workflows/e2e.yml` directly.** Renovate manages the SHA in one place; all callers inherit it automatically.
+
+### `publish_stream_tag: "false"` — the gate input
+
+`projectbluefin/actions/.github/workflows/reusable-build.yml` has a `publish_stream_tag` input (default `"true"`). When set to `"false"`, the build pushes only the SHA-tagged image (`:$sha`) and withholds the stream tag (`:testing`, `:stable`). The post-build smoke workflow promotes the stream tag only after smoke passes.
+
+Set it conditionally in the consuming repo's build workflow:
+```yaml
+publish_stream_tag: ${{ (github.ref == 'refs/heads/lts' || github.event_name == 'pull_request') && 'true' || 'false' }}
+```
+This keeps `:lts` publishing directly (via `execute-release.yml`) and gates `:testing` for all push events.
+
+### Post-build promote pattern (4 jobs)
+
+The canonical post-build gate follows bluefin's `post-testing-e2e.yml`:
+
+```
+get-image   — download image-digest-testing-<brand>-main-x86_64 artifact from build run
+    └── e2e-smoke  — run-testsuite.yml, suites: smoke,common
+          └── promote-to-testing  — skopeo copy :sha → :testing for all digest entries
+          └── report-failure      — open/update GitHub issue; :testing not promoted
+```
+
+Digest artifact name pattern: `image-digest-{stream_name}-{brand_name}-{image_flavor}-{architecture}`
+Digest file format (two lines per image): `IMAGE_NAME=sha256:...` (= format) and `IMAGE_NAME|platform|sha256:...` (| format).
+Use the `=` format to extract the digest; use `--pattern "image-digest-testing-*"` to download all flavors at promote time.
+
+```yaml
+DIGEST=$(grep "^bluefin-lts-hwe=" /tmp/digest/*.txt | head -1 | cut -d= -f2-)
+echo "image=ghcr.io/${{ github.repository_owner }}/bluefin-lts-hwe@${DIGEST}" >> "$GITHUB_OUTPUT"
+```
+
+### Per-repo wiring state
+
+| Repo | Gate location | Pattern |
+|---|---|---------|
+| `bluefin` | `post-testing-e2e.yml` | digest artifact → smoke,common → promote |
+| `bluefin-lts` | `post-merge-e2e.yml` | digest artifact → smoke,common → promote; `build-regular-hwe.yml` sets `publish_stream_tag: false` |
+| `dakota` | `publish.yml` (`smoke` job) | `:sha` image → smoke → `promote` job; SBOM runs in parallel |
