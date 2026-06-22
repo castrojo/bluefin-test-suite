@@ -1,22 +1,25 @@
 # software test suite
 
-Tests for GNOME Software (`org.gnome.Software`) and the Bluefin Bazaar coverage gap.
+Tests for GNOME Software (`org.gnome.Software`) and Bluefin's Bazaar coverage.
 
-Runs on `gnomeos` (upstream GNOME OS) where `gnome-software` ships as an RPM. Bluefin ships
-Bazaar (`io.github.kolunmi.Bazaar`) instead, so the GNOME Software scenarios are quarantined and
-Bazaar coverage stays `@pending` until issue #419 has a Bluefin-valid harness.
+Runs on `gnomeos` (upstream GNOME OS) where `gnome-software` ships as an RPM and on Bluefin
+images where Bazaar (`io.github.kolunmi.Bazaar`) is the software center. The old GNOME Software
+widget expectations remain quarantined while Bluefin-valid Bazaar coverage lives in dedicated
+Bazaar feature files.
 
 ## Coverage
 
 | Feature file | Coverage |
 |---|---|
 | `flatpak.feature` | Quarantined upstream GNOME Software smoke coverage kept for GNOME OS only |
-| `bazaar.feature` | Pending placeholder for Bluefin Bazaar Flatpak management coverage |
+| `bazaar.feature` | Active Bluefin Bazaar Flatpak presence / info / remote coverage |
+| `bazaar_ui.feature` | Active Bluefin Bazaar UI launch / navigation / close coverage |
 
 ## Image
 
 | Variant | Image ref |
 |---|---|
+| Bluefin | `ghcr.io/projectbluefin/bluefin:testing` |
 | GNOME OS (nightly) | `ghcr.io/gnomeos/os:nightly` |
 
 ## Run via GitHub Action

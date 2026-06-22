@@ -196,6 +196,21 @@ Key difference from bazzite: the object path is `/org/gnome/Shell` (not `/org/gn
 
 The step phrase is `GNOME extension "{uuid}" is enabled` (distinct from bazzite's `Extension "{uuid}" is enabled` to avoid cross-suite collision).
 
+## Bazaar on Bluefin: wait out the Refreshing spinner
+
+Bluefin ships **Bazaar** (`io.github.kolunmi.Bazaar`), not GNOME Software's old
+Explore/Installed toggle-button layout. For Bazaar UI tests:
+
+- wait for a visible window named **`Bazaar`**
+- then poll until any visible tab named **`Curated`**, **`Explore`**,
+  **`Library`**, or **`Search`** appears
+- accept both `page tab` and `toggle button` roles for those tabs
+
+The first launch often shows a **Refreshing** spinner page before the
+`AdwViewStack` content is ready. On GNOME 50, AT-SPI cache drops can also make
+nodes disappear mid-query, so wrap Bazaar window/tab lookups in retry loops
+with short sleeps and re-query the tree each attempt.
+
 ## Desktop notifications via gdbus (smoke suite)
 
 Send a test notification from inside the VM:
