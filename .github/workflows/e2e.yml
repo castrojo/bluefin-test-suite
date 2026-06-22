@@ -604,6 +604,19 @@ jobs:
           $SSH "journalctl -u gdm --no-pager -n 50" 2>/dev/null || true
           exit 1
 
+      - name: Capture boot time
+        if: always()
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+          IMAGE_SLUG="${IMAGE##*/}"
+          IMAGE_SLUG="${IMAGE_SLUG//:/-}"
+          BOOT_TIME=$($SSH "systemd-analyze time 2>/dev/null | head -1" 2>/dev/null || echo "unavailable")
+          echo "### Boot time: ${IMAGE_SLUG}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "${BOOT_TIME}" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
       # brew-setup.service is masked in CI to save ~60s boot time. Install the
       # CLI tools the common suite validates (zsh, fish, eza, fd, rg, bat, fzf,
       # starship) directly so scenarios don't need quarantine.
