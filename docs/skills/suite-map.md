@@ -65,25 +65,27 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
 | `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, config YAML validation, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios remain quarantined (#176) |
-| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | dconf, scripts, desktop entries, shell env, shell sourcing, signing/security invariants |
+| `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | Flatpak model/state, XDG portals, container runtime, polkit, shell env/sourcing, system scripts, ujust recipes, GSettings/dconf, immutable OS integrity |
 | `lifecycle` | ✅ | — | ✅ | ✅ `@homed_migration` | — | — | — | bootc upgrade/rollback; SSH-mode; dakota: homed migration only |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
-| `hardware` | ✅ | — | — | — | — | — | — | Emulated peripherals; SSH-mode |
+| `hardware` | ✅ | — | — | — | — | — | — | udev rules syntax validation + emulated peripherals; SSH-mode |
 | `dx` | — | ✅ | — | — | — | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
 | `nvidia` | — | — | ✅ | — | — | — | — | GPU driver validation; NVIDIA variant only |
 | `flatcar` | — | — | — | — | — | — | ✅ | Flatcar OS boot and lifecycle |
 
 **GitHub Action consumers**:
 ```yaml
-uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
 with:
   image: <your-bootc-image>
-  suites: smoke          # or vanilla-gnome, bazzite, developer, dx, software, common, lifecycle
+  suites: smoke,common   # smoke and common each auto-shard into two parallel jobs
 ```
-Passing `suites: smoke` automatically expands to two parallel jobs (`smoke-a` and `smoke-b`), cutting smoke wall time by ~50%. Both shards push screenshots to `smoke-latest` (last writer wins).
+Passing `suites: smoke` expands to `smoke-a` + `smoke-b`, and `suites: common` expands to `common-a` + `common-b`. Both cut wall time by ~50%. New `.feature` files in these suites are picked up automatically.
 
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
 `security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
+
+Any bootc/ostree GNOME image can plug in `smoke` and `common` as a portable health gate — no Bluefin-specific knowledge required. See `README.md` → "For other bootc image maintainers" for minimum image requirements.
 
 ## PR gate model
 
@@ -136,27 +138,28 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-308 scenarios across 39 feature files (last audit: 2026-06-22). 30 quarantined, 266 active, 3 @future stubs.
+358 scenarios across 48 feature files (last audit: 2026-06-22). 30 quarantined, 324 active, 4 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 87 | 86 | 1 | 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding); xdg-mime default-handler coverage now checks Firefox, Papers, Loupe, Text Editor, and video-player registration |
+| smoke | 98 | 97 | 1 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
-| software | 19 | 11 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; CLI (Flathub remote + permissions DB) active on all images; Bazaar scenarios skipped on gnomeos via image guard |
-| common | 52 | 50 | 2 | custom-command-list dconf checks active; signing-policy/runtime security assertions; portal and podman health checks active; shell sourcing checks added for zsh/bash/starship; named systemd service health and safe `ujust` smoke checks active |
+| software | 23 | 15 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios quarantined |
+| common | 91 | 89 | 2 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
-| hardware | 10 | 10 | 0 | Driven by shared SSH steps |
+| hardware | 13 | 13 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
 | security | 15 | 15 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
 | nvidia | 12 | 0 | 0 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
 | flatcar | 13 | 10 | 0 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
 
-### 2026-06-21 sprint feature additions
+### 2026-06-22 sprint feature additions
 
 - `smoke`: `gnome_accessibility.feature`, `bluefin_extensions.feature`, `xdg_open.feature`, `bluefin_desktop.feature`
-- `common`: `common_portals.feature`, `common_shell.feature` (updated), `common_flatpak_state.feature`, `common_services.feature` or `common_scripts.feature` (updated), `common_polkit.feature`, `common_container.feature`, `common_immutable.feature`
+- `common`: `common_portals.feature`, `portal_integration.feature`, `common_shell.feature`, `common_flatpak_state.feature`, `common_flatpak_model.feature`, `common_scripts.feature`, `common_polkit.feature`, `common_container.feature`, `common_immutable.feature`, `common_ujust.feature`, `common_dconf.feature` (GSettings overrides)
+- `software`: `bazaar_config.feature`, `bazaar_ui.feature` (rewritten)
 - `hardware`: `udev_rules.feature`
 
 ### Remaining quarantine breakdown
