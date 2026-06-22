@@ -37,7 +37,7 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 4. Is dogtail usage compatible with current API behavior?
 5. Do docs (`README.md`, `RUNBOOK.md`, `docs/skills/`) still match behavior?
 6. Are new scenario tests being added as behave steps, with pytest reserved for `tests/unit/` helper coverage?
-7. If scenario count changed, is `docs/skills/suite-map.md` updated?
+7. If scenario count changed, are `docs/skills/suite-map.md` and feature-file totals updated?
 
 ## Unit test coverage
 
