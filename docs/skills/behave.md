@@ -127,6 +127,18 @@ For MIME-handler coverage, prefer direct `subprocess.run(["xdg-mime", "query", "
 
 Do **not** invent alternate phrases like `Run command:` / `Command output contains ...` in smoke features unless you are also intentionally adding matching step definitions.
 
+When a smoke assertion needs an allow-set result (for example `systemctl is-enabled`
+returning either `enabled` or `static`), keep using the built-in qecore command
+steps and encode the allow-set in the shell command itself:
+
+```gherkin
+* Run and save command output: "systemctl is-enabled uupd.timer | grep -E '^(enabled|static)$'"
+* Return code of last command output "is" "0"
+```
+
+This avoids adding a one-off step definition just to express "one of these two
+values is acceptable".
+
 ## Avoiding AmbiguousStep with qecore.common_steps
 
 `from qecore.common_steps import *` registers qecore's steps in behave's global registry on first import. If your `steps.py` defines the **same pattern string** you get `AmbiguousStep` at runtime (not import time).
