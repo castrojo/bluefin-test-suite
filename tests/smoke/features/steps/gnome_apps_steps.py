@@ -12,6 +12,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
+from app_support import launch_background
 
 _IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
 
@@ -32,6 +33,34 @@ PTYXIS_APP_NAMES = ("ptyxis", "Ptyxis")
 # GNOME 50 changed the Ptyxis window title from "Ptyxis" to "Terminal"
 PTYXIS_WINDOW_NAMES: set[str] = {"Ptyxis", "Terminal", ""}
 FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
+MISSION_CENTER_APP_NAMES = (
+    "Mission Center",
+    "MissionCenter",
+    "io.missioncenter.MissionCenter",
+)
+MISSION_CENTER_LAUNCH_TARGETS = (
+    ("desktop", "io.missioncenter.MissionCenter.desktop"),
+    ("flatpak", "io.missioncenter.MissionCenter"),
+)
+EXTENSION_MANAGER_APP_NAMES = (
+    "Extension Manager",
+    "ExtensionManager",
+    "com.mattjakeman.ExtensionManager",
+)
+EXTENSION_MANAGER_LAUNCH_TARGETS = (
+    ("desktop", "com.mattjakeman.ExtensionManager.desktop"),
+    ("flatpak", "com.mattjakeman.ExtensionManager"),
+)
+WAREHOUSE_APP_NAMES = ("Warehouse", "io.github.flattool.Warehouse")
+WAREHOUSE_LAUNCH_TARGETS = (
+    ("desktop", "io.github.flattool.Warehouse.desktop"),
+    ("flatpak", "io.github.flattool.Warehouse"),
+)
+IMPRESSION_APP_NAMES = ("Impression", "io.gitlab.adhami3310.Impression")
+IMPRESSION_LAUNCH_TARGETS = (
+    ("desktop", "io.gitlab.adhami3310.Impression.desktop"),
+    ("flatpak", "io.gitlab.adhami3310.Impression"),
+)
 
 # Map app name fragments → WM class substrings for Shell.Eval force-close.
 # GNOME 50 apps (Ptyxis, Settings, Files) run as background daemons and
@@ -193,6 +222,37 @@ def _wait_for_window(
     )
 
 
+def _wait_for_window_or_title(
+    app_names: tuple[str, ...],
+    window_names: set[str],
+    label: str,
+    timeout: int = 15,
+):
+    try:
+        return _wait_for_window(app_names, window_names, label, timeout=timeout)
+    except AssertionError as app_error:
+        last_frames = []
+        for _ in range(timeout * 5):
+            frames = tree.root.findChildren(
+                lambda n: n.roleName in FRAME_ROLES
+                and n.showing
+                and (n.name or "").strip() in window_names
+            )
+            if frames:
+                return frames[0]
+            last_frames = [
+                ((frame.name or "").strip(), frame.roleName)
+                for frame in tree.root.findChildren(
+                    lambda n: n.roleName in FRAME_ROLES and n.showing
+                )[:20]
+            ]
+            sleep(0.2)
+        raise AssertionError(
+            f"{app_error}. Also failed to find a visible {label} frame by title. "
+            f"Visible frames: {last_frames}"
+        ) from app_error
+
+
 def _wait_for_app_to_close(app_names: tuple[str, ...], label: str) -> None:
     for _ in range(40):
         for name in app_names:
@@ -208,6 +268,28 @@ def _wait_for_app_to_close(app_names: tuple[str, ...], label: str) -> None:
         else:
             return
         sleep(0.5)
+    raise AssertionError(f"{label} is still visible in the AT-SPI tree")
+
+
+def _wait_for_app_or_window_to_close(
+    app_names: tuple[str, ...],
+    window_names: set[str],
+    label: str,
+) -> None:
+    try:
+        _wait_for_app_to_close(app_names, label)
+        return
+    except AssertionError:
+        pass
+    for _ in range(40):
+        frames = tree.root.findChildren(
+            lambda n: n.roleName in FRAME_ROLES
+            and n.showing
+            and (n.name or "").strip() in window_names
+        )
+        if not frames:
+            return
+        sleep(0.2)
     raise AssertionError(f"{label} is still visible in the AT-SPI tree")
 
 
@@ -242,6 +324,24 @@ def _launch_assert_and_close(
     _wait_for_app_to_close(app_names, label)
 
 
+def _launch_targets_assert_and_close(
+    context,
+    launch_targets: tuple[tuple[str, str], ...],
+    app_names: tuple[str, ...],
+    window_names: set[str],
+    label: str,
+) -> None:
+    context.last_launch_target = launch_background(launch_targets)
+    window = _wait_for_window_or_title(app_names, window_names, label)
+    context.last_launched_app_window = window
+    try:
+        window.click()
+    except Exception:  # noqa: BLE001
+        pass
+    context.execute_steps('* Key combo: "<Alt><F4>" with uinput')
+    _wait_for_app_or_window_to_close(app_names, window_names, label)
+
+
 @step("the Ptyxis terminal launches successfully")
 def ptyxis_terminal_launches_successfully(context) -> None:
     if _skip_if_no_atspi(context):
@@ -265,4 +365,56 @@ def files_file_manager_launches_successfully(context) -> None:
         FILES_APP_NAMES,
         {"Files", "Home"},
         "Files",
+    )
+
+
+@step("the Mission Center app launches successfully")
+def mission_center_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        MISSION_CENTER_LAUNCH_TARGETS,
+        MISSION_CENTER_APP_NAMES,
+        {"Mission Center"},
+        "Mission Center",
+    )
+
+
+@step("the Extension Manager app launches successfully")
+def extension_manager_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        EXTENSION_MANAGER_LAUNCH_TARGETS,
+        EXTENSION_MANAGER_APP_NAMES,
+        {"Extension Manager"},
+        "Extension Manager",
+    )
+
+
+@step("the Warehouse app launches successfully")
+def warehouse_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        WAREHOUSE_LAUNCH_TARGETS,
+        WAREHOUSE_APP_NAMES,
+        {"Warehouse"},
+        "Warehouse",
+    )
+
+
+@step("the Impression app launches successfully")
+def impression_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        IMPRESSION_LAUNCH_TARGETS,
+        IMPRESSION_APP_NAMES,
+        {"Impression"},
+        "Impression",
     )
