@@ -46,3 +46,23 @@ Feature: System health smoke checks
   Scenario: System boots to display manager, not emergency console
     * gdm.service is active
     * graphical.target is active
+
+  @health @tailscale @sla_10s
+  Scenario: tailscale is installed and daemon is running
+    * Run and save command output: "tailscale --version"
+    * Return code of last command output "is" "0"
+    * Run and save command output: "systemctl is-active tailscaled"
+    * Last command output stripped "is" "active"
+
+  @health @uupd @sla_10s
+  Scenario: uupd auto-updater is installed and configured
+    * Run and save command output: "uupd --help >/dev/null"
+    * Return code of last command output "is" "0"
+    * Run and save command output: "systemctl is-enabled uupd.timer | grep -E '^(enabled|static)$'"
+    * Return code of last command output "is" "0"
+
+  @health @fastfetch @sla_10s
+  Scenario: fastfetch is present and operational
+    * Run and save command output: "fastfetch --version"
+    * Return code of last command output "is" "0"
+    * Last command output "contains" "fastfetch"
