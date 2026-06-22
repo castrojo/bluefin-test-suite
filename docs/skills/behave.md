@@ -1,13 +1,32 @@
 ---
 name: behave-patterns
-description: "Behave test patterns for projectbluefin/testsuite — step structure, shared SSH helpers, suite scaffolding, and debugging step resolution errors."
+description: "Use when writing behave tests, scaffolding suites, or debugging step resolution in projectbluefin/testsuite."
 metadata:
   type: reference
 ---
 
 # Behave Patterns Reference
 
-Load when: writing behave tests, scaffolding new suites, or debugging step resolution errors.
+## When to Use
+
+- Writing or extending behave `.feature` files in any suite
+- Reusing or checking shared SSH step phrases
+- Debugging `UndefinedStep`, `AmbiguousStep`, or dry-run failures
+- Verifying suite-local step placement and cross-suite visibility
+
+## When NOT to Use
+
+- Smoke-suite GUI implementation details that belong in `docs/skills/gnome.md`
+- Bootc / upgrade / rollback workflow rules that belong in `docs/skills/bootc.md`
+- CI workflow ownership, runner, or reusable-action changes that belong in workflow skills
+
+## Core Process
+
+1. Read the target `.feature` file and the suite's `steps/*.py` before adding phrases.
+2. Reuse `tests/shared/ssh_steps.py` for generic SSH command/assertion steps instead of duplicating helpers.
+3. Keep step phrases unique within the loaded suite and check for collisions before committing.
+4. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
+5. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
 
 ## Shared SSH helpers
 
@@ -221,3 +240,37 @@ For commands that produce multiline output (e.g. `flatpak install ... 2>&1; echo
 # CORRECT — substring check works with multiline output
 * Last command output contains "rc:0"
 ```
+
+## Bluefin desktop identity defaults: `gsettings get` vs `dconf read`
+
+In the SSH-driven `common` suite, validate Bluefin desktop identity overrides with the API that matches the schema type:
+
+- Use `gsettings get` for regular schemas shipped via `zz0-bluefin-modifications.gschema.override` (for example `org.gnome.desktop.interface accent-color` or `org.gnome.desktop.app-folders folder-children`).
+- Use `dconf read` for relocatable schemas and extensions without XML schemas (for example custom media-key keybindings under `/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/`, Search Light under `/org/gnome/shell/extensions/search-light/`, and Ptyxis profile palette keys under `/org/gnome/Ptyxis/Profiles/<uuid>/`).
+
+This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `projectbluefin/common`.
+
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "I'll just add a tiny local SSH helper." | Shared SSH phrases already exist in `tests/shared/ssh_steps.py`; duplication creates drift and inconsistent assertions. |
+| "This phrase is descriptive enough; collisions are unlikely." | Behave loads all step files in a suite together, and duplicate phrases fail at runtime with `AmbiguousStep`. |
+| "Equality is stricter, so I'll use it for all command output." | `... stripped "is"` only works for single-line output; multiline commands need substring assertions. |
+| "A dry-run is overkill for a simple feature edit." | CI runs dry-run and will catch missing step definitions immediately; local dry-run is the cheap failure path. |
+
+## Red Flags
+
+- New suite-specific code duplicates `Run SSH command` or other shared SSH assertions
+- A `.feature` file introduces a phrase with no matching `@step` decorator
+- The same decorator text appears in multiple step files loaded by one suite
+- A test checks relocatable dconf keys with the wrong tool (`gsettings` vs `dconf read`)
+- A PR changes `tests/**` without a matching skill update
+
+## Verification
+
+- [ ] New or changed step phrases exist in the correct suite or shared helper module
+- [ ] No duplicate step phrases exist in the touched suite
+- [ ] `behave --dry-run` passes for the touched suite
+- [ ] Output assertions match the command shape (single-line equality vs multiline substring)
+- [ ] Any newly discovered reusable pattern is written back to a skill file in the same PR
