@@ -491,3 +491,67 @@ def overview_search_bar_contains(context, text) -> None:
     raise AssertionError(
         f"Overview search bar does not contain {text!r} — last Shell.Eval: {out!r}"
     )
+
+
+@step("Wayland session type is active")
+def wayland_session_active(context) -> None:
+    stdout, returncode, stderr = _run_host(
+        "source /tmp/session.env 2>/dev/null; "
+        "printf '%s\\n' \"${XDG_SESSION_TYPE:-}\"; "
+        "if [ -z \"${XDG_SESSION_TYPE:-}\" ]; then "
+        "session_id=$(loginctl list-sessions --no-legend 2>/dev/null | awk 'NR==1{print $1}'); "
+        "[ -n \"$session_id\" ] && loginctl show-session \"$session_id\" --property=Type --value 2>/dev/null; "
+        "fi"
+    )
+    assert returncode == 0, f"Unable to determine session type: {stderr or stdout}"
+    values = [line.strip().lower() for line in stdout.splitlines() if line.strip()]
+    assert "wayland" in values, f"Session type is not Wayland: {stdout.strip()!r}"
+
+
+@step("GNOME Shell is not using software rendering")
+def no_llvmpipe(context) -> None:
+    stdout, returncode, stderr = _run_host(
+        "source /tmp/session.env 2>/dev/null; "
+        "{ glxinfo -B 2>/dev/null | grep 'OpenGL renderer string' || "
+        "journalctl -b _COMM=gnome-shell --no-pager -n 200 2>/dev/null | "
+        "grep -i llvmpipe | head -1 || "
+        "echo 'no_llvmpipe'; }"
+    )
+    assert returncode == 0, f"Renderer check failed: {stderr or stdout}"
+    lower = stdout.lower()
+    assert "llvmpipe" not in lower or "no_llvmpipe" in lower, (
+        f"LLVMpipe (software rendering) detected: {stdout.strip()!r}"
+    )
+
+
+@step("Dash to Dock panel is visible")
+def dash_to_dock_visible(context) -> None:
+    visible = _eval_bool(
+        "(() => { "
+        "try { "
+        "const ext = Main.extensionManager.lookup('dash-to-dock@micxgx.gmail.com'); "
+        "if (!ext || !ext.stateObj) return false; "
+        "const dockManager = ext.stateObj.dockManager; "
+        "if (!dockManager) return false; "
+        "const docks = dockManager._allDocks || []; "
+        "return docks.length > 0 && docks.some(dock => dock?.actor?.visible === true); "
+        "} catch (e) { return false; } "
+        "})().toString()"
+    )
+    assert visible, "Dash to Dock panel is not visible"
+
+
+@step("System tray area is present in the panel")
+def system_tray_present(context) -> None:
+    present = _eval_bool(
+        "(() => { "
+        "try { "
+        "const panel = Main.panel; "
+        "const rightBox = panel._rightBox; "
+        "if (!rightBox) return false; "
+        "const quickSettings = panel.statusArea.quickSettings; "
+        "return rightBox.visible === true && quickSettings !== null && quickSettings !== undefined; "
+        "} catch (e) { return false; } "
+        "})().toString()"
+    )
+    assert present, "System tray area is not present in GNOME Shell panel"
