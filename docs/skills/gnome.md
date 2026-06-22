@@ -188,13 +188,20 @@ def _extension_state(uuid: str) -> str:
 
 Poll through 6 and 8 with a deadline (Bazzite: use 90s — 11 extensions need time post-boot).
 
-## Extension state in smoke suite (local subprocess)
+## Extension state in smoke suite (local subprocess / SSH bridge)
 
-The smoke suite's extension checks use the same `GetExtensionInfo` D-Bus call but via local `subprocess.run` (not SSH). Bluefin's 7 default extensions each get a named scenario in `tests/smoke/features/bluefin_extensions.feature`.
+The smoke suite's UUID-specific extension checks use the same
+`GetExtensionInfo` D-Bus call as bazzite, but route through the suite-local
+`_run_host(...)` helper so they work both inside the VM and from the Fedora
+runner container over SSH.
 
-Key difference from bazzite: the object path is `/org/gnome/Shell` (not `/org/gnome/Shell/Extensions`). Use whichever path the running GNOME Shell responds to — both are valid on GNOME 50, test with `gdbus introspect --session --dest org.gnome.Shell --object-path /org/gnome/Shell` first.
+Bluefin's 9 bundled extensions each get a named scenario in
+`tests/smoke/features/bluefin_extensions.feature`. Tag the
+`search-light@icedman.github.com` scenario with `@bluefin` so dakota smoke runs
+skip it via `environment.py`.
 
-The step phrase is `GNOME extension "{uuid}" is enabled` (distinct from bazzite's `Extension "{uuid}" is enabled` to avoid cross-suite collision).
+Use the distinct step phrase `GNOME extension "{uuid}" is enabled` (not
+bazzite's `Extension "{uuid}" is enabled`) to avoid cross-suite step collisions.
 
 ## Bazaar on Bluefin: wait out the Refreshing spinner
 

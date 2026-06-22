@@ -81,6 +81,11 @@ def _run(cmd: list[str]):
 
 
 def _extension_state(uuid: str) -> str:
+    """Return the extension state integer as a string.
+
+    Uses org.gnome.Shell.Extensions.GetExtensionInfo and tolerates either
+    GNOME Shell object path seen in smoke runs.
+    """
     quoted_uuid = shlex.quote(f"'{uuid}'")
     commands = (
         f"source /tmp/session.env 2>/dev/null; "
