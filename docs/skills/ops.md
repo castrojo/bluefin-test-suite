@@ -400,7 +400,6 @@ Do not delete this label.
 
 ---
 
-<<<<<<< HEAD
 ## ARC ghost runners — local dev routing
 
 The testsuite can run on the ghost k3s cluster's ARC runners instead of GitHub-hosted runners. ARC replicates the `ubuntu-latest` GHA environment exactly, which is required for reliable debugging.
@@ -520,7 +519,7 @@ This extracts the image name component (`bluefin`, `dakota`, etc.) before checki
 
 The smoke suite environment replicates this same pattern so `@bluefin` tags are
 respected in AT-SPI tests as well.
-=======
+
 ## composefs file-capability regression (dakota#841)
 
 A `@health @composefs @regression` scenario in `system_health.feature` checks
@@ -537,4 +536,3 @@ Fix: `podman build --squash-all` in the export recipe
 If `getcap` returns no capabilities for these binaries, the image build
 pipeline produced a multi-layer OCI artifact. File the regression against the
 image build repo, not the test suite.
->>>>>>> f583bd8 (test(smoke): add composefs capability and GDM boot regression tests; gate lts+dakota)
