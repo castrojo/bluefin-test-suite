@@ -23,6 +23,15 @@ Load when: writing behave tests, scaffolding new suites, or debugging step resol
 - `SSH command output is not "<a>" and not "<b>"`
 - `SSH command output is not empty`
 
+For Bluefin desktop-model assertions, keep SSH-only Flatpak checks in the
+`common` suite (remote configuration, bundled app IDs, `/usr/share/applications`
+scans). GUI Flatpak-management coverage (Bazaar, Flatseal, per-app permissions)
+belongs in the `software` suite.
+
+When asserting Bluefin's bundled terminal app over SSH, accept either
+`org.gnome.Ptyxis` or `com.raggesilver.BlackBox`. Images may ship either app ID
+depending on the terminal packaging generation under test.
+
 Import in suite `environment.py`:
 ```python
 from tests.shared.ssh_steps import *  # noqa: F401,F403
