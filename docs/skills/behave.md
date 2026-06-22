@@ -30,6 +30,11 @@ from tests.shared.ssh_steps import *  # noqa: F401,F403
 
 Never duplicate `_ssh()` or generic step definitions in suite-specific `steps.py`.  
 Default `run_ssh()` timeout: **60s** (not 30s — hardware commands are slow).
+In `tests/common/features/`, `environment.py` already exports
+`XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`, and `WAYLAND_DISPLAY` for every
+SSH command via `ssh_command_prefix`. Prefer plain `systemctl --user`,
+`gsettings`, and `gdbus` commands there instead of manually sourcing
+`/tmp/session.env` inside each scenario.
 
 For common-suite systemd health checks, named oneshot services often finish in
 `inactive (dead)` after a successful run. Do not assert `systemctl is-active`
