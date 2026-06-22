@@ -10,18 +10,18 @@ Feature: GNOME app launch smoke tests
   Scenario: Files file manager launches successfully
     * the Files file manager launches successfully
 
-  @retry @apps @flatpak @sla_15s
+  @bluefin @retry @apps @flatpak @sla_15s
   Scenario: Mission Center launches successfully
     * the Mission Center app launches successfully
 
-  @retry @apps @flatpak @sla_15s
+  @bluefin @retry @apps @flatpak @sla_15s
   Scenario: Extension Manager launches successfully
     * the Extension Manager app launches successfully
 
-  @retry @apps @flatpak @sla_15s
+  @bluefin @retry @apps @flatpak @sla_15s
   Scenario: Warehouse launches successfully
     * the Warehouse app launches successfully
 
-  @retry @apps @flatpak @sla_15s
+  @bluefin @retry @apps @flatpak @sla_15s
   Scenario: Impression launches successfully
     * the Impression app launches successfully
