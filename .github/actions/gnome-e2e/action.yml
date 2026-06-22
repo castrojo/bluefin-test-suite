@@ -67,7 +67,7 @@ runs:
     # Always check out from projectbluefin/testsuite at the same ref as the
     # action itself so test content matches the action version.
     - name: Checkout testsuite
-      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       with:
         repository: projectbluefin/testsuite
         ref: ${{ inputs.testsuite-ref || github.action_ref }}
