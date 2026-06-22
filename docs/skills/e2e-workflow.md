@@ -382,6 +382,7 @@ When calling this workflow from another repo, the following are explicitly banne
 - `workflow_call` checkout logic starts using `github.ref_name` inside `e2e.yml`
 - External actions are added with floating tags instead of full SHAs
 - A workflow change lands without updating this skill file with the discovered rule or workaround
+- `continue-on-error` set on a job that uses `uses:` — this is a parse-time error (see below)
 
 ## Verification
 
@@ -596,3 +597,25 @@ gh workflow run publish-to-pages.yml --repo projectbluefin/testsuite
 ```
 
 Prerequisites: GHCR cross-repo package write access must be granted first (see above).
+
+---
+
+## continue-on-error is forbidden on reusable-workflow jobs
+
+**Symptom:** Every push to main produces "This run likely failed because of a workflow file issue." No jobs start. GitHub doesn't show a syntax error line number.
+
+**Cause:** GitHub Actions forbids `continue-on-error` on a job that uses `uses:` to call a reusable workflow. The workflow is rejected at parse time — not at runtime — so every run fails before any job is created.
+
+**Broken pattern:**
+```yaml
+jobs:
+  e2e:
+    continue-on-error: ${{ matrix.allow_failure == true }}  # FORBIDDEN with uses:
+    uses: ./.github/workflows/run-testsuite.yml
+    with:
+      image: ${{ matrix.image }}
+```
+
+**Fix:** Remove `continue-on-error` entirely. If non-blocking matrix entries are needed, split blocking and non-blocking jobs into separate job definitions, each with its own `uses:` and `if:` condition — or just make all entries blocking.
+
+**Verified with:** `actionlint` catches this (`continue-on-error is not available` for reusable workflow jobs). Run `actionlint` on any workflow that uses `uses:` before pushing.
