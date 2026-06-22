@@ -74,8 +74,8 @@ jobs:
           parts = [s.strip() for s in sys.argv[1].split(',') if s.strip()]
           expanded = []
           for p in parts:
-              if p == 'smoke':
-                  expanded.extend(['smoke-a', 'smoke-b'])
+              if p in {'smoke', 'common'}:
+                  expanded.extend([f'{p}-a', f'{p}-b'])
               else:
                   expanded.append(p)
           print(json.dumps(expanded))
@@ -122,29 +122,48 @@ jobs:
             scripts/check_quarantine_age.py
           sparse-checkout-cone-mode: false
 
-      # smoke-a and smoke-b are parallel shards of the smoke suite.
-      # SUITE_DIR is the physical directory (always "smoke" for both shards).
-      # FEATURE_ARGS lists the specific feature files for this shard (empty = run all).
+      # smoke-a/smoke-b and common-a/common-b are parallel shards of their
+      # parent suites. SUITE_DIR is the physical directory. FEATURE_ARGS lists
+      # the specific feature files for this shard (empty = run all).
       - name: Resolve suite shard
+        id: shard
         run: |
-          SUITE_DIR="${SUITE}"
-          FEATURE_ARGS=""
-          case "${SUITE}" in
-            smoke-a)
-              SUITE_DIR="smoke"
-              FEATURE_ARGS="tests/smoke/features/system_health.feature tests/smoke/features/gnome_shell.feature tests/smoke/features/gnome_apps.feature tests/smoke/features/gnome_calculator.feature tests/smoke/features/gnome_notifications.feature"
-              ;;
-            smoke-b)
-              SUITE_DIR="smoke"
-              FEATURE_ARGS="tests/smoke/features/firefox.feature tests/smoke/features/gnome_extensions.feature tests/smoke/features/gnome_files.feature tests/smoke/features/gnome_settings.feature tests/smoke/features/gnome_text_editor.feature"
-              ;;
-          esac
-          echo "SUITE_DIR=${SUITE_DIR}" >> "$GITHUB_ENV"
-          echo "FEATURE_ARGS=${FEATURE_ARGS}" >> "$GITHUB_ENV"
-          # Canonical suite name for screenshot tags — both shards share smoke-latest.
-          SCREENSHOT_SUITE="${SUITE}"
-          [[ "${SUITE}" == smoke-[ab] ]] && SCREENSHOT_SUITE="smoke"
-          echo "SCREENSHOT_SUITE=${SCREENSHOT_SUITE}" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import glob
+          import math
+          import os
+
+          suite = os.environ["SUITE"]
+          suite_dir = suite
+          feature_args = ""
+
+          if "-" in suite:
+              base, label = suite.rsplit("-", 1)
+              if base in {"smoke", "common"} and label in {"a", "b"}:
+                  files = sorted(glob.glob(f"tests/{base}/features/*.feature"))
+                  if not files:
+                      raise SystemExit(f"No feature files found for tests/{base}/features/*.feature")
+                  chunk_size = math.ceil(len(files) / 2)
+                  shard_index = ord(label) - ord("a")
+                  chunk = files[shard_index * chunk_size:(shard_index + 1) * chunk_size]
+                  if not chunk:
+                      raise SystemExit(f"Shard {suite} resolved to no feature files")
+                  suite_dir = base
+                  feature_args = " ".join(chunk)
+
+          screenshot_suite = suite_dir if suite != suite_dir else suite
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              print(f"suite_dir={suite_dir}", file=fh)
+              print(f"feature_args={feature_args}", file=fh)
+              print(f"screenshot_suite={screenshot_suite}", file=fh)
+          PY
+
+      - name: Export suite shard environment
+        run: |
+          echo "SUITE_DIR=${{ steps.shard.outputs.suite_dir }}" >> "$GITHUB_ENV"
+          echo "FEATURE_ARGS=${{ steps.shard.outputs.feature_args }}" >> "$GITHUB_ENV"
+          echo "SCREENSHOT_SUITE=${{ steps.shard.outputs.screenshot_suite }}" >> "$GITHUB_ENV"
 
       - name: Free disk space
         uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
@@ -589,7 +608,7 @@ jobs:
       # CLI tools the common suite validates (zsh, fish, eza, fd, rg, bat, fzf,
       # starship) directly so scenarios don't need quarantine.
       - name: Install shell tools for common suite
-        if: ${{ env.SUITE == 'common' }}
+        if: ${{ steps.shard.outputs.suite_dir == 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
@@ -683,7 +702,7 @@ jobs:
           " || true
 
       - name: Load runner container into VM
-        if: ${{ env.SUITE != 'common' }}
+        if: ${{ steps.shard.outputs.suite_dir != 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           # Ensure subuid/subgid mappings exist for bluefin-test so rootless podman
@@ -716,7 +735,7 @@ jobs:
           "
 
       - name: Install Python test stack
-        if: ${{ env.SUITE != 'common' }}
+        if: ${{ steps.shard.outputs.suite_dir != 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
@@ -858,7 +877,7 @@ jobs:
           " || true
 
       - name: Install gnome-ponytail-daemon
-        if: ${{ env.SUITE != 'common' }}
+        if: ${{ steps.shard.outputs.suite_dir != 'common' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
@@ -942,15 +961,20 @@ jobs:
           BEHAVE_TAG_ARGS="--tags ~quarantine"
           [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ~native_app"
 
-          if [[ "${SUITE}" == "common" || "${SUITE}" == "lifecycle" ]]; then
+          if [[ "${SUITE_DIR}" == "common" || "${SUITE_DIR}" == "lifecycle" ]]; then
             python3 -m pip install -q --user behave
+            if [[ -n "${FEATURE_ARGS}" ]]; then
+              LOCAL_FEATURE_ARGS="${FEATURE_ARGS}"
+            else
+              LOCAL_FEATURE_ARGS="tests/${SUITE_DIR}/features/"
+            fi
             PYTHONPATH="$(pwd)" \
             VM_IP=127.0.0.1 \
             VM_USER=bluefin-test \
             SSH_KEY=/tmp/vm_key \
             SSH_PORT=2222 \
             ZSTD_CHUNKED="${ZSTD_CHUNKED}" \
-            python3 tests/shared/behave_retry.py tests/${SUITE}/features/ \
+            python3 tests/shared/behave_retry.py ${LOCAL_FEATURE_ARGS} \
               --format json.pretty --outfile results/results.json \
               --no-capture ${BEHAVE_TAG_ARGS} || BEHAVE_RC=$?
           else
@@ -1088,7 +1112,7 @@ jobs:
           echo "Migration status captured: results/migration-status.txt"
 
       - name: Capture Flatpak screenshots
-        if: always() && inputs.screenshot_flatpaks != '' && env.SUITE != 'common'
+        if: always() && inputs.screenshot_flatpaks != '' && steps.shard.outputs.suite_dir != 'common'
         continue-on-error: true
         env:
           SCREENSHOT_FLATPAKS: ${{ inputs.screenshot_flatpaks }}
@@ -1137,7 +1161,7 @@ jobs:
           $SCP "bluefin-test@127.0.0.1:/tmp/results/." ./results/ 2>/dev/null || true
 
       - name: Capture desktop screenshot (QEMU screendump fallback)
-        if: always() && env.SUITE != 'common'
+        if: always() && steps.shard.outputs.suite_dir != 'common'
         continue-on-error: true
         run: |
           # If the in-VM screenshot path (grim/gdbus inside the container) produced
@@ -1178,7 +1202,7 @@ jobs:
             echo "Desktop screenshot found: $SHOT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
-            if [[ "${SUITE}" != "common" && "${SUITE}" != "lifecycle" ]]; then
+            if [[ "${SUITE_DIR}" != "common" && "${SUITE_DIR}" != "lifecycle" ]]; then
               echo "::error::No desktop screenshot found for suite=${SUITE} — runner container may not have loaded or behave exited before after_all"
               exit 1
             fi
