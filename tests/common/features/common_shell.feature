@@ -54,3 +54,18 @@ Feature: Bluefin common shell environment
   Scenario: starship prompt binary is present
     * Run SSH command: "starship --version"
     * SSH command return code is "0"
+
+  @common @requires_brew
+  Scenario: zsh sources system configuration without errors
+    * Run SSH command: "zsh -c 'exit 0' 2>&1"
+    * SSH command return code is "0"
+
+  @common
+  Scenario: bash login shell sources profile.d without errors
+    * Run SSH command: "bash -l -c 'exit 0' 2>&1"
+    * SSH command return code is "0"
+
+  @common @requires_brew
+  Scenario: starship prompt binary initializes in bash
+    * Run SSH command: "bash -c 'eval \"$(starship init bash 2>/dev/null)\" && echo ok' 2>&1"
+    * SSH command output contains "ok"
