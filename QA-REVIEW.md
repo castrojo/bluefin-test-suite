@@ -33,7 +33,7 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-647 unit tests across 36 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+647 unit tests across 35 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -42,7 +42,7 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 | `test_lifecycle_steps.py` | 20 | bootc upgrade/rollback/migration step helpers |
 | `test_ssh_steps.py` | 26 | `run_ssh()`, journal/coredump matchers, output assertions |
 | `test_timing.py` | 13 | SLA tag thresholds and timing helpers |
-| `test_screenshot.py` | 11 | Screenshot capture helpers |
+| `test_screenshot.py` | 13 | Screenshot capture helpers |
 | `test_shared.py` | 9 | Shared step utilities |
 | `test_screenshot_cli.py` | 9 | `screenshot_cli.main()` argument parsing and dispatch |
 | `test_security_steps.py` | 15 | `_cosign_entries()` JSON validation and `_collect_values()` recursive extraction |
@@ -52,9 +52,9 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 | `test_system_health_steps.py` | 16 | `_has_image_reference`, `_running_in_vm`, `IGNORED_FAILED_UNITS_IN_VM` |
 | `test_brew_steps.py` | 7 | Brew step helpers and formula detection |
 | `test_gnome_notifications_steps.py` | 5 | Notification step helpers |
-| `test_retry.py` | 4 | Behave retry harness, `sys.executable` fallback |
+| `test_retry.py` | 5 | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | 35 | `scripts/parse_results.py` — `_normalize_status`, `_scenario_status`, `_scenario_elapsed_seconds`, `parse_results` integration |
-| `test_quarantine_age.py` | 25 | `scripts/check_quarantine_age.py` — `parse_feature_scenarios`, `file_history_entries`, `build_quarantine_entries`, `validate_args`, `format_report`, `main()` exit codes |
+| `test_quarantine_age.py` | 24 | `scripts/check_quarantine_age.py` — `parse_feature_scenarios`, `file_history_entries`, `build_quarantine_entries`, `validate_args`, `format_report`, `main()` exit codes |
 
 The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue entry.
 
