@@ -172,7 +172,7 @@ jobs:
       - name: Restore Flatpak download cache
         if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' }}
         id: flatpak-cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6
         with:
           path: ${{ github.workspace }}/.flatpak-cache-home/.local/share/flatpak
           key: flatpak-home-${{ runner.os }}-${{ hashFiles('flatpak-app-list.txt') }}
