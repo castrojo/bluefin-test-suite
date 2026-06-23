@@ -159,7 +159,7 @@ runs:
         echo "root=${ROOT_PART}  uuid=${ROOT_UUID}"
         sudo mount "${ROOT_PART}" /mnt/root
 
-        DEPLOY=$(sudo find /mnt/root/ostree/deploy/default/deploy/ -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -1)
+        DEPLOY=$(sudo find /mnt/root/ostree/deploy/default/deploy/ -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | head -1)
         if [[ -z "${DEPLOY}" ]]; then
           echo "ERROR: ostree deployment missing — bootc install failed before writing layers"
           if [[ ${BOOTC_INSTALL_RC} -ne 0 ]]; then
