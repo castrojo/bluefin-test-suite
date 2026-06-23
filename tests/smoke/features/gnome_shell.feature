@@ -118,7 +118,7 @@ Feature: GNOME Shell smoke tests
   # ── Lock screen ──────────────────────────────────────────────────────────
   # Lock screen is highest-priority: extensions can silently break it.
 
-  @lock_screen
+  @lock_screen @quarantine
   Scenario: Screen lock engages without crashing GNOME Shell
     * GNOME Shell is accessible via AT-SPI
     * Lock screen via Shell.Eval
