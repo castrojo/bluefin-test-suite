@@ -20,11 +20,17 @@ When a PR touches two repos, split it.
 
 ## Agent fast path
 
+> **Before using any library or tool: look up its docs via Context7 first. Always.**
+> qecore, dogtail, behave, gi.repository, AT-SPI — all have live, authoritative docs.
+> Pattern: `resolve-library-id` → `get-library-docs` → implement → cite the section.
+> Guessing at API, flag-hunting, and trial-and-error are banned. The docs exist. Read them.
+
 ```
 1. docs/skills/index.md          # hard rules + skill routing table
-2. docs/skills/<area>.md         # load only the skill for your task
-3. ruff check tests/ --select E,F,W --ignore E501  # before every commit
-4. behave --dry-run              # before pushing any .feature change
+2. Context7: resolve the library's ID, read its docs, then act
+3. docs/skills/<area>.md         # load only the skill for your task
+4. ruff check tests/ --select E,F,W --ignore E501  # before every commit
+5. behave --dry-run              # before pushing any .feature change
 ```
 
 **Cross-repo work:** repos are on disk at `~/src/`. Never clone into `/tmp`. Use `git worktree add ../repo-desc -b branch` for parallel branches. See `docs/skills/contributing.md` — Git worktree hygiene.

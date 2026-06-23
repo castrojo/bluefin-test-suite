@@ -3,6 +3,10 @@ name: gnome-testing
 description: "Use when writing or debugging GNOME Shell, AT-SPI/dogtail, or headless QEMU desktop tests in testsuite."
 metadata:
   type: reference
+  context7-sources:
+    - /dogtail/qecore
+    - /dogtail/dogtail
+    - /GNOME/pygobject
 ---
 
 # GNOME Desktop Testing Reference
