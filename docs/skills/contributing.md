@@ -52,6 +52,49 @@ feat/smoke/add-calendar-scenario
 
 ## Cross-repo work and worktree hygiene
 
+### Starting a branch — always from main
+
+Before creating any branch, verify you are on main and current:
+
+```bash
+cd ~/src/testsuite
+git checkout main
+git pull origin main
+git branch --show-current   # must print "main" before proceeding
+git checkout -b <branch-name>
+```
+
+**Never commit while on a branch you did not create for the current task.** Run `git branch --show-current` before every `git commit`. If the output is anything other than your intended branch, stop and fix it first.
+
+### Background agents must use worktrees
+
+When dispatching a background agent that will make commits, give it an isolated worktree — never have it `git checkout -b` in the same main worktree you are working in:
+
+```bash
+# WRONG — agent and orchestrator share the same working tree
+# Agent does: git checkout -b docs/agent-branch origin/main
+# Result: you land on the wrong branch, commits go to the wrong place
+
+# CORRECT — agent gets its own worktree
+cd ~/src/testsuite
+git worktree add ../testsuite-agent-work -b docs/agent-branch origin/main
+# Then tell the agent: work in /var/home/jorge/src/testsuite-agent-work
+```
+
+### After each PR merges — clean up
+
+Run immediately after your PR is merged:
+```bash
+cd ~/src/testsuite
+git checkout main && git pull origin main
+git branch --merged origin/main | grep -v "^\* \|^  main$" | xargs git branch -d
+git worktree prune
+```
+
+This keeps the local branch list short and avoids landing on stale branches next session.
+
+### Cross-repo work
+
 The factory pattern for cross-repo work is **sibling directories under `~/src/`**, named `<repo>-<short-desc>`. Do not clone into `/tmp` or create ad-hoc directories elsewhere.
 
 ```bash
@@ -76,7 +119,6 @@ Rules agents must follow:
 - **Never clone into `/tmp`** — the repos are already on disk. Cloning wastes time and loses pre-commit hooks, git config, and branch context.
 - Sibling dirs are named `<repo>-<short-desc>`, e.g. `dakota-fix-sync-next`, `common-fix-e2e`.
 - Remove the worktree immediately after the PR merges or you abandon the branch.
-- Always run `pre-commit run --all-files` inside the worktree before committing — hooks are inherited from the main clone.
 - `git worktree prune` after removal to clean stale refs.
 
 To audit live worktrees:
