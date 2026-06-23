@@ -2,3 +2,7 @@
 {"date":"2026-06-23T00:41:24Z","run_id":"27970397077","caller_repo":"projectbluefin/testsuite","slug":"bluefin-lts-testing","suite":"smoke","result":"success"}
 {"date":"2026-06-23T03:06:59Z","run_id":"27997715993","caller_repo":"projectbluefin/testsuite","slug":"bluefin-testing","suite":"smoke","result":"success"}
 {"date":"2026-06-23T03:07:01Z","run_id":"27970397077","caller_repo":"projectbluefin/testsuite","slug":"bluefin-lts-testing","suite":"smoke","result":"success"}
+{"date":"2026-06-23T05:21:36Z","run_id":"28002132196","caller_repo":"projectbluefin/testsuite","slug":"bluefin-testing","suite":"smoke","result":"success"}
+{"date":"2026-06-23T05:21:37Z","run_id":"27999167941","caller_repo":"projectbluefin/bluefin","slug":"bluefin-testing","suite":"vanilla-gnome","result":"success"}
+{"date":"2026-06-23T05:21:38Z","run_id":"28002135070","caller_repo":"projectbluefin/testsuite","slug":"bluefin-lts-testing","suite":"smoke","result":"success"}
+{"date":"2026-06-23T05:21:39Z","run_id":"28002137783","caller_repo":"projectbluefin/testsuite","slug":"dakota-testing","suite":"smoke","result":"success"}
