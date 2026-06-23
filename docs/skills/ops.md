@@ -304,7 +304,37 @@ Both are required — `session.env` covers the qecore boot path; `-e` flags cove
 
 ---
 
-## environment.py: guard before_scenario and after_scenario
+## bootc install creates .0.origin alongside .0 — DEPLOY find must use -type d
+
+**Symptom:** `Install OCI image and configure disk` fails with:
+```
+ls: cannot access '/mnt/root/ostree/deploy/default/deploy/<hash>.0.origin/usr/lib/modules/': Not a directory
+deploy=<hash>.0.origin  kver=
+ERROR: vmlinuz not found in deployment or boot partition
+```
+
+**Cause:** `bootc install to-disk` writes two entries in the deploy directory:
+- `<hash>.0` — the actual deployment directory (correct)
+- `<hash>.0.origin` — a small metadata file (NOT a directory)
+
+Without `-type d`, `find -printf '%f\n' | head -1` may return `.0.origin` before `.0` depending on filesystem ordering. Setting `DEPLOY` to a file path causes `ls $D/usr/lib/modules/` to fail with "Not a directory", leaving `KVER` empty.
+
+**Fix (e2e.yml line 281 — the critical one):**
+```bash
+# WRONG (picks up .0.origin):
+DEPLOY=$(sudo find /mnt/root/ostree/deploy/default/deploy/ -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -1)
+
+# CORRECT:
+DEPLOY=$(sudo find /mnt/root/ostree/deploy/default/deploy/ -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | head -1)
+```
+
+**Note:** The later `for DEP in $(sudo find ... -type d)` loops (lines 406, 528, 537) already have `-type d`. Only the `DEPLOY=` assignment at line 281 was missing it.
+
+**History:** PR #518 fixed the identical line in `action.yml` (legacy composite action kept for historical reasons) but missed `e2e.yml` where the actual running code lives. PR #519 fixed the real location. Always verify by checking `e2e.yml` line 281, not `action.yml`.
+
+---
+
+
 
 **Pattern** — every suite's `environment.py` must have both guards:
 
