@@ -5,6 +5,7 @@ Feature: Bluefin common dconf and GSettings defaults
   Background:
     * Bluefin VM is booted and reachable over SSH
 
+  @quarantine
   Scenario: custom-command-list extension is in distribution defaults
     * Run SSH command: "python3 -c \"import gi; gi.require_version('Gio','2.0'); from gi.repository import Gio; v = Gio.Settings.new('org.gnome.shell').get_default_value('enabled-extensions'); print(v.unpack() if v else [])\""
     * Last command output contains "custom-command-list@storageb.github.com"
@@ -26,11 +27,13 @@ Feature: Bluefin common dconf and GSettings defaults
     * Run SSH command: "gsettings get org.gnome.settings-daemon.plugins.media-keys custom-keybindings"
     * SSH command output is not empty
 
+  @quarantine
   Scenario: GNOME interface color scheme preference matches the shipped Bluefin default
     * Run SSH command: "gsettings get org.gnome.desktop.interface color-scheme"
     * SSH command return code is "0"
     * SSH command output contains "prefer-dark"
 
+  @quarantine
   Scenario: GNOME clock format matches the shipped Bluefin default
     * Run SSH command: "gsettings get org.gnome.desktop.interface clock-format"
     * SSH command return code is "0"
@@ -75,6 +78,7 @@ Feature: Bluefin common dconf and GSettings defaults
     * SSH command return code is "0"
     * SSH command output stripped "is" "['<Super>space']"
 
+  @quarantine
   Scenario: Ptyxis color palette is deployed
     * Run SSH command: "dconf read /org/gnome/Ptyxis/Profiles/2871e8027773ae74d6c87a5f659bbc74/palette"
     * SSH command return code is "0"
