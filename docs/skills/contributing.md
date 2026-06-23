@@ -90,7 +90,39 @@ A worktree is stale when:
 - It is marked `prunable` in `git worktree list` output
 - The feature it was created for was superseded by another PR
 
-## Pre-PR validation checklist
+## Working in projectbluefin/actions
+
+When fixing promote bugs or shared workflow issues, changes go to `~/src/actions`.
+
+### Consumer validation — exact PR body format
+
+Every PR to `projectbluefin/actions` that touches a reusable workflow or composite action requires three lines in the PR body. The check uses an exact regex — the URL must be on the **same line** as the label (not a heading with the URL below):
+
+```
+Consumer PR: https://github.com/projectbluefin/bluefin/pull/672
+Consumer CI run: https://github.com/projectbluefin/bluefin/actions/runs/27979754906
+Out-of-org consumer impact: N/A. aurora and bazzite do not call this workflow.
+```
+
+The regex for `Consumer PR:` requires `^Consumer PR:\s+https://github\.com/projectbluefin/(bluefin|bluefin-lts|dakota)/pull/[0-9]+`. A markdown heading (`## Consumer PR`) with the URL on the next line fails validation.
+
+For the consumer PR URL, use an open promote PR (`gh pr list --repo projectbluefin/bluefin | grep promote`). For the run URL, use the most recent promote run on that branch.
+
+### v1 tag — no SHA bumps needed in consumer repos
+
+`projectbluefin/actions` auto-updates the mutable `v1` tag on every push to `main` via `update-v1-tag.yml`. Consumer repos (`bluefin`, `bluefin-lts`, `dakota`) reference `@v1` — fixes propagate automatically on the next promote run. Do not open Renovate-style SHA-bump PRs in consumer repos for actions changes.
+
+### CI sometimes doesn't trigger on PR open
+
+The `projectbluefin/actions` repo occasionally fails to queue CI when a PR is first opened. If `gh run list --repo projectbluefin/actions --branch <branch>` returns empty after 2 minutes:
+
+```bash
+git push --force-with-lease   # force-push (no change needed) — re-triggers all PR workflows
+```
+
+Close-and-reopen also works (`gh pr close N && gh pr reopen N`) but force-push is faster.
+
+
 
 ### CI checks (`.github/workflows/pr-validate.yml` — must pass)
 
