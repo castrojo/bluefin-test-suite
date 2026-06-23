@@ -156,7 +156,9 @@ _DND_TOGGLE_JS = (
 
 
 def _dnd_toggle_exists_js() -> str:
-    return f"({_DND_TOGGLE_JS}) !== null"
+    # GNOME 50: _doNotDisturb may exist as an object but lack a .checked property.
+    # Verify both the toggle and its .checked accessor exist before relying on it.
+    return f"({_DND_TOGGLE_JS})?.checked !== undefined"
 
 
 def _dnd_toggle_checked_js() -> str:
@@ -563,6 +565,12 @@ VIDEO_PLAYERS = {"io.github.celluloid_player.Celluloid.desktop", "totem.desktop"
 
 
 def _xdg_mime_default(mime_type: str) -> str:
+    # When running inside the runner container, xdg-mime is not available on the
+    # host — the MIME database lives in the QEMU VM.  Route via SSH in that case.
+    from app_support import _IN_CONTAINER, _ssh_run
+    if _IN_CONTAINER:
+        result = _ssh_run(f"xdg-mime query default {mime_type}")
+        return result.stdout.strip()
     result = subprocess.run(
         ["xdg-mime", "query", "default", mime_type],
         capture_output=True,

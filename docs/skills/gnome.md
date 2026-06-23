@@ -148,6 +148,46 @@ Smoke helpers should resolve all known aliases before touching `.checked` or
 `.toggle()`. If no quick-settings object exists, fall back to the canonical
 `org.gnome.desktop.notifications show-banners` gsettings key.
 
+**GNOME 50 caveat**: `quickSettings._doNotDisturb` may exist as an object but
+`.checked` is not accessible (TypeError). `_dnd_toggle_exists_js()` must
+verify `?.checked !== undefined` (not just `!== null`) to trigger the
+gsettings fallback correctly. The test in steps.py:
+
+```python
+def _dnd_toggle_exists_js() -> str:
+    return f"({_DND_TOGGLE_JS})?.checked !== undefined"
+```
+
+## xdg-mime in container mode
+
+`_xdg_mime_default(mime_type)` in smoke steps.py runs `xdg-mime query default`
+to check MIME handler registration. When `_IN_CONTAINER` is True (runner
+container SSHing into the VM), `xdg-mime` is not installed on the container
+host — it lives in the Bluefin VM. Always route through `_ssh_run` in that
+case:
+
+```python
+from app_support import _IN_CONTAINER, _ssh_run
+if _IN_CONTAINER:
+    result = _ssh_run(f"xdg-mime query default {mime_type}")
+    return result.stdout.strip()
+```
+
+`xdg-mime query default` reads from `/usr/share/applications/mimeapps.list`
+and does NOT require a running D-Bus session, so SSH-only is sufficient.
+
+## Activities overview visibility (GNOME 50)
+
+`Main.overview.visible.toString()` consistently returns false on GNOME 50
+running in QEMU even after `Main.overview.show()` is called. The root cause
+is under investigation (GNOME 50 overview API / compositing in QEMU). The
+three overview scenarios in gnome_shell.feature are quarantined with
+`@quarantine` until the correct GNOME 50 property is identified.
+
+Do NOT remove the quarantine or switch to `Main.overview._shown` without
+confirming on a live GNOME 50 QEMU run — the behavior is not reproducible
+locally without a full VM boot.
+
 ## Screenshot on failure
 
 Hook in `after_scenario`, before sandbox cleanup:

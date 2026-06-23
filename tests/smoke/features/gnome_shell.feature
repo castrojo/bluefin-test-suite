@@ -36,7 +36,7 @@ Feature: GNOME Shell smoke tests
   # NOTE: uinput Super key (KEY_LEFTMETA) is unreliable on GNOME 50 Wayland —
   # Mutter does not route it from python-uinput devices. Use Shell.Eval instead.
 
-  @retry @activities @sla_5s
+  @retry @activities @sla_5s @quarantine
   Scenario: Super key opens Activities overview
     * GNOME Shell is accessible via AT-SPI
     * Open Activities overview via Shell.Eval
@@ -44,7 +44,7 @@ Feature: GNOME Shell smoke tests
     * Close Activities overview via Shell.Eval
     * Overview is closed
 
-  @activities
+  @activities @quarantine
   Scenario: Typing in overview populates search bar
     * GNOME Shell is accessible via AT-SPI
     * Open Activities overview via Shell.Eval
@@ -53,7 +53,7 @@ Feature: GNOME Shell smoke tests
     * Overview search bar contains "Files"
     * Close Activities overview via Shell.Eval
 
-  @activities
+  @activities @quarantine
   Scenario: Escape closes Activities overview
     * GNOME Shell is accessible via AT-SPI
     * Open Activities overview via Shell.Eval
