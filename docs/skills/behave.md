@@ -268,6 +268,39 @@ In the SSH-driven `common` suite, validate Bluefin desktop identity overrides wi
 
 This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `projectbluefin/common`.
 
+## Quarantine Protocol
+
+When a scenario fails in QEMU CI due to a known environment limitation (not a code bug), tag it `@quarantine` and file a tracking issue:
+
+```gherkin
+@quarantine
+Scenario: Flathub remote is configured
+  ...
+```
+
+The CI runs behave with `--tags ~quarantine`, so quarantined scenarios are skipped and do not block the gate.
+
+### When to quarantine vs fix
+
+| Situation | Action |
+|---|---|
+| Scenario fails because a first-boot service is masked in CI | Quarantine + image-side issue |
+| Scenario fails due to GNOME 50 API change | Quarantine + investigate new API |
+| Scenario fails due to a real regression in the image | Do NOT quarantine — it's a gate hit |
+| Scenario fails intermittently (flaky network, timing) | Add `@retry` tag instead |
+
+### Known quarantine categories (2026-06)
+
+**smoke-b:** screen lock (#528), PDF/PNG/video MIME defaults (#529)
+- Screen lock: GNOME 50 headless QEMU — lock screen doesn't engage within 10s
+- MIME defaults: Fedora system mimeapps.list sets Firefox as default; Flatpak Papers/Loupe don't override at system level on fresh install
+
+**common-a/b:** 13 scenarios in dconf, flatpak, immutable, polkit (#531)
+- Flatpak: /var/lib/flatpak not preserved from OCI build; flatpak-preinstall.service masked in CI
+- dconf: some schema defaults may require un-investigated setup; Ptyxis palette is user-session state
+- Immutable: rpm-ostree status / bootc status / /usr ro failing for unknown reason in fresh QEMU bootc install
+- Polkit: rules may be in /usr/share/ not /etc/polkit-1/rules.d/
+
 ## Common Rationalizations
 
 | Rationalization | Reality |
