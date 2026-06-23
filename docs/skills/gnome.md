@@ -164,17 +164,28 @@ def _dnd_toggle_exists_js() -> str:
 to check MIME handler registration. When `_IN_CONTAINER` is True (runner
 container SSHing into the VM), `xdg-mime` is not installed on the container
 host — it lives in the Bluefin VM. Always route through `_ssh_run` in that
-case:
+case.
+
+**Critical**: SSH sessions do NOT inherit the GNOME user session `XDG_DATA_DIRS`.
+Flatpak apps (Firefox, Papers, Loupe, Celluloid) register MIME handlers under
+`/var/lib/flatpak/exports/share/applications/`. Without this path in
+`XDG_DATA_DIRS`, `xdg-mime query default` returns empty for Flatpak MIME types.
+
+Always set `XDG_DATA_DIRS` explicitly in the SSH call:
 
 ```python
 from app_support import _IN_CONTAINER, _ssh_run
 if _IN_CONTAINER:
-    result = _ssh_run(f"xdg-mime query default {mime_type}")
+    result = _ssh_run(
+        "XDG_DATA_DIRS=/var/lib/flatpak/exports/share"
+        ":/home/bluefin-test/.local/share/flatpak/exports/share"
+        ":/usr/local/share:/usr/share "
+        f"xdg-mime query default {mime_type}"
+    )
     return result.stdout.strip()
 ```
 
-`xdg-mime query default` reads from `/usr/share/applications/mimeapps.list`
-and does NOT require a running D-Bus session, so SSH-only is sufficient.
+`xdg-mime query default` does NOT require a running D-Bus session.
 
 ## Activities overview visibility (GNOME 50)
 
