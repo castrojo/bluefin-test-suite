@@ -12,12 +12,62 @@ metadata:
 - Debugging infra-layer CI failures (runner container, D-Bus, AT-SPI)
 - Adding new packages or patches to `container/Containerfile.runner`
 - SSH assertion failures from unexpected output
+- common-suite service health scenarios fail with unexpected `ActiveState` values
+- Polkit rules presence check returns zero results
 
 ## When NOT to Use
 - Writing behave step logic → `docs/skills/behave.md`
 - GNOME AT-SPI/dogtail patterns → `docs/skills/gnome.md`
 - bootc lifecycle steps → `docs/skills/bootc.md`
 - Workflow inputs, migration runs, manual.yml → `docs/skills/e2e-workflow.md`
+
+---
+
+## Oneshot systemd service state — use Result, not ActiveState
+
+**Symptom:** `common_services.feature` scenarios fail with output `inactive` when
+checking `ActiveState --value` even though the service ran successfully.
+
+**Cause:** Oneshot services transition to `ActiveState=inactive` (dead) after they
+finish — this is correct behaviour, not a failure. Asserting `active` always fails
+for completed oneshot units.
+
+**Fix:** Check `Result --value` instead. A successfully completed oneshot reports
+`Result=success`:
+
+```bash
+systemctl show ublue-system-setup.service --property=Result --value
+# → success
+```
+
+Affected services: `rechunker-group-fix.service`, `ublue-system-setup.service`,
+`ublue-user-setup.service` (--user), `dconf-update.service`,
+`bootc-unified-storage.service`.
+
+See `docs/skills/behave.md` "Shared SSH helpers" section for the feature-file pattern.
+
+**Exception:** Services that are masked in CI (`flatpak-preinstall.service`,
+`flatpak-nuke-fedora.service`) will have `Result=exit-code` or no result at all.
+Keep those quarantined until the masking is removed at the image level.
+
+---
+
+## Polkit rules path — check both directories
+
+**Symptom:** `common_polkit.feature` "polkit rules directory has Bluefin rules"
+returns zero even though Bluefin ships polkit rules.
+
+**Cause:** Bluefin ships polkit rules under `/usr/share/polkit-1/rules.d/` (immutable
+layer, read-only). The test was only checking `/etc/polkit-1/rules.d/` (mutable
+override path, empty on a stock Bluefin install).
+
+**Fix:** Scan both paths:
+
+```bash
+ls /etc/polkit-1/rules.d/*.rules /usr/share/polkit-1/rules.d/*.rules 2>/dev/null | wc -l
+```
+
+This returns a non-zero count as long as rules exist in either location.
 
 ---
 

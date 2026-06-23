@@ -66,11 +66,26 @@ SSH command via `ssh_command_prefix`. Prefer plain `systemctl --user`,
 `gsettings`, and `gdbus` commands there instead of manually sourcing
 `/tmp/session.env` inside each scenario.
 
-For common-suite systemd health checks, named oneshot services often finish in
-`inactive (dead)` after a successful run. Do not assert `systemctl is-active`
-alone for units like `dconf-update.service` or `ublue-system-setup.service`;
-wrap the command with a fallback `systemctl show/status` probe and assert the
-SSH return code instead of requiring persistent `active` state.
+For common-suite systemd health checks, oneshot services finish in `inactive (dead)`
+after a successful run — their `ActiveState` is `inactive`, not `active`. Do NOT
+assert `ActiveState==active` for units like `dconf-update.service`,
+`ublue-system-setup.service`, `ublue-user-setup.service`, or
+`bootc-unified-storage.service`. Use `Result` instead:
+
+```gherkin
+* Run SSH command: "systemctl show ublue-system-setup.service --property=Result --value"
+* SSH command return code is "0"
+* SSH command output stripped "is" "success"
+```
+
+The `Result` property is `success` when the service exited cleanly, `failed` if it
+errored, and `exit-code` / `signal` for specific exit failures. Asserting
+`ActiveState==active` on a completed oneshot always returns `inactive` and causes
+false failures in QEMU CI even when the service ran correctly.
+
+**Keep `@quarantine`** for services that are masked or disabled in the CI
+`KERNEL_ARGS` (e.g. `flatpak-preinstall.service`) — those cannot be unquarantined
+until the image-level masking is removed.
 
 When a scenario is meant to fail on a bad command, never append `; true` (or
 similar success-forcing trailers) to the SSH command. That masks the real exit
