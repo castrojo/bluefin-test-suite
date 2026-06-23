@@ -15,7 +15,8 @@ New suites → this repo. New infra (VM specs, manifests) → testing-lab. PRs t
 
 ## Hard rules (single source of truth)
 
-1. **Shared SSH steps** — always import from `tests/shared/ssh_steps.py`. Never duplicate `_ssh()` or generic step defs in suite-specific files. Exception: `dx/steps.py` uses a local `_ssh()` deliberately (qecore phrase collision — document if you change it).
+1. **Context7 before any library** — before using qecore, dogtail, behave, gi.repository, or any other library: resolve its docs via Context7 (`resolve-library-id` → `get-library-docs`). Never guess API from training data. The docs are open source and live.
+2. **Shared SSH steps** — always import from `tests/shared/ssh_steps.py`. Never duplicate `_ssh()` or generic step defs in suite-specific files. Exception: `dx/steps.py` uses a local `_ssh()` deliberately (qecore phrase collision — document if you change it).
 2. **No ambiguous steps** — all step files under a suite are loaded together by behave. Step phrases must be unique within each loaded set. Check before committing: `grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d`
 3. **dogtail 4.16** — never pass `requireResult` to `findChild`. Use `findChildren(pred)` for no-raise; `findChild(pred, retry=False)` for fast-fail.
 4. **GNOME Shell 50+ top-bar** — AT-SPI click on clock/system-status is unreliable. Use `Shell.Eval` path. Set `unsafe_mode=true` first.
