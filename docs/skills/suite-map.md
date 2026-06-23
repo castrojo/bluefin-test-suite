@@ -155,48 +155,40 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 | nvidia | 12 | 0 | 0 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
 | flatcar | 13 | 10 | 0 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
 
-### 2026-06-22 sprint feature additions
+## Known coverage gaps
 
-- `smoke`: `gnome_accessibility.feature`, `bluefin_extensions.feature`, `xdg_open.feature`, `bluefin_desktop.feature`
-- `common`: `common_portals.feature`, `portal_integration.feature`, `common_shell.feature`, `common_flatpak_state.feature`, `common_flatpak_model.feature`, `common_scripts.feature`, `common_polkit.feature`, `common_container.feature`, `common_immutable.feature`, `common_ujust.feature`, `common_dconf.feature` (GSettings overrides)
-- `software`: `bazaar_config.feature`, `bazaar_ui.feature` (rewritten)
-- `hardware`: `udev_rules.feature`
+| Area | Priority | Notes |
+|---|---|---|
+| Bazaar / Flatpak management GUI | High | Bazaar CLI/config integrity coverage active; GUI navigation pending GNOME 50 AT-SPI re-validation |
+| Flatpak permission management | Low | Flatseal / per-app permissions not exercised |
+| OOBE / first-boot | Low | Initial user setup flow not covered |
 
 ### Remaining quarantine breakdown
 
 | Scenario | Suite | Blocked by |
 |---|---|---|
-| brew (×6) | developer | `brew-setup.service` masked in CI (`kernel_args` in e2e.yml) |
-| ptyxis: `@brew` | developer | same — brew must be initialized first |
-| ptyxis: `@input`, `@podman`, `@regression`, `@new_tab`, `@close` (×5) | developer | AT-SPI restart issue in CI — ptyxis reopens between scenarios but the new process isn't reliably accessible (issue #368) |
+| brew (×6) | developer | `brew-setup.service` masked in CI |
+| ptyxis: `@brew` | developer | brew must be initialized first |
+| ptyxis: `@input`, `@podman`, `@regression`, `@new_tab`, `@close` (×5) | developer | AT-SPI restart issue in CI — ptyxis reopens between scenarios but the new process isn't reliably accessible |
 | VS Code extensions via Marketplace | dx | Flatpak marketplace not in RPM-installed VS Code |
 | distrobox enter | dx | pulls `fedora:latest`; no pre-pull in CI, times out |
 | JupyterLab | dx | not preinstalled in DX image |
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
-| ujust report (×1) | smoke | `just` version change parses `{{.Repository}}` as template; common main fixed, awaiting image rebuild |
-| Activities overview (×3) | smoke | GNOME 50 — `Main.overview.visible` always false in QEMU display grab (issue #522) |
-| screen lock (×1) | smoke | GNOME 50 headless — lock doesn't engage in 10s (issue #528) |
-| MIME defaults PDF/PNG/video (×3) | smoke | Fedora system mimeapps.list sets Firefox as default; Flatpak apps don't override at system level (issue #529) |
-| software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar; upstream GNOME Software GUI coverage remains quarantined while Bazaar-specific GUI coverage is still pending |
+| ujust report (×1) | smoke | `just` version change parses `{{.Repository}}` as template; awaiting image rebuild |
+| Activities overview (×3) | smoke | GNOME 50 — `Main.overview.visible` always false in QEMU |
+| screen lock (×1) | smoke | GNOME 50 headless — lock doesn't engage in 10s |
+| MIME defaults PDF/PNG/video (×3) | smoke | Fedora system mimeapps.list sets Firefox as default; Flatpak apps don't override at system level |
+| software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar; upstream GNOME Software GUI coverage quarantined |
 | common signing (×2) | common | pending signing policy enforcement |
-| common flatpak model/state (×4) | common | flatpak-preinstall.service masked in CI; /var not preserved from OCI build (issue #531) |
-| common dconf (×4) | common | gsettings/dconf schema defaults; Ptyxis palette is user-session state (issue #531) |
-| common immutable (×3) | common | rpm-ostree/bootc status / /usr ro failing in fresh QEMU bootc install (issue #531) |
-| common polkit (×2) | common | polkit rules path investigation; node syntax checker not installed (issue #531) |
+| common flatpak model/state (×4) | common | flatpak-preinstall.service masked in CI; /var not preserved from OCI build |
+| common dconf (×4) | common | gsettings/dconf schema defaults; Ptyxis palette is user-session state |
+| common immutable (×3) | common | rpm-ostree/bootc status / /usr ro failing in fresh QEMU bootc install |
+| common polkit (×2) | common | polkit rules path check; node syntax checker not installed |
 | common portals podman.socket (×1) | common | user socket not active in non-interactive CI session |
 | common scripts ujust changelogs (×1) | common | glow not available (brew-setup.service masked in CI) |
-| common services flatpak (×2) | common | flatpak-preinstall.service masked; /var/lib/flatpak not seeded (issue #531) |
+| common services flatpak (×2) | common | flatpak-preinstall.service masked; /var/lib/flatpak not seeded |
 | bootc pin | lifecycle | pin not supported on all images (race condition in some test environments) |
 | bootc switch | lifecycle | switch target requires a valid alternate image ref in CI |
-
-## Known coverage gaps
-
-| Area | Priority | Status | Notes |
-|---|---|---|---|
-| Bazaar / Flatpak management on Bluefin | High | Open | Bazaar CLI/config integrity coverage is active; GUI navigation/interaction coverage is still pending GNOME 50 AT-SPI re-validation |
-| Common shell tools (zsh, fish, fzf, bat, eza, fd, ripgrep, starship) | Medium | Fixed | Resolved by installing tools in CI workflow step before common suite runs (issue #210) |
-| Flatpak permission management | Low | Open | Flatseal / per-app permissions not exercised |
-| OOBE / first-boot | Low | Open | Initial user setup flow not covered |
 
 ## @future inventory
 

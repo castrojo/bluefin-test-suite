@@ -369,24 +369,16 @@ ERROR: vmlinuz not found in deployment or boot partition
 
 Without `-type d`, `find -printf '%f\n' | head -1` may return `.0.origin` before `.0` depending on filesystem ordering. Setting `DEPLOY` to a file path causes `ls $D/usr/lib/modules/` to fail with "Not a directory", leaving `KVER` empty.
 
-**Fix (e2e.yml line 281 — the critical one):**
+**Fix (in e2e.yml):** Ensure the `DEPLOY=` assignment uses `-type d`:
 ```bash
-# WRONG (picks up .0.origin):
-DEPLOY=$(sudo find /mnt/root/ostree/deploy/default/deploy/ -mindepth 1 -maxdepth 1 -printf '%f\n' 2>/dev/null | head -1)
-
-# CORRECT:
 DEPLOY=$(sudo find /mnt/root/ostree/deploy/default/deploy/ -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | head -1)
 ```
 
-**Note:** The later `for DEP in $(sudo find ... -type d)` loops (lines 406, 528, 537) already have `-type d`. Only the `DEPLOY=` assignment at line 281 was missing it.
-
-**History:** PR #518 fixed the identical line in `action.yml` (legacy composite action kept for historical reasons) but missed `e2e.yml` where the actual running code lives. PR #519 fixed the real location. Always verify by checking `e2e.yml` line 281, not `action.yml`.
+Without `-type d`, `find` may return the `.0.origin` metadata file before the `.0` deployment directory, causing `ls $D/usr/lib/modules/` to fail. The `-type d` flag is required on the `DEPLOY=` assignment; later `for DEP in` loops in the same file already include it.
 
 ---
 
-
-
-**Pattern** — every suite's `environment.py` must have both guards:
+## before_scenario and after_scenario setup guard pattern
 
 ```python
 def before_scenario(context, scenario) -> None:
@@ -598,18 +590,13 @@ This extracts the image name component (`bluefin`, `dakota`, etc.) before checki
 The smoke suite environment replicates this same pattern so `@bluefin` tags are
 respected in AT-SPI tests as well.
 
-## composefs file-capability regression (dakota#841)
+## composefs file-capability regression
 
 A `@health @composefs @regression` scenario in `system_health.feature` checks
 that `newuidmap`, `newgidmap`, and `ping` retain their `security.capability`
 xattrs after a composefs-backed ostree deployment.
 
-**Root cause of the 2026-06-13 incident:** `buildah commit` (without
-`--squash`) produced a multi-layer OCI image. The composefs xattr injection
-expected a flat single-layer input; the multi-layer output silently stripped
-`security.capability` xattrs. The composefs tree could not mount at boot.
-Fix: `podman build --squash-all` in the export recipe
-(projectbluefin/dakota#846).
+**Root cause:** `buildah commit` (without `--squash`) produces a multi-layer OCI image. The composefs xattr injection expects a flat single-layer input; multi-layer output silently strips `security.capability` xattrs. Fix: `podman build --squash-all` in the export recipe.
 
 If `getcap` returns no capabilities for these binaries, the image build
 pipeline produced a multi-layer OCI artifact. File the regression against the

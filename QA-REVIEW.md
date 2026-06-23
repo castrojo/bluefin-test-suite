@@ -5,15 +5,6 @@
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
 Current audit: 386 scenarios across 52 feature files (last audit: 2026-06-23). 59 quarantined, 312 active, 15 future/hardware_blocked.
 
-## Architecture changes (2026-06-21 – 2026-06-22)
-
-- Nightly removed — PR gates are now the sole CI mechanism.
-- `e2e.yml` uses OCI layer caching and dynamic suite sharding — `smoke` and `common` each split into two parallel jobs automatically.
-- `pr-validate.yml` enforces 30-day quarantine expiry.
-- Known infrastructure-flaky smoke scenarios use `@retry`.
-- Boot-time step summary and zero-layered-RPM gate added to CI job summary output.
-- 13 new feature files added in the 2026-06-22 sprint (common, smoke, hardware, software suites).
-
 ## What this repo is responsible for
 
 - Behave suite coverage and quality

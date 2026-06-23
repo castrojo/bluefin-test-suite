@@ -22,19 +22,6 @@ metadata:
 - CI workflow or runner container setup → `docs/skills/ops.md`
 - Suite scaffolding or step hygiene → `docs/skills/behave.md`
 
-## When to Use
-
-- Adding or debugging GNOME smoke scenarios that assert windows or widgets via AT-SPI
-- Driving GNOME Shell behavior via `org.gnome.Shell.Eval`
-- Handling GNOME 50+ quirks in dogtail or qecore-headless runs
-- Adding launch checks for preinstalled desktop or Flatpak apps
-
-## When NOT to Use
-
-- SSH-mode lifecycle, hardware, or security suites that do not touch the local GNOME session
-- Pure CLI/state assertions that can be expressed with qecore command-capture steps alone
-- Infrastructure or workflow issues that belong in `ops.md` or `e2e-workflow.md`
-
 ## Core Process
 
 1. Identify whether the scenario needs AT-SPI interaction, Shell.Eval, or only subprocess/CLI checks.
@@ -187,17 +174,14 @@ if _IN_CONTAINER:
 
 `xdg-mime query default` does NOT require a running D-Bus session.
 
-## Activities overview visibility (GNOME 50)
+## Activities overview (GNOME 50 QEMU)
 
-`Main.overview.visible.toString()` consistently returns false on GNOME 50
-running in QEMU even after `Main.overview.show()` is called. The root cause
-is under investigation (GNOME 50 overview API / compositing in QEMU). The
-three overview scenarios in gnome_shell.feature are quarantined with
-`@quarantine` until the correct GNOME 50 property is identified.
-
-Do NOT remove the quarantine or switch to `Main.overview._shown` without
-confirming on a live GNOME 50 QEMU run — the behavior is not reproducible
-locally without a full VM boot.
+`Main.overview.visible.toString()` consistently returns `false` in QEMU on GNOME 50
+even after `Main.overview.show()` is called. Do NOT assert `Main.overview.visible` or
+switch to `Main.overview._shown` without confirming on a live GNOME 50 QEMU run —
+the behavior is not reproducible locally without a full VM boot. Scenarios that depend
+on overview visibility must be quarantined (`@quarantine`) until the correct GNOME 50
+API is confirmed.
 
 ## Screenshot on failure
 
