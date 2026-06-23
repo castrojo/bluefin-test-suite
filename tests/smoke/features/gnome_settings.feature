@@ -65,7 +65,3 @@ Feature: GNOME Settings smoke tests
   Scenario: Settings closes cleanly via Ctrl+Q
     * Key combo: "<Ctrl><Q>" with uinput
     * Settings is no longer running
-
-  @quarantine @regression @bluefin
-  Scenario: No gnome-control-center coredump after session start
-    * No coredump entries exist for "gnome-control-center"

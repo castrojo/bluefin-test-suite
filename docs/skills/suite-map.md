@@ -138,14 +138,14 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-358 scenarios across 48 feature files (last audit: 2026-06-22). 30 quarantined, 324 active, 4 @future stubs.
+386 scenarios across 52 feature files (last audit: 2026-06-23). 64 quarantined, 319 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 98 | 97 | 1 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); 1 quarantined: `ujust report` just parse error (common main fixed, rebuilding) |
+| smoke | 119 | 107 | 12 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
 | software | 23 | 15 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios quarantined |
-| common | 91 | 89 | 2 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
+| common | 98 | 73 | 25 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
 | hardware | 13 | 13 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
@@ -174,8 +174,18 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 | JupyterLab | dx | not preinstalled in DX image |
 | mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
 | ujust report (×1) | smoke | `just` version change parses `{{.Repository}}` as template; common main fixed, awaiting image rebuild |
+| Activities overview (×3) | smoke | GNOME 50 — `Main.overview.visible` always false in QEMU display grab (issue #522) |
+| screen lock (×1) | smoke | GNOME 50 headless — lock doesn't engage in 10s (issue #528) |
+| MIME defaults PDF/PNG/video (×3) | smoke | Fedora system mimeapps.list sets Firefox as default; Flatpak apps don't override at system level (issue #529) |
 | software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar; upstream GNOME Software GUI coverage remains quarantined while Bazaar-specific GUI coverage is still pending |
 | common signing (×2) | common | pending signing policy enforcement |
+| common flatpak model/state (×4) | common | flatpak-preinstall.service masked in CI; /var not preserved from OCI build (issue #531) |
+| common dconf (×4) | common | gsettings/dconf schema defaults; Ptyxis palette is user-session state (issue #531) |
+| common immutable (×3) | common | rpm-ostree/bootc status / /usr ro failing in fresh QEMU bootc install (issue #531) |
+| common polkit (×2) | common | polkit rules path investigation; node syntax checker not installed (issue #531) |
+| common portals podman.socket (×1) | common | user socket not active in non-interactive CI session |
+| common scripts ujust changelogs (×1) | common | glow not available (brew-setup.service masked in CI) |
+| common services flatpak (×2) | common | flatpak-preinstall.service masked; /var/lib/flatpak not seeded (issue #531) |
 | bootc pin | lifecycle | pin not supported on all images (race condition in some test environments) |
 | bootc switch | lifecycle | switch target requires a valid alternate image ref in CI |
 
