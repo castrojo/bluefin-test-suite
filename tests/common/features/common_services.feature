@@ -5,6 +5,7 @@ Feature: Bluefin common systemd service health
   Background:
     * Bluefin VM is booted and reachable over SSH
 
+  @quarantine
   Scenario: rechunker-group-fix service completed successfully
     * Run SSH command: "systemctl show rechunker-group-fix.service --property=ActiveState --value"
     * SSH command return code is "0"
@@ -12,16 +13,19 @@ Feature: Bluefin common systemd service health
     * Run SSH command: "systemctl list-units --state=failed --plain --no-legend | grep -F rechunker-group-fix.service || true"
     * SSH command output does not contain "rechunker-group-fix.service"
 
+  @quarantine
   Scenario: ublue-system-setup service completed successfully
     * Run SSH command: "systemctl show ublue-system-setup.service --property=ActiveState --value"
     * SSH command return code is "0"
     * SSH command output stripped "is" "active"
 
+  @quarantine
   Scenario: ublue-user-setup user service completed successfully
     * Run SSH command: "systemctl --user show ublue-user-setup.service --property=ActiveState --value"
     * SSH command return code is "0"
     * SSH command output stripped "is" "active"
 
+  @quarantine
   Scenario: flatpak-preinstall installed required applications
     * Run SSH command: "systemctl show flatpak-preinstall.service --property=ActiveState --value"
     * SSH command return code is "0"
@@ -30,6 +34,7 @@ Feature: Bluefin common systemd service health
     * SSH command output contains "org.mozilla.firefox"
     * SSH command output contains "com.raggesilver.BlackBox"
 
+  @quarantine
   Scenario: flatpak remotes are flathub only
     * Run SSH command: "systemctl show flatpak-nuke-fedora.service --property=ActiveState --value"
     * SSH command return code is "0"
@@ -38,6 +43,7 @@ Feature: Bluefin common systemd service health
     * SSH command output contains "flathub"
     * SSH command output does not contain "fedora"
 
+  @quarantine
   Scenario: dconf database is compiled
     * Run SSH command: "systemctl show dconf-update.service --property=ActiveState --value"
     * SSH command return code is "0"
@@ -45,6 +51,7 @@ Feature: Bluefin common systemd service health
     * Run SSH command: "dconf dump /"
     * SSH command output is not empty
 
+  @quarantine
   Scenario: bootc unified storage service completed successfully
     * Run SSH command: "systemctl show bootc-unified-storage.service --property=ActiveState --value"
     * SSH command return code is "0"

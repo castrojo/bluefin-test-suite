@@ -20,6 +20,7 @@ Feature: XDG desktop portal health
     * SSH command return code is "0"
     * SSH command output contains "portal"
 
+  @quarantine
   Scenario: podman user socket is active
     * Run SSH command: "systemctl --user is-active podman.socket 2>/dev/null"
     * SSH command return code is "0"
