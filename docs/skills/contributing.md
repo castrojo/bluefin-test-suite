@@ -87,7 +87,7 @@ Run immediately after your PR is merged:
 ```bash
 cd ~/src/testsuite
 git checkout main && git pull origin main
-git branch --merged origin/main | grep -v "^\* \|^  main$" | xargs git branch -d
+git branch --merged origin/main | grep -v "^\* \|^  main$" | xargs -r git branch -d
 git worktree prune
 ```
 
