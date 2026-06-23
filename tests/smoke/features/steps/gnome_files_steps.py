@@ -1,5 +1,6 @@
 """Custom step definitions for GNOME Files (Nautilus) smoke tests."""
 import subprocess
+import time
 from time import sleep
 
 from behave import step
@@ -43,14 +44,18 @@ FILES_SIDEBAR_URIS = {
 }
 
 
-def _nautilus_app():
+def _nautilus_app(timeout: int = 15):
+    """Find the Files app in the AT-SPI tree, retrying for up to ``timeout`` seconds."""
+    deadline = time.monotonic() + timeout
     last_error = None
-    for name in FILES_APP_NAMES:
-        try:
-            return tree.root.application(name)
-        except Exception as exc:  # noqa: BLE001
-            last_error = exc
-    raise AssertionError(f"GNOME Files application was not found via AT-SPI: {last_error}")
+    while time.monotonic() < deadline:
+        for name in FILES_APP_NAMES:
+            try:
+                return tree.root.application(name)
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+        sleep(1)
+    raise AssertionError(f"GNOME Files application was not found via AT-SPI after {timeout}s: {last_error}")
 
 
 @step("Launch Files via command")
