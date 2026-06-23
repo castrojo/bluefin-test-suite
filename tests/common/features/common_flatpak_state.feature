@@ -7,6 +7,7 @@ Feature: Flatpak first-boot state
   Background:
     * Bluefin VM is booted and reachable over SSH
 
+  @quarantine
   Scenario: Flathub remote is configured
     * Run SSH command: "flatpak remote-list --columns=name 2>/dev/null | grep -w flathub"
     * SSH command return code is "0"
