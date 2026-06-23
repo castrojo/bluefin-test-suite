@@ -138,7 +138,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-386 scenarios across 52 feature files (last audit: 2026-06-23). 60 quarantined, 323 active, 3 @future stubs.
+386 scenarios across 52 feature files (last audit: 2026-06-23). 59 quarantined, 312 active, 15 future/hardware_blocked.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|

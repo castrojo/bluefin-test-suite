@@ -5,7 +5,7 @@
 
 Automated behave + qecore-headless + dogtail and shared libraries for testing GNOME-based bootc images. Totally headless, Kubernetes-friendly.
 
-**358 scenarios across 48 feature files.** Covers GUI automation, SSH-based health checks, and system integrity assertions for any GNOME bootc image.
+**386 scenarios across 52 feature files.** Covers GUI automation, SSH-based health checks, and system integrity assertions for any GNOME bootc image.
 
 - GNOME 50+
 - Image-specific suites: Bluefin, Bazzite, Dakota, vanilla GNOME OS, Flatcar

@@ -1,9 +1,9 @@
 # testsuite QA review
 
-> Last updated: 2026-06-22
+> Last updated: 2026-06-23
 
 Coverage snapshot and known gaps live in `docs/skills/suite-map.md`.
-Current audit: 386 scenarios across 52 feature files (last audit: 2026-06-23). 60 quarantined, 323 active, 3 @future stubs.
+Current audit: 386 scenarios across 52 feature files (last audit: 2026-06-23). 59 quarantined, 312 active, 15 future/hardware_blocked.
 
 ## Architecture changes (2026-06-21 – 2026-06-22)
 
@@ -42,7 +42,7 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 
 ## Unit test coverage
 
-593 unit tests across 35 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
+647 unit tests across 36 files (`tests/unit/`). Run with `python3 -m pytest tests/unit/ -q`.
 
 | File | Tests | What it covers |
 |---|---|---|
@@ -62,12 +62,13 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 | `test_brew_steps.py` | 7 | Brew step helpers and formula detection |
 | `test_gnome_notifications_steps.py` | 5 | Notification step helpers |
 | `test_retry.py` | 4 | Behave retry harness, `sys.executable` fallback |
-| `test_parse_results.py` | 1 | `scripts/parse_results.py` JSONL output |
+| `test_parse_results.py` | 35 | `scripts/parse_results.py` — `_normalize_status`, `_scenario_status`, `_scenario_elapsed_seconds`, `parse_results` integration |
+| `test_quarantine_age.py` | 25 | `scripts/check_quarantine_age.py` — `parse_feature_scenarios`, `file_history_entries`, `build_quarantine_entries`, `validate_args`, `format_report`, `main()` exit codes |
 
 The `pytest` CI check (`unit-tests.yml`) runs these on every PR and merge queue entry.
 
 ## Current stub posture
 
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn are implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
-- `security/selinux`: `@future` scenarios at Feature level — will activate when Bluefin test images stop booting with `selinux=0` (PR #280 in merge queue).
+- `security/selinux`: all 15 scenarios active (cosign verification across all projectbluefin and ublue-os image variants).
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
