@@ -1,6 +1,6 @@
 # testsuite runbook
 
-> Last updated: 2026-05-31
+> Last updated: 2026-06-23
 
 This runbook covers **operational commands** for `projectbluefin/testsuite`.  
 Authoring rules, patterns, and skill docs live in `docs/skills/` — load from there.
@@ -57,17 +57,15 @@ gh run view --job=<JOB_ID> --log-failed --repo projectbluefin/testsuite
 
 ## Merge queue
 
-PRs require 2 approvals + CI. Enqueue via GraphQL (the UI merge button is blocked):
+This repo uses a **merge queue** (ruleset `main — merge queue`). Enqueue with:
 
 ```bash
-PR_NODE_ID=$(gh api /repos/projectbluefin/testsuite/pulls/<NUMBER> --jq '.node_id')
-gh api graphql -f query="
-mutation {
-  enqueuePullRequest(input: { pullRequestId: \"${PR_NODE_ID}\" }) {
-    mergeQueueEntry { id position }
-  }
-}"
+gh pr merge <NUMBER> --repo projectbluefin/testsuite --squash --auto
 ```
+
+The `--auto` flag enqueues the PR; the merge queue runs all required CI checks on the merge commit and lands to `main` automatically on green. No manual approvals required — CI is the gate.
+
+Required checks: `Lint & syntax`, `Behave dry-run`, `pytest` — all must be green before enqueueing.
 
 ## Vanilla GNOME baseline comparison
 

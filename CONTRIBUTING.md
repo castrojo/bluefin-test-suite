@@ -2,7 +2,7 @@
 
 This is the test framework and suite for GNOME-based bootc images. It runs headless GNOME automation using behave + qecore + dogtail, plus SSH-based system health checks.
 
-**358 scenarios across 48 feature files.** This repo is agent-first — AI agents are primary contributors. See the [agentic factory section in README.md](README.md#agentic-factory).
+**386 scenarios across 52 feature files.** This repo is agent-first — AI agents are primary contributors. See the [agentic factory section in README.md](README.md#agentic-factory).
 
 ## Where things live
 
