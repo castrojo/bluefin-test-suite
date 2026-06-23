@@ -567,9 +567,17 @@ VIDEO_PLAYERS = {"io.github.celluloid_player.Celluloid.desktop", "totem.desktop"
 def _xdg_mime_default(mime_type: str) -> str:
     # When running inside the runner container, xdg-mime is not available on the
     # host — the MIME database lives in the QEMU VM.  Route via SSH in that case.
+    # XDG_DATA_DIRS must include Flatpak export paths so Flatpak-installed app
+    # MIME registrations (Firefox, Papers, Loupe, Celluloid) are visible to
+    # xdg-mime query; SSH sessions don't inherit the user session XDG_DATA_DIRS.
     from app_support import _IN_CONTAINER, _ssh_run
     if _IN_CONTAINER:
-        result = _ssh_run(f"xdg-mime query default {mime_type}")
+        result = _ssh_run(
+            "XDG_DATA_DIRS=/var/lib/flatpak/exports/share"
+            ":/home/bluefin-test/.local/share/flatpak/exports/share"
+            ":/usr/local/share:/usr/share "
+            f"xdg-mime query default {mime_type}"
+        )
         return result.stdout.strip()
     result = subprocess.run(
         ["xdg-mime", "query", "default", mime_type],
