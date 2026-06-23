@@ -138,14 +138,14 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-386 scenarios across 52 feature files (last audit: 2026-06-23). 64 quarantined, 319 active, 3 @future stubs.
+386 scenarios across 52 feature files (last audit: 2026-06-23). 60 quarantined, 323 active, 3 @future stubs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
 | smoke | 119 | 107 | 12 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
 | software | 23 | 15 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios quarantined |
-| common | 98 | 73 | 25 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
+| common | 98 | 78 | 20 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
 | vanilla-gnome | 12 | 12 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
 | hardware | 13 | 13 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |

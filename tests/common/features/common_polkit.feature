@@ -8,7 +8,7 @@ Feature: Polkit rules presence
 
   @quarantine
   Scenario: polkit rules directory has Bluefin rules
-    * Run SSH command: "ls /etc/polkit-1/rules.d/*.rules 2>/dev/null | wc -l"
+    * Run SSH command: "ls /etc/polkit-1/rules.d/*.rules /usr/share/polkit-1/rules.d/*.rules 2>/dev/null | wc -l"
     * SSH command return code is "0"
     * SSH command output is not "0"
 
