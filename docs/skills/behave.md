@@ -301,7 +301,40 @@ The CI runs behave with `--tags ~quarantine`, so quarantined scenarios are skipp
 - Immutable: rpm-ostree status / bootc status / /usr ro failing for unknown reason in fresh QEMU bootc install
 - Polkit: rules may be in /usr/share/ not /etc/polkit-1/rules.d/
 
-## Common Rationalizations
+## Behave Background scope — don't put app-open preconditions for all scenarios
+
+Behave's `Background:` runs before **every scenario** in the feature, including scenarios that don't
+need the app to be open (e.g. coredump checks, version assertions, cleanup verifications).
+
+**Anti-pattern:**
+```gherkin
+Feature: GNOME Settings smoke tests
+  Background:
+    * Settings window is accessible   # ← runs before EVERY scenario
+
+  Scenario: Settings closes cleanly via Ctrl+Q
+    * Key combo: "<Ctrl><Q>" with uinput
+    * Settings is no longer running   # ← explicitly kills Settings
+
+  Scenario: No gnome-control-center coredump after session start
+    * No coredump entries exist for "gnome-control-center"
+    # ^ Background runs first: tries to find Settings after it was just killed → FAILS
+```
+
+**Fix options (prefer first):**
+1. Move regression/coredump checks to a separate feature file without an app-open Background
+2. If the Background must re-launch the app, split launch from accessibility check:
+   ```gherkin
+   Background:
+     * Launch Settings via command
+     * Settings window is accessible
+   ```
+   Then even after Ctrl+Q, the next Background re-launches it.
+
+**Rule:** A feature Background should only assert state that is valid for ALL scenarios in that
+feature. If any scenario tears down that state, either restructure the teardown or move the
+non-dependent scenarios to a separate feature.
+
 
 | Rationalization | Reality |
 |---|---|
@@ -317,6 +350,8 @@ The CI runs behave with `--tags ~quarantine`, so quarantined scenarios are skipp
 - The same decorator text appears in multiple step files loaded by one suite
 - A test checks relocatable dconf keys with the wrong tool (`gsettings` vs `dconf read`)
 - A PR changes `tests/**` without a matching skill update
+- A feature Background opens an app but a scenario in the same feature closes that app (next scenario's Background will fail)
+- `@retry` added to a scenario to mask a missing retry loop in the underlying `_<app>_app()` helper
 
 ## Verification
 

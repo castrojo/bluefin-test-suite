@@ -361,6 +361,38 @@ Unconditional `sleep(N)` calls inflate suite time — avoid them. Rules:
 
 The pattern `for _ in range(N): ... sleep(X)` that returns early already IS exit-early. The gains come from removing the PRECEDING unconditional sleep, not from changing the loop.
 
+## AT-SPI app-lookup helpers must retry
+
+Every `_<app>_app()` helper must poll with a deadline, not check once and raise. GNOME 50 AT-SPI
+registration is slower in QEMU; a single-pass lookup fails even when the process is already running.
+
+**Canonical pattern (mirrors `_settings_app()`):**
+
+```python
+import time
+from time import sleep
+
+def _myapp_app(timeout: int = 15):
+    """Find the app in the AT-SPI tree, retrying for up to ``timeout`` seconds."""
+    deadline = time.monotonic() + timeout
+    last_error = None
+    while time.monotonic() < deadline:
+        for name in MYAPP_APP_NAMES:
+            try:
+                return tree.root.application(name)
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+        sleep(1)
+    raise AssertionError(
+        f"MyApp application was not found via AT-SPI after {timeout}s: {last_error}"
+    )
+```
+
+A scenario-level `@retry` tag does NOT substitute for this — it re-launches the whole scenario,
+potentially opening a second instance of the app. The retry loop in `_<app>_app()` is the right fix.
+
+The `@retry` tag is for infrastructure-flaky scenarios (network timeouts, D-Bus races at startup).
+AT-SPI registration lag on first lookup is always fixed at the helper level.
 
 
 When scaffolding multiple feature areas at once:
@@ -382,6 +414,7 @@ grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d
 - Using AT-SPI coordinate clicks on the top-bar (unreliable on GNOME 50+)
 - Polling `Main.extensionManager.lookup(uuid)?.state` via Shell.Eval (returns 6 on GNOME 50)
 - Using the SSH-based `_extension_state()` pattern in the smoke suite (smoke uses local subprocess)
+- `_<app>_app()` helper does a single-pass lookup with no retry loop — will flake on GNOME 50 QEMU
 
 ## Verification
 
