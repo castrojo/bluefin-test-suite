@@ -71,7 +71,8 @@ Do **not** use a full SHA pin (creates Renovate churn) or `@main` (floating, sec
 | Input | Type | Default | Description |
 |-------|------|---------|-------------|
 | `image` | string | `ghcr.io/projectbluefin/dakota:latest` | OCI image to test (must be a bootc/ostree image) |
-| `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common`, `lifecycle` |
+| `target-image` | string | `""` | Full OCI ref to upgrade TO (optional). When set and the `lifecycle` suite is running, stages this image via `bootc switch` before the test suite. Used for migration testing. |
+| `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common`. Note: `lifecycle` is also accepted but is not listed in the input description — use `manual.yml` or `projectbluefin/actions` wrapper workflows for lifecycle runs. |
 | `skip_native_apps` | boolean | `false` | When `true`, skips `@native_app` scenarios (Flatpak apps that may not be installed in all variants) |
 | `screenshot_flatpaks` | string | `""` | Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See [Flatpak screenshot gallery](../flatpak-screenshots.md) for full details. |
 | `chunked_enabled` | boolean | `false` | When `true`, sets `ZSTD_CHUNKED=true` so `@zstd_chunked` lifecycle scenarios run. Enable once the image ships `tar+zstd` OCI layers. |
@@ -115,54 +116,68 @@ coverage report --fail-under=75
 The `lifecycle` and `common` suites do **not** run inside the VM container. They run from the GHA runner via SSH — `lifecycle` because the test process must survive the mid-upgrade reboot; `common` because it only needs dconf/shell access, not a full AT-SPI bus. The pipeline branches at the "Run behave suite" step:
 
 ```
-if [[ "${SUITE}" == "common" || "${SUITE}" == "lifecycle" ]]
-  → ssh bluefin-test@localhost -p 2222 python3 behave_retry.py ...   (from runner)
+if [[ "${SUITE_DIR}" == "common" || "${SUITE_DIR}" == "lifecycle" ]]
+  → python3 tests/shared/behave_retry.py ...   (runner-side, SSH via VM_IP/VM_USER env vars)
 else
-  → podman run --rm ghcr.io/projectbluefin/testsuite:runner \
-      "python3 behave_retry.py ..."                                   (inside VM)
+  → scp tests/ to VM, then
+    podman run --rm ghcr.io/projectbluefin/testsuite:runner \
+      "python3 /tmp/bluefin-tests/tests/shared/behave_retry.py ..."  (inside VM)
 ```
 
-After the lifecycle suite finishes, a separate "Capture post-upgrade screenshot" step re-SSHes with `ControlMaster=no` (fresh connection after reboot), waits up to 60 s for the Wayland socket at `/run/user/1001/wayland-0`, and calls `org.gnome.Shell.Screenshot` via gdbus. The screenshot is saved to `results/screenshot_lifecycle_upgrade_final.png` and uploaded in the `e2e-results-*` artifact.
+When `target-image` is set and the `lifecycle` suite is running, the **"Pre-stage target image via bootc switch"** step SSHes into the VM and runs `sudo bootc switch '<target-image>'` before the behave run begins, staging the upgrade target.
 
-A **"Collect migration status"** step also runs (`always()`, `continue-on-error: true`) for the lifecycle suite. It SSHes in and writes `results/migration-status.txt` containing `bootc status` and `fastfetch` output — useful for confirming the active image ref and OS version after a migration reboot. This file is included in the `e2e-results-*` artifact alongside the screenshot.
+After the lifecycle suite finishes, a separate **"Capture post-upgrade desktop screenshot"** step re-SSHes with `ControlMaster=no` (fresh connection after reboot), waits up to 60 s for the Wayland socket at `/run/user/1001/wayland-0`, and calls `org.gnome.Shell.Eval` via gdbus to capture a screenshot. The screenshot is saved to `results/screenshot_lifecycle_upgrade_final.png` and uploaded in the `e2e-results-*` artifact.
+
+A **"Capture post-migration screenshot and status"** step also runs (`always()`, `continue-on-error: true`) for the lifecycle suite. It captures the QEMU framebuffer via `tests/shared/qemu_screendump.py` and SSHes in to write `results/migration-status.txt` containing `bootc status`, `fastfetch`, and `os-release` output — useful for confirming the active image ref and OS version after a migration reboot. Both files are included in the `e2e-results-*` artifact.
 
 **Preferred manual trigger:** dispatch `upgrade-test.yml` in `projectbluefin/actions` — it calls `e2e.yml` cross-repo (which works). Do NOT dispatch `manual.yml` in this repo for lifecycle runs (see ops.md "manual.yml startup_failure").
 
 ## Pipeline stages
 
 1. **Resolve matrix** — splits `suites` CSV into a JSON array for the strategy matrix; `smoke` becomes `smoke-a,smoke-b` and `common` becomes `common-a,common-b`
-2. **Resolve Flatpak manifest + cache** — sparse checkout must include `flatpak-app-list.txt` so `hashFiles()` can key an `actions/cache` entry for the runner-side Flatpak repo when Bluefin GUI suites preload app installs.
-3. **Free disk space** — fast inline cleanup removes the hosted runner's large unused SDK trees (`/usr/share/dotnet`, Android, GHC, CodeQL) plus `php*`, `dotnet*`, `mono*`, and `llvm*`; this keeps the 30 GB `disk.raw` allocation viable without the slower `ublue-os/remove-unwanted-software` action
-4. **Enable KVM** — udev rule for `/dev/kvm` access
-5. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `podman pull` runs in background.
-6. **Install OCI image to disk** — `bootc install to-disk` writes ostree layers to a 30 GB raw disk; a non-zero exit is only tolerated after the workflow logs the full install output and proves `/ostree/deploy/default/deploy/` is non-empty. This matches the bootc install docs, which treat the deployment tree as the post-install target for follow-up customization. Direct QEMU kernel boot is used instead of OVMF/systemd-boot.
-7. **Configure disk** — mounts the raw disk and:
-   - Copies `vmlinuz` + `initramfs.img` to workspace for direct kernel boot
-   - Creates `bluefin-test` user (UID 1001)
-   - Injects SSH public key
-   - Pre-bakes GDM autologin
-   - Enables sshd, pre-generates SSH host keys
-   - Masks irrelevant services (bluetooth, cups, avahi…)
-   - Sets `PermitUserEnvironment yes` for AT-SPI env forwarding
-8. **Boot VM** — `qemu-system-x86_64` with KVM, 4 GB RAM, 4 vCPUs, `virtio-gpu`, forwarded SSH on port 2222; daemonized
-9. **Wait for SSH** — polls port 2222 up to 5 minutes
-10. **Wait for GNOME session** — polls `/run/user/1001/wayland-0` up to 3 minutes
-11. **Capture boot time summary** — after GNOME is up, reuse the same runner-side SSH tuple (`bluefin-test@127.0.0.1:2222` with `/tmp/vm_key`) to run `systemd-analyze time` and append the single-line result to `$GITHUB_STEP_SUMMARY` under an image slug header. Put boot-time diagnostics here, not earlier at SSH-ready time, so the summary reflects a usable desktop session.
-12. **Load runner container + install test stack** — pipes the pre-built `ghcr.io/projectbluefin/testsuite:runner` container into the VM via `podman save | ssh podman load` (rootless, as `bluefin-test`). Before loading, ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid` entries and runs `podman system migrate`. Then: loads kernel module (`uinput`), sets device permissions, copies SSH key for @plain_ssh scenarios, captures GNOME session environment (`DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, etc.) into `/tmp/session.env`.
-13. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
+2. **Checkout testsuite** — sparse checkout of `flatpak-app-list.txt`, `tests/`, and `scripts/check_quarantine_age.py` from `projectbluefin/testsuite` at `inputs.test_ref`; always `fetch-depth: 0`
+3. **Resolve suite shard** — Python step computes `SUITE_DIR` (physical directory), `FEATURE_ARGS` (specific `.feature` files for shards), and `SCREENSHOT_SUITE` (normalized suite name for GHCR tags)
+4. **Restore/prime Flatpak download cache** — Bluefin GUI suites only; caches a runner-side user Flatpak repo keyed on `flatpak-app-list.txt` hash
+5. **Free disk space** — runs `ublue-os/remove-unwanted-software@v9`; keeps the 30 GB `disk.raw` allocation viable on GitHub-hosted runners
+6. **Enable KVM** — udev rule for `/dev/kvm` access
+7. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `sudo podman pull <image>` and `sudo podman pull ghcr.io/projectbluefin/testsuite:runner` run concurrently in background
+8. **Generate SSH keypair** — creates `ed25519` keypair at `/tmp/vm_key`; public key stored in `VM_PUBKEY` env var
+9. **Install OCI image and configure disk** — combined step that:
+   - `fallocate -l 30G disk.raw`
+   - `bootc install to-disk --via-loopback disk.raw --filesystem ext4` (with `--bootloader systemd` flag when bootc ≥0.1.13; older images skip the flag)
+   - Mounts the raw disk, finds `ROOT_UUID` (partition 3), ostree deployment hash, and `KVER`
+   - Copies `vmlinuz` + `initramfs.img` from deployment `usr/lib/modules/<kver>/` (or boot partition fallback)
+   - Creates `boot.N` symlinks needed by `ostree-system-generator` (including canonical `boot.N` alias for versioned `boot.N.M` dirs produced by newer bootc)
+   - Sets `KERNEL_ARGS` env (includes `root=UUID=...`, masked services, serial console, `selinux=0`)
+   - Iterates all deployment directories and writes: `bluefin-test` user (UID 1001), GDM autologin, sshd drop-in `00-ci-auth.conf`, dconf `local.d/00-ci-testing` override, `tmpfiles.d/ci-user.conf`, masked service symlinks
+   - Pre-installs `unsafe-mode@bluefin-test` gnome-shell extension files into var home (pre-boot, so gnome-shell finds it during `_loadExtensions()`)
+   - Injects SSH authorized key into `/var/home/bluefin-test/.ssh/` and each deployment's `/etc/ssh/ci-authorized-keys`
+10. **Boot VM** — `qemu-system-x86_64` with KVM, 4 GB RAM, 4 vCPUs, `virtio-gpu-pci`, forwarded SSH on port 2222; daemonized; QEMU monitor socket at `/tmp/qemu-monitor.sock` (chmod 666)
+11. **Wait for SSH** — polls port 2222 up to **15 minutes** (900 s)
+12. **Pre-stage target image via bootc switch** — lifecycle suite only, when `inputs.target-image` is set; SSHes into VM and runs `sudo bootc switch '<target-image>'` to stage the upgrade target before the test run
+13. **Dump VM serial log** — always runs (`if: always()`); primary debug tool when SSH never comes up
+14. **Wait for GNOME session** — polls `/run/user/1001/wayland-0` up to 3 minutes
+15. **Capture boot time** — SSHes in, runs `systemd-analyze time`, appends result to `$GITHUB_STEP_SUMMARY`
+16. **Install cached Flatpaks in VM** — Bluefin GUI suites (non-common/non-lifecycle) only; SCPs a tarred runner-side Flatpak repo into the VM and deploys missing apps with `sudo flatpak install --system --sideload-repo=...`, falling back to Flathub if cache is incomplete
+17. **Install shell tools for common suite** — common suite only; installs `zsh`, `fish`, and brew CLI tools (`fzf`, `bat`, `eza`, `fd`, `ripgrep`, `starship`) via brew (if available) or `rpm-ostree --apply-live` / `dnf` fallback; `brew-setup.service` is masked in CI so these are installed manually
+18. **Load runner container into VM** — non-common suites; ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid`, runs `podman system migrate`, pipes `ghcr.io/projectbluefin/testsuite:runner` via `podman save | ssh podman load`; patches `openssh-clients` into the runner image if missing
+19. **Install Python test stack** — non-common suites; loads `uinput` kernel module, sets device permissions, copies SSH private key into VM for `@plain_ssh` scenarios, queries GNOME session environment into `/tmp/session.env`, enables `unsafe-mode@bluefin-test` extension, sets `toolkit-accessibility true`, re-queries AT-SPI bus address after enabling accessibility, terminates any pre-started `gnome-control-center`
+20. **Install gnome-ponytail-daemon** — non-common suites; builds `gnome-ponytail-daemon` (tag `0.0.11`) and `grim` from source inside a `debian:bookworm` container on the runner (without libei, uses Mutter D-Bus fallback for input events; wayland-protocols 1.37 built from source for grim); SCPs binaries into `~/.local/libexec/` and `~/.local/bin/`; registers D-Bus service file and pre-starts the daemon
+21. **Run behave suite** — `common`/`lifecycle`: runner-side `python3 tests/shared/behave_retry.py` with `VM_IP/VM_USER/SSH_KEY/SSH_PORT` env vars; GUI suites: SCP `tests/<suite>` + `tests/shared` + `tests/__init__.py` to VM, then `podman run ... ghcr.io/projectbluefin/testsuite:runner "python3 .../behave_retry.py ... --format json.pretty"` inside VM; always `--tags ~quarantine`; retries controlled by `BEHAVE_RETRIES=2`
+22. **Capture post-upgrade desktop screenshot** — lifecycle suite only; SSHes with `ControlMaster=no`, waits up to 60 s for Wayland socket, captures via `gdbus org.gnome.Shell.Eval`
+23. **Capture post-migration screenshot and status** — lifecycle suite only; QEMU framebuffer capture via `qemu_screendump.py` + SSH for `bootc status`, `fastfetch`, `os-release` into `results/migration-status.txt`
+24. **Capture Flatpak screenshots** — when `inputs.screenshot_flatpaks != ''`; runs `screenshot_cli.py` inside the runner container
+25. **Capture desktop screenshot (QEMU screendump fallback)** — non-common suites; if no `screenshot_*fastfetch*.png` found in `results/`, captures QEMU VGA framebuffer via `/tmp/qemu-monitor.sock`
+26. **Promote desktop screenshot** — finds best screenshot (`screenshot-post-migration.png` > upgrade > fastfetch); for non-common/non-lifecycle suites, fails loud if no screenshot found
+27. **Push desktop screenshot to GHCR** — pushes `:<short-sha>`, `:<SCREENSHOT_SUITE>-latest`, and `:<image-slug>-<SCREENSHOT_SUITE>-latest` tags; also pushes per-Flatpak gallery tags
+28. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenarios; includes quarantine age summary from `scripts/check_quarantine_age.py --json`; includes screenshot pull commands and gh-pages URL
+29. **Prepare artifact metadata** — writes `results/artifact-metadata.json`; computes `artifact_suffix` by sanitizing the full image reference (not just image name — the full `ghcr.io/org/image:tag` string is sanitized)
+30. **Upload results artifact** — `e2e-results-<artifact-suffix>-<suite>` (30 days); includes `results.json`, `results.txt`, `artifact-metadata.json`, and any screenshots
+31. **Upload serial log artifact** — `vm-serial-log-<artifact-suffix>-<suite>` (3 days)
+32. **Fail job if tests failed** — exits with behave's return code
+33. **Write + upload e2e metadata** — writes `meta/e2e-metadata.json` (`image`, `suite`, `conclusion`); uploaded as `e2e-metadata-<suite>` artifact (1 day)
 
 Smoke-suite correctness rule: commands launched with plain `subprocess.run()` execute in the qecore runner container, not necessarily against the VM host state. In `tests/smoke/features/steps/system_health_steps.py`, host-facing probes (`systemctl`, `journalctl`, `df`, `getent hosts`, etc.) must use the VM helper (`_run_host()`). Using `_run()` for those checks only tests the runner container and can miss VM regressions.
-11. **Inject cached Flatpaks (Bluefin GUI suites only)** — SCPs a tarred runner-side Flatpak repo plus `flatpak-app-list.txt`, then installs missing apps with `sudo flatpak install --system --sideload-repo=...`.
-12. **Load runner container + install test stack** — pipes the pre-built `ghcr.io/projectbluefin/testsuite:runner` container into the VM via `podman save | ssh podman load` (rootless, as `bluefin-test`). Before loading, ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid` entries and runs `podman system migrate`. Then: loads kernel module (`uinput`), sets device permissions, copies SSH key for @plain_ssh scenarios, captures GNOME session environment (`DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, etc.) into `/tmp/session.env`.
-13. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
-14. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
-15. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
-11. **Load runner container + install test stack** — pipes the pre-built `ghcr.io/projectbluefin/testsuite:runner` container into the VM via `podman save | ssh podman load` (rootless, as `bluefin-test`). Before loading, ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid` entries and runs `podman system migrate`. Then: loads kernel module (`uinput`), sets device permissions, copies SSH key for @plain_ssh scenarios, captures GNOME session environment (`DBUS_SESSION_BUS_ADDRESS`, `WAYLAND_DISPLAY`, etc.) into `/tmp/session.env`.
-12. **Copy testsuite + run behave** — SCPs `tests/<suite>` and `tests/shared` to VM; runs `qecore-headless behave … --format json.pretty`
-
-Smoke-suite correctness rule: commands launched with plain `subprocess.run()` execute in the qecore runner container, not necessarily against the VM host state. In `tests/smoke/features/steps/system_health_steps.py`, host-facing probes (`systemctl`, `journalctl`, `df`, `getent hosts`, etc.) must use the VM helper (`_run_host()`). Using `_run()` for those checks only tests the runner container and can miss VM regressions.
-13. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenario list to GitHub Step Summary
-14. **Upload artifacts** — `e2e-results-<image-slug>-<suite>` (results JSON + text + `artifact-metadata.json`, 30 days) and `vm-serial-log-<image-slug>-<suite>` (3 days)
 
 ## Image requirements
 
@@ -170,10 +185,11 @@ The OCI image under test **must**:
 
 - Be a bootc/ostree image (`bootc install to-disk` compatible)
 - Include GNOME + GDM
-- Include `gnome-ponytail-daemon` (bridges AT-SPI to Wayland; required for dogtail)
-- Have `python3` available for pip bootstrap
+- Have `python3` available in the deployment
 
-The workflow injects the test user, SSH keys, and autologin config at disk-prep time — nothing needs to be baked into the image for those.
+**`gnome-ponytail-daemon` is built at runtime** — the workflow compiles it from source in a `debian:bookworm` container on the runner and SCPs the binary into the VM. The image does NOT need to ship `gnome-ponytail-daemon`. (See step 20 above.)
+
+The workflow injects the test user, SSH keys, autologin config, and the unsafe-mode gnome-shell extension at disk-prep time — nothing needs to be baked into the image for those.
 
 ## Common Rationalizations
 
@@ -181,8 +197,8 @@ The workflow injects the test user, SSH keys, and autologin config at disk-prep 
   It cannot here — the pulls run under `sudo`, so cache the root store or the pull will still miss.
 - "A floating `uses:` tag is fine for a speedup-only change."  
   It is not; external actions in this repo must stay SHA-pinned.
-- "We can keep the slow disk cleanup because it already works."  
-  No — if a faster inline cleanup frees enough space for `disk.raw`, prefer the faster path.
+- "We can replace `ublue-os/remove-unwanted-software` with an inline cleanup for speed."  
+  The workflow currently uses `ublue-os/remove-unwanted-software@v9` for disk cleanup. Switching to an inline cleanup is only worthwhile if the action is the measured bottleneck — do not change this without profiling.
 
 ## Flatpak cache pattern for Bluefin GUI suites
 
@@ -291,8 +307,11 @@ See [`docs/flatpak-screenshots.md`](../flatpak-screenshots.md) for full document
 
 | Artifact | Content | Retention |
 |----------|---------|-----------|
-| `e2e-results-<image-slug>-<suite>` | `results.json` (behave JSON), `results.txt` (pretty output), `artifact-metadata.json` (image + suite metadata), `screenshot_lifecycle_upgrade_final.png` (lifecycle only) | 30 days |
-| `vm-serial-log-<image-slug>-<suite>` | QEMU serial console output | 3 days |
+| `e2e-results-<artifact-suffix>-<suite>` | `results.json` (behave JSON), `results.txt` (pretty output), `artifact-metadata.json` (image + suite metadata), screenshots, `migration-status.txt` (lifecycle only) | 30 days |
+| `vm-serial-log-<artifact-suffix>-<suite>` | QEMU serial console output | 3 days |
+| `e2e-metadata-<suite>` | `e2e-metadata.json` — `{"image":…,"suite":…,"conclusion":…}` for downstream promotion jobs | 1 day |
+
+`<artifact-suffix>` is derived by sanitizing the full image reference (e.g. `ghcr.io/projectbluefin/bluefin:testing` → `ghcr.io-projectbluefin-bluefin-testing`), not just the image name.
 
 The serial log is always uploaded (even on failure) — it's the primary debug tool when the VM doesn't boot or SSH never comes up.
 
@@ -357,9 +376,9 @@ The "Wait for GNOME session" step runs `journalctl -u gdm --no-pager -n 50` on t
 
 The testsuite is checked out sparse (`tests/<suite>` + `tests/shared` only). If the suite imports from a path outside those two directories, the copy will be incomplete. Verify the suite's `environment.py` imports.
 
-### Timeout (45 min job limit)
+### Timeout (120 min job limit)
 
-The install + configure step is the heaviest (~10–15 min depending on image size). OCI layer caching should remove most repeat pull time; if jobs still hit the 45-minute limit, reduce suite scope or check for unusually large uncached images.
+The install + configure step is the heaviest (~10–15 min depending on image size). OCI layer caching should remove most repeat pull time; if jobs still hit the 120-minute limit, reduce suite scope or check for unusually large uncached images.
 
 ## Consumer constraints — what you cannot do from the reusable action
 
