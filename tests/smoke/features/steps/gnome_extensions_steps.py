@@ -52,10 +52,16 @@ def _run_host(cmd: list[str] | str):
             capture_output=True, text=True, timeout=30, check=False,
         )
     else:
+        # qecore-headless replaces os.environ with gnome-session's /proc/<pid>/environ.
+        # On dbus-broker sessions DBUS_SESSION_BUS_ADDRESS may be absent; the well-known
+        # socket at /run/user/<uid>/bus is always present for active sessions.
+        _local_env = dict(os.environ)
+        if not _local_env.get("DBUS_SESSION_BUS_ADDRESS"):
+            _local_env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{os.getuid()}/bus"
         if isinstance(cmd, list):
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False, env=_local_env)
         else:
-            result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=30, check=False)
+            result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=30, check=False, env=_local_env)
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
@@ -84,7 +90,9 @@ def _extension_state(uuid: str) -> str:
     """Return the extension state integer as a string.
 
     Uses org.gnome.Shell.Extensions.GetExtensionInfo and tolerates either
-    GNOME Shell object path seen in smoke runs.
+    GNOME Shell object path seen in smoke runs.  Falls back to
+    ``gnome-extensions show`` (GJS-based, no D-Bus address needed) when
+    GetExtensionInfo fails.
     """
     quoted_uuid = shlex.quote(f"'{uuid}'")
     commands = (
@@ -108,6 +116,22 @@ def _extension_state(uuid: str) -> str:
         match = re.search(r"'state':\s*<uint32\s+(\d+)>", output)
         if match:
             return match.group(1)
+    # Fallback: gnome-extensions uses GJS/Gio which connects to the session
+    # bus via XDG_RUNTIME_DIR/bus without needing DBUS_SESSION_BUS_ADDRESS.
+    show_out, show_rc, _ = _run_host(["gnome-extensions", "show", uuid])
+    if show_rc == 0:
+        if "State: ENABLED" in show_out:
+            return "1"
+        if "State: DISABLED" in show_out:
+            return "2"
+        if "State: ERROR" in show_out:
+            return "3"
+        if "State: INITIALIZED" in show_out:
+            return "6"
+    # Last resort: check gnome-extensions list --enabled
+    list_out, list_rc, _ = _run_host(["gnome-extensions", "list", "--enabled"])
+    if list_rc == 0 and uuid in list_out.splitlines():
+        return "1"
     return "99"
 
 

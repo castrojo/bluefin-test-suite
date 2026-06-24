@@ -28,6 +28,7 @@ def _import_gnome_apps(tree_available: bool = True, in_container: bool = False):
 
     app_support_stub = types.ModuleType("app_support")
     app_support_stub.launch_background = MagicMock()
+    app_support_stub.launch_target_available = MagicMock(return_value=True)
     sys.modules["app_support"] = app_support_stub
 
     for key in list(sys.modules):
