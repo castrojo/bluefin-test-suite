@@ -2,3 +2,11 @@
 # Keep this list small so cold-cache warm-up stays cheaper than first-boot installs.
 org.mozilla.firefox
 io.github.kolunmi.Bazaar
+org.gnome.Calculator
+org.gnome.TextEditor
+org.gnome.Loupe
+org.gnome.Papers
+org.gnome.clocks
+org.gnome.Calendar
+io.missioncenter.MissionCenter
+com.github.tchx84.Flatseal
