@@ -53,7 +53,13 @@ def _run_host(cmd: str, timeout: int = 30):
             capture_output=True, text=True, timeout=timeout,
         )
     else:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        # qecore-headless replaces os.environ with gnome-session's /proc/<pid>/environ.
+        # On dbus-broker sessions DBUS_SESSION_BUS_ADDRESS may be absent; the well-known
+        # socket at /run/user/<uid>/bus is always present for active sessions.
+        env = dict(os.environ)
+        if not env.get("DBUS_SESSION_BUS_ADDRESS"):
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{os.getuid()}/bus"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout, env=env)
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
@@ -502,7 +508,7 @@ def wayland_session_active(context) -> None:
         "printf '%s\\n' \"${XDG_SESSION_TYPE:-}\"; "
         "if [ -z \"${XDG_SESSION_TYPE:-}\" ]; then "
         "session_id=$(loginctl list-sessions --no-legend 2>/dev/null | awk 'NR==1{print $1}'); "
-        "[ -n \"$session_id\" ] && loginctl show-session \"$session_id\" --property=Type --value 2>/dev/null; "
+        "[ -n \"$session_id\" ] && loginctl show-session \"$session_id\" --property=Type --value 2>/dev/null || true; "
         "fi"
     )
     assert returncode == 0, f"Unable to determine session type: {stderr or stdout}"

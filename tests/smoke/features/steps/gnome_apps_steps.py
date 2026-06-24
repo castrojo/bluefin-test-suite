@@ -12,7 +12,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
-from app_support import launch_background
+from app_support import launch_background, launch_target_available
 
 _IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
 
@@ -333,6 +333,12 @@ def _launch_targets_assert_and_close(
     window_names: set[str],
     label: str,
 ) -> None:
+    if not launch_target_available(launch_targets):
+        try:
+            context.scenario.skip(f"{label} is not installed — skipping launch test")
+        except Exception:  # noqa: BLE001
+            pass
+        return
     context.last_launch_target = launch_background(launch_targets)
     window = _wait_for_window_or_title(app_names, window_names, label)
     context.last_launched_app_window = window
