@@ -332,9 +332,17 @@ If PR B depends on step functions added by PR A (e.g. B's `.feature` uses `Switc
 
 Corollary: do not close or skip enqueuing a "dependency" PR just because its CI ran against an older `main` — re-enqueue both in order.
 
-## Merging PRs — merge queue required
+## Merging PRs — lab test first, then merge queue
 
-This repo uses a **merge queue** (ruleset `main — merge queue`, id 17074591). Enqueue with:
+**The review workflow is: submit to lab → wait for results → merge on pass, fix on fail.**
+
+The `pr-label-poller` CronWorkflow in `projectbluefin/testing-lab` automatically picks up every open testsuite PR every 5 minutes and runs `smoke,common` suites on a real KubeVirt VM. It posts a `ghost-lab` commit status on the PR SHA.
+
+Wait for the `ghost-lab` status to be `success` before enqueuing. If it is `failure`, fix the PR and let the poller re-run.
+
+**Do not enqueue before the lab result is posted.** GHA CI (lint, dry-run, pytest) passing is necessary but not sufficient — those checks do not boot a real VM.
+
+Once `ghost-lab` is green, enqueue with:
 
 ```bash
 gh pr merge <NUMBER> --repo projectbluefin/testsuite --squash --auto
@@ -347,8 +355,6 @@ The `--auto` flag enqueues the PR; the merge queue runs all required CI checks o
 | `Lint & syntax` | `pr-validate.yml` | `pull_request`, `merge_group`, `push: main` |
 | `Behave dry-run` | `pr-validate.yml` | same |
 | `pytest` | `unit-tests.yml` | `pull_request`, `merge_group`, `push: main` |
-
-**Prerequisites before enqueueing:** all 3 checks must be green on the PR head. If checks are still running, `--auto` will wait and enqueue once they pass.
 
 Do not attempt `--admin` bypasses.
 

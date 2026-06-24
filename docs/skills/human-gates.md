@@ -66,12 +66,16 @@ gh search code "testsuite/.github/workflows/e2e.yml" --repo projectbluefin --jso
 
 ## Merge gate
 
-All PRs enter the merge queue via:
+**The review workflow is: submit to lab → wait for results → merge on pass, fix on fail.**
+
+The `pr-label-poller` in `projectbluefin/testing-lab` auto-runs `smoke,common` on every open testsuite PR every 5 minutes and posts a `ghost-lab` commit status. Wait for `ghost-lab: success` before enqueueing. If `failure`, fix and let the poller re-run.
+
+Once the lab passes, enqueue via:
 ```bash
 gh pr merge <NUMBER> --repo projectbluefin/testsuite --squash --auto
 ```
 
-The merge queue runs required CI (lint, behave dry-run, pytest) on the merge commit and lands automatically on green. Human `lgtm` is not required for normal test/docs/fix PRs — only for:
+The merge queue still runs required GHA checks (lint, behave dry-run, pytest) on the merge commit and lands automatically on green. Human `lgtm` is not required for normal test/docs/fix PRs — only for:
 
 - PRs touching `.github/workflows/e2e.yml` (reusable workflow interface)
 - PRs touching `AGENTS.md` (behavioral directive changes)
