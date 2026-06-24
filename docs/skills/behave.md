@@ -91,6 +91,23 @@ When a scenario is meant to fail on a bad command, never append `; true` (or
 similar success-forcing trailers) to the SSH command. That masks the real exit
 status and turns `SSH command return code is "0"` into a no-op. Use `2>&1` to
 capture diagnostics, but preserve the original command's exit code.
+
+## `grep -q` vs `grep -c` for existence checks
+
+**Never use `grep -c ... || echo 0`** for existence checks in SSH commands. This is a false-positive trap:
+- On no match: `grep -c` prints `0` and exits 1, then `echo 0` fires and the overall command exits 0
+- The output is now `"0\n0"` — the step `SSH command output is not "0"` sees `"0\n0"` which is not equal to `"0"` and **passes falsely**
+
+**Correct pattern** — use `grep -q` and assert the return code:
+```gherkin
+Scenario: Portal interface is present
+  * Run SSH command: "gdbus introspect ... | grep -q 'InterfaceName'"
+  * SSH command return code is "0"
+```
+
+`grep -q` exits 0 on match, 1 on no match, with no output. The return code assertion is the signal.
+The same applies to `wc -l`, `grep -c`, or any count-based check used as an existence gate.
+
 ## Common suite `ujust` recipe coverage
 
 Keep SSH-based `ujust` recipe checks in `tests/common/features/common_ujust.feature`.
