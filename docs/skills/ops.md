@@ -694,3 +694,72 @@ GitHub checks out the actions repo to a runner cache path, never inside the call
 
 Also: `.gitignore` rules without a leading `/` match anywhere in the tree.
 `actions/` ignores `.github/actions/` too. Use `/actions/` to scope to the repo root.
+
+---
+
+## common suite execution model — runner container, not inside VM
+
+**The common suite is an SSH-driven black-box tester.** It runs FROM the Argo runner
+container (fedora:latest) and SSHes INTO the VM. It is NOT an AT-SPI suite and does not
+require qecore-headless or a display.
+
+**Environment variables required in the runner container:**
+- `VM_IP` — IP of the Bluefin VM (set by run-gnome-tests.yaml automatically)
+- `VM_USER` — SSH user (default: `bluefin-test`)
+- `SSH_KEY` — path to the private key, e.g. `/etc/ssh/test-key/id_ed25519`
+
+**Root cause of "Cannot reach VM at  over SSH after 5 attempts":**
+The common suite's `environment.py` reads `VM_IP` from env. If behave runs inside
+the VM via qecore-headless (old bug), `VM_IP` is empty and every SSH step fails.
+
+**Fix (applied in testing-lab `a70e1c4`):** `run-gnome-tests.yaml` now has a dedicated
+`elif [[ "${SUITE}" == "common" ]]` branch that:
+1. Installs behave in the runner container if absent
+2. Exports `VM_IP`, `VM_USER`, `SSH_KEY`
+3. Runs `python3 -m behave /workspace/bluefin-test-suite/tests/common/features/`
+4. Writes results.json locally (skips the VM→runner SCP step)
+
+Do NOT add common to the qecore-headless path. Common has no GNOME AT-SPI dependency.
+
+---
+
+## smoke suite — pre-existing lab failures (GNOME 50 AT-SPI)
+
+Many smoke suite scenarios fail in the lab on `bluefin:testing` for infrastructure
+reasons unrelated to the PR being tested. These are expected until the lab image is
+updated:
+
+| Feature | Failure | Root cause |
+|---|---|---|
+| `bluefin_extensions.feature` | Extensions state=99 | Extensions not loaded — GNOME 50 changes to extension init |
+| `bluefin_desktop.feature` | Shell.Eval rc=1 | QEMU guest agent not responding — AT-SPI unsafe_mode set fails |
+| `gnome_shell.feature` | Shell.Eval rc=1 | Same — D-Bus Shell.Eval interface not responding |
+| `gnome_notifications.feature` | Shell.Eval rc=1 | Same |
+| `gnome_accessibility.feature` | AT-SPI daemon not running | AT-SPI registry not starting in KVM session |
+| `gnome_apps.feature` | No launch candidate | OOTB Flatpaks not installed (no OOBE run) |
+| `system_health.feature` | Root filesystem 5% free | VM disk too small (20GB VM vs ~17GB image) |
+
+**None of these failures indicate a bug in the PR under test.** They are visible in
+smoke runs for unrelated PRs and for the post-merge smoke workflow. Tag scenarios
+exposing these as `@quarantine` when the failure is a lab constraint, not a product bug.
+
+**Flatpak scenarios:** Quarantine until testing-lab runs OOBE before test execution.
+The `@quarantine` tag is correct — when the lab is fixed, remove the tag and re-test.
+
+---
+
+## testing-lab ArgoCD template resolution timing
+
+Argo WorkflowTemplates are resolved at pod creation time from the current state of the
+WorkflowTemplate object in the cluster. ArgoCD syncs testing-lab within ~2 minutes of
+a push. If a workflow is submitted before ArgoCD syncs a new template version, the
+running workflow pods will use the OLD template.
+
+**Impact:** If you push a fix to run-gnome-tests.yaml, workflows already submitted will
+use the old version. Wait for the current workflow to finish, then dispatch a new one.
+
+**ArgoCD sync status:**
+```bash
+kubectl get application testing-lab -n argocd \
+  -o jsonpath='{.status.sync.status} {.status.sync.revision}'
+```
