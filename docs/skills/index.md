@@ -9,9 +9,14 @@ description: Entry point for projectbluefin/testsuite skill tree. Load this for 
 
 | This repo owns | Belongs elsewhere |
 |---|---|
-| Behave features/steps, dogtail/qecore patterns, shared SSH helpers | Hardware ops, cluster infra, CronWorkflows → `projectbluefin/testing-lab` |
+| Behave features/steps, dogtail/qecore patterns, shared SSH helpers | VM specs, cluster manifests, CronWorkflows → `projectbluefin/testing-lab` |
 
-New suites → this repo. New infra (VM specs, manifests) → testing-lab. PRs touching both must be split.
+**`projectbluefin/testsuite` is the single source of truth for all Bluefin image tests.**
+Tests run in two places from this repo:
+- **GitHub Actions** (`e2e.yml`) — QEMU-based, on every PR and image publish
+- **KubeVirt lab** (`run-gnome-tests` WorkflowTemplate in testing-lab) — clones this repo and runs against a real VM
+
+New test scenarios → this repo. New infra (VM specs, manifests, Argo templates) → testing-lab. PRs touching both must be split.
 
 ## Hard rules (single source of truth)
 
