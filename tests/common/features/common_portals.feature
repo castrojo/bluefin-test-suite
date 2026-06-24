@@ -7,6 +7,17 @@ Feature: XDG desktop portal health
   Background:
     * Bluefin VM is booted and reachable over SSH
 
+  @regression
+  Scenario: graphical-session.target is active in the user session
+    * Run SSH command: "systemctl --user is-active graphical-session.target"
+    * SSH command return code is "0"
+
+  @regression
+  Scenario: xdg-desktop-portal did not fail due to missing session target
+    * Run SSH command: "systemctl --user show xdg-desktop-portal.service --property=Result --value"
+    * SSH command return code is "0"
+    * SSH command output stripped "is" "success"
+
   Scenario: xdg-desktop-portal user service is active
     * Run SSH command: "systemctl --user is-active xdg-desktop-portal 2>/dev/null || systemctl --user status xdg-desktop-portal | grep -E 'active|running'"
     * SSH command return code is "0"
