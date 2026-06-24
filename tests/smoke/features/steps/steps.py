@@ -630,3 +630,24 @@ def xdg_mime_video_player(context, mime_type: str) -> None:
         f"Expected one of {VIDEO_PLAYERS}"
     )
 
+
+@step('Flatpak "{app_id}" is installed system-wide')
+def flatpak_installed_system_wide(context, app_id: str) -> None:
+    """Assert app_id is present in the system Flatpak installation on the VM."""
+    stdout, rc, stderr = _run_host(f"flatpak info --system {app_id}")
+    assert rc == 0, f"{app_id} not installed system-wide: {stderr or stdout}"
+
+
+@step('Flatpak "{app_id}" sandbox does not have excessive filesystem permissions')
+def flatpak_no_excessive_permissions(context, app_id: str) -> None:
+    """Assert app_id is installed and its sandbox lacks host/home filesystem access."""
+    stdout, rc, stderr = _run_host(f"flatpak info --system {app_id}")
+    assert rc == 0, f"{app_id} not installed system-wide — cannot audit permissions: {stderr or stdout}"
+    perms_out, perms_rc, _ = _run_host(
+        f"flatpak info --system --show-permissions {app_id}"
+    )
+    import re
+    assert not re.search(r"filesystems=(host|home)", perms_out), (
+        f"{app_id} has excessive filesystem access:\n{perms_out}"
+    )
+
