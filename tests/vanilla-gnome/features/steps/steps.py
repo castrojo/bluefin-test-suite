@@ -24,24 +24,10 @@ from behave import step
 from dogtail import tree
 from qecore.common_steps import *  # noqa: F401,F403
 from tests.shared.gnome_shell_steps import *  # noqa: F401,F403
+from tests.shared.gnome_shell_steps import _shell_eval, _eval_bool, _wait_eval_bool
 
 
 # ── Shell.Eval helpers (GNOME 50: uinput Super + AT-SPI toggle click broken) ──
-
-def _shell_eval(js: str, timeout: int = 10) -> str:
-    """Run JS in GNOME Shell and return stdout. Requires unsafe_mode=true."""
-    result = subprocess.run(
-        ['gdbus', 'call', '--session',
-         '--dest', 'org.gnome.Shell',
-         '--object-path', '/org/gnome/Shell',
-         '--method', 'org.gnome.Shell.Eval',
-         js],
-        capture_output=True, text=True, timeout=timeout,
-    )
-    assert result.returncode == 0, f"Shell.Eval failed: {result.stderr.strip()}"
-    print(f"Shell.Eval({js!r}) → {result.stdout.strip()}", flush=True)
-    return result.stdout
-
 
 def _shell_eval_value(context, js: str, timeout: int = 10) -> str:
     """Return a Shell.Eval result string via gdbus.
@@ -56,31 +42,11 @@ def _shell_eval_value(context, js: str, timeout: int = 10) -> str:
     raise AssertionError(f"Could not parse Shell.Eval value from output: {out}")
 
 
-def _eval_bool(js: str) -> bool:
-    out = _shell_eval(js)
-    # GNOME 50 may wrap the JS result in extra double-quotes: (true, '"true"')
-    match = re.search(r',\s*\'"?(true|false)"?\'\s*\)', out, re.IGNORECASE)
-    if match:
-        return match.group(1).lower() == 'true'
-    raise AssertionError(f"Could not parse boolean from Shell.Eval output: {out}")
-
-
 def _eval_context_bool(context, js: str, timeout: int = 10) -> bool:
     value = _shell_eval_value(context, f"({js}).toString()", timeout=timeout)
     if value.lower() in {'true', 'false'}:
         return value.lower() == 'true'
     raise AssertionError(f"Could not parse boolean from Shell.Eval output: {value}")
-
-
-def _wait_eval_bool(js: str, expected: bool, retries: int = 8, delay: float = 0.5) -> bool:
-    for _ in range(retries):
-        try:
-            if _eval_bool(js) == expected:
-                return True
-        except AssertionError:
-            pass
-        sleep(delay)
-    return False
 
 
 @step('No coredump entries exist for "{name}"')

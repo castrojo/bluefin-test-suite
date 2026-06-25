@@ -96,6 +96,15 @@ This is the core mechanism that migration tests validate.
 - **Service masking via kernel args is lost** — with direct boot, services are masked via `systemd.mask=...` in `-append`. With UEFI boot, masking must be done on-disk (symlink to `/dev/null` in the deployment's `/etc/systemd/system/`) — which `e2e.yml` already does.
 - **selinux=0 kernel arg is lost** — must be set in BLS entries or on-disk config instead. For migration tests with SELinux enforcing (Epic E04), this is actually correct behavior.
 
+## GRUB 2 vs systemd-boot Unified Virtualization Strategy
+
+Modern bootc/ostree images write Boot Loader Specification (BLS) entries (`/boot/loader/entries/*.conf`) regardless of whether the physical distribution targets GRUB 2 (like Bluefin / Bluefin LTS) or systemd-boot (like Dakota).
+
+**Core Virtualization Rule**: In the QEMU pipeline, always run loopback installation with `--bootloader systemd`. 
+*   This installs systemd-boot onto the loopback disk's ESP for *all* image variants.
+*   systemd-boot reads the BLS entries and successfully bootc-upgrades, bootc-switches, and reboots inside the QEMU VM.
+*   By doing this, we avoid the intense partitioning, MBR-writing, and configuration complexities of GRUB 2 inside GHA while maintaining 100% functional test fidelity for OCI upgrades.
+
 ## Spike workflow
 
 The spike is implemented in `.github/workflows/spike-uefi-boot.yml`. Run it via Actions → "Spike: UEFI Boot" → Run workflow. It:
