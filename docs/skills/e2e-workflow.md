@@ -277,14 +277,16 @@ SUITES=(smoke common vanilla-gnome)
 ```
 Add new slugs here when the fleet grows. **Do not add `dx`, `developer`, or `lifecycle` to SUITES** — these suites are not tracked by publish-to-pages (dx/developer run on gdx images not in the SLUGS list; lifecycle is a migration workflow with no desktop screenshots).
 
-**Dashboard source of truth:** `docs/dashboard/index.html` in `main` is the canonical dashboard HTML. `publish-to-pages.yml` syncs it to `gh-pages` on every run. Edit the source in `main`, not the copy on `gh-pages` directly.
+**Dashboard source of truth:** The QA dashboard is now a modern Astro static-site project located in the `dashboard/` directory on `main`. Every run of the scheduled `publish-to-pages.yml` workflow checks out the repository, pulls the latest test results and screenshots from GHCR, parses/converts behave logs, aggregates historical statistics, compiles Astro to static HTML, indexes the entire site with Pagefind, and deploys it natively to GitHub Pages.
+
+Never edit files on the `gh-pages` branch directly—always make edits inside the `dashboard/` directory on `main`.
 
 Stable URL format:
 ```text
 https://projectbluefin.github.io/testsuite/screenshots/{slug}-{suite}-latest.png
 ```
 
-The JSONL records at `data/results-YYYYMMDD.jsonl` on `gh-pages` feed the static build-health dashboard at `https://projectbluefin.github.io/testsuite/`.
+The historical runs are compiled and indexed natively at `qa.projectbluefin.io` (or `https://projectbluefin.github.io/testsuite/`).
 
 ### Flatpak screenshot gallery
 
