@@ -64,9 +64,20 @@ This skill guides agents through modifying, compiling, and deploying the QA dash
    }
    ```
 
-5. **Astro custom base URL constraints**: The custom domain `qa.projectbluefin.io` is mapped to the root of the site. Therefore, when the custom domain is active, `astro.config.mjs` MUST keep `base: '/'` and `site: 'https://qa.projectbluefin.io'`. Do not change them to sub-paths.
+5. **Build-Time SSG Data Fetching (Astro Frontmatter)**: For high-performance landing page rendering with zero dynamic scraping lag, fetch external JSON datasets (like `factory-stats.json` or individual suite JSON files) during build time inside Astro's frontmatter blocks. This converts raw runtime REST fetching into statically pre-rendered HTML cards, tables, and charts:
+   ```typescript
+   // src/pages/index.astro
+   const statsRes = await fetch('https://projectbluefin.github.io/testing-lab/data/factory-stats.json');
+   const stats = statsRes.ok ? await statsRes.json() : {};
+   ```
 
-6. **Deploy CNAME Preservation**: Deployment scripts that reset the `gh-pages` branch will wipe out the repository's `CNAME` setting, returning a 404 on the custom domain. The Pages deploy workflow must explicitly rewrite `qa.projectbluefin.io` to a `CNAME` file inside the deployment root on every run:
+6. **Node-Based Markdown Skills Loader**: Standard Astro Content Collections cannot access files located outside the dashboard's `src/` folder (such as standard repository documentation in `docs/skills` or a sibling repository like `../common/docs/skills`). Bypass this restriction by writing a dynamic build-time filesystem loader in `src/utils/getSkills.js` utilizing `gray-matter` for YAML parsing and `marked` for Markdown rendering.
+
+7. **Pagefind Search Indexing for Dynamically Loaded Skills**: Enable Pagefind search on dynamically loaded Markdown files by adding `data-pagefind-body` directly on the `<main>` or `<article>` element containing the rendered skill body, and use Pagefind metadata selectors (such as `data-pagefind-meta="category"`) to expose tags to the client-side search component.
+
+8. **Astro custom base URL constraints**: The custom domain `qa.projectbluefin.io` is mapped to the root of the site. Therefore, when the custom domain is active, `astro.config.mjs` MUST keep `base: '/'` and `site: 'https://qa.projectbluefin.io'`. Do not change them to sub-paths.
+
+9. **Deploy CNAME Preservation**: Deployment scripts that reset the `gh-pages` branch will wipe out the repository's `CNAME` setting, returning a 404 on the custom domain. The Pages deploy workflow must explicitly rewrite `qa.projectbluefin.io` to a `CNAME` file inside the deployment root on every run:
    ```yaml
    - name: Deploy Compiled Dashboard to gh-pages
      run: |

@@ -1,0 +1,174 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import { loadSkills } from '../../utils/getSkills.js';
+import { marked } from 'marked';
+
+export async function getStaticPaths() {
+  const skills = await loadSkills();
+  return skills.map(skill => ({
+    params: { slug: skill.slug },
+    props: { skill }
+  }));
+}
+
+const { skill } = Astro.props;
+const htmlContent = marked.parse(skill.content);
+---
+
+<Layout title={`Skills: ${skill.frontmatter.name}`}>
+  <Header />
+
+  <main class="container mx-auto px-4 py-8 max-w-4xl flex-grow" data-pagefind-body>
+    <!-- Back to skills link -->
+    <div class="mb-6 search-ignore">
+      <a href={`${import.meta.env.BASE_URL}skills`} class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-white transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+        </svg>
+        Back to skills library
+      </a>
+    </div>
+
+    <!-- Article Header -->
+    <header class="mb-8 border-b border-slate-800 pb-6">
+      <div class="flex items-center gap-3.5 mb-2 flex-wrap">
+        <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20" data-pagefind-meta="category">
+          {skill.repo} skill
+        </span>
+        <span class="text-xs text-slate-500 font-mono">version {skill.frontmatter.version}</span>
+      </div>
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-1" data-pagefind-meta="title">
+        {skill.frontmatter.name}
+      </h1>
+      <p class="text-base text-slate-400 mt-3 italic">
+        {skill.frontmatter.description}
+      </p>
+    </header>
+
+    <!-- Markdown Rendered Content -->
+    <article class="text-slate-300 leading-relaxed font-sans" id="markdown-body">
+      <div set:html={htmlContent} />
+    </article>
+  </main>
+</Layout>
+
+<style is:global>
+  /* Base Markdown Typography Overrides */
+  #markdown-body {
+    font-size: 0.95rem;
+  }
+  #markdown-body h1,
+  #markdown-body h2,
+  #markdown-body h3,
+  #markdown-body h4 {
+    color: #f8fafc; /* slate-50 */
+    font-weight: 700;
+    margin-top: 1.85em;
+    margin-bottom: 0.85em;
+    line-height: 1.35;
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  #markdown-body h1 {
+    font-size: 1.75rem;
+    border-b: 1px solid #1e293b;
+    padding-bottom: 0.35em;
+  }
+  #markdown-body h2 {
+    font-size: 1.4rem;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.4);
+    padding-bottom: 0.25em;
+  }
+  #markdown-body h3 {
+    font-size: 1.15rem;
+  }
+  #markdown-body p {
+    margin-top: 0em;
+    margin-bottom: 1.25em;
+    color: #cbd5e1; /* slate-300 */
+  }
+  #markdown-body a {
+    color: #3b82f6; /* Bluefin Blue */
+    text-decoration: underline;
+    font-weight: 500;
+    transition: color 0.15s;
+  }
+  #markdown-body a:hover {
+    color: #06b6d4; /* Neon cyan */
+  }
+  #markdown-body ul,
+  #markdown-body ol {
+    margin-top: 0em;
+    margin-bottom: 1.25em;
+    padding-left: 1.6em;
+  }
+  #markdown-body ul {
+    list-style-type: disc;
+  }
+  #markdown-body ol {
+    list-style-type: decimal;
+  }
+  #markdown-body li {
+    margin-top: 0.35em;
+    margin-bottom: 0.35em;
+  }
+  #markdown-body code {
+    background-color: #0f172a; /* slate-900 */
+    color: #38bdf8; /* sky-400 */
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.85em;
+    padding: 0.15em 0.35em;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  #markdown-body pre {
+    background-color: #030712; /* slate-950 */
+    padding: 1.15rem;
+    border-radius: 8px;
+    border: 1px solid #1e293b;
+    margin-top: 1.25em;
+    margin-bottom: 1.5em;
+    overflow-x: auto;
+  }
+  #markdown-body pre code {
+    background-color: transparent;
+    color: #e2e8f0; /* slate-200 */
+    font-size: 0.85rem;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+  }
+  #markdown-body blockquote {
+    border-left: 4px solid #3b82f6;
+    background-color: rgba(59, 130, 246, 0.04);
+    padding: 0.85rem 1.15rem;
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+    border-radius: 0 8px 8px 0;
+  }
+  #markdown-body blockquote p {
+    margin: 0;
+    font-style: italic;
+    color: #94a3b8; /* slate-400 */
+  }
+  #markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1.25em;
+    margin-bottom: 1.5em;
+    font-size: 0.85rem;
+  }
+  #markdown-body th,
+  #markdown-body td {
+    padding: 0.65rem 0.85rem;
+    border-bottom: 1px solid #1e293b;
+  }
+  #markdown-body th {
+    background-color: #0f172a;
+    color: #f8fafc;
+    font-weight: 600;
+  }
+  #markdown-body tr:hover td {
+    background-color: rgba(255, 255, 255, 0.01);
+  }
+</style>

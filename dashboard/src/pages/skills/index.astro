@@ -1,0 +1,179 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+import { loadSkills } from '../../utils/getSkills.js';
+
+const skills = await loadSkills();
+
+// Extract all unique tags across all skills
+const allTags = Array.from(
+  new Set(skills.flatMap(s => s.frontmatter.tags || []))
+).sort();
+---
+
+<Layout title="Project Bluefin QA Skills Library">
+  <Header />
+
+  <main class="container mx-auto px-4 py-8 max-w-7xl flex-grow">
+    <!-- Header -->
+    <div class="border-b border-slate-800 pb-6 mb-8">
+      <h1 class="text-3xl font-extrabold tracking-tight text-white mb-2">
+        Operational Skills Library
+      </h1>
+      <p class="text-sm text-slate-400">
+        Continuous Integration guidelines, AT-SPI accessibility references, and codebase automation runbooks for agents and humans.
+      </p>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 mb-8 flex flex-wrap gap-4 items-center justify-between">
+      <div class="flex items-center gap-3 flex-wrap">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Repository:</span>
+        <button
+          class="repo-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold border bg-blue-600 border-blue-500 text-white transition-all duration-200 shadow-glow-blue/10"
+          data-repo="all"
+        >
+          All ({skills.length})
+        </button>
+        <button
+          class="repo-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold border bg-slate-950 border-slate-800 text-slate-400 hover:text-white transition-all duration-200"
+          data-repo="testsuite"
+        >
+          testsuite ({skills.filter(s => s.repo === 'testsuite').length})
+        </button>
+        <button
+          class="repo-filter-btn px-3.5 py-1.5 rounded-lg text-xs font-semibold border bg-slate-950 border-slate-800 text-slate-400 hover:text-white transition-all duration-200"
+          data-repo="common"
+        >
+          common ({skills.filter(s => s.repo === 'common').length})
+        </button>
+      </div>
+
+      {allTags.length > 0 && (
+        <div class="flex items-center gap-2 flex-wrap max-w-full">
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0">Tags:</span>
+          {allTags.map(tag => (
+            <button
+              class="tag-filter-btn px-2.5 py-1 rounded text-xs font-medium border bg-slate-950 border-slate-800 text-slate-400 hover:text-white transition-all duration-200"
+              data-tag={tag}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+
+    <!-- Skills Cards Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="skills-grid">
+      {skills.map(skill => (
+        <div
+          class="skill-card bg-slate-900 border border-slate-800 hover:border-brand-glow/40 rounded-xl p-5 flex flex-col justify-between transition-all duration-300 hover:-translate-y-0.5 group shadow-glow-cyan/0 hover:shadow-glow-cyan/5"
+          data-repo={skill.repo}
+          data-tags={JSON.stringify(skill.frontmatter.tags || [])}
+        >
+          <div>
+            <div class="flex items-center justify-between mb-3.5">
+              <span class={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                skill.repo === 'testsuite'
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                  : 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20'
+              }`}>
+                {skill.repo}
+              </span>
+              <span class="text-[10px] text-slate-500 font-mono">v{skill.frontmatter.version}</span>
+            </div>
+
+            <h3 class="text-base font-bold text-slate-100 group-hover:text-brand-glow transition-colors mb-2">
+              {skill.frontmatter.name}
+            </h3>
+
+            <p class="text-sm text-slate-400 leading-relaxed mb-4 line-clamp-3">
+              {skill.frontmatter.description}
+            </p>
+          </div>
+
+          <div class="border-t border-slate-800/60 pt-4 mt-2 flex items-center justify-between gap-3 flex-wrap">
+            <div class="flex gap-1.5 flex-wrap">
+              {skill.frontmatter.tags?.map((tag: string) => (
+                <span class="px-1.5 py-0.5 bg-slate-950 text-slate-500 border border-slate-800/80 rounded text-[9px] font-semibold">
+                  {tag}
+                </span>
+              ))}
+            </div>
+            
+            <a
+              href={`${import.meta.env.BASE_URL}skills/${skill.slug}`}
+              class="text-xs font-semibold text-blue-400 group-hover:text-blue-300 inline-flex items-center gap-1 hover:underline"
+            >
+              Read skill
+              <svg class="w-3.5 h-3.5 transform group-hover:translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </div>
+        </div>
+      ))}
+    </div>
+  </main>
+</Layout>
+
+<script is:inline>
+  // Filter variables state
+  let currentRepo = 'all';
+  let activeTags = new Set();
+
+  const repoButtons = document.querySelectorAll('.repo-filter-btn');
+  const tagButtons = document.querySelectorAll('.tag-filter-btn');
+  const skillCards = document.querySelectorAll('.skill-card');
+
+  // Repo filtering handler
+  repoButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Toggle button active classes
+      repoButtons.forEach(b => {
+        b.classList.remove('bg-blue-600', 'border-blue-500', 'text-white');
+        b.classList.add('bg-slate-950', 'border-slate-800', 'text-slate-400');
+      });
+      btn.classList.add('bg-blue-600', 'border-blue-500', 'text-white');
+      btn.classList.remove('bg-slate-950', 'border-slate-800', 'text-slate-400');
+
+      currentRepo = btn.dataset.repo;
+      filterSkills();
+    });
+  });
+
+  // Tag filtering handler
+  tagButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tag = btn.dataset.tag;
+      if (activeTags.has(tag)) {
+        activeTags.delete(tag);
+        btn.classList.remove('bg-brand-glow/10', 'border-brand-glow/30', 'text-brand-glow');
+        btn.classList.add('bg-slate-950', 'border-slate-800', 'text-slate-400');
+      } else {
+        activeTags.add(tag);
+        btn.classList.add('bg-brand-glow/10', 'border-brand-glow/30', 'text-brand-glow');
+        btn.classList.remove('bg-slate-950', 'border-slate-800', 'text-slate-400');
+      }
+      filterSkills();
+    });
+  });
+
+  // Central filtering logic
+  function filterSkills() {
+    skillCards.forEach(card => {
+      const repo = card.dataset.repo;
+      const tags = JSON.parse(card.dataset.tags || '[]');
+
+      const matchesRepo = currentRepo === 'all' || repo === currentRepo;
+      const matchesTags = activeTags.size === 0 || Array.from(activeTags).every(t => tags.includes(t));
+
+      if (matchesRepo && matchesTags) {
+        card.style.display = 'flex';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+</script>
