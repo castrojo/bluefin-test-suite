@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-26T02:52:50Z",
+  "last_updated": "2026-06-26T04:42:56Z",
   "aggregates": {
     "total_runs": 3,
     "overall_pass_rate": 0.3333,
@@ -29,26 +29,28 @@
   },
   "runs": [
     {
-      "id": "run-mock-behave",
+      "id": "run-failed",
       "timestamp": "2026-06-25T22:00:00Z",
       "stream": "testing",
-      "flavor": "bluefin",
-      "version": "40.latest",
+      "flavor": "bluefin-lts",
+      "suite": "unknown",
+      "version": "39.20260625.1",
       "status": "failed",
       "metrics": {
-        "passed": 0,
+        "passed": 3,
         "failed": 1,
         "skipped": 0,
-        "total": 1
+        "total": 4
       },
-      "duration_ms": 1250,
-      "commit_sha": "unknown"
+      "duration_ms": 220000,
+      "commit_sha": "c9d8e7f6a5b4c3d2e1f0"
     },
     {
       "id": "run-success",
       "timestamp": "2026-06-25T21:00:00Z",
       "stream": "testing",
       "flavor": "bluefin",
+      "suite": "unknown",
       "version": "40.20260625.0",
       "status": "success",
       "metrics": {
@@ -61,20 +63,21 @@
       "commit_sha": "a1b2c3d4e5f6g7h8i9j0"
     },
     {
-      "id": "run-failed",
+      "id": "run-mock-behave",
       "timestamp": "2026-06-25T22:00:00Z",
       "stream": "testing",
-      "flavor": "bluefin-lts",
-      "version": "39.20260625.1",
+      "flavor": "bluefin",
+      "suite": "unknown",
+      "version": "40.latest",
       "status": "failed",
       "metrics": {
-        "passed": 3,
+        "passed": 0,
         "failed": 1,
         "skipped": 0,
-        "total": 4
+        "total": 1
       },
-      "duration_ms": 220000,
-      "commit_sha": "c9d8e7f6a5b4c3d2e1f0"
+      "duration_ms": 1250,
+      "commit_sha": "unknown"
     }
   ]
 }

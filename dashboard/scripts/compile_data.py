@@ -4,9 +4,14 @@ import json
 import glob
 from datetime import datetime
 
-RAW_DATA_DIR = "./raw-runs"
-OUTPUT_DIR = "./src/data/compiled"
-RUNS_DIST_DIR = "./src/data/runs"
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+DASHBOARD_DIR = SCRIPT_DIR.parent
+
+RAW_DATA_DIR = str(DASHBOARD_DIR / "src" / "data" / "runs")
+OUTPUT_DIR = str(DASHBOARD_DIR / "src" / "data" / "compiled")
+RUNS_DIST_DIR = str(DASHBOARD_DIR / "src" / "data" / "runs")
 
 def load_json(filepath):
     try:
@@ -55,6 +60,7 @@ def compile_dashboard_data():
             "timestamp": run_data.get("timestamp", datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")),
             "stream": run_data.get("stream", "testing"),
             "flavor": flavor,
+            "suite": run_data.get("suite", "unknown"),
             "version": run_data.get("version", "unknown"),
             "status": status,
             "metrics": {
