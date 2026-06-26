@@ -6,7 +6,7 @@
 
 Automated behave + qecore-headless + dogtail and shared libraries for testing GNOME-based bootc images. Headless & Kubernetes-native.
 
-## 📊 Live Desktop Test Coverage
+## Live Desktop Test Coverage
 
 We continuously test **323 active end-to-end BDD scenarios** across **52 feature files** against live Wayland desktop sessions in QEMU.
 
@@ -14,9 +14,9 @@ We continuously test **323 active end-to-end BDD scenarios** across **52 feature
 
 | Metric / Gating Dimension | Active Tests | Coverage & Validation Scope |
 | :--- | :---: | :--- |
-| ** Core Desktop UI & Shell** | **35 scenarios** | GNOME Shell Top Bar, Quick Settings panel, Calendar popup, Workspace Switcher, Lock Screen safety, and System menus. |
-| ** Preinstalled Graphical Apps** | **107 scenarios** | Core GUI application verification including Nautilus (Files), Firefox Browser, Loupe Image Viewer, Papers Document Viewer, Text Editor, and Calculator. |
-| ** Desktop & Portals** | **18 scenarios** | Complete XDG Desktop Portals validation: Dark/Light Mode settings, User Screenshots, FileChoosers, desktop notifications, and Sandboxed Flatpak bridges. |
+| ** Core Desktop UI & Shell ** | **35 scenarios** | GNOME Shell Top Bar, Quick Settings panel, Calendar popup, Workspace Switcher, Lock Screen safety, and System menus. |
+| ** Preinstalled Graphical Apps ** | **107 scenarios** | Core GUI application verification including Nautilus (Files), Firefox Browser, Loupe Image Viewer, Papers Document Viewer, Text Editor, and Calculator. |
+| ** Desktop & Portals ** | **18 scenarios** | Complete XDG Desktop Portals validation: Dark/Light Mode settings, User Screenshots, FileChoosers, desktop notifications, and Sandboxed Flatpak bridges. |
 | ** Modern Linux Principles ** | **104 scenarios** | Secure Boot image signing policy verification (`cosign`), custom Polkit privilege-escalation rules, read-only `/usr`, user environment initialization, and dconf system defaults. |
 | ** Upgrades & Multi-Variant Parity ** | **57 scenarios** | Robust Aurora, Bazzite, GNOME OS, Fedora, Flatcar and Universal Blue base image stream parity checks, plus parameterized bootc container upgrades and multi-lane migrations. |
 
