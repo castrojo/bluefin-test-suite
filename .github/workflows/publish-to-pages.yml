@@ -156,6 +156,9 @@ jobs:
           # Copy all compiled static files from dashboard/dist
           cp -r ../dashboard/dist/* .
           
+          # Disable Jekyll on GitHub Pages to serve _astro folder correctly
+          touch .nojekyll
+          
           # Configure Git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
