@@ -621,6 +621,45 @@ xattrs after a composefs-backed ostree deployment.
 If `getcap` returns no capabilities for these binaries, the image build
 pipeline produced a multi-layer OCI artifact. File the regression against the
 image build repo, not the test suite.
+---
+
+## Stdin Heredoc Consumption bug in run-gnome-tests.yaml
+
+**Symptom:** The `run-gnome-tests` step in `bluefin-qa-pipeline` completes instantly with exit status 0 but runs no behave tests inside the VM, only printing `root-ssh-diag-ready`.
+
+**Cause:** The runner script executes inside a bash heredoc (`exec bash <<'SCRIPT_EOF'`). Nested commands like `ssh` read from standard input by default, consuming the rest of the heredoc. This causes bash to see EOF and exit prematurely with exit status 0 (last successful command's exit code).
+
+**Fix:** Wrap the entire heredoc script block (or any nested ssh/scp commands) in a block with stdin redirected from `/dev/null`:
+```bash
+exec bash <<'SCRIPT_EOF'
+{
+  set -euo pipefail
+  # ... script logic ...
+} < /dev/null
+SCRIPT_EOF
+```
+This isolates standard input, preventing nested `ssh`/`scp` calls from consuming the SCRIPT_EOF script block.
+
+---
+
+## User Bootstrap primary group bug on fresh boots
+
+**Symptom:** `run-gnome-tests` fails during bluefin-test user bootstrap with:
+```
+useradd: group '1001' does not exist
+exit status 6
+```
+
+**Cause:** On first boot, the primary group `1001` (bluefin-test) doesn't exist, causing `useradd -u 1001 -g 1001` to exit with code 6.
+
+**Fix:** Create the primary group first, ignoring duplicates:
+```bash
+groupadd -g 1001 bluefin-test 2>/dev/null || true
+useradd -m -u 1001 -g 1001 -G wheel -s /bin/bash ...
+```
+
+---
+
 ## Red Flags
 
 - Using `_run(cmd)` in smoke suite for DNS or network checks (runs on container, not VM)
