@@ -1,5 +1,5 @@
 {
-  "last_updated": "2026-06-26T02:45:30Z",
+  "last_updated": "2026-06-26T02:52:50Z",
   "aggregates": {
     "total_runs": 3,
     "overall_pass_rate": 0.3333,
@@ -9,6 +9,11 @@
         "runs": 2,
         "passed": 1,
         "failed": 1
+      },
+      "aurora": {
+        "runs": 0,
+        "passed": 0,
+        "failed": 0
       },
       "bluefin-lts": {
         "runs": 1,

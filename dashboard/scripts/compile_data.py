@@ -30,6 +30,7 @@ def compile_dashboard_data():
     
     flavor_stats = {
         "bluefin": {"runs": 0, "passed": 0, "failed": 0},
+        "aurora": {"runs": 0, "passed": 0, "failed": 0},
         "bluefin-lts": {"runs": 0, "passed": 0, "failed": 0},
         "dakota": {"runs": 0, "passed": 0, "failed": 0}
     }
@@ -73,12 +74,14 @@ def compile_dashboard_data():
         if status == "passed" or status == "success":
             passed_runs += 1
             
-        if flavor in flavor_stats:
-            flavor_stats[flavor]["runs"] += 1
-            if status == "passed" or status == "success":
-                flavor_stats[flavor]["passed"] += 1
-            else:
-                flavor_stats[flavor]["failed"] += 1
+        if flavor not in flavor_stats:
+            flavor_stats[flavor] = {"runs": 0, "passed": 0, "failed": 0}
+
+        flavor_stats[flavor]["runs"] += 1
+        if status == "passed" or status == "success":
+            flavor_stats[flavor]["passed"] += 1
+        else:
+            flavor_stats[flavor]["failed"] += 1
 
     overall_pass_rate = passed_runs / total_runs if total_runs > 0 else 1.0
     avg_duration = total_duration / total_runs if total_runs > 0 else 0

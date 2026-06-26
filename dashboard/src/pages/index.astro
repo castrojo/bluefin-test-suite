@@ -12,11 +12,22 @@ const summary = fallbackSummary || {
     average_test_duration_ms: 0,
     flavors: {
       bluefin: { runs: 0, passed: 0, failed: 0 },
+      aurora: { runs: 0, passed: 0, failed: 0 },
       "bluefin-lts": { runs: 0, passed: 0, failed: 0 },
       dakota: { runs: 0, passed: 0, failed: 0 }
     }
   },
   runs: []
+};
+
+const formatFlavorName = (name: string) => {
+  const mapping: Record<string, string> = {
+    bluefin: "Bluefin",
+    aurora: "Aurora",
+    "bluefin-lts": "Bluefin LTS",
+    dakota: "Dakota"
+  };
+  return mapping[name] || name.charAt(0).toUpperCase() + name.slice(1);
 };
 
 const passRatePercent = (summary.aggregates.overall_pass_rate * 100).toFixed(1);
@@ -30,10 +41,10 @@ const averageDurationMin = (summary.aggregates.average_test_duration_ms / 1000 /
     <!-- Hero / Intro -->
     <div class="text-center max-w-3xl mx-auto mb-12">
       <h1 class="text-4xl font-extrabold tracking-tight text-white mb-4 sm:text-5xl">
-        Bluefin Platform Observability
+        Atomic Desktop Observability
       </h1>
       <p class="text-lg text-slate-400 leading-relaxed">
-        Real-time continuous verification, build health, and test suites execution logs directly from our bare-metal and KubeVirt homelab.
+        Real-time continuous verification, build health, and test execution logs for <span class="text-blue-400 font-semibold">Bluefin</span>, <span class="text-indigo-400 font-semibold">Aurora</span>, and the wider Universal Blue ecosystem, streamed directly from our bare-metal and KubeVirt testing lab.
       </p>
     </div>
 
@@ -63,7 +74,7 @@ const averageDurationMin = (summary.aggregates.average_test_duration_ms / 1000 /
           <span class="text-4xl font-extrabold text-blue-500 font-mono">{summary.aggregates.total_runs}</span>
           <span class="text-sm text-slate-500">runs tracked</span>
         </div>
-        <p class="text-xs text-slate-500 mt-5">Including bluefin, -lts, and dakota</p>
+        <p class="text-xs text-slate-500 mt-5">Including Bluefin, Aurora, Dakota, and variants</p>
       </div>
 
       <!-- Card: Avg Execution Time -->
@@ -86,7 +97,7 @@ const averageDurationMin = (summary.aggregates.average_test_duration_ms / 1000 /
           <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between mb-3">
-                <h3 class="text-lg font-bold text-white capitalize">{flavorName}</h3>
+                <h3 class="text-lg font-bold text-white">{formatFlavorName(flavorName)}</h3>
                 <span class={`px-2 py-0.5 rounded text-xs font-mono font-semibold border ${
                   stats.failed > 0 
                     ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
@@ -162,7 +173,7 @@ const averageDurationMin = (summary.aggregates.average_test_duration_ms / 1000 /
                       {run.id}
                     </a>
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300">
-                      {run.flavor}
+                      {formatFlavorName(run.flavor)}
                     </span>
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 border border-blue-500/25 text-blue-400">
                       {run.stream}
