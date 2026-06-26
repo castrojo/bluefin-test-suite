@@ -43,6 +43,7 @@ New test scenarios → this repo. New infra (VM specs, manifests, Argo templates
 | Flatpak remote state, portal health | `docs/skills/suite-map.md` |
 | Infra gotchas (GDM autologin, systemd-oomd.socket, bazzite extension state, GVariant quoting) | `docs/skills/ops.md` |
 | Reusable e2e workflow (calling from another repo, debugging QEMU pipeline) | `docs/skills/e2e-workflow.md` |
+| Modifying, compiling, and deploying the Astro QA Dashboard and data pipelines | `docs/skills/dashboard-metrics.md` |
 | Quarantine expiry CI (`scripts/check_quarantine_age.py`, `pr-validate.yml`) | `docs/skills/quarantine-age.md` |
 | UEFI boot via OVMF + systemd-boot (migration reboot testing) | `docs/skills/uefi-boot.md` |
 | Flatpak screenshot gallery (screenshot_flatpaks input, GHCR artifact tags) | `docs/flatpak-screenshots.md` |
