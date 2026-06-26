@@ -158,6 +158,7 @@ jobs:
           
           # Disable Jekyll on GitHub Pages to serve _astro folder correctly
           touch .nojekyll
+          echo "qa.projectbluefin.io" > CNAME
           
           # Configure Git
           git config user.name "github-actions[bot]"
