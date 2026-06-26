@@ -14,11 +14,24 @@ We continuously test **323 active end-to-end BDD scenarios** across **52 feature
 
 | Metric / Gating Dimension | Active Tests | Coverage & Validation Scope |
 | :--- | :---: | :--- |
-| **🕹️ Core Desktop UI & Shell** | **35 scenarios** | GNOME Shell Top Bar, Quick Settings panel, Calendar popup, Workspace Switcher, Lock Screen safety, and System menus. |
-| **🖥️ Preinstalled Graphical Apps** | **107 scenarios** | Core GUI application verification including Nautilus (Files), Firefox Browser, Loupe Image Viewer, Papers Document Viewer, Text Editor, and Calculator. |
-| **🪟 Desktop Integration & Portals** | **18 scenarios** | Complete XDG Desktop Portals validation: Dark/Light Mode settings, User Screenshots, FileChoosers, desktop notifications, and Sandboxed Flatpak bridges. |
-| **🛡️ System Integrity & Security** | **104 scenarios** | Secure Boot image signing policy verification (`cosign`), custom Polkit privilege-escalation rules, read-only `/usr`, user environment initialization, and dconf system defaults. |
-| **🔄 Upgrades & Multi-Variant Parity** | **57 scenarios** | Robust Bazzite, Vanilla GNOME OS, and Bluefin LTS stream parity checks, plus parameterized bootc container upgrades and multi-lane migrations. |
+| ** Core Desktop UI & Shell** | **35 scenarios** | GNOME Shell Top Bar, Quick Settings panel, Calendar popup, Workspace Switcher, Lock Screen safety, and System menus. |
+| ** Preinstalled Graphical Apps** | **107 scenarios** | Core GUI application verification including Nautilus (Files), Firefox Browser, Loupe Image Viewer, Papers Document Viewer, Text Editor, and Calculator. |
+| ** Desktop & Portals** | **18 scenarios** | Complete XDG Desktop Portals validation: Dark/Light Mode settings, User Screenshots, FileChoosers, desktop notifications, and Sandboxed Flatpak bridges. |
+| ** Modern Linux Principles ** | **104 scenarios** | Secure Boot image signing policy verification (`cosign`), custom Polkit privilege-escalation rules, read-only `/usr`, user environment initialization, and dconf system defaults. |
+| ** Upgrades & Multi-Variant Parity ** | **57 scenarios** | Robust Aurora, Bazzite, GNOME OS, Fedora, Flatcar and Universal Blue base image stream parity checks, plus parameterized bootc container upgrades and multi-lane migrations. |
+
+Want to test anything? [Tests are easy to write](https://github.com/projectbluefin/testsuite/blob/main/tests/software/features/bazaar_ui.feature)
+
+- GNOME 50+
+  - Agent-first: autonomous AI agents are primary contributors to GNOME 50 port - based off of Red Hat's enterprise GNOME 47 suite
+  - The more tests we publish the more we prove that we can put the clankers to work for us and get better linux desktops
+- Image-specific suites: Yes, we can add your custom image
+- Or run your entire setup by using these as github actions!
+- Any GNOME-based bootc image can use the `common` and `smoke` suites as a portable health gate
+- KDE (Help! Expertise needed!)
+- Designed for Kubernetes
+  - projectbluefin/testing-lab (Here's how we do it!)
+  - one ujust command - the entire enchilada - remember kids, cloud native implies local first development! (What?!)  
 
 ### 📸 Live Desktop Under Test (Latest Smoke Screenshot)
 
@@ -30,13 +43,6 @@ Below is the live framebuffer captured automatically during our last successful 
   </a>
   <p><i>Click the screenshot to open our interactive <b><a href="https://projectbluefin.github.io/testsuite/">Live Build Health Dashboard & Gallery</a></b>.</i></p>
 </div>
-
----
-
-- GNOME 50+
-- Image-specific suites: Bluefin, Bazzite, Dakota, vanilla GNOME OS, Flatcar
-- Any GNOME-based bootc image can use the `common` and `smoke` suites as a portable health gate
-- Agent-first: autonomous AI agents are primary contributors to GNOME 50 test coverage
 
 ## Where this repo fits
 
