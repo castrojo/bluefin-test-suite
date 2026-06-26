@@ -369,8 +369,9 @@ def set_overview_search_eval(context, text) -> None:
 
 @step("Lock screen via Shell.Eval")
 def lock_screen_via_shell_eval(context) -> None:
-    """Lock the GNOME session via Shell.Eval screenShield.lock()."""
-    _shell_eval('Main.screenShield.lock(true)')
+    """Lock the GNOME session via org.gnome.ScreenSaver.Lock d-bus call."""
+    cmd = "source /tmp/session.env 2>/dev/null; gdbus call --session --dest org.gnome.ScreenSaver --object-path /org/gnome/ScreenSaver --method org.gnome.ScreenSaver.Lock"
+    _run_host(cmd)
     sleep(1)
 
 
