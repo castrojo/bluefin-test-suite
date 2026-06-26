@@ -2,6 +2,16 @@
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import GlobalSearch from '../components/GlobalSearch.astro';
+import summaryData from '../data/compiled/summary-index.json';
+
+const { aggregates, runs } = summaryData;
+const lastUpdated = new Date(summaryData.last_updated).toLocaleString();
+
+const passRatePercent = (aggregates.overall_pass_rate * 100).toFixed(1);
+const averageDurationMin = (aggregates.average_test_duration_ms / 1000 / 60).toFixed(1);
+
+const ARGO_UI = 'http://192.168.1.102:32746';
+const GH_REPO = 'https://github.com/projectbluefin/testing-lab';
 ---
 
 <Layout title="Project Bluefin QA Dashboard">
@@ -9,11 +19,15 @@ import GlobalSearch from '../components/GlobalSearch.astro';
 
   <main class="container mx-auto px-4 py-8 max-w-7xl flex-grow">
     <!-- Header Summary Strip -->
-    <div class="flex flex-col md:flex-row md:items-baseline md:justify-between mb-6 gap-4">
+    <div class="flex flex-col md:flex-row md:items-baseline md:justify-between mb-8 gap-4 border-b border-slate-800/60 pb-6">
       <div>
         <h1 class="text-3xl font-extrabold tracking-tight text-white mb-1">QA Observability Dashboard</h1>
-        <div class="text-xs text-slate-400 flex flex-wrap items-center gap-2" id="header-meta">
-          <span>Loading…</span>
+        <div class="text-xs text-slate-400 flex flex-wrap items-center gap-2">
+          <span>Last compiled: {lastUpdated}</span>
+          <span>•</span>
+          <a href={ARGO_UI} target="_blank" rel="noopener" class="text-blue-400 hover:underline">Argo UI</a>
+          <span>•</span>
+          <a href={GH_REPO} target="_blank" rel="noopener" class="text-blue-400 hover:underline">testing-lab</a>
         </div>
       </div>
       
@@ -26,1322 +40,162 @@ import GlobalSearch from '../components/GlobalSearch.astro';
     <!-- Quick Links Bar -->
     <div class="flex flex-wrap gap-2.5 items-center mb-8 text-xs">
       <span class="text-slate-400 font-semibold">Quick links:</span>
-      <a href="http://192.168.1.102:32746/workflows/argo?phase=Failed" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">⚠ Failed workflows</a>
-      <a href="http://192.168.1.102:32746/workflows/argo?phase=Running" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">▶ Running workflows</a>
+      <a href={`${ARGO_UI}/workflows/argo?phase=Failed`} target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">⚠ Failed workflows</a>
+      <a href={`${ARGO_UI}/workflows/argo?phase=Running`} target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">▶ Running workflows</a>
       <a href="https://github.com/projectbluefin/testing-lab/issues?q=is%3Aopen+label%3Abug" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">Bugs</a>
       <a href="https://github.com/projectbluefin/testing-lab/issues/new/choose" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">+ File issue</a>
       <a href="https://github.com/projectbluefin/testing-lab/blob/main/RUNBOOK.md" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">RUNBOOK</a>
       <a href="https://github.com/projectbluefin/testing-lab/blob/main/docs/agent-cheatsheet.md" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">Cheatsheet</a>
-      <a href="https://github.com/projectbluefin/testing-lab/actions/workflows/update-test-results.yml" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">↻ Refresh data</a>
     </div>
 
-    <!-- Alert Banner -->
-    <div class="mb-8" id="alert-banner">
-      <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-5 animate-pulse text-xs text-slate-500">Loading pipelines…</div>
-    </div>
-
-    <!-- Nightly Schedule Strip -->
-    <div class="mb-8" id="nightly-strip"></div>
-
-    <!-- Dynamic Quick Stats Bar -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-8" id="stats-bar">
-      <div class="bg-slate-900/40 border border-slate-800 p-5 rounded-xl h-24 animate-pulse"></div>
-      <div class="bg-slate-900/40 border border-slate-800 p-5 rounded-xl h-24 animate-pulse"></div>
-      <div class="bg-slate-900/40 border border-slate-800 p-5 rounded-xl h-24 animate-pulse"></div>
-      <div class="bg-slate-900/40 border border-slate-800 p-5 rounded-xl h-24 animate-pulse"></div>
-      <div class="bg-slate-900/40 border border-slate-800 p-5 rounded-xl h-24 animate-pulse"></div>
-    </div>
-
-    <!-- Triage Section -->
-    <div id="triage-section"></div>
-
-    <!-- Test Failures Section -->
-    <div id="failures-section"></div>
-
-    <!-- PR Test Status Matrix -->
-    <div id="pr-matrix-section"></div>
-
-    <!-- Image Status Section -->
-    <div class="mb-10">
-      <div class="flex flex-wrap items-center justify-between gap-4 mb-4 border-b border-slate-800 pb-2">
-        <h2 class="text-lg font-bold text-white">Tested Image Status</h2>
-        <div class="flex items-center gap-2">
-          <input type="checkbox" id="filter-failing" class="rounded border-slate-700 bg-slate-900 text-blue-600 focus:ring-blue-500" />
-          <label for="filter-failing" class="text-xs text-slate-400 cursor-pointer select-none font-medium">
-            Show failing / untested images only
-          </label>
+    <!-- Aggregates Stats Grid -->
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-12">
+      <!-- Card: Overall Pass Rate -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md shadow-glow-blue/5">
+        <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Pass Rate</p>
+        <div class="flex items-baseline gap-2">
+          <span class="text-4xl font-extrabold text-emerald-400 font-mono">{passRatePercent}%</span>
+          <span class="text-sm text-slate-500">overall</span>
+        </div>
+        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-4 overflow-hidden">
+          <div class="bg-emerald-500 h-full rounded-full" style={`width: ${passRatePercent}%`}></div>
         </div>
       </div>
 
-      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-glow-blue/5">
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse text-left text-xs text-slate-300">
-            <thead class="bg-slate-950 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800">
-              <tr>
-                <th class="p-4">Image</th>
-                <th class="p-4" id="th-smoke">Smoke</th>
-                <th class="p-4" id="th-developer">Developer</th>
-                <th class="p-4" id="th-software">Software</th>
-                <th class="p-4" id="th-system">System ⚑</th>
-                <th class="p-4" id="th-flatcar">Flatcar</th>
-                <th class="p-4">Last Green</th>
-                <th class="p-4">Last Run</th>
-                <th class="p-4">Trigger / PR</th>
-                <th class="p-4">Workflow</th>
-              </tr>
-            </thead>
-            <tbody id="status-tbody" class="divide-y divide-slate-800/50">
-              <tr>
-                <td colspan="10" class="p-8 text-center text-slate-500 animate-pulse font-medium">Retrieving freshest real-time test outcomes…</td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Card: Total Executions -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md shadow-glow-blue/5">
+        <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Executions</p>
+        <div class="flex items-baseline gap-2">
+          <span class="text-4xl font-extrabold text-blue-500 font-mono">{aggregates.total_runs}</span>
+          <span class="text-sm text-slate-500">runs tracked</span>
         </div>
+        <p class="text-xs text-slate-500 mt-5">Including bluefin, -lts, aurora, and dakota</p>
       </div>
-    </div>
 
-    <!-- Running Queue Section -->
-    <div id="queue-section"></div>
-
-    <!-- Cluster Health Strip -->
-    <div class="mb-10">
-      <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Lab Cluster Health</h2>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-glow-cyan/5 text-xs text-slate-300 flex flex-wrap gap-x-6 gap-y-4 items-center justify-between" id="cluster-strip">
-        <span class="animate-pulse text-slate-500">Retrieving cluster status…</span>
-      </div>
-    </div>
-
-    <!-- Recent Runs Section -->
-    <div class="mb-10">
-      <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Recent Execution Runs</h2>
-      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full border-collapse text-left text-xs text-slate-300">
-            <thead class="bg-slate-950 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800">
-              <tr>
-                <th class="p-4">Workflow</th>
-                <th class="p-4">Image</th>
-                <th class="p-4">Smoke</th>
-                <th class="p-4">Developer</th>
-                <th class="p-4">Software</th>
-                <th class="p-4">System ⚑</th>
-                <th class="p-4">Duration</th>
-                <th class="p-4">Trigger</th>
-                <th class="p-4">Result</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-800/50" id="runs-tbody">
-              <tr>
-                <td colspan="9" class="p-8 text-center text-slate-500">Retrieving recent runs…</td>
-              </tr>
-            </tbody>
-          </table>
+      <!-- Card: Avg Execution Time -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md shadow-glow-blue/5">
+        <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Avg Run Duration</p>
+        <div class="flex items-baseline gap-2">
+          <span class="text-4xl font-extrabold text-indigo-400 font-mono">{averageDurationMin}m</span>
+          <span class="text-sm text-slate-500">per suite</span>
         </div>
+        <p class="text-xs text-slate-500 mt-5">Decoupled VM boot & validation cycle</p>
       </div>
     </div>
 
-    <!-- Screenshots Section -->
-    <div class="mb-10">
-      <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Latest Verification Screenshots</h2>
-      <div class="flex flex-wrap gap-6" id="screenshots-section"></div>
+    <!-- Active Streams / Variant Cards -->
+    <h2 class="text-2xl font-bold tracking-tight text-white mb-6">OCI Image Streams</h2>
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-12">
+      {Object.entries(aggregates.flavors).map(([flavorName, stats]: [string, any]) => {
+        const rate = stats.runs > 0 ? (stats.passed / stats.runs * 100).toFixed(0) : "100";
+        return (
+          <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-brand-glow/45 transition-all duration-300">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-bold text-white capitalize">{flavorName}</h3>
+                <span class={`px-2 py-0.5 rounded text-xs font-mono font-semibold border ${
+                  stats.failed > 0 
+                    ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
+                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                }`}>
+                  {rate}% Pass
+                </span>
+              </div>
+              <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800/60 mb-4">
+                <div>
+                  <p class="text-slate-500">Runs</p>
+                  <p class="font-bold text-white mt-0.5">{stats.runs}</p>
+                </div>
+                <div>
+                  <p class="text-emerald-500">Passed</p>
+                  <p class="font-bold text-emerald-400 mt-0.5">{stats.passed}</p>
+                </div>
+                <div>
+                  <p class="text-rose-500">Failed</p>
+                  <p class="font-bold text-rose-400 mt-0.5">{stats.failed}</p>
+                </div>
+              </div>
+            </div>
+            <a href={`#`} class="text-xs font-semibold text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1">
+              View target filters
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </a>
+          </div>
+        )
+      })}
     </div>
 
-    <!-- History Tables Grid -->
-    <div class="mb-10">
-      <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Historical Suite Runs</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="history-grid">
-        <p class="text-slate-500 animate-pulse font-medium">Compiling history…</p>
-      </div>
+    <!-- Executions Listing Section -->
+    <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
+      <h2 class="text-2xl font-bold tracking-tight text-white">Recent Verification Runs</h2>
+    </div>
+
+    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-md">
+      {runs.length === 0 ? (
+        <div class="p-12 text-center text-slate-500">
+          <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <p class="text-base font-semibold text-slate-400">No test runs detected</p>
+        </div>
+      ) : (
+        <div class="divide-y divide-slate-800">
+          {runs.map((run: any) => (
+            <div class="p-6 hover:bg-slate-950/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div class="flex items-start gap-4">
+                <div class={`w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 ${
+                  run.status === 'success' || run.status === 'passed'
+                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
+                    : "bg-rose-500/10 border-rose-500/20 text-rose-400"
+                }`}>
+                  {run.status === 'success' || run.status === 'passed' ? (
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : (
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  )}
+                </div>
+                <div>
+                  <div class="flex flex-wrap items-center gap-2 mb-1">
+                    <a href={`${import.meta.env.BASE_URL}run/${run.id}`} class="text-base font-bold text-white hover:text-blue-400 transition-colors font-mono">
+                      {run.id}
+                    </a>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300">
+                      {run.flavor}
+                    </span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 border border-blue-500/25 text-blue-400">
+                      {run.stream}
+                    </span>
+                  </div>
+                  <div class="text-xs text-slate-500 font-mono flex flex-wrap gap-x-4 gap-y-1">
+                    <span>Version: {run.version}</span>
+                    <span>Commit: <a href={`https://github.com/projectbluefin/common/commit/${run.commit_sha}`} target="_blank" class="text-blue-400 hover:underline">{run.commit_sha.substring(0, 7)}</a></span>
+                    <span>Duration: {(run.duration_ms / 1000).toFixed(0)}s</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="flex items-center justify-between sm:justify-end gap-6 shrink-0 border-t border-slate-800/40 pt-4 sm:pt-0 sm:border-0">
+                <div class="text-left sm:text-right font-mono text-xs">
+                  <p class="text-slate-400">Tests Count</p>
+                  <p class="text-sm font-semibold mt-0.5">
+                    <span class="text-emerald-400">{run.metrics.passed}</span> / <span class="text-rose-400">{run.metrics.failed}</span> / <span class="text-slate-500">{run.metrics.total}</span>
+                  </p>
+                </div>
+                <div class="text-right font-mono text-xs">
+                  <p class="text-slate-500">Timestamp</p>
+                  <p class="text-slate-400 mt-0.5">{new Date(run.timestamp).toLocaleTimeString()}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   </main>
 </Layout>
-
-<script is:inline>
-  const ARGO_UI = 'http://192.168.1.102:32746';
-  const GH_REPO = 'https://github.com/projectbluefin/testing-lab';
-  const SUITES = ['smoke', 'developer', 'software', 'system'];
-
-  const PR_REPOS = {
-    common:  'projectbluefin/common',
-    blu:     'projectbluefin/bluefin',
-    lts:     'projectbluefin/bluefin-lts',
-    aurora:  'ublue-os/aurora',
-    bazzite: 'ublue-os/bazzite',
-    dakota:  'projectbluefin/dakota',
-  };
-
-  const WORKFLOW_TEMPLATES = {
-    'bluefin-testing':         'bluefin-qa-pipeline',
-    'bluefin-lts-testing':     'bluefin-qa-pipeline',
-    'bluefin-bazzite-testing': 'bluefin-qa-pipeline',
-    'bluefin-aurora-testing':  'bluefin-qa-pipeline',
-    'dakota-testing':          'dakota-qa-pipeline',
-    'flatcar-testing':         'run-flatcar-tests',
-  };
-
-  const SUITE_FEATURES = {
-    smoke:     GH_REPO + '/tree/main/tests/smoke/features',
-    developer: GH_REPO + '/tree/main/tests/developer/features',
-    software:  GH_REPO + '/tree/main/tests/software/features',
-    system:    GH_REPO + '/tree/main/tests/system/features',
-    flatcar:   GH_REPO + '/tree/main/tests/flatcar/features',
-  };
-
-  const SUITE_FEATURE_FILES = {
-    smoke:     ['gnome_shell', 'flatpak_health', 'browser'],
-    developer: ['ptyxis', 'podman', 'brew', 'distrobox', 'devmode'],
-    software:  ['flatpak', 'bazaar'],
-    system:    ['integrity', 'bootc', 'uupd', 'filesystem'],
-    flatcar:   ['boot'],
-  };
-
-  const SUITE_SCENARIOS = {
-    smoke: {
-      'gnome_shell': [
-        'GNOME Shell process is running and accessible via AT-SPI',
-        'Panel is present in AT-SPI tree',
-        'Activities toggle button is visible in panel',
-        'Clock toggle button is visible in panel',
-        'System menu toggle button is visible in panel',
-        'Super key opens Activities overview',
-        'Typing in overview populates search bar',
-        'Escape closes Activities overview',
-        'Clicking System menu opens Quick Settings',
-        'Escape closes Quick Settings',
-        'Clicking clock opens calendar popup',
-        'Escape closes calendar popup',
-        'Overview search launches Files',
-        'Overview search launches Settings',
-        'Overview search opens Files sidebar locations',
-        'Overview search opens Settings About and Appearance panels',
-        'Quick Settings dark style toggle changes desktop theme',
-        'xdg-settings reports a default browser',
-        'Dash to Dock keeps a visible dock actor outside the overview',
-        'Blur My Shell applies an overview blur effect',
-        'App Indicators registers a tray host in the shell panel',
-        'Windows Navigator shows workspace navigation hints in the overview',
-        'Date menu shows a delivered desktop notification',
-        'GNOME Shell extensions do not crash shell on load',
-        'No gnome-shell coredump after session start',
-      ],
-      'flatpak_health': [
-        'flatpak repair --user exits cleanly',
-        'flatpak repair --system exits cleanly',
-      ],
-      'browser': [
-        'Firefox launches from its desktop entry',
-        'xdg-open launches Firefox for a local file URL',
-      ],
-    },
-    developer: {
-      'brew': [
-        'Homebrew bootstrap service completed successfully',
-        'Homebrew binary is available on PATH',
-        'Homebrew doctor completes without unexpected warnings',
-        'Homebrew profile integration is configured',
-        'Homebrew installs a formula from a fixture Brewfile',
-        'Running brew bundle install twice produces no unexpected drift',
-      ],
-      'devmode': [
-        'ujust devmode does not prompt to enable when already enabled',
-      ],
-      'distrobox': [
-        'distrobox create runs without error',
-        'created distrobox appears in list',
-        'distrobox enter runs a command inside the container',
-        'distrobox rm removes the container',
-      ],
-      'podman': [
-        'Podman Desktop Flatpak launches without missing dependency error',
-        'Podman Desktop main window shows Dashboard',
-        'Podman Desktop exposes the Containers navigation item',
-        'Podman Desktop launch shows no permission error dialog',
-        'Podman Desktop closes cleanly',
-        'podman info reports rootless storage configuration',
-        'Podman quadlets use supported directories',
-        'Podman auto-update timer is active for the user',
-        'User lingering is enabled for rootless Podman services',
-        'Homebrew Docker runtime mapping uses a supported user-space socket',
-        'Podman socket is accessible for user-space tooling',
-        'Colima context is registered when colima is installed',
-      ],
-      'ptyxis': [
-        'Ptyxis launches and window is accessible',
-        'Terminal accepts keyboard input',
-        'brew is on PATH and returns version string',
-        'podman is available in terminal',
-        'No Vulkan validation spam on terminal open',
-        'New tab opens via keyboard shortcut',
-        'Ptyxis closes via shortcut',
-      ],
-    },
-    software: {
-      'bazaar': [
-        'Bazaar launches and shows main view',
-        'Bazaar updates tab is accessible',
-        'Updates tab loads without gnome-software crash',
-        'Flatpak appstream metadata is up to date',
-        'Explore page loads featured content',
-        'Installed list is non-empty after Flatpak bootstrap',
-        'Search returns results for a known app',
-        'Installed tab shows system Flatpak apps',
-      ],
-      'flatpak': [
-        'Bazaar launches and main window is visible',
-        'Explore tab is present and accessible',
-        'Installed tab is present and accessible',
-        'Clicking Installed tab shows installed apps list',
-        'Search bar accepts input and returns results',
-        'Flathub remote is configured at system scope',
-        'System-scoped Flatpak applications are installed',
-        'Flatpak updates section is reachable without crash',
-        'No gnome-software coredump on Explore page load',
-        'gnome-software does not consume high CPU after close',
-        'Bazaar closes cleanly via shortcut',
-      ],
-    },
-    system: {
-      'bootc': [
-        'bootc status reports active deployment',
-        '/usr is mounted read-only',
-        'active deployment has a valid image reference',
-        'staged deployment visibility',
-      ],
-      'filesystem': [
-        'btrfs root has compression enabled',
-      ],
-      'integrity': [
-        'composefs is active on the root filesystem',
-        'prepare-root.conf exists and is readable',
-        '/usr is backed by a composefs overlay',
-        'image signature policy file exists',
-        'key executables retain composefs file capabilities',
-      ],
-      'uupd': [
-        'uupd config exists and is valid JSON',
-        'uupd service unit is present',
-        'bootc upgrade check runs without error',
-        'uupd modules are configured',
-      ],
-    },
-    flatcar: {
-      'boot': [
-        'systemd reaches multi-user.target',
-        'No systemd units are in failed state',
-        'containerd service is active',
-        'containerd socket is reachable',
-        'Network interface has an IP address',
-        'DNS resolution works',
-        'Flatcar version file is present',
-      ],
-    },
-  };
-
-  const SUITE_DEBUG_HINTS = {
-    smoke: [
-      'Check GNOME Shell started: <code>systemctl --user status gnome-session</code>',
-      'AT-SPI accessibility must be enabled: <code>gsettings get org.gnome.desktop.interface toolkit-accessibility</code>',
-      'Wayland display: ensure DISPLAY/WAYLAND_DISPLAY set in session',
-    ],
-    developer: [
-      '#237 — uinput device may be unavailable; check <code>/dev/uinput</code> permissions',
-      'Ptyxis new-tab: verify uinput setup step ran without error in Argo logs',
-      'Podman: check <code>podman info</code> returns successfully in the VM',
-    ],
-    software: [
-      'Bazaar: verify GNOME Software launched and flatpak remote is enabled',
-      'Flatpak: check <code>flatpak list --app</code> returns expected apps',
-    ],
-    system: [
-      '⚑ PLATFORM CONTRACT — these failures block image promotion',
-      'composefs: check <code>mount | grep composefs</code> in VM',
-      'fs-verity: check <code>fsverity measure /usr/bin/bash</code>',
-      'bootc: check <code>bootc status</code> shows correct deployment',
-      'uupd: check <code>systemctl status uupd</code> and journal for staged deployment errors',
-    ],
-    flatcar: [
-      'Check systemd units are active: <code>systemctl status</code>',
-      'Container runtime: check <code>docker info</code> or <code>containerd status</code>',
-    ],
-  };
-
-  // Helper date functions
-  function fmtAgo(iso) {
-    if (!iso) return 'never';
-    const ms = Date.now() - new Date(iso).getTime();
-    if (ms < 60000)    return 'just now';
-    if (ms < 3600000)  return Math.round(ms/60000)+'m ago';
-    if (ms < 86400000) return Math.round(ms/3600000)+'h ago';
-    return Math.round(ms/86400000)+'d ago';
-  }
-
-  function fmt(iso) {
-    if (!iso) return '—';
-    try { return new Date(iso).toLocaleString(undefined, { dateStyle:'short', timeStyle:'short' }); }
-    catch { return iso; }
-  }
-
-  function prContext(wfName) {
-    if (!wfName) return null;
-    const m = wfName.match(/^([a-z]+)-(\d+)-/);
-    if (!m) return null;
-    const [, prefix, num] = m;
-    const repo = PR_REPOS[prefix];
-    if (!repo) return null;
-    return { repo, num, url: `https://github.com/${repo}/pull/${num}` };
-  }
-
-  function prLabel(wfName) {
-    const ctx = prContext(wfName);
-    if (!ctx) return null;
-    return `<a href="${ctx.url}" target="_blank" rel="noopener" class="text-blue-400 hover:underline font-semibold">${ctx.repo.split('/')[1]}#${ctx.num}</a>`;
-  }
-
-  function triggerLabel(r) {
-    const pr = prLabel(r.id || r.workflow_name || '');
-    if (pr) return pr;
-    const t = r.trigger || '';
-    if (t === 'nightly')   return '<span class="text-slate-500">nightly</span>';
-    if (t === 'manual')    return '<span class="text-slate-500">manual</span>';
-    if (t === 'pr-poller') return '<span class="text-slate-500">pr-poller</span>';
-    return `<span class="text-slate-500">${t||'—'}</span>`;
-  }
-
-  function failingSince(history) {
-    if (!history?.length) return { since: null, consecutiveRuns: 0 };
-    let since = null;
-    let consecutiveRuns = 0;
-    for (const h of history) {
-      if (h.status === 'failed') { since = h.run || h.run_date; consecutiveRuns++; }
-      else break;
-    }
-    return { since, consecutiveRuns };
-  }
-
-  function lastGreenRun(allSuiteData, imgSuites) {
-    const runMap = {};
-    for (const s of imgSuites) {
-      const d = allSuiteData[s];
-      if (!d?.history?.length) continue;
-      for (const h of d.history) {
-        const key = h.run || h.run_date;
-        if (!key) continue;
-        if (!runMap[key]) runMap[key] = {};
-        runMap[key][s] = h.status;
-      }
-    }
-    const dates = Object.keys(runMap).sort().reverse();
-    for (const dt of dates) {
-      const statuses = Object.values(runMap[dt]);
-      if (statuses.length > 0 && statuses.every(s => s === 'passed')) return dt;
-    }
-    return null;
-  }
-
-  function nightlyOverdue(img, row) {
-    const utcHour = img.nightly_time_utc;
-    if (!utcHour) return null;
-    const [h, m] = utcHour.split(':').map(Number);
-    const now = new Date();
-    const expectedToday = new Date(Date.UTC(
-      now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m
-    ));
-    const expectedRun = now < expectedToday ? new Date(expectedToday.getTime() - 86400000) : expectedToday;
-    const lastRuns = Object.values(row).map(d => d?.last_run).filter(Boolean).sort();
-    const lastRun = lastRuns.length ? new Date(lastRuns[lastRuns.length - 1]) : null;
-    if (lastRun && lastRun >= expectedRun) return null;
-    const hoursOverdue = Math.round((now.getTime() - expectedRun.getTime()) / 3600000);
-    return hoursOverdue > 0 ? hoursOverdue : null;
-  }
-
-  async function load(url) {
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 5000);
-    try {
-      const r = await fetch(url, { signal: controller.signal });
-      clearTimeout(id);
-      return r.ok ? r.json() : null;
-    } catch (err) {
-      clearTimeout(id);
-      console.warn(`Fetch timed out or failed for ${url}:`, err);
-      return null;
-    }
-  }
-
-  // ── Stats Bar ──────────────────────────────────────────────────────────────
-  function buildStatsBar(stats, IMAGES) {
-    const p = stats.pipelines || {};
-    const cd = p.containerdisk || {};
-    const v = stats.velocity || {};
-    const cov = stats.test_coverage || {};
-    const gh = stats.github?.testing_lab || {};
-
-    const runs7d = cd.runs_7d || v.deployments_7d || '—';
-    const suc = cd.success_rate_pct;
-    const sucClass = suc >= 90 ? 'text-emerald-400' : suc >= 70 ? 'text-amber-400' : 'text-rose-400';
-    const avgMin = cd.avg_total_min || '—';
-    const openIssues = gh.open_issues || stats.hive?.open_issues || '—';
-    const openPRs = gh.open_prs || stats.hive?.open_prs || '—';
-    const scenarios = cov.scenarios_total || '—';
-    const scensFailed = cov.scenarios_failed || 0;
-    const scensClass = scensFailed > 0 ? 'text-rose-400' : 'text-emerald-400';
-    const running = (stats.recent_runs || []).filter(r => r.overall === 'running').length;
-    const imgsWithData = cov.images_with_results || '—';
-    const totalImages = IMAGES.length;
-
-    document.getElementById('stats-bar').innerHTML = `
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-glow-blue/5 flex flex-col justify-between">
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Pipeline Success</span>
-        <div class="text-2xl font-extrabold mt-1 ${sucClass}">${suc != null ? suc+'%' : '—'}</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl flex flex-col justify-between">
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Runs · 7d</span>
-        <div class="text-2xl font-extrabold text-slate-200 mt-1">${runs7d}</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl flex flex-col justify-between">
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Avg Duration</span>
-        <div class="text-2xl font-extrabold text-slate-200 mt-1">${avgMin}m</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl flex flex-col justify-between">
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Images Tested</span>
-        <div class="text-2xl font-extrabold text-slate-200 mt-1">${imgsWithData}/${totalImages}</div>
-      </div>
-      <div class="bg-slate-900 border border-slate-800 p-5 rounded-xl flex flex-col justify-between">
-        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Open issues/PRs</span>
-        <div class="text-2xl font-extrabold text-slate-200 mt-1">${openPRs} PRs / ${openIssues} Issues</div>
-      </div>
-    `;
-  }
-
-  // ── Alert Banner ───────────────────────────────────────────────────────────
-  function buildAlertBanner(allData, stats, IMAGES) {
-    const failures = allData.filter(d => d.data?.status === 'failed');
-    const bugs = stats.open_bugs || [];
-    const runs = stats.recent_runs || [];
-    const infraFails = runs.filter(r => r.overall === 'fail' && !r.smoke && !r.developer && !r.system);
-    const stuck = runs.filter(r => r.overall === 'running' &&
-      (Date.now() - new Date(r.started_at).getTime()) / 60000 > 90);
-
-    const prMap = {};
-    for (const r of runs.filter(r => r.overall === 'fail')) {
-      const ctx = prContext(r.id || '');
-      if (ctx) prMap[`${ctx.repo}#${ctx.num}`] = true;
-    }
-    const blockedPRs = Object.keys(prMap).length;
-
-    const bySlugRow = {};
-    for (const d of allData) {
-      if (!bySlugRow[d.image.slug]) bySlugRow[d.image.slug] = {};
-      bySlugRow[d.image.slug][d.suite] = d.data;
-    }
-    const overdueImages = IMAGES.filter(img => {
-      const row = bySlugRow[img.slug] || {};
-      return nightlyOverdue(img, row) !== null;
-    });
-
-    const systemFails = failures.filter(d => d.suite === 'system');
-
-    const parts = [];
-    if (systemFails.length) parts.push(`<a href="#failures-section" class="font-bold text-rose-400 hover:underline">⚑ ${systemFails.length} CRITICAL failures</a>`);
-    if (failures.length) parts.push(`<a href="#failures-section" class="hover:underline font-semibold text-slate-300"><strong>${failures.length}</strong> suite${failures.length>1?'s':''} failing</a>`);
-    if (infraFails.length) parts.push(`<a href="#triage-section" class="hover:underline text-slate-300"><strong>${infraFails.length}</strong> pipeline failure${infraFails.length>1?'s':''}</a>`);
-    if (blockedPRs) parts.push(`<a href="#pr-matrix-section" class="hover:underline text-slate-300"><strong>${blockedPRs}</strong> PR${blockedPRs>1?'s':''} blocked</a>`);
-    if (stuck.length) parts.push(`<a href="#triage-section" class="hover:underline text-slate-300"><strong>${stuck.length}</strong> stuck</a>`);
-    if (bugs.length) parts.push(`<a href="#triage-section" class="hover:underline text-slate-300"><strong>${bugs.length}</strong> open bug${bugs.length>1?'s':''}</a>`);
-    if (overdueImages.length) parts.push(`<a href="#nightly-strip" class="hover:underline text-slate-300"><strong>${overdueImages.length}</strong> nightly overdue</a>`);
-
-    const nonSystemFails = failures.filter(d => d.suite !== 'system');
-    if (systemFails.length && nonSystemFails.length) {
-      const idx = parts.findIndex(p => p.includes('suite') && !p.includes('CRITICAL'));
-      if (idx >= 0) parts[idx] = `<a href="#failures-section" class="hover:underline text-slate-300"><strong>${nonSystemFails.length}</strong> other suite${nonSystemFails.length>1?'s':''} failing</a>`;
-    }
-
-    if (!parts.length) {
-      document.getElementById('alert-banner').innerHTML = `
-        <div class="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-5 flex gap-4 items-center shadow-glow-blue/5">
-          <div class="w-8 h-8 rounded-full bg-emerald-500/25 border border-emerald-500/30 flex items-center justify-center shrink-0">
-            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-          </div>
-          <div>
-            <h2 class="text-sm font-bold text-emerald-400">All Pipelines Healthy</h2>
-            <p class="text-xs text-slate-400">No active failures or open bugs are blocking verification.</p>
-          </div>
-        </div>`;
-      return;
-    }
-    document.getElementById('alert-banner').innerHTML = `
-      <div class="bg-rose-500/10 border border-rose-500/20 rounded-xl p-5 flex gap-4 items-start shadow-glow-cyan/5">
-        <div class="w-8 h-8 rounded-full bg-rose-500/20 border border-rose-500/30 flex items-center justify-center shrink-0">
-          <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
-        </div>
-        <div>
-          <h2 class="text-sm font-bold text-rose-400 mb-1">Needs Attention:</h2>
-          <div class="text-sm text-slate-300 flex flex-wrap gap-x-3 gap-y-1.5 items-center font-medium">
-            ${parts.join(' · ')}
-          </div>
-        </div>
-      </div>`;
-  }
-
-  // ── Nightly Strip ──────────────────────────────────────────────────────────
-  function buildNightlyStrip(IMAGES, allData) {
-    const lastRunBySlug = {};
-    for (const d of allData) {
-      const r = d.data?.last_run;
-      if (!r) continue;
-      if (!lastRunBySlug[d.image.slug] || r > lastRunBySlug[d.image.slug])
-        lastRunBySlug[d.image.slug] = r;
-    }
-
-    const chips = IMAGES
-      .filter(img => img.nightly_time_utc)
-      .map(img => {
-        const [h, m] = img.nightly_time_utc.split(':').map(Number);
-        const now = new Date();
-        const expectedToday = new Date(Date.UTC(
-          now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), h, m));
-        const nextRun = now < expectedToday ? expectedToday : new Date(expectedToday.getTime() + 86400000);
-        const minsUntil = Math.round((nextRun.getTime() - now.getTime()) / 60000);
-        const hoursUntil = Math.round(minsUntil / 60);
-
-        const lastRun = lastRunBySlug[img.slug];
-        const expectedPrev = now < expectedToday ? new Date(expectedToday.getTime() - 86400000) : expectedToday;
-        const isOverdue = !lastRun || new Date(lastRun) < expectedPrev;
-
-        let countdownColor, countdownText;
-        if (isOverdue) {
-          const hOverdue = Math.round((now.getTime() - expectedPrev.getTime()) / 3600000);
-          countdownColor = 'text-rose-400';
-          countdownText = `⚠ overdue ${hOverdue}h`;
-        } else if (minsUntil < 60) {
-          countdownColor = 'text-amber-400 font-semibold';
-          countdownText = `in ${minsUntil}m`;
-        } else {
-          countdownColor = 'text-slate-500';
-          countdownText = `in ${hoursUntil}h`;
-        }
-
-        return `<span class="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs">
-          <span class="font-bold text-slate-200">${img.label}</span>
-          <span class="text-slate-500">at ${img.nightly_time_utc} UTC</span>
-          <span class="${countdownColor}">${countdownText}</span>
-        </span>`;
-      }).join('');
-
-    if (!chips) {
-      document.getElementById('nightly-strip').innerHTML = '';
-      return;
-    }
-    document.getElementById('nightly-strip').innerHTML = `
-      <div class="flex flex-wrap gap-2.5 items-center">
-        <span class="text-xs font-semibold text-slate-400">Nightly schedule:</span>
-        ${chips}
-      </div>`;
-  }
-
-  // ── Triage Dashboard ───────────────────────────────────────────────────────
-  function buildTriage(stats, allData, IMAGES) {
-    const bugs = stats.open_bugs || [];
-    const runs = stats.recent_runs || [];
-
-    const infraFails = runs.filter(r =>
-      r.overall === 'fail' && !r.smoke && !r.developer && !r.system
-    );
-
-    const stuck = runs.filter(r => {
-      if (r.overall !== 'running') return false;
-      const dur = (Date.now() - new Date(r.started_at).getTime()) / 60000;
-      return dur > 90;
-    });
-
-    const bySlug = {};
-    for (const d of allData) {
-      if (!bySlug[d.image.slug]) bySlug[d.image.slug] = [];
-      if (d.data?.last_run) bySlug[d.image.slug].push(d.suite);
-    }
-    const neverTested = IMAGES.filter(img => !(bySlug[img.slug]?.length));
-    const partialCoverage = IMAGES.filter(img => {
-      const ran = bySlug[img.slug]?.length || 0;
-      const total = (img.suites || ['smoke','developer','software','system']).length;
-      return ran > 0 && ran < total;
-    });
-
-    const anyIssues = bugs.length || infraFails.length || stuck.length || neverTested.length || partialCoverage.length;
-    if (!anyIssues) {
-      document.getElementById('triage-section').innerHTML = '';
-      return;
-    }
-
-    const bugHtml = bugs.length ? `
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Open Bugs (${bugs.length})</div>
-      <div class="space-y-2 mb-6">
-        ${bugs.map(b => {
-          const areaClass = b.area === 'test' ? 'border-l-amber-500' : 'border-l-rose-500';
-          const areaLabelClass = b.area === 'test' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-          const age = fmtAgo(b.created_at);
-          const affects = b.affects?.length ? `<span class="text-slate-500">• Affects: ${b.affects.join(', ')}</span>` : '';
-          return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex justify-between items-start gap-3 border-l-4 ${areaClass}">
-            <div class="flex-grow min-w-0">
-              <a href="${b.url}" target="_blank" rel="noopener" class="text-sm font-bold text-slate-200 hover:text-blue-400 block truncate">
-                #${b.number}: ${b.title}
-              </a>
-              <div class="text-xs text-slate-500 mt-1 flex flex-wrap gap-2">
-                <span>Created ${age}</span>
-                ${affects}
-              </div>
-            </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${areaLabelClass}">
-              ${b.area || 'bug'}
-            </span>
-          </div>`;
-        }).join('')}
-      </div>` : '';
-
-    const gapHtml = (neverTested.length || partialCoverage.length) ? `
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Coverage Gaps</div>
-      <div class="space-y-2 mb-6">
-        ${neverTested.map(img => {
-          const tmpl = WORKFLOW_TEMPLATES[img.slug];
-          const submitUrl = tmpl ? `${ARGO_UI}/workflow-templates/argo/${tmpl}` : null;
-          const runLink = submitUrl ? `<a href="${submitUrl}" target="_blank" rel="noopener" class="text-[10px] font-bold text-blue-400 hover:underline shrink-0">▶ Run in Argo</a>` : '';
-          return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 border-l-4 border-l-amber-500 flex justify-between items-center gap-3">
-            <div>
-              <div class="text-sm font-bold text-slate-200">${img.label}</div>
-              <div class="text-xs text-slate-500 mt-1 font-mono">${img.image}</div>
-            </div>
-            <div class="flex flex-col items-end gap-1.5 shrink-0">
-              <span class="text-xs text-rose-400 font-semibold">Never tested</span>
-              ${runLink}
-            </div>
-          </div>`;
-        }).join('')}
-        ${partialCoverage.map(img => {
-          const ran = bySlug[img.slug] || [];
-          const all = img.suites || ['smoke','developer','software','system'];
-          const missing = all.filter(s => !ran.includes(s));
-          return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 border-l-4 border-l-slate-700">
-            <div class="text-sm font-bold text-slate-200">${img.label}</div>
-            <div class="text-xs text-slate-400 mt-1">Missing suites: ${missing.join(', ')}</div>
-          </div>`;
-        }).join('')}
-      </div>` : '';
-
-    const seenPR = new Set();
-    const infraItems = infraFails.filter(r => {
-      const ctx = prContext(r.id || '');
-      const key = ctx ? `${ctx.repo}#${ctx.num}` : r.id;
-      if (seenPR.has(key)) return false;
-      seenPR.add(key);
-      return true;
-    }).slice(0, 8);
-
-    const infraHtml = infraItems.length ? `
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Pipeline Failures — No Test Output (${infraFails.length})</div>
-      <div class="space-y-2 mb-6">
-        ${infraItems.map(r => {
-          const pr = prLabel(r.id);
-          return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 border-l-4 border-l-rose-500 flex justify-between items-center gap-3">
-            <div class="min-w-0">
-              <a href="${ARGO_UI}/workflows/argo/${r.id}" target="_blank" rel="noopener" class="text-sm font-bold text-slate-200 font-mono hover:text-blue-400 block truncate">
-                ${r.id}
-              </a>
-              <div class="text-xs text-slate-500 mt-1">
-                ${r.label || r.variant} • ${fmtAgo(r.finished_at || r.started_at)}
-              </div>
-            </div>
-            <div class="shrink-0 flex flex-col items-end gap-1.5">
-              ${pr ? pr : ''}
-              <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                No Output
-              </span>
-            </div>
-          </div>`;
-        }).join('')}
-      </div>` : '';
-
-    const stuckHtml = stuck.length ? `
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Stuck Workflows (${stuck.length})</div>
-      <div class="space-y-2">
-        ${stuck.map(r => {
-          const dur = Math.round((Date.now() - new Date(r.started_at).getTime()) / 60000);
-          return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 border-l-4 border-l-amber-500 flex justify-between items-center gap-3">
-            <div>
-              <a href="${ARGO_UI}/workflows/argo/${r.id}" target="_blank" rel="noopener" class="text-sm font-bold text-slate-200 font-mono hover:text-blue-400">
-                ${r.id}
-              </a>
-              <div class="text-xs text-slate-500 mt-1">${r.label || r.variant}</div>
-            </div>
-            <span class="text-xs text-amber-400 font-semibold">${dur}m running</span>
-          </div>`;
-        }).join('')}
-      </div>` : '';
-
-    document.getElementById('triage-section').innerHTML = `
-      <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Triage Dashboard</h2>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
-        <div>${bugHtml}${gapHtml}</div>
-        <div>${infraHtml}${stuckHtml}</div>
-      </div>`;
-  }
-
-  // ── Test Failures ──────────────────────────────────────────────────────────
-  function buildFailures(allData, stats) {
-    const failures = allData.filter(d => d.data?.status === 'failed');
-    if (!failures.length) {
-      document.getElementById('failures-section').innerHTML = '';
-      return;
-    }
-    const bugs = stats.open_bugs || [];
-
-    failures.sort((a, b) => {
-      if (a.suite === 'system' && b.suite !== 'system') return -1;
-      if (b.suite === 'system' && a.suite !== 'system') return 1;
-      return 0;
-    });
-
-    const cards = failures.map(f => {
-      const d = f.data;
-      const { since, consecutiveRuns } = failingSince(d.history);
-      const pr = prLabel(d.workflow_name);
-      const isSystem = f.suite === 'system';
-
-      const relatedBugs = bugs.filter(b =>
-        b.affects?.some(a => a === f.suite || a === 'all-pipelines' || a === f.image.slug)
-      );
-      const bugLinks = relatedBugs.length
-        ? `<div class="bg-slate-950 border border-slate-800 rounded-lg p-3.5 mb-4 text-xs">
-            <span class="font-semibold text-amber-400 mb-1.5 block">Related open issues:</span>
-            <div class="space-y-1.5">
-              ${relatedBugs.map(b => `
-                <a href="${b.url}" target="_blank" rel="noopener" class="text-amber-400 hover:underline block">
-                  #${b.number} — ${b.title}
-                </a>`).join('')}
-            </div>
-          </div>`
-        : '';
-
-      const catalogByFile = SUITE_SCENARIOS[f.suite] || {};
-      const allCatalogScenarios = Object.values(catalogByFile).flat();
-      const failedSet = new Set(d.failed_scenarios || []);
-      const hasFailedNames = !!(d.failed_scenarios?.length);
-      const total = d.scenarios || allCatalogScenarios.length;
-      const failedCount = d.failed || 0;
-
-      let scenarioList = '';
-      if (!allCatalogScenarios.length) {
-        scenarioList = `<div class="text-xs text-slate-500 font-medium">
-          Scenario names will appear after next test run. Feature files:
-          <div class="flex gap-2.5 mt-2">
-            ${(SUITE_FEATURE_FILES[f.suite] || []).map(name => `
-              <a href="${GH_REPO}/blob/main/tests/${f.suite}/features/${name}.feature" target="_blank" class="text-blue-400 hover:underline">${name}.feature</a>
-            `).join('')}
-          </div>
-        </div>`;
-      } else {
-        const fileHtml = Object.entries(catalogByFile).map(([fname, scenarios]) => {
-          const rows = scenarios.map(sc => {
-            const isFailed = failedSet.has(sc);
-            return `<div class="flex items-start gap-2 py-0.5">
-              <span class="text-[10px] font-bold ${isFailed ? 'text-rose-400' : 'text-emerald-400'}">
-                ${isFailed ? '✗' : '✓'}
-              </span>
-              <span class="${isFailed ? 'text-rose-400' : 'text-slate-300'}">${sc}</span>
-            </div>`;
-          }).join('');
-
-          const fileFailures = scenarios.filter(sc => failedSet.has(sc)).length;
-          const fileLabel = hasFailedNames
-            ? (fileFailures > 0 ? `<span class="text-rose-400">${fname}.feature (${fileFailures} failing)</span>` : `<span class="text-emerald-400">${fname}.feature ✓</span>`)
-            : `<a href="${GH_REPO}/blob/main/tests/${f.suite}/features/${fname}.feature" target="_blank" rel="noopener" class="hover:underline">${fname}.feature</a>`;
-
-          return `<div>
-            <div class="font-semibold uppercase tracking-wider text-[10px] text-slate-500 mb-2">${fileLabel}</div>
-            <div class="space-y-1">${rows}</div>
-          </div>`;
-        }).join('');
-
-        scenarioList = `<details class="text-xs">
-          <summary class="cursor-pointer text-slate-400 hover:text-white transition-colors select-none font-medium mb-2">
-            ▸ Scenario checklist — ${failedCount} failing · ${total - failedCount} passing
-          </summary>
-          <div class="bg-slate-950 border border-slate-800 rounded-xl p-4 space-y-4">
-            ${fileHtml}
-          </div>
-        </details>`;
-      }
-
-      const isCriticalClass = isSystem ? 'border-rose-900/40 border-l-rose-500' : 'border-slate-800 border-l-rose-500';
-      const isCriticalBadge = isSystem ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-950 text-red-400 border border-red-900">PLATFORM CONTRACT</span>` : '';
-      const runPipelineLink = WORKFLOW_TEMPLATES[f.image.slug]
-        ? `<a href="${ARGO_UI}/workflow-templates/argo/${WORKFLOW_TEMPLATES[f.image.slug]}" target="_blank" rel="noopener" class="text-xs text-blue-400 hover:underline font-semibold shrink-0 ml-auto">▶ Re-run pipeline</a>`
-        : '';
-
-      return `<div class="bg-slate-900 border rounded-xl p-5 border-l-4 shadow-glow-cyan/5 ${isCriticalClass}">
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div class="flex items-center gap-3">
-            <span class="text-base font-bold text-white">${f.image.label}</span>
-            <span class="px-2 py-0.5 rounded text-xs font-bold uppercase bg-rose-500/10 text-rose-400 border border-rose-500/20">${f.suite}</span>
-            ${isCriticalBadge}
-          </div>
-          <span class="text-sm font-bold text-rose-400">${d.failed} of ${d.scenarios} scenarios failing</span>
-          ${runPipelineLink}
-        </div>
-        <div class="flex flex-wrap gap-4 text-xs text-slate-500 mb-4 items-center">
-          ${since ? `<span>Failing since: <strong class="text-slate-300">${fmtAgo(since)}</strong> ${consecutiveRuns > 1 ? `(${consecutiveRuns} runs)` : ''}</span>` : ''}
-          ${d.workflow_name ? `<span>•</span><a href="${ARGO_UI}/workflows/argo/${d.workflow_name}" target="_blank" rel="noopener" class="text-blue-400 hover:underline">Argo logs</a><span>•</span><span class="font-mono text-slate-400 shrink-0">${d.workflow_name}</span>` : ''}
-          <span>•</span>
-          <a href="${SUITE_FEATURES[f.suite]}" target="_blank" rel="noopener" class="text-slate-400 hover:underline">Feature files</a>
-          <span>•</span>
-          <span>Trigger: ${pr ? 'PR ' + pr : triggerLabel(d)}</span>
-        </div>
-        ${bugLinks}
-        ${d.screenshot_url ? `
-          <div class="mb-4">
-            <img src="${d.screenshot_url}" alt="failure screenshot" class="max-w-[240px] max-h-[135px] object-cover rounded border border-slate-800 cursor-pointer block hover:border-slate-500" onclick="window.open(this.src,'_blank')" />
-            <div class="text-[10px] text-slate-500 mt-1">Screenshot at last run • Click to enlarge</div>
-          </div>` : ''}
-        ${scenarioList}
-        ${SUITE_DEBUG_HINTS[f.suite] ? `
-          <div class="bg-slate-950 border border-slate-800 rounded-lg p-3.5 mt-4 text-xs">
-            <div class="text-slate-500 font-bold uppercase text-[10px] tracking-wider mb-2">Common failure causes & solutions</div>
-            <ul class="space-y-1 text-slate-400">
-              ${SUITE_DEBUG_HINTS[f.suite].map(h => `
-                <li class="flex items-start gap-1.5">
-                  <span class="text-amber-500 shrink-0">›</span>
-                  <span>${h}</span>
-                </li>`).join('')}
-            </ul>
-          </div>` : ''}
-      </div>`;
-    }).join('');
-
-    document.getElementById('failures-section').innerHTML = `
-      <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Active Test Failures</h2>
-      <div class="space-y-4 mb-10">${cards}</div>`;
-  }
-
-  // ── PR Test Status Matrix ──────────────────────────────────────────────────
-  function buildPRMatrix(stats) {
-    const runs = stats.recent_runs || [];
-    const prMap = {};
-    for (const r of runs) {
-      const ctx = prContext(r.id || r.workflow_name || '');
-      if (!ctx) continue;
-      const key = `${ctx.repo}#${ctx.num}`;
-      if (!prMap[key]) prMap[key] = { ctx, runs: [] };
-      prMap[key].runs.push(r);
-    }
-    const prs = Object.values(prMap);
-    if (!prs.length) {
-      document.getElementById('pr-matrix-section').innerHTML = '';
-      return;
-    }
-
-    const prRows = prs.map(({ ctx, runs: prRuns }) => {
-      const latest = prRuns[0];
-      const allFailed = prRuns.every(r => r.overall === 'fail');
-      const anyPassed = prRuns.some(r => r.overall === 'passed' || r.overall === 'pass');
-      const anyRunning = prRuns.some(r => r.overall === 'running');
-      const hasTestData = prRuns.some(r => r.smoke || r.developer || r.system);
-
-      let statusColor, statusText, borderStyle;
-      if (anyRunning) {
-        const runDur = Math.round((Date.now() - new Date(latest.started_at).getTime()) / 60000);
-        statusColor = 'text-blue-400';
-        statusText = `${runDur}m running`;
-        borderStyle = 'border-l-blue-500';
-      } else if (allFailed && !hasTestData) {
-        statusColor = 'text-rose-400';
-        statusText = 'pipeline failed (no tests)';
-        borderStyle = 'border-l-rose-500';
-      } else if (allFailed && hasTestData) {
-        statusColor = 'text-rose-400';
-        statusText = 'tests failing';
-        borderStyle = 'border-l-rose-500';
-      } else if (anyPassed) {
-        statusColor = 'text-emerald-400';
-        statusText = 'passed';
-        borderStyle = 'border-l-emerald-500';
-      } else {
-        statusColor = 'text-slate-400';
-        statusText = 'mixed';
-        borderStyle = 'border-l-slate-700';
-      }
-
-      const suiteScores = ['smoke','developer','system'].map(s => {
-        const d = latest[s];
-        if (!d) return null;
-        const isPassed = d.status === 'passed';
-        const score = (d.scenarios || 0) - (d.failed || 0);
-        return `<span class="px-2 py-0.5 rounded text-[10px] font-bold ${isPassed ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}">
-          ${s}: ${score}/${d.scenarios || 0}
-        </span>`;
-      }).filter(Boolean).join(' ');
-
-      return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4 border-l-4 ${borderStyle}">
-        <div class="flex items-center gap-4 flex-wrap min-w-0">
-          <a href="${ctx.url}" target="_blank" rel="noopener" class="text-sm font-bold text-slate-200 hover:text-blue-400">
-            ${ctx.repo.split('/')[1]}#${ctx.num}
-          </a>
-          <a href="${ARGO_UI}/workflows/argo/${latest.id}" target="_blank" rel="noopener" class="text-xs text-slate-500 font-mono hover:text-blue-400 truncate max-w-[200px]">
-            ${latest.id}
-          </a>
-          <span class="text-xs text-slate-400">${latest.label || latest.variant}</span>
-        </div>
-        <div class="flex items-center gap-4 text-xs ml-auto flex-wrap shrink-0">
-          <span class="font-bold ${statusColor}">${statusText}</span>
-          <div class="flex gap-2">${suiteScores}</div>
-          <span class="text-slate-500 text-[10px]">
-            ${prRuns.length} attempt${prRuns.length > 1 ? 's' : ''} • ${fmtAgo(latest.started_at)}
-          </span>
-        </div>
-      </div>`;
-    }).join('');
-
-    document.getElementById('pr-matrix-section').innerHTML = `
-      <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">PR Test Status Matrix</h2>
-      <div class="space-y-2 mb-10">${prRows}</div>`;
-  }
-
-  // ── Image Status Table ─────────────────────────────────────────────────────
-  function buildStatusTable(IMAGES, allData) {
-    const bySlug = {};
-    for (const d of allData) {
-      if (!bySlug[d.image.slug]) bySlug[d.image.slug] = {};
-      bySlug[d.image.slug][d.suite] = d.data;
-    }
-
-    const ALL_COLS = ['smoke', 'developer', 'software', 'system', 'flatcar'];
-
-    const rows = IMAGES.map(img => {
-      const row = bySlug[img.slug] || {};
-      const imgSuites = img.suites || SUITES;
-      
-      const cols = ALL_COLS.map(s => {
-        if (!imgSuites.includes(s)) return '<td class="p-4 text-slate-600">—</td>';
-        const cell = row[s];
-        if (!cell) return '<td class="p-4 text-slate-500">pending</td>';
-        const score = cell.scenarios - cell.failed;
-        const status = cell.status;
-
-        if (status === 'running') {
-          return `<td class="p-4 whitespace-nowrap">
-            <a href="${ARGO_UI}/workflows/argo/${cell.workflow_name}" target="_blank" class="text-blue-400 hover:underline">running</a>
-          </td>`;
-        }
-        if (status === 'passed') {
-          return `<td class="p-4 whitespace-nowrap">
-            <a href="${ARGO_UI}/workflows/argo/${cell.workflow_name}" target="_blank" class="text-emerald-400 hover:underline">✓ ${score}/${cell.scenarios}</a>
-          </td>`;
-        }
-        if (status === 'failed') {
-          return `<td class="p-4 whitespace-nowrap">
-            <a href="${ARGO_UI}/workflows/argo/${cell.workflow_name}" target="_blank" class="text-rose-400 hover:underline font-bold">✗ ${score}/${cell.scenarios}</a>
-          </td>`;
-        }
-        return '<td class="p-4 text-slate-500">pending</td>';
-      }).join('');
-
-      const lastRuns = ALL_COLS.map(s => row[s]?.last_run).filter(Boolean).sort();
-      const lastRun = lastRuns[lastRuns.length - 1];
-      const wfNames = ALL_COLS.map(s => row[s]?.workflow_name).filter(Boolean);
-      const wf = wfNames[0];
-      const pr = wf ? prLabel(wf) : null;
-      
-      const green = lastGreenRun(row, imgSuites);
-      const neverRun = imgSuites.every(s => !row[s] || row[s].status === 'pending' || !row[s].last_run);
-      const hasFailure = imgSuites.some(s => row[s]?.status === 'failed');
-      const overdueH = nightlyOverdue(img, row);
-
-      const rowStatus = hasFailure ? 'fail' : neverRun ? 'untested' : 'ok';
-      const tmpl = WORKFLOW_TEMPLATES[img.slug];
-
-      const noDataBadge = neverRun ? `<span class="ml-2 px-1.5 py-0.5 bg-slate-800 text-slate-400 border border-slate-700 rounded text-[9px] font-bold tracking-wider uppercase">no data</span>` : '';
-      const overdueBadge = overdueH !== null ? `<span class="ml-2 px-1.5 py-0.5 bg-rose-500/10 text-rose-400 border border-rose-500/20 rounded text-[9px] font-bold tracking-wider uppercase" title="Overdue nightly pipeline run">overdue ${overdueH}h</span>` : '';
-      const runLink = (hasFailure || neverRun) && tmpl ? `<a href="${ARGO_UI}/workflow-templates/argo/${tmpl}" target="_blank" rel="noopener" class="ml-2 text-[10px] text-blue-400 hover:underline hover:text-blue-300">▶ run</a>` : '';
-
-      return `<tr data-status="${rowStatus}" class="hover:bg-slate-800/40 transition-colors ${neverRun ? 'opacity-65' : ''}">
-        <td class="p-4 font-bold text-slate-200 whitespace-nowrap">
-          ${img.label}${noDataBadge}${overdueBadge}${runLink}
-        </td>
-        ${cols}
-        <td class="p-4 text-slate-400 font-semibold whitespace-nowrap">
-          ${green ? fmtAgo(green) : '<span class="text-slate-600">—</span>'}
-        </td>
-        <td class="p-4 text-slate-500 whitespace-nowrap">
-          ${lastRun ? fmtAgo(lastRun) : 'never'}
-        </td>
-        <td class="p-4 whitespace-nowrap">
-          ${pr ? pr : (lastRun ? 'nightly' : '<span class="text-slate-600">—</span>')}
-        </td>
-        <td class="p-4 font-mono whitespace-nowrap text-slate-500">
-          ${wf ? `<a href="${ARGO_UI}/workflows/argo/${wf}" target="_blank" class="hover:text-blue-400">${wf.length > 20 ? wf.substring(0, 18) + '…' : wf}</a>` : '—'}
-        </td>
-      </tr>`;
-    }).join('');
-
-    document.getElementById('status-tbody').innerHTML = rows;
-  }
-
-  // ── Running Queue ──────────────────────────────────────────────────────────
-  function buildQueue(stats) {
-    const running = (stats.recent_runs || []).filter(r => {
-      if (r.overall !== 'running') return false;
-      const age = Date.now() - new Date(r.started_at).getTime();
-      return age < 3 * 3600 * 1000;
-    });
-    if (!running.length) {
-      document.getElementById('queue-section').innerHTML = '';
-      return;
-    }
-
-    const rows = running.map(r => {
-      const dur = Math.round((Date.now() - new Date(r.started_at).getTime()) / 60000);
-      const pr = prLabel(r.id);
-      return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-4 flex gap-3 items-center border-l-4 border-l-blue-500">
-        <span class="w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping shrink-0"></span>
-        <div class="min-w-0">
-          <a href="${ARGO_UI}/workflows/argo/${r.id}" target="_blank" rel="noopener" class="text-sm font-bold text-slate-200 font-mono hover:text-blue-400 block truncate">
-            ${r.id}
-          </a>
-          <div class="text-xs text-slate-400 mt-1 flex flex-wrap gap-x-2">
-            <span>${r.label || r.variant}</span>
-            <span class="text-blue-400 font-semibold">${dur}m running</span>
-            ${pr ? `<span>PR: ${pr}</span>` : ''}
-          </div>
-        </div>
-      </div>`;
-    }).join('');
-
-    document.getElementById('queue-section').innerHTML = `
-      <h2 class="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-2">Currently Running Pipelines (${running.length})</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">${rows}</div>`;
-  }
-
-  // ── Cluster Health Strip ───────────────────────────────────────────────────
-  function buildCluster(stats) {
-    const nodes = stats.factory?.cluster?.nodes || [];
-    const sem = stats.factory?.semaphores || {};
-    const cd = sem.containerdisk || {};
-    const hd = sem.hostdisk || {};
-
-    const cdPips = Array.from({length: cd.capacity||8}, (_,i) =>
-      `<span class="w-2.5 h-3 rounded-sm border ${i < (cd.active||0) ? 'bg-blue-500 border-blue-500' : 'bg-slate-800 border-slate-700'}"></span>`).join('');
-    const hdPips = Array.from({length: hd.capacity||3}, (_,i) =>
-      `<span class="w-2.5 h-3 rounded-sm border ${i < (hd.active||0) ? 'bg-blue-500 border-blue-500' : 'bg-slate-800 border-slate-700'}"></span>`).join('');
-
-    const nodeHtml = nodes.map(n => `
-      <span class="inline-flex items-center gap-2">
-        <span class="w-2 h-2 rounded-full ${n.status==='ready'?'bg-emerald-400':'bg-rose-400'}"></span>
-        <strong class="text-slate-100">${n.name}</strong>
-        <span class="text-slate-500">${n.role} · ${n.ram_gb}GB · ${n.cpu_threads}t</span>
-      </span>`).join('<span class="text-slate-800">|</span>');
-
-    document.getElementById('cluster-strip').innerHTML = `
-      <div class="flex items-center gap-4 flex-wrap">
-        ${nodeHtml}
-      </div>
-      <div class="flex items-center gap-6 flex-wrap">
-        <span class="flex items-center gap-2">
-          <span>ContainerDisk:</span>
-          <div class="inline-flex gap-0.5">${cdPips}</div>
-          <span class="text-slate-400 font-semibold">${cd.active||0}/${cd.capacity||8}</span>
-        </span>
-        <span class="flex items-center gap-2">
-          <span>HostDisk:</span>
-          <div class="inline-flex gap-0.5">${hdPips}</div>
-          <span class="text-slate-400 font-semibold">${hd.active||0}/${hd.capacity||3}</span>
-        </span>
-        <span class="text-slate-500 font-medium">k3s • ${stats.factory?.cluster?.total_ram_gb||128}GB total</span>
-      </div>`;
-  }
-
-  // ── Recent Runs Table ──────────────────────────────────────────────────────
-  function buildRecentRuns(stats) {
-    const runs = stats.recent_runs || [];
-    if (!runs.length) {
-      document.getElementById('runs-tbody').innerHTML = '<tr><td colspan="9" class="p-4 text-center text-slate-600">No recent run data</td></tr>';
-      return;
-    }
-
-    const rows = runs.map(r => {
-      const dur = r.overall === 'running'
-        ? 'running…'
-        : (r.duration_min ? r.duration_min+'m' : '—');
-      const badgeStyle = r.overall === 'passed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-        : r.overall === 'fail' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-        : 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
-
-      const pr = prLabel(r.id);
-      const ss = r.suite_scores || {};
-      const suiteData = name => ss[name] || r[name] || null;
-
-      const runSuiteCell = d => {
-        if (!d) return '<td class="p-4 text-slate-600">—</td>';
-        const score = (d.scenarios||0) - (d.failed||0);
-        const color = d.status === 'passed' ? 'text-emerald-400' : d.status === 'running' ? 'text-blue-400' : 'text-rose-400';
-        return `<td class="p-4 whitespace-nowrap font-semibold ${color}">
-          <a href="${ARGO_UI}/workflows/argo/${r.id}" target="_blank" class="hover:underline">${score}/${d.scenarios||0}</a>
-        </td>`;
-      };
-
-      return `<tr class="hover:bg-slate-800/30 transition-colors">
-        <td class="p-4 font-mono font-bold whitespace-nowrap text-slate-300">
-          <a href="${ARGO_UI}/workflows/argo/${r.id}" target="_blank" class="hover:text-blue-400">
-            ${r.id.length > 25 ? r.id.substring(0, 23) + '…' : r.id}
-          </a>
-        </td>
-        <td class="p-4 text-slate-400 whitespace-nowrap">${r.label||r.variant}</td>
-        ${runSuiteCell(suiteData('smoke'))}
-        ${runSuiteCell(suiteData('developer'))}
-        ${runSuiteCell(suiteData('software'))}
-        ${runSuiteCell(suiteData('system'))}
-        <td class="p-4 text-slate-500">${dur}</td>
-        <td class="p-4 whitespace-nowrap text-slate-400">${pr ? pr : triggerLabel(r)}</td>
-        <td class="p-4">
-          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${badgeStyle}">${r.overall}</span>
-        </td>
-      </tr>`;
-    }).join('');
-
-    document.getElementById('runs-tbody').innerHTML = rows;
-  }
-
-  // ── Screenshots ────────────────────────────────────────────────────────────
-  function buildScreenshots(IMAGES) {
-    const shots = IMAGES.map(img => {
-      const url = `https://projectbluefin.github.io/testing-lab/screenshots/${img.slug}-smoke-latest.png`;
-      return `<div class="bg-slate-900 border border-slate-800 rounded-xl p-3 shadow-glow-cyan/5 w-[140px] shrink-0 text-center">
-        <img src="${url}" alt="${img.label}" class="w-[120px] h-[68px] object-cover rounded-lg border border-slate-800 hover:border-blue-400 cursor-pointer transition-all duration-200" onclick="window.open(this.src,'_blank')" />
-        <div class="text-[10px] font-bold text-slate-400 mt-2 truncate">${img.label}</div>
-      </div>`;
-    }).join('');
-    document.getElementById('screenshots-section').innerHTML = shots;
-  }
-
-  // ── History Blocks Grid ────────────────────────────────────────────────────
-  function buildHistoryBlock(img, allSuiteData) {
-    const imgSuites = img.suites || SUITES;
-    const rows = [];
-    for (const s of imgSuites) {
-      const d = allSuiteData[s];
-      if (!d?.history?.length) continue;
-      for (const h of d.history) rows.push({ suite: s, wf: d.workflow_name, ...h });
-    }
-    rows.sort((a,b) => (b.run||b.run_date||'').localeCompare(a.run||a.run_date||''));
-    const top = rows.slice(0, 10);
-    const tbody = top.length
-      ? top.map(r => {
-          const passed = (r.scenarios||0) - (r.failed||0);
-          const isPassed = r.status === 'passed';
-          return `<tr class="hover:bg-slate-800/20">
-            <td class="p-3 whitespace-nowrap">${fmt(r.run||r.run_date)}</td>
-            <td class="p-3 text-slate-300 font-semibold">${r.suite}</td>
-            <td class="p-3 font-bold ${isPassed?'text-emerald-400':'text-rose-400'}">${r.status}</td>
-            <td class="p-3 font-mono">${r.scenarios>0?`${passed}/${r.scenarios}`:'—'}</td>
-          </tr>`;
-        }).join('')
-      : `<tr><td colspan="4" class="p-4 text-center text-slate-600">No historical runs yet</td></tr>`;
-
-    return `<div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-      <div class="bg-slate-950 px-4 py-3 border-b border-slate-800 font-bold text-slate-200 text-xs tracking-wide">${img.label}</div>
-      <div class="overflow-x-auto">
-        <table class="w-full border-collapse text-left text-[10px] text-slate-400">
-          <thead class="bg-slate-950 font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800">
-            <tr><th class="p-3">Date</th><th class="p-3">Suite</th><th class="p-3">Status</th><th class="p-3">Score</th></tr>
-          </thead>
-          <tbody class="divide-y divide-slate-800/50">${tbody}</tbody>
-        </table>
-      </div>
-    </div>`;
-  }
-
-  // ── Annotate table headers with counts ──────────────────────────────────────
-  function annotateStatusTableHeaders(stats) {
-    const cov = stats.test_coverage?.suites || stats.test_coverage?.coverage_by_suite || {};
-    const manual = { smoke: 29, developer: 31, software: 26, system: 14, flatcar: 14 };
-    ['smoke', 'developer', 'software', 'system', 'flatcar'].forEach(s => {
-      const el = document.getElementById(`th-${s}`);
-      if (!el) return;
-      const n = cov[s]?.scenarios || manual[s];
-      if (n) el.innerHTML = `${s.charAt(0).toUpperCase() + s.slice(1)}<br><span class="text-[9px] font-normal text-slate-500 lowercase normal-case opacity-70">${n} scenarios</span>`;
-    });
-  }
-
-  // ── Main Controller ────────────────────────────────────────────────────────
-  (async () => {
-    // 1. Fetch live telemetry dataset first from raw github to bypass Pages build and CDN caches
-    const stats = await load(`https://raw.githubusercontent.com/projectbluefin/testing-lab/main/docs/data/factory-stats.json?t=${Date.now()}`) || {};
-    
-    // Fallback images config
-    const IMAGES = (stats.images||[]).length ? stats.images : [
-      { slug:'bluefin-testing',         label:'bluefin:testing' },
-      { slug:'bluefin-lts-testing',     label:'bluefin-lts:testing' },
-      { slug:'bluefin-bazzite-testing', label:'bazzite:testing' },
-      { slug:'bluefin-aurora-testing',  label:'aurora:testing' },
-      { slug:'dakota-testing',          label:'dakota:testing' },
-      { slug:'flatcar-testing',         label:'flatcar:testing', suites:['flatcar'] },
-    ];
-
-    const gen = stats._meta?.generated;
-    const staleWarning = (gen && (Date.now() - new Date(gen).getTime()) > 90 * 60 * 1000)
-      ? `<span class="text-amber-400 font-semibold" title="Data is older than 90 minutes">⚠ data ${fmtAgo(gen)}</span>`
-      : (gen ? `Data: ${fmtAgo(gen)}` : '');
-    document.getElementById('header-meta').innerHTML =
-      `<span>${staleWarning}</span><span>•</span><a href="${ARGO_UI}" target="_blank" rel="noopener" class="text-blue-400 hover:underline">Argo UI</a><span>•</span><a href="${GH_REPO}" target="_blank" rel="noopener" class="text-blue-400 hover:underline">testing-lab</a>`;
-
-    // 2. Parallel fetch individual suites results from raw github content to ensure real-time freshness
-    const allData = [];
-    await Promise.all(IMAGES.flatMap(img => {
-      const imgSuites = img.suites || SUITES;
-      return imgSuites.map(s =>
-        load(`https://raw.githubusercontent.com/projectbluefin/testing-lab/main/docs/results/${img.slug}-${s}.json?t=${Date.now()}`).then(d => {
-          allData.push({ image: img, suite: s, data: d });
-        })
-      );
-    }));
-
-    const byImage = {};
-    for (const d of allData) {
-      if (!byImage[d.image.slug]) byImage[d.image.slug] = {};
-      byImage[d.image.slug][d.suite] = d.data;
-    }
-
-    // 3. Populate Tailwind renders
-    buildStatsBar(stats, IMAGES);
-    buildAlertBanner(allData, stats, IMAGES);
-    buildNightlyStrip(IMAGES, allData);
-    buildFailures(allData, stats);
-    buildTriage(stats, allData, IMAGES);
-    buildStatusTable(IMAGES, allData);
-    annotateStatusTableHeaders(stats);
-    buildQueue(stats);
-    buildPRMatrix(stats);
-    buildCluster(stats);
-    buildRecentRuns(stats);
-    buildScreenshots(IMAGES);
-
-    const historyBlocks = await Promise.all(
-      IMAGES.map(img => buildHistoryBlock(img, byImage[img.slug] || {}))
-    );
-    document.getElementById('history-grid').innerHTML = historyBlocks.join('');
-  })();
-
-  // Filter checkbox binder
-  function filterStatusTable(failingOnly) {
-    document.querySelectorAll('#status-tbody tr[data-status]').forEach(tr => {
-      const s = tr.dataset.status;
-      tr.style.display = (failingOnly && s === 'ok') ? 'none' : '';
-    });
-  }
-
-  const filterCheckbox = document.getElementById('filter-failing');
-  if (filterCheckbox) {
-    filterCheckbox.addEventListener('change', (e) => {
-      filterStatusTable(e.target.checked);
-    });
-  }
-
-  // Auto-refresh every 5 minutes
-  setTimeout(() => location.reload(), 5 * 60 * 1000);
-</script>
