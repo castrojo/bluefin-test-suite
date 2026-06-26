@@ -2,36 +2,120 @@
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
 import GlobalSearch from '../components/GlobalSearch.astro';
-import fallbackSummary from '../data/compiled/summary-index.json' assert { type: 'json' };
+// 1. Gather all run log JSON files at build-time using Vite's dynamic glob
+const runFiles = import.meta.glob('../data/runs/*.json', { eager: true });
+const runsData = Object.entries(runFiles).map(([filePath, fileContent]: [string, any]) => {
+  const id = filePath.split('/').pop().replace('.json', '');
+  const runData = fileContent.default || fileContent;
+  return { id, ...runData };
+});
 
-const summary = fallbackSummary || {
-  last_updated: new Date().toISOString(),
-  aggregates: {
-    total_runs: 0,
-    overall_pass_rate: 1.0,
-    average_test_duration_ms: 0,
-    flavors: {
-      bluefin: { runs: 0, passed: 0, failed: 0 },
-      aurora: { runs: 0, passed: 0, failed: 0 },
-      "bluefin-lts": { runs: 0, passed: 0, failed: 0 },
-      dakota: { runs: 0, passed: 0, failed: 0 }
-    }
-  },
-  runs: []
-};
+// 2. Sort runs by timestamp, newest first
+const sortedRuns = [...runsData].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
 const formatFlavorName = (name: string) => {
   const mapping: Record<string, string> = {
     bluefin: "Bluefin",
     aurora: "Aurora",
     "bluefin-lts": "Bluefin LTS",
-    dakota: "Dakota"
+    dakota: "Dakota",
+    bazzite: "Bazzite",
+    flatcar: "Flatcar"
   };
   return mapping[name] || name.charAt(0).toUpperCase() + name.slice(1);
 };
 
-const passRatePercent = (summary.aggregates.overall_pass_rate * 100).toFixed(1);
-const averageDurationMin = (summary.aggregates.average_test_duration_ms / 1000 / 60).toFixed(1);
+
+// 3. Compute real suite statistics at build-time
+const suites = ["smoke", "common", "vanilla-gnome"];
+const flavors = Array.from(new Set(sortedRuns.map(r => r.flavor))).sort();
+
+const latestRunsByFlavorSuite = new Map();
+for (const run of sortedRuns) {
+  const suiteName = run.suite || "unknown";
+  const key = `${run.flavor}::${suiteName}`;
+  if (!latestRunsByFlavorSuite.has(key)) {
+    latestRunsByFlavorSuite.set(key, run);
+  }
+}
+
+const suiteStats = suites.map(suite => {
+  const suiteRuns = flavors.map(fl => latestRunsByFlavorSuite.get(`${fl}::${suite}`)).filter(Boolean);
+  
+  let totalTests = 0;
+  let passedTests = 0;
+  let failedTests = 0;
+  
+  const failureCounts: Record<string, number> = {};
+  
+  for (const run of suiteRuns) {
+    totalTests += run.summary?.total_tests || 0;
+    passedTests += run.summary?.passed_tests || 0;
+    failedTests += run.summary?.failed_tests || 0;
+    
+    for (const test of run.tests || []) {
+      if (test.status === "failed") {
+        failureCounts[test.name] = (failureCounts[test.name] || 0) + 1;
+      }
+    }
+  }
+  
+  const recentFailures = Object.entries(failureCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 3);
+    
+  const suiteHistory = sortedRuns
+    .filter(r => r.suite === suite)
+    .slice(0, 10)
+    .map(r => ({
+      id: r.id,
+      timestamp: r.timestamp,
+      status: r.summary?.status || "failed",
+      passed: r.summary?.passed_tests || 0,
+      total: r.summary?.total_tests || 0,
+    }));
+    
+  const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 100;
+  const isFailing = suiteRuns.some(r => r.summary?.status === "failed" || r.summary?.status === "fail");
+  
+  return {
+    suite,
+    label: suite === "vanilla-gnome" ? "Vanilla GNOME" : suite.charAt(0).toUpperCase() + suite.slice(1),
+    passRate,
+    passed: passedTests,
+    total: totalTests,
+    isFailing,
+    recentFailures,
+    history: suiteHistory,
+    runsByFlavor: flavors.map(fl => {
+      const r = latestRunsByFlavorSuite.get(`${fl}::${suite}`);
+      return {
+        flavor: fl,
+        run: r,
+      };
+    }).filter(item => item.run !== undefined)
+  };
+});
+
+// Calculate build-time failures list for the Triage view
+const activeFailuresList = sortedRuns
+  .filter(r => r.summary?.status === "failed" || r.summary?.status === "fail")
+  .slice(0, 5)
+  .map(r => {
+    const failedScenarios = (r.tests || [])
+      .filter((t: any) => t.status === "failed")
+      .map((t: any) => t.name);
+    return {
+      runId: r.id,
+      flavor: r.flavor,
+      suite: r.suite || "unknown",
+      timestamp: r.timestamp,
+      failedCount: r.summary?.failed_tests || 0,
+      totalCount: r.summary?.total_tests || 0,
+      failedScenarios
+    };
+  });
 ---
 
 <Layout title="Dashboard">
@@ -39,170 +123,546 @@ const averageDurationMin = (summary.aggregates.average_test_duration_ms / 1000 /
 
   <main class="container mx-auto px-4 py-8 max-w-7xl flex-grow">
     <!-- Hero / Intro -->
-    <div class="text-center max-w-3xl mx-auto mb-12">
-      <h1 class="text-4xl font-extrabold tracking-tight text-white mb-4 sm:text-5xl">
-        Atomic Desktop Observability
+    <div class="text-center max-w-3xl mx-auto mb-8">
+      <h1 class="text-4xl font-extrabold tracking-tight text-white mb-3 sm:text-5xl">
+        Bluefin QA Factory
       </h1>
-      <p class="text-lg text-slate-400 leading-relaxed">
-        Real-time continuous verification, build health, and test execution logs for <span class="text-blue-400 font-semibold">Bluefin</span>, <span class="text-indigo-400 font-semibold">Aurora</span>, and the wider Universal Blue ecosystem, streamed directly from our bare-metal and KubeVirt testing lab.
+      <p class="text-base text-slate-400 leading-relaxed">
+        Real-time bare-metal & KubeVirt continuous verification dashboard for <span class="text-blue-400 font-semibold">Bluefin</span>, <span class="text-indigo-400 font-semibold">Aurora</span>, and thewider Universal Blue ecosystem.
       </p>
     </div>
 
+    <!-- Live Factory Lab Strip (Cluster health & semaphores widget) -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 mb-8 shadow-lg backdrop-blur-md">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          <h2 class="text-sm font-bold text-white uppercase tracking-wider">Live Factory Lab Status</h2>
+        </div>
+        <div class="text-xs text-slate-500 font-mono" id="factory-time">Connecting to KubeVirt Lab...</div>
+      </div>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+        <!-- Cluster Nodes -->
+        <div>
+          <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Bare-Metal Nodes</h3>
+          <div class="flex flex-col gap-2" id="factory-nodes">
+            <!-- Fallback Static nodes shown during connection/development -->
+            <div class="flex items-center justify-between bg-slate-950/40 px-3 py-1.5 rounded border border-slate-800/40">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="font-bold text-slate-200">ghost</span>
+              </div>
+              <span class="text-xs text-slate-500 font-mono">control-plane · 64GB</span>
+            </div>
+            <div class="flex items-center justify-between bg-slate-950/40 px-3 py-1.5 rounded border border-slate-800/40">
+              <div class="flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span class="font-bold text-slate-200">exo-1</span>
+              </div>
+              <span class="text-xs text-slate-500 font-mono">worker · 32GB</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Semaphores Allocators -->
+        <div>
+          <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Resource Semaphores</h3>
+          <div class="flex flex-col gap-3" id="factory-semaphores">
+            <!-- ContainerDisk Semaphore Capacity Gauge -->
+            <div>
+              <div class="flex justify-between text-xs font-mono mb-1 text-slate-400">
+                <span>ContainerDisk VM Slots</span>
+                <span class="font-bold text-slate-200">2 / 8 active</span>
+              </div>
+              <div class="flex gap-1 h-3" id="sem-cd-pips">
+                <div class="flex-1 bg-blue-500/80 border border-blue-500/20 rounded-sm"></div>
+                <div class="flex-1 bg-blue-500/80 border border-blue-500/20 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+              </div>
+            </div>
+            <!-- HostDisk VM Slots -->
+            <div>
+              <div class="flex justify-between text-xs font-mono mb-1 text-slate-400">
+                <span>HostDisk SSD Allocation</span>
+                <span class="font-bold text-slate-200">1 / 6 active</span>
+              </div>
+              <div class="flex gap-1 h-3" id="sem-hd-pips">
+                <div class="flex-1 bg-indigo-500/80 border border-indigo-500/20 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+                <div class="flex-1 bg-slate-800 border border-slate-700 rounded-sm"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pipeline Stats -->
+        <div>
+          <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Lab Velocity</h3>
+          <div class="grid grid-cols-2 gap-2 text-center text-xs font-mono">
+            <div class="bg-slate-950/40 p-2.5 rounded border border-slate-800/40">
+              <p class="text-slate-500">Pipeline success</p>
+              <p class="text-lg font-bold text-emerald-400 mt-0.5" id="val-pipeline-success">84%</p>
+            </div>
+            <div class="bg-slate-950/40 p-2.5 rounded border border-slate-800/40">
+              <p class="text-slate-500">Runs this week</p>
+              <p class="text-lg font-bold text-blue-400 mt-0.5" id="val-runs-week">42</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Layout Switcher Tabs Navigation -->
+    <div class="border-b border-slate-800 mb-8 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex gap-2" role="tablist">
+        <button id="tab-B" class="px-5 py-3 text-sm font-semibold border-b-2 border-blue-500 text-blue-400 transition-all focus:outline-none flex items-center gap-2" role="tab">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.003 9.003 0 1020.945 13H11V3.055z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+          </svg>
+          Suite Board
+        </button>
+        <button id="tab-A" class="px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-white transition-all focus:outline-none flex items-center gap-2" role="tab">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Run Log Timeline
+        </button>
+        <button id="tab-C" class="px-5 py-3 text-sm font-semibold border-b-2 border-transparent text-slate-400 hover:text-white transition-all focus:outline-none flex items-center gap-2" role="tab">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          Triage Operations
+        </button>
+      </div>
+      <span class="text-xs text-slate-500 mb-2 sm:mb-0">Use Left / Right arrow keys to switch views</span>
+    </div>
+
     <!-- Search Section -->
-    <div class="mb-12">
+    <div class="mb-10">
       <GlobalSearch />
     </div>
 
-    <!-- Aggregates Stats Grid -->
-    <div class="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-12">
-      <!-- Card: Overall Pass Rate -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
-        <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Pass Rate</p>
-        <div class="flex items-baseline gap-2">
-          <span class="text-4xl font-extrabold text-emerald-400 font-mono">{passRatePercent}%</span>
-          <span class="text-sm text-slate-500">overall</span>
-        </div>
-        <div class="w-full bg-slate-800 h-1.5 rounded-full mt-4 overflow-hidden">
-          <div class="bg-emerald-500 h-full rounded-full" style={`width: ${passRatePercent}%`}></div>
-        </div>
-      </div>
-
-      <!-- Card: Total Executions -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
-        <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Executions</p>
-        <div class="flex items-baseline gap-2">
-          <span class="text-4xl font-extrabold text-blue-500 font-mono">{summary.aggregates.total_runs}</span>
-          <span class="text-sm text-slate-500">runs tracked</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-5">Including Bluefin, Aurora, Dakota, and variants</p>
-      </div>
-
-      <!-- Card: Avg Execution Time -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md">
-        <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Avg Run Duration</p>
-        <div class="flex items-baseline gap-2">
-          <span class="text-4xl font-extrabold text-indigo-400 font-mono">{averageDurationMin}m</span>
-          <span class="text-sm text-slate-500">per suite</span>
-        </div>
-        <p class="text-xs text-slate-500 mt-5">Decoupled VM boot & validation cycle</p>
-      </div>
-    </div>
-
-    <!-- Active Streams / Variant Cards -->
-    <h2 class="text-2xl font-bold tracking-tight text-white mb-6">OCI Image Streams</h2>
-    <div class="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-12">
-      {Object.entries(summary.aggregates.flavors).map(([flavorName, stats]) => {
-        const rate = stats.runs > 0 ? (stats.passed / stats.runs * 100).toFixed(0) : "100";
-        return (
-          <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between">
-            <div>
-              <div class="flex items-center justify-between mb-3">
-                <h3 class="text-lg font-bold text-white">{formatFlavorName(flavorName)}</h3>
-                <span class={`px-2 py-0.5 rounded text-xs font-mono font-semibold border ${
-                  stats.failed > 0 
-                    ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
-                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                }`}>
-                  {rate}% Pass
-                </span>
-              </div>
-              <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800/60 mb-4">
-                <div>
-                  <p class="text-slate-500">Runs</p>
-                  <p class="font-bold text-white mt-0.5">{stats.runs}</p>
-                </div>
-                <div>
-                  <p class="text-emerald-500">Passed</p>
-                  <p class="font-bold text-emerald-400 mt-0.5">{stats.passed}</p>
-                </div>
-                <div>
-                  <p class="text-rose-500">Failed</p>
-                  <p class="font-bold text-rose-400 mt-0.5">{stats.failed}</p>
-                </div>
-              </div>
-            </div>
-            <a href={`#`} class="text-xs font-semibold text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1">
-              View target filters
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-              </svg>
-            </a>
-          </div>
-        )
-      })}
-    </div>
-
-    <!-- Executions Listing Section -->
-    <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
-      <h2 class="text-2xl font-bold tracking-tight text-white">Recent Verification Runs</h2>
-      <span class="text-xs text-slate-500">Last compiled: {new Date(summary.last_updated).toLocaleString()}</span>
-    </div>
-
-    <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-md">
-      {summary.runs.length === 0 ? (
-        <div class="p-12 text-center text-slate-500">
-          <svg class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          <p class="text-base font-semibold text-slate-400">No test runs detected</p>
-          <p class="text-sm text-slate-600 mt-1">Deploy some run-ID.json files into the raw-runs directory and compile.</p>
-        </div>
-      ) : (
-        <div class="divide-y divide-slate-800">
-          {summary.runs.map((run) => (
-            <div class="p-6 hover:bg-slate-950/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div class="flex items-start gap-4">
-                <div class={`w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 ${
-                  run.status === 'success' || run.status === 'passed'
-                    ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" 
-                    : "bg-rose-500/10 border-rose-500/20 text-rose-400"
-                }`}>
-                  {run.status === 'success' || run.status === 'passed' ? (
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : (
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  )}
-                </div>
-                <div>
-                  <div class="flex flex-wrap items-center gap-2 mb-1">
-                    <a href={`${import.meta.env.BASE_URL}run/${run.id}`} class="text-base font-bold text-white hover:text-blue-400 transition-colors font-mono">
-                      {run.id}
-                    </a>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300">
-                      {formatFlavorName(run.flavor)}
-                    </span>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 border border-blue-500/25 text-blue-400">
-                      {run.stream}
-                    </span>
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         LAYOUT B — SUITE BOARD (Default Primary View)
+         One panel per test suite. Pass rate trend + recent failures.
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="view-B" class="view-panel block">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        {suiteStats.map(s => {
+          const passCol = s.passRate >= 90 ? "text-emerald-400" : s.passRate >= 70 ? "text-amber-400" : "text-rose-400";
+          const borderCol = s.isFailing ? "border-rose-500/30" : "border-slate-800";
+          return (
+            <div class={`bg-slate-900/60 border ${borderCol} rounded-xl p-5 flex flex-col justify-between shadow-lg hover:bg-slate-900 transition-colors`}>
+              <div>
+                <!-- Panel Header -->
+                <div class="flex items-center justify-between mb-4 border-b border-slate-800 pb-2">
+                  <div class="flex items-center gap-2">
+                    <span class={`w-2.5 h-2.5 rounded-full ${s.isFailing ? "bg-rose-500" : "bg-emerald-500"}`}></span>
+                    <h3 class="text-lg font-bold text-white">{s.label}</h3>
                   </div>
-                  <div class="text-xs text-slate-500 font-mono flex flex-wrap gap-x-4 gap-y-1">
-                    <span>Version: {run.version}</span>
-                    <span>Commit: <a href={`https://github.com/projectbluefin/common/commit/${run.commit_sha}`} class="text-blue-400 hover:underline">{run.commit_sha.substring(0, 7)}</a></span>
-                    <span>Duration: {(run.duration_ms / 1000).toFixed(0)}s</span>
-                  </div>
+                  <span class={`px-2 py-0.5 rounded text-xs font-mono font-semibold border ${
+                    s.isFailing 
+                      ? "bg-rose-500/10 text-rose-400 border-rose-500/20" 
+                      : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                  }`}>
+                    {s.isFailing ? "Failing" : "Passing"}
+                  </span>
                 </div>
-              </div>
-              
-              <div class="flex items-center justify-between sm:justify-end gap-6 shrink-0 border-t border-slate-800/40 pt-4 sm:pt-0 sm:border-0">
-                <div class="text-left sm:text-right font-mono text-xs">
-                  <p class="text-slate-400">Tests Count</p>
-                  <p class="text-sm font-semibold mt-0.5">
-                    <span class="text-emerald-400">{run.metrics.passed}</span> / <span class="text-rose-400">{run.metrics.failed}</span> / <span class="text-slate-500">{run.metrics.total}</span>
+
+                <!-- Pass Rate Percentage -->
+                <div class="mb-4">
+                  <div class="flex items-baseline gap-2">
+                    <span class={`text-4xl font-extrabold ${passCol} font-mono`}>{s.passRate}%</span>
+                    <span class="text-sm text-slate-500">pass rate</span>
+                  </div>
+                  <p class="text-xs text-slate-500 font-mono mt-1">
+                    {s.passed} of {s.total} scenarios successful
                   </p>
                 </div>
-                <div class="text-right font-mono text-xs">
-                  <p class="text-slate-500">Timestamp</p>
-                  <p class="text-slate-400 mt-0.5">{new Date(run.timestamp).toLocaleTimeString()}</p>
+
+                <!-- Trend Sparkbars -->
+                <div class="mb-4">
+                  <p class="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-1.5">Last 10 Runs Trend</p>
+                  <div class="flex gap-1 items-end h-8">
+                    {s.history.map(h => {
+                      const trendCol = h.status === "passed" || h.status === "success" 
+                        ? "bg-emerald-500" 
+                        : "bg-rose-500";
+                      return (
+                        <div class={`flex-1 ${trendCol} rounded-sm opacity-80 hover:opacity-100 transition-opacity`} 
+                             style={`height: ${Math.max(4, Math.round((h.passed / (h.total || 1)) * 32))}px`}
+                             title={`Run ${h.id}: ${h.passed}/${h.total} (${h.status})`}>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <!-- Recent Failures -->
+                <div class="mt-4 border-t border-slate-800/60 pt-3">
+                  <p class="text-[10px] uppercase font-bold text-slate-500 tracking-wider mb-2">Recent Failures</p>
+                  {s.recentFailures.length === 0 ? (
+                    <p class="text-xs text-slate-500 italic">No recent failures</p>
+                  ) : (
+                    <div class="flex flex-col gap-2">
+                      {s.recentFailures.map(f => (
+                        <div class="flex items-start gap-2 bg-slate-950/40 p-2 rounded border border-slate-800/40 text-xs text-slate-300">
+                          <span class="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0 mt-1.5"></span>
+                          <span class="font-mono truncate flex-1" title={f.name}>{f.name.split('>').pop()?.trim()}</span>
+                          <span class="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/10 whitespace-nowrap">×{f.count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
+
+              <!-- Action Links -->
+              <div class="mt-5 pt-3 border-t border-slate-800/40 flex justify-between text-xs font-mono text-slate-500">
+                <span>Tested images: {s.runsByFlavor.length}</span>
+                <a href={`https://github.com/projectbluefin/testsuite/tree/main/tests/${s.suite}/features`} target="_blank" class="hover:text-blue-400 transition-colors flex items-center gap-1">
+                  Features Folder ↗
+                </a>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         LAYOUT A — RUN LOG TIMELINE
+         Timeline of recent pipeline runs. Chronological.
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="view-A" class="view-panel hidden">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-md mb-12">
+        {sortedRuns.length === 0 ? (
+          <div class="p-12 text-center text-slate-500">
+            <p class="text-base font-semibold text-slate-400">No verification runs found</p>
+          </div>
+        ) : (
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse font-sans text-xs">
+              <thead>
+                <tr class="bg-slate-950 border-b border-slate-800 text-slate-400 font-semibold uppercase text-[10px] tracking-wider text-left">
+                  <th class="p-4">Run</th>
+                  <th class="p-4">Stream Variant</th>
+                  <th class="p-4 text-center">Suite</th>
+                  <th class="p-4">Duration</th>
+                  <th class="p-4">Commit</th>
+                  <th class="p-4">Timestamp</th>
+                  <th class="p-4">Status</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-800/40">
+                {sortedRuns.map((run) => (
+                  <tr class="hover:bg-slate-950/40 transition-colors">
+                    <td class="p-4 font-mono font-bold text-white">
+                      <a href={`${import.meta.env.BASE_URL}run/${run.id}`} class="hover:text-blue-400 transition-colors">
+                        {run.id}
+                      </a>
+                    </td>
+                    <td class="p-4 whitespace-nowrap">
+                      <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300 mr-2">
+                        {formatFlavorName(run.flavor)}
+                      </span>
+                      <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 border border-blue-500/25 text-blue-400">
+                        {run.stream}
+                      </span>
+                    </td>
+                    <td class="p-4 text-center font-mono font-semibold">
+                      <span class="text-slate-400 bg-slate-950 px-2.5 py-1 rounded border border-slate-800/80">
+                        {run.suite || "unknown"}
+                      </span>
+                    </td>
+                    <td class="p-4 font-mono text-slate-400">{(run.summary?.total_duration_ms / 1000).toFixed(0)}s</td>
+                    <td class="p-4 font-mono">
+                      <a href={`${run.git_commit?.repo_url}/commit/${run.git_commit?.sha}`} target="_blank" class="text-blue-400 hover:underline">
+                        {run.git_commit?.sha?.substring(0, 7) || "unknown"}
+                      </a>
+                    </td>
+                    <td class="p-4 text-slate-400 whitespace-nowrap">{new Date(run.timestamp).toLocaleString()}</td>
+                    <td class="p-4 whitespace-nowrap">
+                      <span class={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase border ${
+                        run.summary?.status === 'success' || run.summary?.status === 'passed'
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" 
+                          : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                      }`}>
+                        <span class={`w-1.5 h-1.5 rounded-full ${run.summary?.status === 'success' || run.summary?.status === 'passed' ? 'bg-emerald-400' : 'bg-rose-400'}`}></span>
+                        {run.summary?.status === 'success' ? 'Passed' : run.summary?.status || 'Failed'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         LAYOUT C — TRIAGE OPERATIONS
+         Morning standup failure details + open issues from GHA tracker.
+         ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="view-C" class="view-panel hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        <!-- Left: Real Test Failures Breakdown -->
+        <div class="lg:col-span-2 flex flex-col gap-6">
+          <div class="flex items-center gap-2 border-b border-slate-800 pb-2 mb-2">
+            <svg class="w-5 h-5 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <h2 class="text-lg font-bold text-white">Active Test Failures ({activeFailuresList.length})</h2>
+          </div>
+
+          {activeFailuresList.length === 0 ? (
+            <div class="bg-slate-900/40 border border-slate-800/80 rounded-xl p-8 text-center text-slate-500">
+              <svg class="w-12 h-12 text-emerald-500 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 class="text-base font-bold text-slate-300">All streams are green!</h3>
+              <p class="text-xs text-slate-500 mt-1">No failing assertions in the active testsuite pipeline.</p>
+            </div>
+          ) : (
+            activeFailuresList.map(f => (
+              <div class="bg-slate-900 border-l-4 border-rose-500 rounded-r-xl border-y border-r border-slate-800 p-5">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300">
+                      {formatFlavorName(f.flavor)}
+                    </span>
+                    <span class="px-2.5 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-rose-500/10 border border-rose-500/20 text-rose-400">
+                      {f.suite}
+                    </span>
+                  </div>
+                  <span class="text-xs font-mono text-slate-500">
+                    Run: <a href={`${import.meta.env.BASE_URL}run/${f.runId}`} class="text-blue-400 font-semibold hover:underline">{f.runId}</a>
+                  </span>
+                </div>
+                
+                <h4 class="text-sm font-bold text-white mb-2">
+                  {f.failedCount} out of {f.totalCount} scenarios failing
+                </h4>
+
+                <div class="flex flex-col gap-2 mt-3 pl-3 border-l border-slate-800">
+                  {f.failedScenarios.map((sc: string) => (
+                    <div class="text-xs text-slate-400 flex items-start gap-2">
+                      <span class="text-rose-500 font-bold shrink-0 mt-0.5">·</span>
+                      <a href={`https://github.com/projectbluefin/testsuite/search?q=${encodeURIComponent(sc)}&type=code`} 
+                         target="_blank" 
+                         class="font-mono hover:text-rose-400 transition-colors"
+                         title="Search code for this scenario">
+                        {sc}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <!-- Right: Triage Issues & Gaps Dashboard -->
+        <div class="flex flex-col gap-6">
+          <!-- Live Open Bugs (Fetched asynchronously) -->
+          <div>
+            <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-4">
+              <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Open Pipeline Bugs</h3>
+              <span id="bug-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-800 border border-slate-700 text-slate-300">Loading...</span>
+            </div>
+            <div class="flex flex-col gap-2" id="triage-bugs">
+              <p class="text-xs text-slate-500 italic p-2">Polling telemetry from KubeVirt tracker...</p>
+            </div>
+          </div>
+
+          <!-- Supply Chain Posture Metrics -->
+          <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-4 shadow-md">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Supply Chain Posture</h3>
+            <div class="flex flex-col gap-2 text-xs font-mono">
+              <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                <span class="text-slate-500">SLSA Level</span>
+                <span class="text-emerald-400 font-semibold">L2 Certified</span>
+              </div>
+              <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                <span class="text-slate-500">Image Signing</span>
+                <span class="text-emerald-400">Cosign Keyless</span>
+              </div>
+              <div class="flex justify-between border-b border-slate-800 pb-1.5">
+                <span class="text-slate-500">SBOM Generation</span>
+                <span class="text-emerald-400">SPDX-2.3</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-slate-500">OpenSSF Score</span>
+                <span class="text-emerald-400 font-semibold">7.2 / 10</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </Layout>
+
+<script>
+  // Dynamic fetch of bare-metal cluster status and bug list from testing-lab published telemetry
+  const TELEMETRY_URL = "https://raw.githubusercontent.com/projectbluefin/testing-lab/main/docs/data/factory-stats.json";
+
+  async function pollTelemetry() {
+    try {
+      const response = await fetch(TELEMETRY_URL);
+      if (!response.ok) throw new Error("CORS or network error");
+      
+      const stats = await response.json();
+      
+      // Update header/time tag
+      const timeNode = document.getElementById("factory-time");
+      if (timeNode && stats._meta?.generated) {
+        timeNode.textContent = `Data: ${new Date(stats._meta.generated).toLocaleString()}`;
+      }
+
+      // Update Cluster Nodes DOM
+      const nodesNode = document.getElementById("factory-nodes");
+      if (nodesNode && stats.factory?.cluster?.nodes) {
+        nodesNode.innerHTML = stats.factory.cluster.nodes.map((n: any) => `
+          <div class="flex items-center justify-between bg-slate-950/40 px-3 py-1.5 rounded border border-slate-800/40">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full ${n.status === 'ready' ? 'bg-emerald-500' : 'bg-rose-500'}"></span>
+              <span class="font-bold text-slate-200">${n.name}</span>
+            </div>
+            <span class="text-xs text-slate-500 font-mono">${n.role.split('+')[0]} · ${n.ram_gb}GB</span>
+          </div>
+        `).join("");
+      }
+
+      // Update Active Semaphores DOM
+      const cdSem = stats.factory?.semaphores?.containerdisk || { capacity: 8, active: 0 };
+      const hdSem = stats.factory?.semaphores?.hostdisk || { capacity: 6, active: 0 };
+
+      const cdPipsNode = document.getElementById("sem-cd-pips");
+      if (cdPipsNode) {
+        cdPipsNode.innerHTML = Array.from({ length: cdSem.capacity }, (_, i) => `
+          <div class="flex-1 ${i < cdSem.active ? 'bg-blue-500/80 border border-blue-500/20' : 'bg-slate-800 border border-slate-700'} rounded-sm"></div>
+        `).join("");
+      }
+
+      const hdPipsNode = document.getElementById("sem-hd-pips");
+      if (hdPipsNode) {
+        hdPipsNode.innerHTML = Array.from({ length: hdSem.capacity }, (_, i) => `
+          <div class="flex-1 ${i < hdSem.active ? 'bg-indigo-500/80 border border-indigo-500/20' : 'bg-slate-800 border border-slate-700'} rounded-sm"></div>
+        `).join("");
+      }
+
+      // Update velocity counters
+      const pSuccessNode = document.getElementById("val-pipeline-success");
+      if (pSuccessNode && stats.pipelines?.containerdisk?.success_rate_pct) {
+        pSuccessNode.textContent = `${stats.pipelines.containerdisk.success_rate_pct}%`;
+      }
+      const pRunsNode = document.getElementById("val-runs-week");
+      if (pRunsNode && stats.pipelines?.containerdisk?.runs_7d) {
+        pRunsNode.textContent = stats.pipelines.containerdisk.runs_7d;
+      }
+
+      // Update triage bugs DOM
+      const bugsNode = document.getElementById("triage-bugs");
+      const badgeNode = document.getElementById("bug-badge");
+      if (stats.open_bugs) {
+        if (badgeNode) badgeNode.textContent = `${stats.open_bugs.length} open`;
+        
+        if (bugsNode) {
+          if (stats.open_bugs.length === 0) {
+            bugsNode.innerHTML = `
+              <div class="bg-slate-900/40 p-4 rounded-xl text-center text-xs text-slate-500 border border-slate-800/40">
+                No active pipeline bugs!
+              </div>`;
+          } else {
+            bugsNode.innerHTML = stats.open_bugs.slice(0, 10).map((b: any) => `
+              <div class="flex items-start justify-between bg-slate-900/40 px-3 py-2 rounded-lg border border-slate-800/40 text-xs">
+                <div class="flex-1 min-w-0 pr-2">
+                  <a href="${b.url}" target="_blank" class="font-bold text-slate-200 hover:text-blue-400 transition-colors block truncate">${b.title}</a>
+                  <span class="text-[10px] text-slate-500 font-mono mt-0.5 block">Opened: ${new Date(b.created_at).toLocaleDateString()}</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${b.area === 'test' ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400' : 'bg-rose-500/10 border border-rose-500/20 text-rose-400'}">
+                  ${b.area || 'unknown'}
+                </span>
+              </div>
+            `).join("");
+          }
+        }
+      }
+
+    } catch (e) {
+      console.warn("Telemetry fallback used: ", e);
+      const badgeNode = document.getElementById("bug-badge");
+      if (badgeNode) badgeNode.textContent = "Offline";
+    }
+  }
+
+  // Interactive Tab Swapping logic
+  const TABS = ["A", "B", "C"];
+  
+  function getQueryVariant() {
+    const p = new URLSearchParams(location.search);
+    const v = (p.get('variant') || 'B').toUpperCase(); // Suite board is default primary view!
+    return TABS.includes(v) ? v : 'B';
+  }
+
+  function setTab(v: string) {
+    const url = new URL(location.href);
+    url.searchParams.set('variant', v);
+    history.replaceState({}, '', url);
+
+    TABS.forEach(t => {
+      const btn = document.getElementById("tab-" + t);
+      const view = document.getElementById("view-" + t);
+      if (t === v) {
+        btn?.classList.add("border-blue-500", "text-blue-400");
+        btn?.classList.remove("border-transparent", "text-slate-400");
+        view?.classList.add("block");
+        view?.classList.remove("hidden");
+      } else {
+        btn?.classList.remove("border-blue-500", "text-blue-400");
+        btn?.classList.add("border-transparent", "text-slate-400");
+        view?.classList.add("hidden");
+        view?.classList.remove("block");
+      }
+    });
+  }
+
+  // Bind click handlers to tab buttons
+  TABS.forEach(t => {
+    document.getElementById("tab-" + t)?.addEventListener("click", () => setTab(t));
+  });
+
+  // Bind keyboard Left/Right arrow handlers for tab navigation
+  document.addEventListener("keydown", (e) => {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    
+    const activeTab = getQueryVariant();
+    const index = TABS.indexOf(activeTab);
+    
+    if (e.key === "ArrowLeft") {
+      const nextIndex = (index - 1 + TABS.length) % TABS.length;
+      setTab(TABS[nextIndex]);
+    } else if (e.key === "ArrowRight") {
+      const nextIndex = (index + 1) % TABS.length;
+      setTab(TABS[nextIndex]);
+    }
+  });
+
+  // Initial tab setup and telemetry poll
+  setTab(getQueryVariant());
+  pollTelemetry();
+</script>

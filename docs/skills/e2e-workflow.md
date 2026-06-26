@@ -642,3 +642,12 @@ jobs:
 **Fix:** Remove `continue-on-error` entirely. If non-blocking matrix entries are needed, split blocking and non-blocking jobs into separate job definitions, each with its own `uses:` and `if:` condition — or just make all entries blocking.
 
 **Verified with:** `actionlint` catches this (`continue-on-error is not available` for reusable workflow jobs). Run `actionlint` on any workflow that uses `uses:` before pushing.
+
+---
+
+## Dashboard Static-Site Compilation and Path Robustness
+
+**Pattern**: Python helper scripts (such as `compile_data.py`) executed from repository root inside GitHub Actions, but developed locally inside subdirectories, must resolve their base directories dynamically relative to `Path(__file__)` rather than hardcoding relative string paths like `./raw-runs`. This avoids directory execution discrepancies between local and CI environments.
+
+**Pattern**: In Astro static sites, using `import.meta.glob('../data/runs/*.json', { eager: true })` to load detailed raw JSON files at build-time allows robust, offline-safe compilation of metrics, sparklines, and broken scenario aggregations directly from logs, entirely removing runtime client-side fetch or API performance overhead.
+

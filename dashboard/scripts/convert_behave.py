@@ -104,6 +104,7 @@ def convert_behave_json(behave_json_path, *, run_id, caller_repo, slug, suite, t
         "timestamp": timestamp or datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
         "stream": stream,
         "flavor": flavor,
+        "suite": suite,
         "version": "40.latest", # Roll default
         "git_commit": {
             "sha": os.environ.get("GITHUB_SHA", "unknown"),
