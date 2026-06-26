@@ -13,10 +13,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: gh-pages-publish
@@ -151,14 +149,23 @@ jobs:
           mkdir -p dashboard/dist/data
           cp -r dashboard/src/data/runs dashboard/dist/data/
 
-      - name: Setup GitHub Pages Deployment Context
-        uses: actions/configure-pages@122e11894a44b415a99981881514757c9a416a2d # v5
-
-      - name: Upload Static Distribution to Pages Artifacts
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
-        with:
-          path: './dashboard/dist'
-
-      - name: Publish Dashboard to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
+      - name: Deploy Compiled Dashboard to gh-pages Branch
+        run: |
+          cd old-gh-pages
+          
+          # Remove everything except the .git directory
+          find . -maxdepth 1 ! -name '.' ! -name '..' ! -name '.git' -exec rm -rf {} +
+          
+          # Copy all compiled static files from dashboard/dist
+          cp -r ../dashboard/dist/* .
+          
+          # Configure Git
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          # Stage and commit
+          git add .
+          git diff --cached --quiet || git commit -m "chore: deploy Astro QA dashboard to gh-pages [skip ci]"
+          
+          # Push to the remote gh-pages branch
+          git push origin gh-pages
