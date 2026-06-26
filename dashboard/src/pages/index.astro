@@ -169,7 +169,7 @@ const averageDurationMin = (summary.aggregates.average_test_duration_ms / 1000 /
                 </div>
                 <div>
                   <div class="flex flex-wrap items-center gap-2 mb-1">
-                    <a href={`/run/${run.id}`} class="text-base font-bold text-white hover:text-blue-400 transition-colors font-mono">
+                    <a href={`${import.meta.env.BASE_URL}run/${run.id}`} class="text-base font-bold text-white hover:text-blue-400 transition-colors font-mono">
                       {run.id}
                     </a>
                     <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300">

@@ -2,7 +2,7 @@
 // global search component utilising Pagefind at runtime
 ---
 
-<div class="relative w-full max-w-xl mx-auto search-ignore">
+<div class="relative w-full max-w-xl mx-auto search-ignore" id="search-root" data-base-url={import.meta.env.BASE_URL}>
   <!-- Search Input Bar -->
   <div class="relative">
     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -45,7 +45,9 @@
       try {
         // Import dynamic index produced at build time
         // @ts-ignore
-        const pagefindPath = '/pagefind/' + 'pagefind.js';
+        const rootEl = document.getElementById('search-root');
+        const baseUrl = rootEl?.getAttribute('data-base-url') || '/';
+        const pagefindPath = baseUrl + 'pagefind/' + 'pagefind.js';
         pagefind = await import(/* @vite-ignore */ pagefindPath);
         await pagefind.init();
         statusEl!.innerText = "Ready to search. Start typing...";
