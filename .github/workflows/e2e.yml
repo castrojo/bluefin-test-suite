@@ -1334,13 +1334,18 @@ jobs:
           # Push image-slug-specific tag so publish-to-pages can pull without metadata artifacts.
           # Slug: strip ghcr.io/<org>/, replace : with - (e.g. bluefin-testing)
           IMAGE_SLUG=$(echo "${IMAGE}" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
+          # Push both the screenshot AND results.json if it exists
+          ORAS_FILES="desktop-screenshot.png:image/png"
+          if [[ -f results/results.json ]]; then
+            ORAS_FILES="${ORAS_FILES} results/results.json:application/json"
+          fi
           oras push "${SCREENSHOT_IMAGE}:${IMAGE_SLUG}-${SCREENSHOT_SUITE}-latest" \
             --annotation "org.opencontainers.image.source=https://github.com/${{ github.repository }}" \
             --annotation "org.opencontainers.image.revision=${GITHUB_SHA}" \
             --annotation "org.opencontainers.image.description=Bluefin desktop screenshot (fastfetch) from e2e suite: ${SUITE}" \
             --annotation "io.github.projectbluefin.run_id=${{ github.run_id }}" \
             --annotation "io.github.projectbluefin.caller_repo=${{ github.repository }}" \
-            desktop-screenshot.png:image/png
+            ${ORAS_FILES}
           echo "Pushed ${SCREENSHOT_IMAGE}:${IMAGE_SLUG}-${SCREENSHOT_SUITE}-latest"
 
           echo "ref=${SCREENSHOT_IMAGE}:${SHORT_SHA}" >> "$GITHUB_OUTPUT"

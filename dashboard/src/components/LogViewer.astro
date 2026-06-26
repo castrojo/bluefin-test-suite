@@ -1,0 +1,287 @@
+---
+interface Props {
+  steps: Array<{
+    name: string;
+    status: "success" | "failed" | "skipped" | "passed";
+    duration_ms: number;
+    htmlLogs: string;
+    logs: string; // Keep raw for exporting
+  }>;
+}
+
+const { steps } = Astro.props;
+---
+
+<div class="space-y-4" id="interactive-log-viewer">
+  
+  <!-- Local Search / Text Filter Actions -->
+  <div class="flex flex-wrap items-center justify-between gap-4 bg-slate-900 p-4 rounded-lg border border-slate-800">
+    <div class="flex items-center gap-3 w-full sm:w-auto">
+      <input 
+        type="text" 
+        id="local-log-filter" 
+        placeholder="Filter logs inside this run (regex supported)..."
+        class="bg-slate-950 border border-slate-700 rounded px-3 py-1.5 text-sm text-white font-mono placeholder-slate-500 w-full sm:w-80 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+      />
+      <span id="filter-match-count" class="hidden text-xs font-mono text-slate-400 bg-slate-800 px-2 py-1 rounded">
+        0 matches
+      </span>
+    </div>
+    <div class="flex gap-2">
+      <button 
+        id="expand-all-btn" 
+        class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded text-xs font-medium text-slate-300 transition-colors"
+      >
+        Expand All
+      </button>
+      <button 
+        id="collapse-all-btn" 
+        class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded text-xs font-medium text-slate-300 transition-colors"
+      >
+        Collapse All
+      </button>
+      <button 
+        id="copy-raw-all-btn"
+        data-raw-run-data={JSON.stringify(steps.map(s => s.logs).join('\n'))}
+        class="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded text-xs font-medium text-white transition-colors"
+      >
+        Copy RAW Logs
+      </button>
+    </div>
+  </div>
+
+  <!-- Step Logs List -->
+  <div class="space-y-4">
+    {steps.map((step, idx) => (
+      <div 
+        class={`step-container border rounded-lg transition-all ${
+          step.status === 'failed' 
+            ? 'border-rose-900/60 bg-slate-950' 
+            : 'border-slate-800 bg-slate-950/40'
+        }`}
+        data-step-status={step.status}
+      >
+        <!-- Accordion Header -->
+        <button
+          class="flex items-center justify-between w-full p-4 font-semibold text-left text-slate-300 hover:bg-slate-900/60 rounded-t-lg transition-colors focus:outline-none"
+          data-accordion-trigger={`step-block-${idx}`}
+        >
+          <div class="flex items-center gap-3">
+            <span class={`w-2.5 h-2.5 rounded-full ${
+              step.status === 'success' || step.status === 'passed'
+                ? 'bg-emerald-500' 
+                : step.status === 'failed' 
+                  ? 'bg-rose-500 animate-pulse' 
+                  : 'bg-slate-500'
+            }`}></span>
+            <span class="font-mono text-sm">{step.name}</span>
+          </div>
+          <div class="flex items-center gap-4 text-xs font-mono text-slate-400">
+            <span>Duration: {(step.duration_ms / 1000).toFixed(2)}s</span>
+            <svg class="w-4 h-4 transition-transform duration-200 transform" id={`chevron-step-block-${idx}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </button>
+
+        <!-- Accordion Content -->
+        <div 
+          id={`step-block-${idx}`} 
+          class="hidden border-t border-slate-900/80"
+        >
+          <div class="relative group">
+            <!-- Copy Step-Specific Logs -->
+            <button 
+              class="absolute top-2 right-4 bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-1 rounded text-[10px] font-mono border border-slate-700/80 transition-opacity opacity-0 group-hover:opacity-100 focus:opacity-100 z-10"
+              data-copy-step-btn={idx}
+              data-raw-step-logs={step.logs}
+            >
+              Copy Step Logs
+            </button>
+
+            <!-- Terminal output block -->
+            <pre class="terminal-view font-mono text-xs overflow-x-auto p-4 leading-relaxed bg-slate-950 text-slate-300 max-h-[500px] overflow-y-auto selection:bg-yellow-500/35 select-text" id={`log-pre-${idx}`}><Fragment set:html={step.htmlLogs} /></pre>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
+<script>
+  // @ts-nocheck
+  // 1. Accordion Collapsible Logic
+  const triggers = document.querySelectorAll('[data-accordion-trigger]');
+  
+  function toggleAccordion(blockId, forceState = null) {
+    const content = document.getElementById(blockId);
+    const chevron = document.getElementById(`chevron-${blockId}`);
+    if (!content) return;
+
+    const isCollapsed = content.classList.contains('hidden');
+    const shouldExpand = forceState !== null ? forceState : isCollapsed;
+
+    if (shouldExpand) {
+      content.classList.remove('hidden');
+      chevron?.classList.add('rotate-180');
+    } else {
+      content.classList.add('hidden');
+      chevron?.classList.remove('rotate-180');
+    }
+  }
+
+  triggers.forEach(trigger => {
+    const targetId = trigger.getAttribute('data-accordion-trigger');
+    trigger.addEventListener('click', () => toggleAccordion(targetId));
+  });
+
+  // Default failed steps to EXPANDED, success steps to COLLAPSED
+  document.querySelectorAll('.step-container').forEach((container, idx) => {
+    const status = container.getAttribute('data-step-status');
+    if (status === 'failed') {
+      toggleAccordion(`step-block-${idx}`, true);
+    }
+  });
+
+  // Global Expand/Collapse Buttons
+  document.getElementById('expand-all-btn')?.addEventListener('click', () => {
+    triggers.forEach(trigger => {
+      const targetId = trigger.getAttribute('data-accordion-trigger');
+      toggleAccordion(targetId, true);
+    });
+  });
+
+  document.getElementById('collapse-all-btn')?.addEventListener('click', () => {
+    triggers.forEach(trigger => {
+      const targetId = trigger.getAttribute('data-accordion-trigger');
+      toggleAccordion(targetId, false);
+    });
+  });
+
+  // 2. Log Line Highlighting & Filtering (Client-side Page Regex Filter)
+  const filterInput = document.getElementById('local-log-filter') as HTMLInputElement;
+  const matchCountEl = document.getElementById('filter-match-count');
+  
+  // Store raw innerHTML elements for restoration
+  const originalLogs = {};
+  triggers.forEach((_, idx) => {
+    const pre = document.getElementById(`log-pre-${idx}`);
+    if (pre) {
+      originalLogs[idx] = pre.innerHTML;
+    }
+  });
+
+  function resetPre(idx) {
+    const pre = document.getElementById(`log-pre-${idx}`);
+    if (pre && originalLogs[idx] !== undefined) {
+      pre.innerHTML = originalLogs[idx];
+    }
+  }
+
+  function resetLocalHighlights() {
+    triggers.forEach((_, idx) => resetPre(idx));
+  }
+
+  function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  filterInput?.addEventListener('input', (e) => {
+    const filterText = (e.target as HTMLInputElement).value.trim();
+    
+    if (!filterText) {
+      matchCountEl?.classList.add('hidden');
+      resetLocalHighlights();
+      return;
+    }
+
+    try {
+      const regex = new RegExp(`(${escapeRegExp(filterText)})`, 'gi');
+      let totalMatches = 0;
+
+      triggers.forEach((trigger, idx) => {
+        const pre = document.getElementById(`log-pre-${idx}`);
+        if (!pre) return;
+        
+        let matchesInPre = 0;
+        const walkTextNodes = (node) => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const matches = node.nodeValue.match(regex);
+            if (matches) {
+              matchesInPre += matches.length;
+              totalMatches += matches.length;
+              
+              const span = document.createElement('span');
+              span.innerHTML = node.nodeValue.replace(regex, '<mark class="bg-yellow-500/40 text-yellow-100 rounded">$1</mark>');
+              node.parentNode.replaceChild(span, node);
+            }
+          } else if (node.nodeType === Node.ELEMENT_NODE && node.nodeName !== 'MARK') {
+            Array.from(node.childNodes).forEach(walkTextNodes);
+          }
+        };
+
+        // Reset first to avoid compounding highlights
+        resetPre(idx);
+        walkTextNodes(pre);
+
+        if (matchesInPre > 0) {
+          toggleAccordion(`step-block-${idx}`, true);
+        }
+      });
+
+      matchCountEl!.innerText = `${totalMatches} match${totalMatches !== 1 ? 'es' : ''}`;
+      matchCountEl?.classList.remove('hidden');
+    } catch (err) {
+      console.warn("Invalid filter regex:", err);
+    }
+  });
+
+  // 3. Clipboard Functionality (Raw Copy)
+  document.getElementById('copy-raw-all-btn')?.addEventListener('click', (e) => {
+    const btn = e.target as HTMLButtonElement;
+    const rawLogs = JSON.parse(btn.getAttribute('data-raw-run-data') || '""');
+    navigator.clipboard.writeText(rawLogs).then(() => {
+      const origText = btn.innerText;
+      btn.innerText = "COPIED ✅";
+      setTimeout(() => btn.innerText = origText, 2000);
+    });
+  });
+
+  document.querySelectorAll('[data-copy-step-btn]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const targetBtn = e.target as HTMLButtonElement;
+      const stepLogs = targetBtn.getAttribute('data-raw-step-logs') || '';
+      navigator.clipboard.writeText(stepLogs).then(() => {
+        const origText = targetBtn.innerText;
+        targetBtn.innerText = "COPIED ✅";
+        setTimeout(() => targetBtn.innerText = origText, 2000);
+      });
+    });
+  });
+</script>
+
+<style>
+  /* Terminal viewer container theme configuration */
+  .terminal-view {
+    --terminal-fg: #e2e8f0;
+    --terminal-bg: #030712;
+    background-color: var(--terminal-bg);
+    color: var(--terminal-fg);
+  }
+  
+  /* Styling scrollbars for modern terminal look */
+  .terminal-view::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .terminal-view::-webkit-scrollbar-track {
+    background: #030712;
+  }
+  .terminal-view::-webkit-scrollbar-thumb {
+    background: #1f2937;
+    border-radius: 4px;
+  }
+  .terminal-view::-webkit-scrollbar-thumb:hover {
+    background: #374151;
+  }
+</style>

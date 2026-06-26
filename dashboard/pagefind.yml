@@ -1,0 +1,13 @@
+# pagefind.yml
+site: "dist"
+output-path: "dist/pagefind"
+glob: "**/*.html"
+force_language: "en"
+exclude_selectors:
+  - "nav"
+  - "footer"
+  - ".search-modal"
+  - ".search-ignore"
+  - "script"
+  - "style"
+keep_index_files: false

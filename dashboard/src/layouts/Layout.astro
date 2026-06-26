@@ -1,0 +1,37 @@
+---
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en" class="bg-slate-950 text-slate-100 font-sans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="generator" content={Astro.generator} />
+    <title>{title} | Project Bluefin QA</title>
+  </head>
+  <body class="min-h-screen flex flex-col">
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  /* Global CSS variable mapping for ANSI color terminal theme */
+  :root {
+    --terminal-fg: #e2e8f0;
+    --terminal-bg: #030712;
+    --terminal-black: #1e293b;
+    --terminal-red: #f43f5e;
+    --terminal-green: #10b981;
+    --terminal-yellow: #f59e0b;
+    --terminal-blue: #3b82f6;
+    --terminal-magenta: #d946ef;
+    --terminal-cyan: #06b6d4;
+    --terminal-white: #f8fafc;
+  }
+</style>

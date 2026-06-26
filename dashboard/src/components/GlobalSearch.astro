@@ -1,0 +1,156 @@
+---
+// global search component utilising Pagefind at runtime
+---
+
+<div class="relative w-full max-w-xl mx-auto search-ignore">
+  <!-- Search Input Bar -->
+  <div class="relative">
+    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+      <svg class="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+      </svg>
+    </div>
+    <input
+      type="search"
+      id="global-search-input"
+      placeholder="Search test logs, commit hashes, errors..."
+      class="block w-full pl-10 pr-4 py-3 border border-slate-700 rounded-lg bg-slate-900 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all sm:text-sm font-mono"
+    />
+  </div>
+
+  <!-- Search Results Dropdown -->
+  <div 
+    id="search-results-container" 
+    class="hidden absolute z-50 mt-2 w-full bg-slate-950 border border-slate-700 rounded-lg shadow-2xl max-h-96 overflow-y-auto divide-y divide-slate-800"
+  >
+    <div class="p-4 text-sm text-slate-400 text-center" id="search-status">
+      Initializing search index...
+    </div>
+    <div id="search-results-list" class="divide-y divide-slate-800/50"></div>
+  </div>
+</div>
+
+<script>
+  let pagefind = null;
+  const searchInput = document.getElementById('global-search-input') as HTMLInputElement;
+  const resultsContainer = document.getElementById('search-results-container');
+  const resultsList = document.getElementById('search-results-list');
+  const statusEl = document.getElementById('search-status');
+
+  // Lazy-load the Pagefind index upon user interaction (focus)
+  searchInput?.addEventListener('focus', async () => {
+    if (!pagefind) {
+      statusEl!.innerText = "Loading index...";
+      resultsContainer?.classList.remove('hidden');
+      try {
+        // Import dynamic index produced at build time
+        // @ts-ignore
+        const pagefindPath = '/pagefind/' + 'pagefind.js';
+        pagefind = await import(/* @vite-ignore */ pagefindPath);
+        await pagefind.init();
+        statusEl!.innerText = "Ready to search. Start typing...";
+      } catch (err) {
+        statusEl!.innerText = "Failed to load search index.";
+        console.error("Pagefind error:", err);
+      }
+    } else {
+      resultsContainer?.classList.remove('hidden');
+    }
+  });
+
+  // Handle typing with standard debounce
+  let debounceTimeout: any;
+  searchInput?.addEventListener('input', (e) => {
+    clearTimeout(debounceTimeout);
+    const query = (e.target as HTMLInputElement).value.trim();
+
+    if (query.length < 2) {
+      if (resultsList) resultsList.innerHTML = '';
+      statusEl!.innerText = "Type at least 2 characters...";
+      statusEl!.classList.remove('hidden');
+      return;
+    }
+
+    debounceTimeout = setTimeout(async () => {
+      if (!pagefind) return;
+      
+      statusEl!.innerText = "Searching...";
+      statusEl!.classList.remove('hidden');
+      resultsList!.innerHTML = '';
+
+      const searchResponse = await pagefind.search(query);
+      
+      if (searchResponse.results.length === 0) {
+        statusEl!.innerText = "No results found matching your query.";
+        return;
+      }
+
+      statusEl!.classList.add('hidden'); // Hide status when showing list
+
+      // Retrieve first 8 results to ensure optimal rendering
+      const topResults = searchResponse.results.slice(0, 8);
+      
+      for (const result of topResults) {
+        const data = await result.data();
+        
+        // Construct visual item
+        const resultItem = document.createElement('div');
+        resultItem.className = "hover:bg-slate-900 transition-colors p-4 block cursor-pointer";
+        
+        // Style status colors
+        const status = data.meta.status || 'unknown';
+        const badgeColor = status === 'success' || status === 'passed'
+          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
+          : 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+
+        resultItem.innerHTML = `
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-semibold font-mono text-blue-400">${data.meta.title}</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${badgeColor}">
+              ${status.toUpperCase()}
+            </span>
+          </div>
+          <div class="text-xs text-slate-400 font-mono mb-2 flex justify-between">
+            <span>Env: ${data.meta.environment || 'N/A'}</span>
+            <span>Commit: ${data.meta.commit || 'N/A'}</span>
+          </div>
+          <!-- Highlight excerpt injected dynamically by Pagefind -->
+          <div class="text-sm text-slate-300 font-mono bg-slate-950 p-2 rounded border border-slate-800/80 leading-relaxed overflow-x-hidden truncate-3-lines">
+            ${data.excerpt}
+          </div>
+        `;
+
+        // Direct navigation listener
+        resultItem.addEventListener('click', () => {
+          window.location.href = data.url;
+        });
+
+        resultsList?.appendChild(resultItem);
+      }
+    }, 150);
+  });
+
+  // Close search results if user clicks outside
+  document.addEventListener('click', (e) => {
+    if (!searchInput?.contains(e.target as Node) && !resultsContainer?.contains(e.target as Node)) {
+      resultsContainer?.classList.add('hidden');
+    }
+  });
+</script>
+
+<style is:global>
+  /* Pagefind CSS Highlight styling overrides */
+  mark {
+    background-color: rgb(234 179 8 / 0.25) !important; /* Yellow-500 with opacity */
+    color: rgb(253 224 71) !important; /* Yellow-300 text */
+    padding: 0px 2px;
+    border-radius: 2px;
+    font-weight: 600;
+  }
+  .truncate-3-lines {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;  
+    overflow: hidden;
+  }
+</style>
