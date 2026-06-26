@@ -1,4 +1,0 @@
-{"date":"2026-06-26T00:42:38Z","run_id":"28143945105","caller_repo":"projectbluefin/bluefin","slug":"bluefin-testing","suite":"smoke","result":"success"}
-{"date":"2026-06-26T00:42:39Z","run_id":"28143945105","caller_repo":"projectbluefin/bluefin","slug":"bluefin-testing","suite":"vanilla-gnome","result":"success"}
-{"date":"2026-06-26T00:42:39Z","run_id":"28004853242","caller_repo":"projectbluefin/testsuite","slug":"bluefin-lts-testing","suite":"smoke","result":"success"}
-{"date":"2026-06-26T00:42:40Z","run_id":"28004855265","caller_repo":"projectbluefin/testsuite","slug":"dakota-testing","suite":"smoke","result":"success"}

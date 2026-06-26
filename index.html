@@ -1,321 +1,44 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Testsuite Build Health Dashboard</title>
-  <style>
-    :root {
-      color-scheme: light dark;
-      --bg: #0b1220;
-      --panel: #111827;
-      --panel-border: #243041;
-      --text: #e5e7eb;
-      --muted: #9ca3af;
-      --pass-bg: #16341f;
-      --pass-fg: #86efac;
-      --fail-bg: #3a1616;
-      --fail-fg: #fca5a5;
-      --unknown-bg: #1f2937;
-      --unknown-fg: #d1d5db;
-      --link: #93c5fd;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 2rem;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-    }
-    main { max-width: 1200px; margin: 0 auto; }
-    h1, h2, h3, p { margin-top: 0; }
-    .meta { color: var(--muted); margin-bottom: 1.5rem; }
-    .panel {
-      background: var(--panel);
-      border: 1px solid var(--panel-border);
-      border-radius: 12px;
-      padding: 1rem;
-      margin-bottom: 1.5rem;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      overflow: hidden;
-    }
-    th, td {
-      border: 1px solid var(--panel-border);
-      padding: 0.75rem;
-      text-align: left;
-      vertical-align: top;
-    }
-    th {
-      color: var(--muted);
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-    td.slug {
-      white-space: nowrap;
-      font-weight: 600;
-    }
-    td.pass { background: var(--pass-bg); color: var(--pass-fg); }
-    td.fail { background: var(--fail-bg); color: var(--fail-fg); }
-    td.unknown { background: var(--unknown-bg); color: var(--unknown-fg); }
-    td a {
-      color: inherit;
-      text-decoration: none;
-      display: inline-flex;
-      flex-direction: column;
-      gap: 0.2rem;
-    }
-    td a:hover { text-decoration: underline; }
-    .status-label { font-weight: 700; }
-    .status-raw, .run-link { font-size: 0.82rem; color: var(--muted); }
-    .screenshots {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 1rem;
-    }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--panel-border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-    .card a { color: var(--link); text-decoration: none; }
-    .card a:hover { text-decoration: underline; }
-    .card img {
-      display: block;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      object-fit: cover;
-      background: #000;
-    }
-    .card-body { padding: 0.85rem 1rem 1rem; }
-    .small { font-size: 0.85rem; color: var(--muted); }
-    .empty, .loading { color: var(--muted); }
-    @media (max-width: 720px) {
-      body { padding: 1rem; }
-      th, td { padding: 0.6rem; }
-    }
-  </style>
-</head>
-<body>
-  <main>
-    <header class="panel">
-      <h1>Testsuite Build Health Dashboard</h1>
-      <p class="meta" id="last-updated">Loading recent build health data.</p>
-      <p class="small">Source: gh-pages JSONL files written by the publish-to-pages workflow.</p>
-    </header>
-
-    <section class="panel">
-      <h2>Recent suite results</h2>
-      <div id="grid" class="loading">Loading last 7 days of data.</div>
-    </section>
-
-    <section>
-      <h2>Smoke screenshots</h2>
-      <div id="screenshots" class="screenshots"></div>
-    </section>
-  </main>
-
-  <script>
-    const SUITES = ['smoke', 'common', 'vanilla-gnome'];
-    const DAYS_TO_FETCH = 7;
-    const OWNER_REPO = 'projectbluefin/testsuite';
-
-    function dateStamp(offset) {
-      const now = new Date();
-      const utc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - offset));
-      const y = utc.getUTCFullYear();
-      const m = String(utc.getUTCMonth() + 1).padStart(2, '0');
-      const d = String(utc.getUTCDate()).padStart(2, '0');
-      return `${y}${m}${d}`;
-    }
-
-    async function fetchJsonl(stamp) {
-      const response = await fetch(`data/results-${stamp}.jsonl`, { cache: 'no-store' });
-      if (!response.ok) {
-        return [];
-      }
-      const text = await response.text();
-      return text
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => {
-          try {
-            return JSON.parse(line);
-          } catch {
-            return null;
-          }
-        })
-        .filter((entry) => entry && entry.slug && entry.suite && entry.run_id && entry.result && entry.date);
-    }
-
-    function latestEntries(entries) {
-      const latest = new Map();
-      for (const entry of entries) {
-        const key = `${entry.slug}::${entry.suite}`;
-        const ts = Date.parse(entry.date) || 0;
-        const current = latest.get(key);
-        if (!current || ts >= current.ts) {
-          latest.set(key, { entry, ts });
-        }
-      }
-      return latest;
-    }
-
-    function renderGrid(entries) {
-      const container = document.getElementById('grid');
-      if (!entries.length) {
-        container.className = 'empty';
-        container.textContent = 'No JSONL results found for the last 7 days.';
-        return;
-      }
-
-      const byKey = latestEntries(entries);
-      const slugs = Array.from(new Set(entries.map((entry) => entry.slug))).sort();
-      const table = document.createElement('table');
-      const thead = document.createElement('thead');
-      const headerRow = document.createElement('tr');
-      const slugHead = document.createElement('th');
-      slugHead.textContent = 'Image';
-      headerRow.appendChild(slugHead);
-      for (const suite of SUITES) {
-        const th = document.createElement('th');
-        th.textContent = suite;
-        headerRow.appendChild(th);
-      }
-      thead.appendChild(headerRow);
-      table.appendChild(thead);
-
-      const tbody = document.createElement('tbody');
-      for (const slug of slugs) {
-        const row = document.createElement('tr');
-        const slugCell = document.createElement('td');
-        slugCell.className = 'slug';
-        slugCell.textContent = slug;
-        row.appendChild(slugCell);
-
-        for (const suite of SUITES) {
-          const cell = document.createElement('td');
-          const record = byKey.get(`${slug}::${suite}`);
-          if (!record) {
-            cell.className = 'unknown';
-            cell.textContent = 'No data';
-            row.appendChild(cell);
-            continue;
-          }
-
-          const { entry } = record;
-          const passed = entry.result === 'success';
-          cell.className = passed ? 'pass' : 'fail';
-          const link = document.createElement('a');
-          link.href = `https://github.com/${OWNER_REPO}/actions/runs/${encodeURIComponent(entry.run_id)}`;
-          link.target = '_blank';
-          link.rel = 'noreferrer';
-
-          const label = document.createElement('span');
-          label.className = 'status-label';
-          label.textContent = passed ? 'Pass' : 'Fail';
-          link.appendChild(label);
-
-          const raw = document.createElement('span');
-          raw.className = 'status-raw';
-          raw.textContent = entry.result;
-          link.appendChild(raw);
-
-          const run = document.createElement('span');
-          run.className = 'run-link';
-          run.textContent = `Run ${entry.run_id}`;
-          link.appendChild(run);
-
-          cell.appendChild(link);
-          row.appendChild(cell);
-        }
-        tbody.appendChild(row);
-      }
-      table.appendChild(tbody);
-      container.className = '';
-      container.innerHTML = '';
-      container.appendChild(table);
-    }
-
-    function renderScreenshots(entries) {
-      const container = document.getElementById('screenshots');
-      const slugs = Array.from(new Set(entries.map((entry) => entry.slug))).sort();
-      if (!slugs.length) {
-        container.innerHTML = '<p class="empty">No screenshots available yet.</p>';
-        return;
-      }
-      container.innerHTML = '';
-      for (const slug of slugs) {
-        const card = document.createElement('article');
-        card.className = 'card';
-
-        const imageLink = document.createElement('a');
-        imageLink.href = `screenshots/${slug}-smoke-latest.png`;
-        imageLink.target = '_blank';
-        imageLink.rel = 'noreferrer';
-
-        const img = document.createElement('img');
-        img.src = `screenshots/${slug}-smoke-latest.png`;
-        img.alt = `${slug} smoke screenshot`;
-        img.loading = 'lazy';
-        img.onerror = () => {
-          img.replaceWith(Object.assign(document.createElement('div'), {
-            className: 'card-body small',
-            textContent: 'Smoke screenshot not available yet.'
-          }));
-        };
-        imageLink.appendChild(img);
-        card.appendChild(imageLink);
-
-        const body = document.createElement('div');
-        body.className = 'card-body';
-        const title = document.createElement('h3');
-        title.textContent = slug;
-        body.appendChild(title);
-        const link = document.createElement('a');
-        link.href = `screenshots/${slug}-smoke-latest.png`;
-        link.target = '_blank';
-        link.rel = 'noreferrer';
-        link.textContent = 'Open latest smoke screenshot';
-        body.appendChild(link);
-        card.appendChild(body);
-        container.appendChild(card);
-      }
-    }
-
-    function renderLastUpdated(entries) {
-      const node = document.getElementById('last-updated');
-      if (!entries.length) {
-        node.textContent = 'No recent JSONL results found.';
-        return;
-      }
-      const latest = entries
-        .map((entry) => Date.parse(entry.date))
-        .filter((value) => !Number.isNaN(value))
-        .sort((a, b) => b - a)[0];
-      node.textContent = `Last updated: ${new Date(latest).toLocaleString()} from recent workflow results.`;
-    }
-
-    async function main() {
-      const stamps = Array.from({ length: DAYS_TO_FETCH }, (_, index) => dateStamp(index));
-      const results = await Promise.all(stamps.map(fetchJsonl));
-      const entries = results.flat();
-      renderLastUpdated(entries);
-      renderGrid(entries);
-      renderScreenshots(entries);
-    }
-
-    main().catch((error) => {
-      document.getElementById('grid').className = 'empty';
-      document.getElementById('grid').textContent = `Failed to load dashboard data: ${error.message}`;
-      document.getElementById('last-updated').textContent = 'Dashboard data load failed.';
-    });
-  </script>
-</body>
-</html>
+<!DOCTYPE html><html lang="en" class="bg-slate-950 text-slate-100 font-sans"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v4.16.19"><title>Dashboard | Project Bluefin QA</title><link rel="stylesheet" href="/_astro/index.9NH7M1D3.css">
+<style>mark{background-color:#eab30840!important;color:#fde047!important;padding:0 2px;border-radius:2px;font-weight:600}.truncate-3-lines{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+</style><script type="module">let s=null;const d=document.getElementById("global-search-input"),i=document.getElementById("search-results-container"),r=document.getElementById("search-results-list"),e=document.getElementById("search-status");d?.addEventListener("focus",async()=>{if(s)i?.classList.remove("hidden");else{e.innerText="Loading index...",i?.classList.remove("hidden");try{s=await import("/pagefind/pagefind.js"),await s.init(),e.innerText="Ready to search. Start typing..."}catch(t){e.innerText="Failed to load search index.",console.error("Pagefind error:",t)}}});let m;d?.addEventListener("input",t=>{clearTimeout(m);const c=t.target.value.trim();if(c.length<2){r&&(r.innerHTML=""),e.innerText="Type at least 2 characters...",e.classList.remove("hidden");return}m=setTimeout(async()=>{if(!s)return;e.innerText="Searching...",e.classList.remove("hidden"),r.innerHTML="";const l=await s.search(c);if(l.results.length===0){e.innerText="No results found matching your query.";return}e.classList.add("hidden");const u=l.results.slice(0,8);for(const p of u){const n=await p.data(),a=document.createElement("div");a.className="hover:bg-slate-900 transition-colors p-4 block cursor-pointer";const o=n.meta.status||"unknown",f=o==="success"||o==="passed"?"bg-emerald-500/10 text-emerald-400 border-emerald-500/20":"bg-rose-500/10 text-rose-400 border-rose-500/20";a.innerHTML=`
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-sm font-semibold font-mono text-blue-400">${n.meta.title}</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${f}">
+              ${o.toUpperCase()}
+            </span>
+          </div>
+          <div class="text-xs text-slate-400 font-mono mb-2 flex justify-between">
+            <span>Env: ${n.meta.environment||"N/A"}</span>
+            <span>Commit: ${n.meta.commit||"N/A"}</span>
+          </div>
+          <!-- Highlight excerpt injected dynamically by Pagefind -->
+          <div class="text-sm text-slate-300 font-mono bg-slate-950 p-2 rounded border border-slate-800/80 leading-relaxed overflow-x-hidden truncate-3-lines">
+            ${n.excerpt}
+          </div>
+        `,a.addEventListener("click",()=>{window.location.href=n.url}),r?.appendChild(a)}},150)});document.addEventListener("click",t=>{!d?.contains(t.target)&&!i?.contains(t.target)&&i?.classList.add("hidden")});
+</script></head> <body class="min-h-screen flex flex-col">  <header class="border-b border-slate-800 bg-slate-900/40 backdrop-blur-md sticky top-0 z-40"> <div class="container mx-auto px-4 h-16 flex items-center justify-between"> <div class="flex items-center gap-3"> <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white tracking-wider text-sm shadow-lg shadow-blue-500/20">
+BF
+</div> <a href="/" class="text-lg font-bold text-white hover:text-blue-400 transition-colors">
+Bluefin <span class="text-blue-500 font-mono text-xs px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 ml-1">QA</span> </a> </div> <nav class="flex items-center gap-6 text-sm font-medium text-slate-300"> <a href="/" class="hover:text-white transition-colors">Runs</a> <a href="https://hive.projectbluefin.io" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Hive
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> <a href="https://github.com/projectbluefin/testsuite" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Testsuite
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> </nav> </div> </header> <main class="container mx-auto px-4 py-8 max-w-7xl flex-grow"> <!-- Hero / Intro --> <div class="text-center max-w-3xl mx-auto mb-12"> <h1 class="text-4xl font-extrabold tracking-tight text-white mb-4 sm:text-5xl">
+Atomic Desktop Observability
+</h1> <p class="text-lg text-slate-400 leading-relaxed">
+Real-time continuous verification, build health, and test execution logs for <span class="text-blue-400 font-semibold">Bluefin</span>, <span class="text-indigo-400 font-semibold">Aurora</span>, and the wider Universal Blue ecosystem, streamed directly from our bare-metal and KubeVirt testing lab.
+</p> </div> <!-- Search Section --> <div class="mb-12"> <div class="relative w-full max-w-xl mx-auto search-ignore"> <!-- Search Input Bar --> <div class="relative"> <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"> <svg class="h-5 w-5 text-slate-400" viewBox="0 0 20 20" fill="currentColor"> <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"></path> </svg> </div> <input type="search" id="global-search-input" placeholder="Search test logs, commit hashes, errors..." class="block w-full pl-10 pr-4 py-3 border border-slate-700 rounded-lg bg-slate-900 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all sm:text-sm font-mono"> </div> <!-- Search Results Dropdown --> <div id="search-results-container" class="hidden absolute z-50 mt-2 w-full bg-slate-950 border border-slate-700 rounded-lg shadow-2xl max-h-96 overflow-y-auto divide-y divide-slate-800"> <div class="p-4 text-sm text-slate-400 text-center" id="search-status">
+Initializing search index...
+</div> <div id="search-results-list" class="divide-y divide-slate-800/50"></div> </div> </div>   </div> <!-- Aggregates Stats Grid --> <div class="grid grid-cols-1 gap-5 sm:grid-cols-3 mb-12"> <!-- Card: Overall Pass Rate --> <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md"> <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Pass Rate</p> <div class="flex items-baseline gap-2"> <span class="text-4xl font-extrabold text-emerald-400 font-mono">33.3%</span> <span class="text-sm text-slate-500">overall</span> </div> <div class="w-full bg-slate-800 h-1.5 rounded-full mt-4 overflow-hidden"> <div class="bg-emerald-500 h-full rounded-full" style="width: 33.3%"></div> </div> </div> <!-- Card: Total Executions --> <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md"> <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Executions</p> <div class="flex items-baseline gap-2"> <span class="text-4xl font-extrabold text-blue-500 font-mono">3</span> <span class="text-sm text-slate-500">runs tracked</span> </div> <p class="text-xs text-slate-500 mt-5">Including Bluefin, Aurora, Dakota, and variants</p> </div> <!-- Card: Avg Execution Time --> <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-md"> <p class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-1">Avg Run Duration</p> <div class="flex items-baseline gap-2"> <span class="text-4xl font-extrabold text-indigo-400 font-mono">1.9m</span> <span class="text-sm text-slate-500">per suite</span> </div> <p class="text-xs text-slate-500 mt-5">Decoupled VM boot & validation cycle</p> </div> </div> <!-- Active Streams / Variant Cards --> <h2 class="text-2xl font-bold tracking-tight text-white mb-6">OCI Image Streams</h2> <div class="grid grid-cols-1 gap-6 sm:grid-cols-3 mb-12"> <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between"> <div> <div class="flex items-center justify-between mb-3"> <h3 class="text-lg font-bold text-white">Bluefin</h3> <span class="px-2 py-0.5 rounded text-xs font-mono font-semibold border bg-rose-500/10 text-rose-400 border-rose-500/20"> 50% Pass
+</span> </div> <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800/60 mb-4"> <div> <p class="text-slate-500">Runs</p> <p class="font-bold text-white mt-0.5">2</p> </div> <div> <p class="text-emerald-500">Passed</p> <p class="font-bold text-emerald-400 mt-0.5">1</p> </div> <div> <p class="text-rose-500">Failed</p> <p class="font-bold text-rose-400 mt-0.5">1</p> </div> </div> </div> <a href="#" class="text-xs font-semibold text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1">
+View target filters
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path> </svg> </a> </div><div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between"> <div> <div class="flex items-center justify-between mb-3"> <h3 class="text-lg font-bold text-white">Aurora</h3> <span class="px-2 py-0.5 rounded text-xs font-mono font-semibold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20"> 100% Pass
+</span> </div> <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800/60 mb-4"> <div> <p class="text-slate-500">Runs</p> <p class="font-bold text-white mt-0.5">0</p> </div> <div> <p class="text-emerald-500">Passed</p> <p class="font-bold text-emerald-400 mt-0.5">0</p> </div> <div> <p class="text-rose-500">Failed</p> <p class="font-bold text-rose-400 mt-0.5">0</p> </div> </div> </div> <a href="#" class="text-xs font-semibold text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1">
+View target filters
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path> </svg> </a> </div><div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between"> <div> <div class="flex items-center justify-between mb-3"> <h3 class="text-lg font-bold text-white">Bluefin LTS</h3> <span class="px-2 py-0.5 rounded text-xs font-mono font-semibold border bg-rose-500/10 text-rose-400 border-rose-500/20"> 0% Pass
+</span> </div> <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800/60 mb-4"> <div> <p class="text-slate-500">Runs</p> <p class="font-bold text-white mt-0.5">1</p> </div> <div> <p class="text-emerald-500">Passed</p> <p class="font-bold text-emerald-400 mt-0.5">0</p> </div> <div> <p class="text-rose-500">Failed</p> <p class="font-bold text-rose-400 mt-0.5">1</p> </div> </div> </div> <a href="#" class="text-xs font-semibold text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1">
+View target filters
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path> </svg> </a> </div><div class="bg-slate-900/60 border border-slate-800 rounded-xl p-6 flex flex-col justify-between"> <div> <div class="flex items-center justify-between mb-3"> <h3 class="text-lg font-bold text-white">Dakota</h3> <span class="px-2 py-0.5 rounded text-xs font-mono font-semibold border bg-emerald-500/10 text-emerald-400 border-emerald-500/20"> 100% Pass
+</span> </div> <div class="grid grid-cols-3 gap-2 text-center text-xs font-mono text-slate-400 bg-slate-950 p-3 rounded-lg border border-slate-800/60 mb-4"> <div> <p class="text-slate-500">Runs</p> <p class="font-bold text-white mt-0.5">0</p> </div> <div> <p class="text-emerald-500">Passed</p> <p class="font-bold text-emerald-400 mt-0.5">0</p> </div> <div> <p class="text-rose-500">Failed</p> <p class="font-bold text-rose-400 mt-0.5">0</p> </div> </div> </div> <a href="#" class="text-xs font-semibold text-slate-400 hover:text-blue-400 transition-colors flex items-center gap-1">
+View target filters
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path> </svg> </a> </div> </div> <!-- Executions Listing Section --> <div class="flex items-center justify-between border-b border-slate-800 pb-4 mb-6"> <h2 class="text-2xl font-bold tracking-tight text-white">Recent Verification Runs</h2> <span class="text-xs text-slate-500">Last compiled: 6/26/2026, 2:52:50 AM</span> </div> <div class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-md"> <div class="divide-y divide-slate-800"> <div class="p-6 hover:bg-slate-950/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"> <div class="flex items-start gap-4"> <div class="w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 bg-rose-500/10 border-rose-500/20 text-rose-400"> <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path> </svg> </div> <div> <div class="flex flex-wrap items-center gap-2 mb-1"> <a href="/run/run-mock-behave" class="text-base font-bold text-white hover:text-blue-400 transition-colors font-mono"> run-mock-behave </a> <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300"> Bluefin </span> <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 border border-blue-500/25 text-blue-400"> testing </span> </div> <div class="text-xs text-slate-500 font-mono flex flex-wrap gap-x-4 gap-y-1"> <span>Version: 40.latest</span> <span>Commit: <a href="https://github.com/projectbluefin/common/commit/unknown" class="text-blue-400 hover:underline">unknown</a></span> <span>Duration: 1s</span> </div> </div> </div> <div class="flex items-center justify-between sm:justify-end gap-6 shrink-0 border-t border-slate-800/40 pt-4 sm:pt-0 sm:border-0"> <div class="text-left sm:text-right font-mono text-xs"> <p class="text-slate-400">Tests Count</p> <p class="text-sm font-semibold mt-0.5"> <span class="text-emerald-400">0</span> / <span class="text-rose-400">1</span> / <span class="text-slate-500">1</span> </p> </div> <div class="text-right font-mono text-xs"> <p class="text-slate-500">Timestamp</p> <p class="text-slate-400 mt-0.5">10:00:00 PM</p> </div> </div> </div><div class="p-6 hover:bg-slate-950/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"> <div class="flex items-start gap-4"> <div class="w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 bg-emerald-500/10 border-emerald-500/20 text-emerald-400"> <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path> </svg> </div> <div> <div class="flex flex-wrap items-center gap-2 mb-1"> <a href="/run/run-success" class="text-base font-bold text-white hover:text-blue-400 transition-colors font-mono"> run-success </a> <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300"> Bluefin </span> <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 border border-blue-500/25 text-blue-400"> testing </span> </div> <div class="text-xs text-slate-500 font-mono flex flex-wrap gap-x-4 gap-y-1"> <span>Version: 40.20260625.0</span> <span>Commit: <a href="https://github.com/projectbluefin/common/commit/a1b2c3d4e5f6g7h8i9j0" class="text-blue-400 hover:underline">a1b2c3d</a></span> <span>Duration: 125s</span> </div> </div> </div> <div class="flex items-center justify-between sm:justify-end gap-6 shrink-0 border-t border-slate-800/40 pt-4 sm:pt-0 sm:border-0"> <div class="text-left sm:text-right font-mono text-xs"> <p class="text-slate-400">Tests Count</p> <p class="text-sm font-semibold mt-0.5"> <span class="text-emerald-400">4</span> / <span class="text-rose-400">0</span> / <span class="text-slate-500">4</span> </p> </div> <div class="text-right font-mono text-xs"> <p class="text-slate-500">Timestamp</p> <p class="text-slate-400 mt-0.5">9:00:00 PM</p> </div> </div> </div><div class="p-6 hover:bg-slate-950/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4"> <div class="flex items-start gap-4"> <div class="w-10 h-10 rounded-lg flex items-center justify-center border shrink-0 bg-rose-500/10 border-rose-500/20 text-rose-400"> <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"></path> </svg> </div> <div> <div class="flex flex-wrap items-center gap-2 mb-1"> <a href="/run/run-failed" class="text-base font-bold text-white hover:text-blue-400 transition-colors font-mono"> run-failed </a> <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-slate-800 border border-slate-700 text-slate-300"> Bluefin LTS </span> <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-blue-500/10 border border-blue-500/25 text-blue-400"> testing </span> </div> <div class="text-xs text-slate-500 font-mono flex flex-wrap gap-x-4 gap-y-1"> <span>Version: 39.20260625.1</span> <span>Commit: <a href="https://github.com/projectbluefin/common/commit/c9d8e7f6a5b4c3d2e1f0" class="text-blue-400 hover:underline">c9d8e7f</a></span> <span>Duration: 220s</span> </div> </div> </div> <div class="flex items-center justify-between sm:justify-end gap-6 shrink-0 border-t border-slate-800/40 pt-4 sm:pt-0 sm:border-0"> <div class="text-left sm:text-right font-mono text-xs"> <p class="text-slate-400">Tests Count</p> <p class="text-sm font-semibold mt-0.5"> <span class="text-emerald-400">3</span> / <span class="text-rose-400">1</span> / <span class="text-slate-500">4</span> </p> </div> <div class="text-right font-mono text-xs"> <p class="text-slate-500">Timestamp</p> <p class="text-slate-400 mt-0.5">10:00:00 PM</p> </div> </div> </div> </div> </div> </main>  </body></html>

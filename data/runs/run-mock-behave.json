@@ -1,0 +1,41 @@
+{
+  "id": "run-mock-behave",
+  "timestamp": "2026-06-25T22:00:00Z",
+  "stream": "testing",
+  "flavor": "bluefin",
+  "version": "40.latest",
+  "git_commit": {
+    "sha": "unknown",
+    "message": "E2E test run compiled via projectbluefin/bluefin",
+    "author": "KubeVirt Lab",
+    "repo_url": "https://github.com/projectbluefin/bluefin"
+  },
+  "environment": {
+    "runner_id": "homelab-kubevirt-worker",
+    "kubevirt_version": "v1.2.0",
+    "k3s_version": "v1.29.3",
+    "hardware_profile": {
+      "cpu_cores": 8,
+      "memory_gb": 32,
+      "gpu": "None",
+      "disk_type": "NVMe"
+    }
+  },
+  "summary": {
+    "status": "failed",
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "total_duration_ms": 1250
+  },
+  "tests": [
+    {
+      "name": "Nvidia driver coexistence > Verify flatpak nvidia runtime matching",
+      "status": "failed",
+      "duration_ms": 1250,
+      "error_message": "Flatpak Nvidia driver version mismatch!",
+      "logs": "[FAILED] Given Check flatpak list contains matching driver\n\u001b[1;31m[ERROR] Flatpak Nvidia driver version mismatch!\u001b[0m\nOutput:\nFlatpak Nvidia driver mismatch check failed. Running fallback diagnostics..."
+    }
+  ]
+}
