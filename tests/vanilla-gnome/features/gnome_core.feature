@@ -87,3 +87,8 @@ Feature: Vanilla GNOME baseline smoke tests
   @gnome_core
   Scenario: No gnome-shell coredump after session start
     * No coredump entries exist for "gnome-shell"
+
+  @gnome_core
+  Scenario: Bluefin-specific extensions are absent on vanilla-gnome
+    * Bluefin-specific extensions are absent on vanilla-gnome
+

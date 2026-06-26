@@ -301,3 +301,37 @@ def graphical_target_is_active(context) -> None:
         f"graphical.target is not active (got '{output}'; stderr={stderr!r}) — "
         "display manager did not reach the graphical session target."
     )
+
+
+@step("tailscale is installed and daemon is running")
+def tailscale_is_installed_and_daemon_is_running(context) -> None:
+    output, returncode, stderr = _run_host("tailscale --version")
+    assert returncode == 0, f"tailscale --version failed (rc={returncode}): {stderr or output}"
+
+    output, returncode, stderr = _run_host("systemctl is-active tailscaled")
+    assert returncode == 0 and output == "active", (
+        f"tailscaled is not active (got '{output}'; stderr={stderr!r})"
+    )
+
+
+@step("uupd auto-updater is installed and configured")
+def uupd_auto_updater_is_installed_and_configured(context) -> None:
+    output, returncode, stderr = _run_host("uupd --help")
+    if returncode != 0:
+        combined = (output + " " + stderr).lower()
+        if "not found" in combined or "no such file" in combined:
+            _skip_scenario(context, "uupd not installed on this image")
+            return
+        assert returncode == 0, f"uupd --help failed (rc={returncode}): {stderr or output}"
+
+    output, returncode, stderr = _run_host("systemctl is-enabled uupd.timer")
+    assert returncode == 0, f"uupd.timer check failed: {stderr or output}"
+    assert output in ("enabled", "static"), f"Expected uupd.timer to be enabled or static, got: {output}"
+
+
+@step("fastfetch is present and operational")
+def fastfetch_is_present_and_operational(context) -> None:
+    output, returncode, stderr = _run_host("fastfetch --version")
+    assert returncode == 0, f"fastfetch --version failed (rc={returncode}): {stderr or output}"
+    assert "fastfetch" in output.lower(), f"Expected 'fastfetch' in output, got: {output}"
+

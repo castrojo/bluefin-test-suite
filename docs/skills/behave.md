@@ -132,7 +132,7 @@ def _run(cmd: str):
 
 **Never** import `tests.shared.ssh_steps` into the smoke environment — those steps require `context.vm_ip` / `context.ssh_key` which don't exist in the smoke context, and will collide with qecore step phrases.
 
-For system-level checks in `system_health.feature`, define named steps in `system_health_steps.py` that call `_run()` directly.
+For system-level checks in `system_health.feature`, define named steps in `system_health_steps.py` that call `_run()` directly. For tools that reside on the VM host and not in the runner container (such as tailscale, uupd, and fastfetch), define custom steps that call `_run_host()` to run them on the host VM via SSH.
 
 ## MIME type handler verification (smoke suite)
 

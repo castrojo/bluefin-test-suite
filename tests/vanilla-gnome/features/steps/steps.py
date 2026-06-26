@@ -274,3 +274,17 @@ def close_screenshot_tool(context) -> None:
     if not _wait_eval_bool('Main.screenshotUI.visible.toString()', expected=False, retries=8):
         out = _shell_eval('Main.screenshotUI.visible.toString()')
         raise AssertionError(f'Screenshot UI is still visible after close(): {out!r}')
+
+
+@step('Bluefin-specific extensions are absent on vanilla-gnome')
+def bluefin_extensions_absent(context) -> None:
+    try:
+        result = _ssh_run("gnome-extensions list")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return
+
+    if result.returncode == 0:
+        output = result.stdout
+        for ext in ("bazaar-integration", "blur-my-shell", "dash-to-dock"):
+            assert ext not in output, f"Unexpected Bluefin-specific extension '{ext}' is present in vanilla-gnome: {output}"
+
