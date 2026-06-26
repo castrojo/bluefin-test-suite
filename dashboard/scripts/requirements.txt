@@ -1,0 +1,2 @@
+# scripts/requirements.txt
+# (Empty for now, script uses standard library json/glob/os)

@@ -1,74 +1,73 @@
-name: Publish screenshots to gh-pages
+name: Publish QA Dashboard & Screenshots to Pages
 
-# Runs on a schedule to pull slug-specific screenshot tags from GHCR and publish
-# them to gh-pages as stable HTTP URLs. Also triggered manually for immediate publish.
-#
-# Why schedule instead of workflow_run:
-#   e2e.yml is workflow_call-only; runs created by consumer repos (bluefin, dakota, lts)
-#   do not appear in testsuite's own run list, so workflow_run would never fire.
-#   The schedule polls every 2 hours, after all consumer nightly/testing e2e runs complete.
-#
-# Why slug-specific GHCR tags:
-#   e2e.yml pushes ghcr.io/projectbluefin/testsuite/desktop-screenshot:<slug>-<suite>-latest
-#   where slug = strip(ghcr.io/<org>/) + replace(:,-) from inputs.image.
-#   Example: ghcr.io/projectbluefin/bluefin:testing → bluefin-testing
-#   This allows publish-to-pages to pull per-image screenshots without cross-repo auth.
-
+# Runs on a schedule to pull test runs and screenshots from GHCR,
+# converts Behave JSONs to dashboard schemas, compiles Astro, and deploys.
 on:
   schedule:
     - cron: '0 */2 * * *'  # every 2 hours; covers nightly (02:00 UTC) and post-merge runs
+  push:
+    branches:
+      - main
+    paths:
+      - 'dashboard/**'
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
   packages: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: gh-pages-publish
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  publish:
+  build-and-deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Checkout Dashboard Code (main)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Checkout Existing Screenshots (gh-pages)
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        continue-on-error: true
         with:
           ref: gh-pages
+          path: old-gh-pages
           fetch-depth: 1
 
-      - name: Sync index.html from main
-        run: |
-          curl -sSfL "https://raw.githubusercontent.com/projectbluefin/testsuite/main/docs/dashboard/index.html" \
-            -o index.html
+      - name: Set up Python Environment
+        uses: actions/setup-python@d27e3479a610285577e30b5a373b9e4a8449c065 # v5
+        with:
+          python-version: '3.11'
 
-      - name: Install oras
-        run: |
-          ORAS_VERSION="1.2.3"
-          curl -sSfL \
-            "https://github.com/oras-project/oras/releases/download/v${ORAS_VERSION}/oras_${ORAS_VERSION}_linux_amd64.tar.gz" \
-            | tar xz oras
-          sudo mv oras /usr/local/bin/oras
+      - name: Install ORAS CLI
+        uses: oras-project/setup-oras@38de303aac69abb66f3e6255b7198bff35f323e3 # v2.0.0
 
-      - name: Pull screenshots and publish
+      - name: Pull screenshots and run logs from GHCR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           echo "${{ github.token }}" | oras login ghcr.io -u "${{ github.actor }}" --password-stdin
-          mkdir -p screenshots scratch
+          mkdir -p scratch/ dashboard/src/data/runs/ dashboard/public/screenshots/
 
           REGISTRY="ghcr.io/projectbluefin/testsuite/desktop-screenshot"
-
-          # Known image slugs — add new images here when the fleet grows.
-          # Slug derivation: strip ghcr.io/<org>/ from image ref, replace : with -
-          # e.g. ghcr.io/projectbluefin/bluefin:testing → bluefin-testing
+          
+          # Known image slugs to sync
           SLUGS=(
             bluefin-testing
             bluefin-lts-testing
             dakota-testing
           )
           SUITES=(smoke common vanilla-gnome)
-          DATE=$(date +%Y%m%d)
-          UPDATED=0
+          DATE=$(date -u +%Y%m%d)
 
           for SLUG in "${SLUGS[@]}"; do
             for SUITE in "${SUITES[@]}"; do
@@ -77,32 +76,89 @@ jobs:
               mkdir -p "$SHOT_DIR"
 
               if oras pull "${REGISTRY}:${TAG}" -o "$SHOT_DIR/" 2>/dev/null; then
+                # 1. Capture Desktop Screenshot
                 SHOT=$(find "$SHOT_DIR/" -name "*.png" | head -1)
                 if [[ -n "$SHOT" ]]; then
-                  cp "$SHOT" "screenshots/${TAG}.png"
-                  echo "Published screenshots/${TAG}.png"
-                  UPDATED=$((UPDATED + 1))
+                  cp "$SHOT" "dashboard/public/screenshots/${TAG}.png"
+                  echo "Downloaded screenshot: dashboard/public/screenshots/${TAG}.png"
+                fi
 
-                  # Read annotations for JSONL — run_id and caller_repo
+                # 2. Extract Run Metadata & Convert Behave JSON
+                BEHAVE_JSON=$(find "$SHOT_DIR/" -name "results.json" | head -1)
+                if [[ -f "$BEHAVE_JSON" ]]; then
+                  # Fetch manifest to read run ID and caller repo annotations
                   MANIFEST=$(oras manifest fetch "${REGISTRY}:${TAG}" 2>/dev/null || echo "{}")
                   RUN_ID=$(echo "$MANIFEST" | jq -r '.annotations["io.github.projectbluefin.run_id"] // ""')
                   CALLER=$(echo "$MANIFEST" | jq -r '.annotations["io.github.projectbluefin.caller_repo"] // ""')
+                  TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-                  mkdir -p data
-                  printf '{"date":"%s","run_id":"%s","caller_repo":"%s","slug":"%s","suite":"%s","result":"success"}\n' \
-                    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$RUN_ID" "$CALLER" "$SLUG" "$SUITE" \
-                    >> "data/results-${DATE}.jsonl"
+                  python3 dashboard/scripts/convert_behave.py \
+                    "$BEHAVE_JSON" \
+                    "$RUN_ID" \
+                    "$CALLER" \
+                    "$SLUG" \
+                    "$SUITE" \
+                    "$TIMESTAMP" \
+                    "dashboard/src/data/runs/"
                 fi
               fi
             done
           done
 
-          echo "Published ${UPDATED} screenshots"
-
-      - name: Commit and push
+      - name: Copy existing historical runs if available
+        continue-on-error: true
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add screenshots/ data/ index.html
-          git diff --cached --quiet || git commit -m "chore: update screenshots [skip ci]"
-          git push
+          if [ -d "old-gh-pages/data" ]; then
+            # If we had JSON files in old-gh-pages, copy them over
+            cp -r old-gh-pages/data/*.json dashboard/src/data/runs/ 2>/dev/null || true
+          fi
+
+      - name: Compile Rollup Data Index
+        run: |
+          python3 dashboard/scripts/compile_data.py
+
+      - name: Set up Node.js Environment
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'dashboard/package-lock.json'
+
+      - name: Install Dashboard Dependencies
+        run: |
+          cd dashboard
+          npm ci
+
+      - name: Build Dashboard & Index Search
+        run: |
+          cd dashboard
+          npm run build
+
+      - name: Stitch Historical Assets
+        run: |
+          # Create screenshots folder inside compiled bundle
+          mkdir -p dashboard/dist/screenshots
+          
+          # 1. Copy old screenshots from gh-pages branch
+          if [ -d "old-gh-pages/screenshots" ]; then
+            cp -r old-gh-pages/screenshots/*.png dashboard/dist/screenshots/ 2>/dev/null || true
+          fi
+          
+          # 2. Copy newly pulled screenshots
+          cp -r dashboard/public/screenshots/*.png dashboard/dist/screenshots/ 2>/dev/null || true
+
+          # 3. Archive raw run results for future incremental builds
+          mkdir -p dashboard/dist/data
+          cp -r dashboard/src/data/runs dashboard/dist/data/
+
+      - name: Setup GitHub Pages Deployment Context
+        uses: actions/configure-pages@122e11894a44b415a99981881514757c9a416a2d # v5
+
+      - name: Upload Static Distribution to Pages Artifacts
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: './dashboard/dist'
+
+      - name: Publish Dashboard to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5

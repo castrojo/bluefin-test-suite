@@ -1,0 +1,14 @@
+# Astro / Build Outputs
+dist/
+.astro/
+node_modules/
+
+# Local env files
+.env
+.env.production
+.env.local
+.env.*.local
+
+# IDEs and OS files
+.DS_Store
+.vscode/

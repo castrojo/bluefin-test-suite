@@ -1,0 +1,62 @@
+{
+  "id": "run-failed",
+  "timestamp": "2026-06-25T22:00:00Z",
+  "stream": "testing",
+  "flavor": "bluefin-lts",
+  "version": "39.20260625.1",
+  "git_commit": {
+    "sha": "c9d8e7f6a5b4c3d2e1f0",
+    "message": "fix(nvidia): pin nvidia flatpak runtime alignment",
+    "author": "castrojo",
+    "repo_url": "https://github.com/projectbluefin/common"
+  },
+  "environment": {
+    "runner_id": "kube-worker-node-02",
+    "kubevirt_version": "v1.2.0",
+    "k3s_version": "v1.29.3+k3s1",
+    "hardware_profile": {
+      "cpu_cores": 8,
+      "memory_gb": 32,
+      "gpu": "NVIDIA GTX 1080",
+      "disk_type": "SSD"
+    }
+  },
+  "summary": {
+    "status": "failed",
+    "total_tests": 4,
+    "passed_tests": 3,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "total_duration_ms": 220000
+  },
+  "tests": [
+    {
+      "name": "systemd-journal-errors",
+      "status": "success",
+      "duration_ms": 11200,
+      "error_message": null,
+      "logs": "\u001b[32m[INFO]\u001b[0m Querying journalctl...\n\u001b[32m[SUCCESS]\u001b[0m No critical systemd-journal errors detected."
+    },
+    {
+      "name": "gnome-shell-extension-active",
+      "status": "success",
+      "duration_ms": 7800,
+      "error_message": null,
+      "logs": "\u001b[32m[INFO]\u001b[0m Checking extensions...\n\u001b[32m[SUCCESS]\u001b[0m Extension custom-command-list is enabled."
+    },
+    {
+      "name": "flatpak-nvidia-coexistence",
+      "status": "failed",
+      "duration_ms": 112000,
+      "error_message": "Flatpak Nvidia runtime version mismatch with host kernel driver.",
+      "logs": "\u001b[32m[INFO]\u001b[0m Invoking Flatpak test run...\n\u001b[1;31m[ERROR] Flatpak runtime requested driver 550.90, but host kernel is running 555.42.\u001b[0m\n\u001b[1;31m[FAIL] NVIDIA flatpak coexistence assertion failed.\u001b[0m"
+    },
+    {
+      "name": "ujust-command-suite",
+      "status": "success",
+      "duration_ms": 38900,
+      "error_message": null,
+      "logs": "\u001b[32m[INFO]\u001b[0m Running ujust scripts...\n\u001b[32m[SUCCESS]\u001b[0m All core ujust scripts completed successfully."
+    }
+  ]
+}

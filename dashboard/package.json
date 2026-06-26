@@ -1,0 +1,24 @@
+{
+  "name": "qa-projectbluefin-dashboard",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build:astro": "astro check && astro build",
+    "postbuild:search": "pagefind --site dist --output-path dist/pagefind",
+    "build": "npm run build:astro && npm run postbuild:search",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/tailwind": "^6.0.2",
+    "ansi-to-html": "^0.7.2",
+    "astro": "^4.10.0",
+    "tailwindcss": "^3.4.19"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.7.0",
+    "pagefind": "^1.1.0",
+    "typescript": "^5.4.5"
+  }
+}
