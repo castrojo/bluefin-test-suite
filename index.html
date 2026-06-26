@@ -326,8 +326,17 @@ Show failing / untested images only
   }
 
   async function load(url) {
-    try { const r = await fetch(url); return r.ok ? r.json() : null; }
-    catch { return null; }
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 5000);
+    try {
+      const r = await fetch(url, { signal: controller.signal });
+      clearTimeout(id);
+      return r.ok ? r.json() : null;
+    } catch (err) {
+      clearTimeout(id);
+      console.warn(`Fetch timed out or failed for ${url}:`, err);
+      return null;
+    }
   }
 
   // ── Stats Bar ──────────────────────────────────────────────────────────────
