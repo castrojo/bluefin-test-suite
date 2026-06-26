@@ -1270,8 +1270,8 @@ import GlobalSearch from '../components/GlobalSearch.astro';
 
   // ── Main Controller ────────────────────────────────────────────────────────
   (async () => {
-    // 1. Fetch live telemetry dataset first
-    const stats = await load('https://projectbluefin.github.io/testing-lab/data/factory-stats.json') || {};
+    // 1. Fetch live telemetry dataset first from raw github to bypass Pages build and CDN caches
+    const stats = await load(`https://raw.githubusercontent.com/projectbluefin/testing-lab/main/docs/data/factory-stats.json?t=${Date.now()}`) || {};
     
     // Fallback images config
     const IMAGES = (stats.images||[]).length ? stats.images : [
@@ -1290,12 +1290,12 @@ import GlobalSearch from '../components/GlobalSearch.astro';
     document.getElementById('header-meta').innerHTML =
       `<span>${staleWarning}</span><span>•</span><a href="${ARGO_UI}" target="_blank" rel="noopener" class="text-blue-400 hover:underline">Argo UI</a><span>•</span><a href="${GH_REPO}" target="_blank" rel="noopener" class="text-blue-400 hover:underline">testing-lab</a>`;
 
-    // 2. Parallel fetch individual suites results inside client browser
+    // 2. Parallel fetch individual suites results from raw github content to ensure real-time freshness
     const allData = [];
     await Promise.all(IMAGES.flatMap(img => {
       const imgSuites = img.suites || SUITES;
       return imgSuites.map(s =>
-        load(`https://projectbluefin.github.io/testing-lab/results/${img.slug}-${s}.json`).then(d => {
+        load(`https://raw.githubusercontent.com/projectbluefin/testing-lab/main/docs/results/${img.slug}-${s}.json?t=${Date.now()}`).then(d => {
           allData.push({ image: img, suite: s, data: d });
         })
       );
