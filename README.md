@@ -1,11 +1,37 @@
 # testsuite
 [![codecov](https://codecov.io/gh/projectbluefin/testsuite/branch/main/graph/badge.svg)](https://codecov.io/gh/projectbluefin/testsuite)
+[![Live Dashboard](https://img.shields.io/badge/Live--Dashboard-Active-brightgreen?style=flat-square)](https://projectbluefin.github.io/testsuite/)
 
 > Enslave the oppressors
 
-Automated behave + qecore-headless + dogtail and shared libraries for testing GNOME-based bootc images. Totally headless, Kubernetes-friendly.
+Automated behave + qecore-headless + dogtail and shared libraries for testing GNOME-based bootc images. Headless & Kubernetes-native.
 
-**386 scenarios across 52 feature files.** Covers GUI automation, SSH-based health checks, and system integrity assertions for any GNOME bootc image.
+## 📊 Live Desktop Test Coverage
+
+We continuously test **323 active end-to-end BDD scenarios** across **52 feature files** against live Wayland desktop sessions in QEMU.
+
+### 5 Most Vital Desktop Gating Stats
+
+| Metric / Gating Dimension | Active Tests | Coverage & Validation Scope |
+| :--- | :---: | :--- |
+| **🕹️ Core Desktop UI & Shell** | **35 scenarios** | GNOME Shell Top Bar, Quick Settings panel, Calendar popup, Workspace Switcher, Lock Screen safety, and System menus. |
+| **🖥️ Preinstalled Graphical Apps** | **107 scenarios** | Core GUI application verification including Nautilus (Files), Firefox Browser, Loupe Image Viewer, Papers Document Viewer, Text Editor, and Calculator. |
+| **🪟 Desktop Integration & Portals** | **18 scenarios** | Complete XDG Desktop Portals validation: Dark/Light Mode settings, User Screenshots, FileChoosers, desktop notifications, and Sandboxed Flatpak bridges. |
+| **🛡️ System Integrity & Security** | **104 scenarios** | Secure Boot image signing policy verification (`cosign`), custom Polkit privilege-escalation rules, read-only `/usr`, user environment initialization, and dconf system defaults. |
+| **🔄 Upgrades & Multi-Variant Parity** | **57 scenarios** | Robust Bazzite, Vanilla GNOME OS, and Bluefin LTS stream parity checks, plus parameterized bootc container upgrades and multi-lane migrations. |
+
+### 📸 Live Desktop Under Test (Latest Smoke Screenshot)
+
+Below is the live framebuffer captured automatically during our last successful end-to-end Wayland smoke-test run:
+
+<div align="center">
+  <a href="https://projectbluefin.github.io/testsuite/" target="_blank">
+    <img src="https://projectbluefin.github.io/testsuite/screenshots/bluefin-testing-smoke-latest.png" alt="Latest Bluefin Wayland Smoke Test Screenshot" width="85%" style="border-radius: 8px; border: 1px solid #243041; box-shadow: 0 4px 12px rgba(0,0,0,0.4);" />
+  </a>
+  <p><i>Click the screenshot to open our interactive <b><a href="https://projectbluefin.github.io/testsuite/">Live Build Health Dashboard & Gallery</a></b>.</i></p>
+</div>
+
+---
 
 - GNOME 50+
 - Image-specific suites: Bluefin, Bazzite, Dakota, vanilla GNOME OS, Flatcar
