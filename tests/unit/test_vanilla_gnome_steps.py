@@ -30,7 +30,8 @@ def _import_vanilla_gnome_steps():
 
     for key in list(sys.modules):
         if "vanilla-gnome.features.steps.steps" in key or \
-           "vanilla_gnome.features.steps.steps" in key:
+           "vanilla_gnome.features.steps.steps" in key or \
+           "tests.shared.gnome_shell_steps" in key:
             del sys.modules[key]
 
     import importlib.util

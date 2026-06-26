@@ -496,17 +496,19 @@ For non-migration lifecycle runs: dispatch `upgrade-test.yml` in `projectbluefin
 
 ## Post-upgrade desktop screenshot
 
-After a lifecycle suite run, `e2e.yml` captures a full-screen GNOME screenshot:
+After a lifecycle suite run, `e2e.yml` captures a full-screen desktop screenshot directly from the host runner via QEMU's monitor socket:
+
 ```bash
-gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell \
-  --method org.gnome.Shell.Eval \
-  "const Shell = imports.gi.Shell; const s = new Shell.Screenshot(); \
-   s.screenshot(false, false, '/tmp/upgrade_screenshot.png', () => {}); 'ok'"
+sudo python3 tests/shared/qemu_screendump.py results/screenshot_lifecycle_upgrade_final.png
 ```
 
-Saved to `results/screenshot_lifecycle_upgrade_final.png` and promoted to the `desktop-screenshot` artifact.
+This bypasses the fragile GDM session security, polkit rules, and GNOME 50 `gdbus` session-bus permission barriers entirely.
 
-The step uses `ControlMaster=no` because the VM may have rebooted during the lifecycle suite, invalidating any existing SSH multiplex socket. It waits up to 60s for `/run/user/1001/wayland-0` before attempting the screenshot.
+**Key constraints implemented for reliability:**
+- **Wait with Settle Sleep**: The workflow SSHes into the VM using `ControlMaster=no` (since a reboot occurred mid-lifecycle) to wait up to 60s for `/run/user/1001/wayland-0`. Once active, it sleeps for an additional 5 seconds to allow GDM/GNOME Shell to finish painting the desktop before the screenshot is taken.
+- **Root-to-Runner Permission Handling**: Because QEMU runs as root, the monitor socket writes files owned by root. The workflow executes `sudo chown runner:runner` and `sudo chmod 644` on the output PNG to guarantee the ORAS push and artifact upload steps can read the file without permission errors.
+
+Saved to `results/screenshot_lifecycle_upgrade_final.png` and promoted to the `desktop-screenshot` artifact.
 
 ## dconf local.d overrides and test interference (2026-06-21)
 

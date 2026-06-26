@@ -98,6 +98,10 @@ result = m.group(1).lower() == 'true'  # True only if JS returned true
 Use the `_eval_bool(js)` / `_wait_eval_bool(js, expected)` helpers from
 `tests/smoke/features/steps/steps.py` rather than hand-rolling this.
 
+### Avoid local re-definitions of `_shell_eval`
+**CRITICAL**: Never define local/duplicate versions of `_shell_eval` or `_eval_bool` (such as in `vanilla-gnome/features/steps/steps.py`). Always import and reuse the shared helper from `tests.shared.gnome_shell_steps`. 
+*Why:* GNOME 50 resets `unsafe_mode` to `false` aggressively after almost any UI event (modal dialogs, menus, overview toggle). The shared `_shell_eval` is specifically engineered to prepended `global.context.unsafe_mode = true` on every single invocation, whereas local hand-rolled versions that omit this will immediately fail on subsequent steps.
+
 ## Overview open/closed detection
 
 **Do not** use AT-SPI `n.name.lower() == "overview"` — the node name varies

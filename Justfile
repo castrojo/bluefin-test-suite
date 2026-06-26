@@ -316,6 +316,43 @@ lock-images:
 
 # ── Development ───────────────────────────────────────────────────────────────
 
+# Run all fast local checks (lint, unit tests, and steps audit) to verify test suite changes
+test-local:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "=== Running Ruff Linter ==="
+    ruff check tests/ --select E,F,W --ignore E501
+    echo "=== Running Unit Tests ==="
+    python3 -m pytest tests/unit/ -q
+    echo "=== Running Step Audit and Dry-Runs ==="
+    just audit-steps
+    for d in tests/*/features/; do
+        if [[ -d "$d" ]]; then
+            echo "Dry-running behave on $d..."
+            PYTHONPATH=. python3 -m behave --dry-run --no-summary "$d"
+        fi
+    done
+    echo "✓ All local checks passed successfully!"
+
+# Audit step definitions across all suites to check for step collisions and loading errors
+audit-steps:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! python3 -c "import behave" &>/dev/null; then
+        echo "Error: 'behave' is not installed in the current Python environment."
+        echo "Please install dependencies or run inside a virtualenv."
+        exit 1
+    fi
+    for d in tests/*/features/; do
+        if [[ -d "$d" ]]; then
+            suite=$(basename "$(dirname "$d")")
+            echo "Auditing steps catalog for suite: ${suite}..."
+            PYTHONPATH=. python3 -m behave --steps-catalog --dry-run --no-summary "$d" >/dev/null \
+                && echo "  ✓ ${suite} steps OK" \
+                || { echo "  ✗ ${suite} steps FAILED"; exit 1; }
+        fi
+    done
+
 # List all stub/future test scenarios not yet implemented
 list-stubs:
     #!/usr/bin/env bash
