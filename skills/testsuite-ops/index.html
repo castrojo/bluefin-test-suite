@@ -1,0 +1,659 @@
+<!DOCTYPE html><html lang="en" class="bg-brand-space text-slate-100 font-sans selection:bg-brand-glow/30 scroll-smooth"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v4.16.19"><title>Skills: ops-gotchas | Project Bluefin QA</title><link rel="stylesheet" href="/_astro/index.RAzdLmA4.css">
+<style>#markdown-body{font-size:.95rem}#markdown-body h1,#markdown-body h2,#markdown-body h3,#markdown-body h4{color:#f8fafc;font-weight:700;margin-top:1.85em;margin-bottom:.85em;line-height:1.35;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}#markdown-body h1{font-size:1.75rem;border-b:1px solid #1e293b;padding-bottom:.35em}#markdown-body h2{font-size:1.4rem;border-bottom:1px solid rgba(30,41,59,.4);padding-bottom:.25em}#markdown-body h3{font-size:1.15rem}#markdown-body p{margin-top:0;margin-bottom:1.25em;color:#cbd5e1}#markdown-body a{color:#3b82f6;text-decoration:underline;font-weight:500;transition:color .15s}#markdown-body a:hover{color:#06b6d4}#markdown-body ul,#markdown-body ol{margin-top:0;margin-bottom:1.25em;padding-left:1.6em}#markdown-body ul{list-style-type:disc}#markdown-body ol{list-style-type:decimal}#markdown-body li{margin-top:.35em;margin-bottom:.35em}#markdown-body code{background-color:#0f172a;color:#38bdf8;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.85em;padding:.15em .35em;border-radius:4px;border:1px solid rgba(255,255,255,.05)}#markdown-body pre{background-color:#030712;padding:1.15rem;border-radius:8px;border:1px solid #1e293b;margin-top:1.25em;margin-bottom:1.5em;overflow-x:auto}#markdown-body pre code{background-color:transparent;color:#e2e8f0;font-size:.85rem;padding:0;border:none;border-radius:0}#markdown-body blockquote{border-left:4px solid #3b82f6;background-color:#3b82f60a;padding:.85rem 1.15rem;margin-top:1.25em;margin-bottom:1.25em;border-radius:0 8px 8px 0}#markdown-body blockquote p{margin:0;font-style:italic;color:#94a3b8}#markdown-body table{width:100%;border-collapse:collapse;margin-top:1.25em;margin-bottom:1.5em;font-size:.85rem}#markdown-body th,#markdown-body td{padding:.65rem .85rem;border-bottom:1px solid #1e293b}#markdown-body th{background-color:#0f172a;color:#f8fafc;font-weight:600}#markdown-body tr:hover td{background-color:#ffffff03}
+</style></head> <body class="min-h-screen flex flex-col">  <header class="border-b border-slate-800 bg-slate-900/40 backdrop-blur-md sticky top-0 z-40"> <div class="container mx-auto px-4 h-16 flex items-center justify-between"> <div class="flex items-center gap-3"> <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white tracking-wider text-sm shadow-lg shadow-blue-500/20">
+BF
+</div> <a href="/" class="text-lg font-bold text-white hover:text-blue-400 transition-colors">
+Bluefin <span class="text-blue-500 font-mono text-xs px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 ml-1">QA</span> </a> </div> <nav class="flex items-center gap-6 text-sm font-medium text-slate-300"> <a href="/" class="hover:text-white transition-colors">Runs</a> <a href="/skills" class="hover:text-white transition-colors">Skills</a> <a href="https://hive.projectbluefin.io" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Hive
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> <a href="https://github.com/projectbluefin/testsuite" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Testsuite
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> </nav> </div> </header> <main class="container mx-auto px-4 py-8 max-w-4xl flex-grow" data-pagefind-body> <!-- Back to skills link --> <div class="mb-6 search-ignore"> <a href="/skills" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-white transition-colors"> <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path> </svg>
+Back to skills library
+</a> </div> <!-- Article Header --> <header class="mb-8 border-b border-slate-800 pb-6"> <div class="flex items-center gap-3.5 mb-2 flex-wrap"> <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20" data-pagefind-meta="category"> testsuite skill
+</span> <span class="text-xs text-slate-500 font-mono">version 1.0.0</span> </div> <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-1" data-pagefind-meta="title"> ops-gotchas </h1> <p class="text-base text-slate-400 mt-3 italic"> Operational gotchas for projectbluefin/testsuite — VM boot failures, GDM autologin, Containerfile.runner requirements, GNOME session setup, and infra traps agents hit mid-task. </p> </header> <!-- Markdown Rendered Content --> <article class="text-slate-300 leading-relaxed font-sans" id="markdown-body"> <div><h1>Operational Gotchas</h1>
+<h2>When to Use</h2>
+<ul>
+<li>VM boots to GDM greeter instead of a GNOME session</li>
+<li>Debugging infra-layer CI failures (runner container, D-Bus, AT-SPI)</li>
+<li>Adding new packages or patches to <code>container/Containerfile.runner</code></li>
+<li>SSH assertion failures from unexpected output</li>
+<li>common-suite service health scenarios fail with unexpected <code>ActiveState</code> values</li>
+<li>Polkit rules presence check returns zero results</li>
+</ul>
+<h2>When NOT to Use</h2>
+<ul>
+<li>Writing behave step logic → <code>docs/skills/behave.md</code></li>
+<li>GNOME AT-SPI/dogtail patterns → <code>docs/skills/gnome.md</code></li>
+<li>bootc lifecycle steps → <code>docs/skills/bootc.md</code></li>
+<li>Workflow inputs, migration runs, manual.yml → <code>docs/skills/e2e-workflow.md</code></li>
+</ul>
+<hr>
+<h2>Oneshot systemd service state — use Result, not ActiveState</h2>
+<p><strong>Symptom:</strong> <code>common_services.feature</code> scenarios fail with output <code>inactive</code> when
+checking <code>ActiveState --value</code> even though the service ran successfully.</p>
+<p><strong>Cause:</strong> Oneshot services transition to <code>ActiveState=inactive</code> (dead) after they
+finish — this is correct behaviour, not a failure. Asserting <code>active</code> always fails
+for completed oneshot units.</p>
+<p><strong>Fix:</strong> Check <code>Result --value</code> instead. A successfully completed oneshot reports
+<code>Result=success</code>:</p>
+<pre><code class="language-bash">systemctl show ublue-system-setup.service --property=Result --value
+# → success
+</code></pre>
+<p>Affected services: <code>rechunker-group-fix.service</code>, <code>ublue-system-setup.service</code>,
+<code>ublue-user-setup.service</code> (--user), <code>dconf-update.service</code>,
+<code>bootc-unified-storage.service</code>.</p>
+<p>See <code>docs/skills/behave.md</code> &quot;Shared SSH helpers&quot; section for the feature-file pattern.</p>
+<p><strong>Exception:</strong> Services that are masked in CI (<code>flatpak-preinstall.service</code>,
+<code>flatpak-nuke-fedora.service</code>) will have <code>Result=exit-code</code> or no result at all.
+Keep those quarantined until the masking is removed at the image level.</p>
+<hr>
+<h2>Polkit rules path — check both directories</h2>
+<p><strong>Symptom:</strong> <code>common_polkit.feature</code> &quot;polkit rules directory has Bluefin rules&quot;
+returns zero even though Bluefin ships polkit rules.</p>
+<p><strong>Cause:</strong> Bluefin ships polkit rules under <code>/usr/share/polkit-1/rules.d/</code> (immutable
+layer, read-only). The test was only checking <code>/etc/polkit-1/rules.d/</code> (mutable
+override path, empty on a stock Bluefin install).</p>
+<p><strong>Fix:</strong> Scan both paths:</p>
+<pre><code class="language-bash">ls /etc/polkit-1/rules.d/*.rules /usr/share/polkit-1/rules.d/*.rules 2&gt;/dev/null | wc -l
+</code></pre>
+<p>This returns a non-zero count as long as rules exist in either location.</p>
+<hr>
+<h2>Fedora version targets</h2>
+<p>Three Fedora versions appear in this repo. They are not interchangeable.</p>
+<table>
+<thead>
+<tr>
+<th>Context</th>
+<th>Fedora version</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong><code>behave --dry-run</code> CI container</strong> (<code>pr-validate.yml</code>)</td>
+<td><code>fedora:41</code> (pinned digest)</td>
+<td>qecore/dogtail/GObject ABI target; PyGObject from Ubuntu breaks</td>
+</tr>
+<tr>
+<td><strong>Test runner image</strong> (<code>container/Containerfile.runner</code>)</td>
+<td><code>fedora-minimal:latest</code> (rebuilt weekly)</td>
+<td>Base for the runner container shipped to the VM</td>
+</tr>
+<tr>
+<td><strong>OS under test (gnomeos)</strong></td>
+<td><code>gnomeos-latest</code> (≈ Fedora 44 / GNOME 50)</td>
+<td><code>quay.io/gnome_infrastructure/gnome-build-meta</code></td>
+</tr>
+<tr>
+<td><strong>OS under test (Bluefin)</strong></td>
+<td>Fedora 41 based (stable/gts/lts)</td>
+<td>Do NOT test against F42 — Bluefin does not ship it</td>
+</tr>
+</tbody></table>
+<p><strong>Never use F42</strong>: no Bluefin or Bazzite image is based on Fedora 42.</p>
+<hr>
+<h2>GDM autologin required</h2>
+<p><strong>Symptom:</strong> VM boots but all scenarios fail — <code>gnome-ponytail-daemon</code> D-Bus name not activatable. Zero tests run.</p>
+<p><strong>Cause:</strong> <code>bib-disk-configure</code> did not write GDM autologin config. VM boots to GDM greeter; no graphical session starts.</p>
+<p><strong>Required config</strong> (must be on the golden disk image):</p>
+<pre><code class="language-ini"># /etc/gdm/custom.conf
+[daemon]
+AutomaticLoginEnable=True
+AutomaticLogin=bluefin-test
+</code></pre>
+<p>Open an issue in the image repo referencing <code>bib-disk-configure</code>. Do not add this workaround to step code.</p>
+<p><strong>GDM boot regression guard:</strong> A <code>@health @gdm @regression</code> scenario in <code>system_health.feature</code> explicitly asserts <code>gdm.service</code> and <code>graphical.target</code> are both <code>active</code>. This catches the 2026-06-13 bluefin-lts emergency-console incident — if <code>gdm.service</code> fails, the VM boots to emergency console and all AT-SPI tests silently skip without a clear failure. If this scenario fails, check GDM autologin config above before investigating further.</p>
+<hr>
+<h2>xdg-desktop-portal and graphical-session.target</h2>
+<p><code>xdg-desktop-portal</code> 1.22.0 (shipped in Fedora 42 / Bluefin mid-2026) added <code>Requisite=graphical-session.target</code> to its user-session service unit. If <code>graphical-session.target</code> is not active, the portal fails immediately with:</p>
+<pre><code>xdg-desktop-portal.service: Job failed with result &#39;dependency&#39;
+</code></pre>
+<p>This silently breaks dark mode (Settings portal), file choosers, screenshots, and all Flatpak sandbox bridging, because <code>systemctl --user status</code> may still show <code>inactive</code> rather than <code>failed</code>.</p>
+<p><strong>Root cause:</strong> GNOME activates <code>graphical-session.target</code> via GDM + gnome-session. If GDM autologin is broken, or if the session manager does not reach <code>graphical-session.target</code>, portals will never start.</p>
+<p><strong>Regression guards</strong> (in <code>common_portals.feature</code>):</p>
+<ul>
+<li><code>graphical-session.target is active in the user session</code> — asserts the target reached active state</li>
+<li><code>xdg-desktop-portal did not fail due to missing session target</code> — asserts <code>Result=success</code></li>
+</ul>
+<p>If these fail: check GDM autologin config (section above), then check <code>journalctl --user -u graphical-session.target</code> for activation order issues. Reference: <a href="https://bbs.archlinux.org/viewtopic.php?id=313883">https://bbs.archlinux.org/viewtopic.php?id=313883</a></p>
+<hr>
+<h2>SSH step timeout</h2>
+<p>Default <code>run_ssh()</code> timeout is <strong>60 seconds</strong>, not 30. Hardware commands (bootc upgrade, disk ops) are slow in emulated VMs.</p>
+<pre><code class="language-python">run_ssh(context, &quot;sudo bootc upgrade&quot;, timeout=180)
+</code></pre>
+<p>Never lower the default below 60s.</p>
+<hr>
+<h2>Smoke suite: _run() vs _run_host() for network checks</h2>
+<p><strong>Symptom:</strong> DNS health check in <code>system_health.feature</code> passes even when the VM has no connectivity.</p>
+<p><strong>Cause:</strong> <code>_run(cmd)</code> in the smoke suite executes on the test runner (inside the VM-side container), NOT in the actual VM guest OS. For network or system checks that need to reflect the VM&#39;s actual state, use <code>_run_host(cmd)</code> which executes in the VM via a shell bridge.</p>
+<pre><code class="language-python"># WRONG — tests the container&#39;s DNS, not the VM&#39;s
+_run(&quot;getent hosts ghcr.io&quot;)
+
+# CORRECT — tests DNS inside the VM
+_run_host(&quot;getent hosts ghcr.io&quot;)
+</code></pre>
+<p>Use <code>_run_host()</code> for: DNS lookups, network connectivity, firewall state, systemd service status from the host OS.
+Use <code>_run()</code> for: subprocess calls within the test runner environment (extension state via gdbus, GNOME shell interactions).</p>
+<hr>
+<h2>sys.exit(1) in before_scenario kills behave</h2>
+<p><strong>Symptom:</strong> All scenarios after the first failure appear to pass (not run). Behave exits non-zero but only shows the first failure.</p>
+<p><strong>Cause:</strong> <code>sys.exit(1)</code> inside <code>before_scenario</code> raises <code>SystemExit</code>, terminates the entire behave process.</p>
+<p><strong>Fix:</strong> Replace every <code>sys.exit(1)</code> with <code>raise</code>. Verify:</p>
+<pre><code class="language-bash">grep -r &quot;sys.exit&quot; tests/*/features/environment.py
+# must return nothing
+</code></pre>
+<hr>
+<h2>GNOME 50 requires qecore &gt;= 4.12</h2>
+<p><strong>Symptom:</strong> <code>GetWindows</code> returns <code>AccessDenied</code>; <code>unsafe_mode</code> never set; <code>Shell.Eval</code> returns <code>&quot;&quot;</code>.</p>
+<p><strong>Cause:</strong> qecore &lt; 4.12 uses a unit name pattern that never matched GNOME 50&#39;s gnome-shell unit.</p>
+<p><strong>Fix:</strong> <code>e2e.yml</code> pins <code>qecore&gt;=4.12</code>. Do not downgrade.</p>
+<hr>
+<h2>OCI layer caching</h2>
+<p>Podman layers are cached at <code>/var/lib/containers/storage</code>, keyed by the resolved image digest.</p>
+<ul>
+<li>A cache hit skips the pull entirely; repeat runs drop from roughly 5-15 minutes to about 30 seconds for this stage.</li>
+<li>The cache invalidates automatically when the image digest changes.</li>
+<li>If you see digest-resolution failures in CI (for example <code>skopeo inspect</code> or manifest-inspect output), that is the cache-key resolution step — verify the image exists and is publicly accessible.</li>
+</ul>
+<hr>
+<h2>@quarantine tag enforcement — two layers required</h2>
+<p><strong>Symptom:</strong> Scenarios tagged <code>@quarantine</code> run and fail.</p>
+<p><strong>How it works (two required layers):</strong></p>
+<ol>
+<li><code>behave_retry.py</code> calls <code>with_quarantine_filter()</code> — appends <code>--tags ~@quarantine</code> to every behave invocation.</li>
+<li><code>e2e.yml</code> sets <code>BEHAVE_TAG_ARGS=&quot;--tags ~@quarantine&quot;</code> before calling <code>behave_retry.py</code>.</li>
+</ol>
+<p>Do not remove either layer.</p>
+<hr>
+<h2>--bootloader flag requires bootc &gt;= 0.1.13</h2>
+<p><strong>Symptom:</strong> <code>bootc install to-disk --bootloader systemd</code> fails with <code>unrecognized flag</code>.</p>
+<p>Always probe before using:</p>
+<pre><code class="language-bash">BOOTLOADER_ARG=&quot;&quot;
+if bootc install to-disk --help 2&gt;&amp;1 | grep -q &#39;\-\-bootloader&#39;; then
+  BOOTLOADER_ARG=&quot;--bootloader systemd&quot;
+fi
+bootc install to-disk $BOOTLOADER_ARG ...
+</code></pre>
+<hr>
+<h2>NVIDIA services always fail in QEMU</h2>
+<p><code>nvidia-persistenced.service</code> and <code>ublue-nvctk-cdi.service</code> require a physical GPU. Both are in <code>IGNORED_FAILED_UNITS_IN_VM</code> in <code>system_health_steps.py</code>. Do not remove them.</p>
+<hr>
+<h2>systemd-oomd: both .service AND .socket fail in QEMU</h2>
+<p><code>systemd-oomd</code> monitors PSI files under <code>/proc/pressure/</code> which QEMU VMs don&#39;t expose. Both <code>systemd-oomd.service</code> <strong>and</strong> <code>systemd-oomd.socket</code> are in <code>IGNORED_FAILED_UNITS_IN_VM</code>. When adding entries to the allowlist, always check if both the <code>.service</code> and its companion <code>.socket</code> need ignoring.</p>
+<hr>
+<h2>Bazzite extension state: use GetExtensionInfo, not Shell.Eval</h2>
+<p><code>Shell.Eval</code> + <code>Main.extensionManager.lookup(uuid)?.state</code> is unreliable on GNOME 50 (Bazzite). Use the stable D-Bus method:</p>
+<pre><code class="language-python">import subprocess, re
+
+def _extension_state(context, uuid: str) -&gt; str:
+    result = subprocess.run(
+        [&#39;gdbus&#39;, &#39;call&#39;, &#39;--session&#39;,
+         &#39;--dest&#39;, &#39;org.gnome.Shell&#39;,
+         &#39;--object-path&#39;, &#39;/org/gnome/Shell/Extensions&#39;,
+         &#39;--method&#39;, &#39;org.gnome.Shell.Extensions.GetExtensionInfo&#39;,
+         f&quot;&#39;{uuid}&#39;&quot;],   # GVariant string — single quotes required
+        capture_output=True, text=True, timeout=10,
+    )
+    if result.returncode != 0:
+        return &quot;99&quot;
+    m = re.search(r&quot;&#39;state&#39;:\s*&lt;uint32\s+(\d+)&gt;&quot;, result.stdout)
+    return m.group(1) if m else &quot;99&quot;
+</code></pre>
+<p><strong>CRITICAL — GVariant quoting:</strong> UUIDs like <code>logomenu@aryan_k</code> contain <code>@</code> which is invalid bare GVariant. Always wrap in single quotes: <code>f&quot;&#39;{uuid}&#39;&quot;</code>.</p>
+<p>Extension state values:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>ENABLED</td>
+</tr>
+<tr>
+<td>2</td>
+<td>DISABLED</td>
+</tr>
+<tr>
+<td>3</td>
+<td>ERROR</td>
+</tr>
+<tr>
+<td>6</td>
+<td>INITIALIZED (transient — poll through)</td>
+</tr>
+<tr>
+<td>99</td>
+<td>UNINSTALLED / call failed</td>
+</tr>
+</tbody></table>
+<p>Poll through states 6 and 8 with a timeout — Bazzite&#39;s 11 extensions can take up to 90 seconds to fully activate.</p>
+<hr>
+<h2>Rootless podman load fails in VM (exit 125)</h2>
+<p><strong>Symptom:</strong> &quot;Load runner container into VM&quot; step exits 125 with:</p>
+<pre><code>lchown /var/spool/mail: invalid argument
+potentially insufficient UIDs or GIDs available in user namespace
+</code></pre>
+<p><strong>Cause:</strong> <code>fedora-minimal</code> has a layer that sets <code>/var/spool/mail</code> to <code>root:mail</code>. Rootless podman needs subuid/subgid mappings for the test user.</p>
+<p><strong>Fix (in e2e.yml):</strong> Before <code>podman load</code>:</p>
+<pre><code class="language-bash">ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 \
+  &quot;sudo bash -c &#39;grep -q bluefin-test /etc/subuid || echo \&quot;bluefin-test:100000:65536\&quot; &gt;&gt; /etc/subuid; \
+   grep -q bluefin-test /etc/subgid || echo \&quot;bluefin-test:100000:65536\&quot; &gt;&gt; /etc/subgid&#39;&quot;
+ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman system migrate 2&gt;/dev/null || true
+</code></pre>
+<p>Do NOT switch to <code>sudo podman load</code> — that puts the image in root storage, but all <code>podman run</code> calls in the VM run as <code>bluefin-test</code>.</p>
+<hr>
+<h2>YAML orphan keys in e2e.yml</h2>
+<p><strong>Symptom:</strong> PRs fail merge queue validation with <code>{&quot;total_count&quot;:0,&quot;jobs&quot;:[]}</code>.</p>
+<p><strong>Cause:</strong> A step block missing its <code>- name:</code> header has its <code>if:</code>, <code>id:</code>, and <code>run:</code> keys treated as orphan keys on the prior step. <code>yaml.safe_load</code> silently uses last-wins; GHA schema checker rejects it.</p>
+<p><strong>How to spot:</strong> Visually scan for any <code>if:</code> / <code>id:</code> / <code>run:</code> at the 8-space indent level without a preceding <code>- name:</code> on the same level. <code>yaml.safe_load</code> will not catch this.</p>
+<p>Always add <code>      - name: My Step Name</code> before each step&#39;s body.</p>
+<hr>
+<h2>Containerfile.runner requirements</h2>
+<p>When <code>container/Containerfile.runner</code> is changed, dispatch <code>build-runner.yml</code> to rebuild and push before dispatching test runs.</p>
+<p><strong>Required packages</strong> (all must be in the <code>microdnf install</code> block):</p>
+<table>
+<thead>
+<tr>
+<th>Package</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>gobject-introspection</code></td>
+<td>Owns <code>xlib-2.0.typelib</code> and many others; NOT a weak dep on Fedora-minimal with <code>--setopt=install_weak_deps=0</code></td>
+</tr>
+<tr>
+<td><code>procps-ng</code></td>
+<td>Provides <code>pgrep</code>/<code>pkill</code>; not in fedora-minimal</td>
+</tr>
+<tr>
+<td><code>gcc</code>, <code>python3-devel</code></td>
+<td>Required to build <code>python-uinput</code> from source</td>
+</tr>
+<tr>
+<td><code>dbus-tools</code></td>
+<td>Provides <code>dbus-uuidgen</code> (not <code>dbus-daemon</code>)</td>
+</tr>
+</tbody></table>
+<p><strong>machine-id must be seeded:</strong></p>
+<pre><code class="language-dockerfile">RUN dbus-uuidgen &gt; /etc/machine-id &amp;&amp; \
+    mkdir -p /var/lib/dbus &amp;&amp; \
+    ln -sf /etc/machine-id /var/lib/dbus/machine-id
+</code></pre>
+<p><code>fedora-minimal</code> ships <code>/etc/machine-id</code> as a zero-length file. D-Bus refuses to start without a valid 32-hex UUID.</p>
+<p><strong>setuptools must be explicit:</strong>
+<code>pkg_resources</code> (used by qecore) is part of <code>setuptools</code>, not installed by default in Python 3.14. Add <code>setuptools</code> to the pip install block.</p>
+<p><strong>stop_display_manager must be wrapped:</strong>
+<code>qecore-headless</code> cleanup calls <code>stop_display_manager()</code> after the user script. Inside the runner container there is no systemd, so it raises <code>CalledProcessError</code>. Wrap it:</p>
+<pre><code class="language-python">try:
+    if self.enable_stop or self.user_script_exit_code != 0:
+        self.display_manager_control.stop_display_manager()
+except Exception:
+    pass
+</code></pre>
+<p>Without this, the container exits 1 even when all tests pass.</p>
+<p><strong>rawinput ponytail None-guard:</strong>
+<code>sandbox.before_scenario</code> → <code>overview_action(&quot;hide&quot;)</code> → <code>rawinput.click()</code> → <code>ponytail_interface.window_list</code> crashes when ponytail is unreachable. Patch <code>ponytail_helper.py</code> in the runner image to return <code>None</code> instead of raising, and add a <code>None</code> guard before <code>.window_list</code>.</p>
+<p><strong>qecore-headless env retrieval:</strong>
+<code>qecore-headless</code> reads <code>/proc/&lt;pid&gt;/environ</code> for GNOME session env. With <code>--pid=host</code>, this fails with <code>Permission denied</code>. The code must handle this gracefully (warn + continue) rather than <code>sys.exit(1)</code>.</p>
+<hr>
+<h2>Python 3.14: sys.executable is empty in --pid=host containers</h2>
+<p><strong>Symptom:</strong> All scenarios fail with <code>PermissionError: [Errno 13] Permission denied: &#39;&#39;</code> in <code>behave_retry.py</code>.</p>
+<p><strong>Cause:</strong> Python 3.14 sets <code>sys.executable = &#39;&#39;</code> inside podman <code>--pid=host</code> containers.</p>
+<p><strong>Fix:</strong> <code>_find_python()</code> in <code>behave_retry.py</code> probes <code>sys.executable</code>, then <code>shutil.which(&quot;python3&quot;)</code>, then known absolute paths. Never use <code>sys.executable</code> directly for subprocess invocation.</p>
+<hr>
+<h2>XDG_SESSION_TYPE and XDG_SESSION_DESKTOP must be forwarded</h2>
+<p><strong>Symptom:</strong> qecore raises <code>KeyError(&#39;XDG_SESSION_TYPE&#39;)</code> or sets it to <code>__unavailable__</code>, causing all AT-SPI calls to fail silently.</p>
+<p><strong>Fix (two places in e2e.yml):</strong></p>
+<ol>
+<li>When writing <code>session.env</code>:<pre><code class="language-bash">printf &#39;export XDG_SESSION_TYPE=wayland\nexport XDG_SESSION_DESKTOP=gnome\n&#39; &gt;&gt; /tmp/session.env
+</code></pre>
+</li>
+<li>When invoking <code>podman run</code>:<pre><code class="language-bash">-e XDG_SESSION_TYPE=wayland \
+-e XDG_SESSION_DESKTOP=gnome \
+</code></pre>
+</li>
+</ol>
+<p>Both are required — <code>session.env</code> covers the qecore boot path; <code>-e</code> flags cover any direct env lookup.</p>
+<hr>
+<h2>bootc install creates .0.origin alongside .0 — DEPLOY find must use -type d</h2>
+<p><strong>Symptom:</strong> <code>Install OCI image and configure disk</code> fails with:</p>
+<pre><code>ls: cannot access &#39;/mnt/root/ostree/deploy/default/deploy/&lt;hash&gt;.0.origin/usr/lib/modules/&#39;: Not a directory
+deploy=&lt;hash&gt;.0.origin  kver=
+ERROR: vmlinuz not found in deployment or boot partition
+</code></pre>
+<p><strong>Cause:</strong> <code>bootc install to-disk</code> writes two entries in the deploy directory:</p>
+<ul>
+<li><code>&lt;hash&gt;.0</code> — the actual deployment directory (correct)</li>
+<li><code>&lt;hash&gt;.0.origin</code> — a small metadata file (NOT a directory)</li>
+</ul>
+<p>Without <code>-type d</code>, <code>find -printf &#39;%f\n&#39; | head -1</code> may return <code>.0.origin</code> before <code>.0</code> depending on filesystem ordering. Setting <code>DEPLOY</code> to a file path causes <code>ls $D/usr/lib/modules/</code> to fail with &quot;Not a directory&quot;, leaving <code>KVER</code> empty.</p>
+<p><strong>Fix (in e2e.yml):</strong> Ensure the <code>DEPLOY=</code> assignment uses <code>-type d</code>:</p>
+<pre><code class="language-bash">DEPLOY=$(sudo find /mnt/root/ostree/deploy/default/deploy/ -mindepth 1 -maxdepth 1 -type d -printf &#39;%f\n&#39; 2&gt;/dev/null | head -1)
+</code></pre>
+<p>Without <code>-type d</code>, <code>find</code> may return the <code>.0.origin</code> metadata file before the <code>.0</code> deployment directory, causing <code>ls $D/usr/lib/modules/</code> to fail. The <code>-type d</code> flag is required on the <code>DEPLOY=</code> assignment; later <code>for DEP in</code> loops in the same file already include it.</p>
+<hr>
+<h2>before_scenario and after_scenario setup guard pattern</h2>
+<pre><code class="language-python">def before_scenario(context, scenario) -&gt; None:
+    from tests.shared.quarantine import skip_quarantine
+    if skip_quarantine(scenario):
+        return
+    if getattr(context, &#39;failed_setup&#39;, None):    # GUARD
+        try:
+            scenario.skip(reason=context.failed_setup)
+        except TypeError:
+            scenario.skip()
+        return
+    ...
+
+def after_scenario(context, scenario) -&gt; None:
+    if getattr(context, &#39;failed_setup&#39;, None):    # GUARD
+        return
+    ...
+    if hasattr(context, &#39;sandbox&#39;):               # GUARD: sandbox may not exist
+        context.sandbox.after_scenario(context, scenario)
+</code></pre>
+<p><strong>CRITICAL:</strong> Use <code>getattr(context, &#39;failed_setup&#39;, None)</code> (truthiness check), NOT <code>hasattr()</code>. <code>TestSandbox.__init__</code> sets <code>context.failed_setup = None</code> on every run (even success), so <code>hasattr()</code> is always <code>True</code> and causes every scenario to skip.</p>
+<p>Also use <code>scenario.skip()</code>, NOT <code>context.scenario.skip()</code> — <code>context.scenario</code> is not set yet at the guard point.</p>
+<hr>
+<h2>results.json captures first-pass only</h2>
+<p><code>behave_retry.py</code> runs behave up to 3 times. <code>results.json</code> is written after the <strong>first pass</strong> and is not overwritten by retries. Always grep the job log for the true final count:</p>
+<pre><code class="language-bash">gh api &quot;repos/org/repo/actions/jobs/$JOB_ID/logs&quot; | grep &quot;scenarios passed&quot; | tail -3
+</code></pre>
+<hr>
+<h2>ublue-motd prepended to SSH output</h2>
+<p><strong>Symptom:</strong> SSH assertions fail — step expects <code>stdout == &quot;ok&quot;</code> but gets <code>&quot;Welcome to Bluefin...\nok&quot;</code>.</p>
+<p><strong>Cause:</strong> Some images ship <code>/etc/profile.d/ublue-motd.sh</code> which prints a MOTD in login shells.</p>
+<p><strong>Fix (in e2e.yml VM setup):</strong></p>
+<pre><code class="language-bash">sudo touch &quot;${VAR}/home/bluefin-test/.config/no-show-user-motd&quot;
+</code></pre>
+<p><code>ssh_steps.py</code> checks the <strong>last line</strong> of stdout (not the whole output) as a defensive measure. Do not change assertions to substring-match — the last-line approach is more robust.</p>
+<hr>
+<h2>Do not add a second -monitor flag to QEMU</h2>
+<p><code>e2e.yml</code> opens a QEMU monitor unix socket at boot:</p>
+<pre><code>-monitor unix:/tmp/qemu-monitor.sock,server,nowait
+</code></pre>
+<p><code>tests/shared/qemu_screendump.py</code> uses this socket for fallback screenshots. A second <code>-monitor</code> flag competes for VM state. To capture the framebuffer from a custom step:</p>
+<pre><code class="language-bash">sudo python3 tests/shared/qemu_screendump.py results/my-screenshot.png
+</code></pre>
+<hr>
+<h2>common shell tools missing on bluefin:lts / bluefin-gdx</h2>
+<p><strong>Symptom:</strong> <code>common</code> suite: 7 failures — <code>zsh</code>, <code>fish</code>, <code>bat</code>, <code>eza</code>, <code>fd</code>, <code>ripgrep</code>, <code>starship</code> not found.</p>
+<p><strong>Cause:</strong> <code>LockLayering=true</code> prevents <code>rpm-ostree install --apply-live</code>. <code>brew-setup.service</code> is masked in CI.</p>
+<p><strong>Status:</strong> Image quality issue — tests correctly detect missing tools. Report to image maintainers. If tools are not expected on an image, add <code>@requires_brew</code> tag to scenarios in <code>common_shell.feature</code>.</p>
+<hr>
+<h2>lifecycle / on-pr-opened: pr/needs-review label must exist</h2>
+<p><strong>Symptom:</strong> Every new PR fails <code>lifecycle / on-pr-opened</code> with <code>&#39;pr/needs-review&#39; not found</code>.</p>
+<p><strong>Cause:</strong> The <code>projectbluefin/common</code> lifecycle workflow labels new PRs with <code>pr/needs-review</code>. If the label doesn&#39;t exist, <code>gh pr edit --add-label</code> exits 1.</p>
+<p><strong>Fix:</strong> Ensure the label exists in the repo:</p>
+<pre><code class="language-bash">gh label create &quot;pr/needs-review&quot; --repo projectbluefin/testsuite \
+  --color &quot;#0075ca&quot; --description &quot;Needs review from a maintainer&quot;
+</code></pre>
+<p>Do not delete this label.</p>
+<hr>
+<h2>ARC ghost runners — local dev routing</h2>
+<p>The testsuite can run on the ghost k3s cluster&#39;s ARC runners instead of GitHub-hosted runners. ARC replicates the <code>ubuntu-latest</code> GHA environment exactly, which is required for reliable debugging.</p>
+<h3>How it works</h3>
+<p>A global pre-push hook (<code>~/.git-hooks/pre-push</code>) intercepts pushes to <code>projectbluefin/*</code> repos and:</p>
+<ol>
+<li>Creates <code>ghost/&lt;branch&gt;</code> with <code>ubuntu-latest</code> → <code>ghost-runners</code> patched in workflow files</li>
+<li>Pushes the ghost branch, triggering push-based workflows automatically</li>
+<li>Auto-dispatches <code>workflow_dispatch</code> workflows (skips <code>manual.yml</code>)</li>
+</ol>
+<h3>Running the full matrix manually on ghost</h3>
+<pre><code class="language-bash">GHOST_REF=&quot;ghost/&lt;your-branch&gt;&quot;
+SUITES=&quot;smoke,developer,dx,software,vanilla-gnome,bazzite,lifecycle&quot;
+
+for image in \
+  &quot;ghcr.io/projectbluefin/bluefin:testing&quot; \
+  &quot;ghcr.io/projectbluefin/bluefin:stable&quot; \
+  &quot;ghcr.io/projectbluefin/bluefin-lts:testing&quot; \
+  &quot;ghcr.io/projectbluefin/bluefin-lts:stable&quot; \
+  &quot;ghcr.io/projectbluefin/bluefin-lts-hwe:testing&quot; \
+  &quot;ghcr.io/projectbluefin/bluefin-lts-hwe:stable&quot; \
+  &quot;ghcr.io/projectbluefin/dakota:testing&quot; \
+  &quot;ghcr.io/projectbluefin/dakota:stable&quot;; do
+  gh workflow run manual.yml \
+    --repo projectbluefin/testsuite \
+    --ref &quot;${GHOST_REF}&quot; \
+    --field image=&quot;${image}&quot; \
+    --field suites=&quot;${SUITES}&quot;
+done
+</code></pre>
+<h3>ARC health check</h3>
+<pre><code class="language-bash"># Listener running?
+kubectl get pods -n arc-systems
+
+# Jobs being picked up? (empty arc-runners is healthy — minRunners=0)
+kubectl get ephemeralrunners -n arc-runners
+
+# Runner logs (catch before pod completes)
+kubectl logs -f -n arc-runners -l actions.github.com/scale-set-name=ghost-runners
+</code></pre>
+<h3>Ghost branch cleanup</h3>
+<p>Ghost branches auto-delete after 2 hours via the hook&#39;s background process. Manual cleanup:</p>
+<pre><code class="language-bash">git push origin :ghost/&lt;branch-name&gt;
+</code></pre>
+<hr>
+<h2>oras pull: always use a directory, never a file path</h2>
+<p><code>oras pull &lt;ref&gt; --output &lt;path&gt;</code> (or <code>-o &lt;path&gt;</code>) expects a <strong>directory</strong>. Passing a file path creates a directory with that name and puts the artifact inside it.</p>
+<pre><code class="language-bash"># WRONG — creates scratch/smoke.png/ directory, cp fails silently
+oras pull &quot;${REGISTRY}:smoke-latest&quot; --output scratch/smoke.png
+
+# CORRECT — pull to dir, then find the PNG inside
+mkdir -p scratch/smoke
+oras pull &quot;${REGISTRY}:smoke-latest&quot; -o scratch/smoke/
+SHOT=$(find scratch/smoke/ -name &quot;*.png&quot; | head -1)
+cp &quot;$SHOT&quot; screenshots/target.png
+</code></pre>
+<p>The artifact filename inside the OCI artifact is <code>desktop-screenshot.png</code> (set at push time with <code>oras push ... desktop-screenshot.png:image/png</code>).</p>
+<hr>
+<h2>GitHub API: rulesets require PUT not PATCH</h2>
+<p><code>PATCH /repos/{owner}/{repo}/rulesets/{id}</code> returns 404 even with <code>repo</code> scope and admin access.</p>
+<p>Use <code>PUT</code> with the <strong>full</strong> ruleset body (including <code>name</code>, <code>enforcement</code>, <code>conditions</code>, <code>bypass_actors</code>, and all <code>rules</code>):</p>
+<pre><code class="language-bash">gh api --method PUT repos/projectbluefin/bluefin/rulesets/17070404 \
+  --input /tmp/full-ruleset.json \
+  --jq &#39;.rules[] | select(.type==&quot;pull_request&quot;) | .parameters.required_approving_review_count&#39;
+</code></pre>
+<p>To get the current body for editing:</p>
+<pre><code class="language-bash">gh api repos/projectbluefin/bluefin/rulesets/17070404 \
+  | jq &#39;{name, enforcement, conditions, bypass_actors, rules}&#39; &gt; /tmp/ruleset.json
+# edit /tmp/ruleset.json, then PUT
+</code></pre>
+<hr>
+<h2>Cross-image tag skipping: @bluefin on non-bluefin images</h2>
+<p>The common suite skips scenarios tagged <code>@bluefin</code> when <code>IMAGE</code> env var refers to a
+non-bluefin image (e.g. dakota). This is implemented via <code>_is_bluefin_image()</code> in
+<code>tests/common/features/environment.py</code>.</p>
+<p><strong>Pitfall</strong>: match the image <em>name</em>, not the full URL. The org name <code>projectbluefin</code>
+contains <code>&quot;bluefin&quot;</code>, so naively checking <code>&quot;bluefin&quot; in image_url.lower()</code> returns
+<code>True</code> for <code>ghcr.io/projectbluefin/dakota:testing</code>.</p>
+<p>Correct pattern:</p>
+<pre><code class="language-python">def _is_bluefin_image(image: str) -&gt; bool:
+    lower = image.lower()
+    name = lower.split(&quot;/&quot;)[-1].split(&quot;:&quot;)[0].split(&quot;@&quot;)[0]
+    return &quot;bluefin&quot; in name or &quot;bazzite&quot; in lower
+</code></pre>
+<p>This extracts the image name component (<code>bluefin</code>, <code>dakota</code>, etc.) before checking.</p>
+<p>The smoke suite environment replicates this same pattern so <code>@bluefin</code> tags are
+respected in AT-SPI tests as well.</p>
+<h2>composefs file-capability regression</h2>
+<p>A <code>@health @composefs @regression</code> scenario in <code>system_health.feature</code> checks
+that <code>newuidmap</code>, <code>newgidmap</code>, and <code>ping</code> retain their <code>security.capability</code>
+xattrs after a composefs-backed ostree deployment.</p>
+<p><strong>Root cause:</strong> <code>buildah commit</code> (without <code>--squash</code>) produces a multi-layer OCI image. The composefs xattr injection expects a flat single-layer input; multi-layer output silently strips <code>security.capability</code> xattrs. Fix: <code>podman build --squash-all</code> in the export recipe.</p>
+<h2>If <code>getcap</code> returns no capabilities for these binaries, the image build
+pipeline produced a multi-layer OCI artifact. File the regression against the
+image build repo, not the test suite.</h2>
+<h2>Stdin Heredoc Consumption bug in run-gnome-tests.yaml</h2>
+<p><strong>Symptom:</strong> The <code>run-gnome-tests</code> step in <code>bluefin-qa-pipeline</code> completes instantly with exit status 0 but runs no behave tests inside the VM, only printing <code>root-ssh-diag-ready</code>.</p>
+<p><strong>Cause:</strong> The runner script executes inside a bash heredoc (<code>exec bash &lt;&lt;&#39;SCRIPT_EOF&#39;</code>). Nested commands like <code>ssh</code> read from standard input by default, consuming the rest of the heredoc. This causes bash to see EOF and exit prematurely with exit status 0 (last successful command&#39;s exit code).</p>
+<p><strong>Fix:</strong> Wrap the entire heredoc script block (or any nested ssh/scp commands) in a block with stdin redirected from <code>/dev/null</code>:</p>
+<pre><code class="language-bash">exec bash &lt;&lt;&#39;SCRIPT_EOF&#39;
+{
+  set -euo pipefail
+  # ... script logic ...
+} &lt; /dev/null
+SCRIPT_EOF
+</code></pre>
+<p>This isolates standard input, preventing nested <code>ssh</code>/<code>scp</code> calls from consuming the SCRIPT_EOF script block.</p>
+<hr>
+<h2>User Bootstrap primary group bug on fresh boots</h2>
+<p><strong>Symptom:</strong> <code>run-gnome-tests</code> fails during bluefin-test user bootstrap with:</p>
+<pre><code>useradd: group &#39;1001&#39; does not exist
+exit status 6
+</code></pre>
+<p><strong>Cause:</strong> On first boot, the primary group <code>1001</code> (bluefin-test) doesn&#39;t exist, causing <code>useradd -u 1001 -g 1001</code> to exit with code 6.</p>
+<p><strong>Fix:</strong> Create the primary group first, ignoring duplicates:</p>
+<pre><code class="language-bash">groupadd -g 1001 bluefin-test 2&gt;/dev/null || true
+useradd -m -u 1001 -g 1001 -G wheel -s /bin/bash ...
+</code></pre>
+<hr>
+<h2>Red Flags</h2>
+<ul>
+<li>Using <code>_run(cmd)</code> in smoke suite for DNS or network checks (runs on container, not VM)</li>
+<li>Setting <code>sys.exit(1)</code> inside <code>before_scenario</code> (kills all subsequent scenarios silently)</li>
+<li>Lowering the SSH timeout below 60 seconds (hardware commands are slow in QEMU)</li>
+<li>Adding a second <code>-monitor</code> flag to QEMU (breaks <code>qemu_screendump.py</code>)</li>
+<li>Using <code>hasattr(context, &#39;failed_setup&#39;)</code> instead of <code>getattr(..., None)</code> (always True)</li>
+<li>Calling <code>sudo podman load</code> instead of rootless load (image goes to root storage)</li>
+<li>Using <code>oras pull</code> with a file path instead of a directory</li>
+</ul>
+<h2>Verification</h2>
+<ul>
+<li><input disabled="" type="checkbox"> Smoke suite network/DNS checks use <code>_run_host()</code> not <code>_run()</code></li>
+<li><input disabled="" type="checkbox"> No <code>sys.exit()</code> calls in <code>before_scenario</code> / <code>after_scenario</code></li>
+<li><input disabled="" type="checkbox"> <code>before_scenario</code> guard uses <code>getattr(context, &#39;failed_setup&#39;, None)</code>, not <code>hasattr()</code></li>
+<li><input disabled="" type="checkbox"> SSH step timeout is 60s or higher for hardware/bootc commands</li>
+<li><input disabled="" type="checkbox"> <code>oras pull</code> targets a directory, not a file path</li>
+<li><input disabled="" type="checkbox"> Runner container changes followed by <code>build-runner.yml</code> dispatch before test runs</li>
+</ul>
+<hr>
+<h2>git restore vs git checkout for full directory reset</h2>
+<p>When a branch-sync workflow merges main into another branch, the merge can pull in
+new files under <code>.github/workflows/</code>. Pushing those changes requires <code>workflows: write</code>
+which <code>GITHUB_TOKEN</code> does not have by default.</p>
+<p><strong>Fix:</strong> After the merge, fully reset the target directory to its pre-merge state with:</p>
+<pre><code class="language-bash">git restore --source=&#39;HEAD@{1}&#39; --staged --worktree -- .github/workflows/
+</code></pre>
+<p><strong>Do NOT use</strong> <code>git checkout HEAD@{1} -- .github/workflows/</code> — that command only restores
+paths that existed before the merge. It will <strong>not</strong> delete files newly added by the merge.
+<code>git restore --staged --worktree</code> makes the working tree and index exactly match the
+pre-merge ref, including deletions.</p>
+<p>After restoring, stage the directory before amending the merge commit:</p>
+<pre><code class="language-bash">git add .github/workflows/
+git commit --amend --no-edit
+git push origin &lt;branch&gt;
+</code></pre>
+<h2>Composite actions vs checkout for cross-repo scripts</h2>
+<p><strong>Never</strong> check out <code>projectbluefin/actions</code> into the caller repo workspace to run a script.
+Placing a nested git repo in the workspace causes <code>git add -A</code> to capture it as an
+undeclared gitlink (mode 160000 with no <code>.gitmodules</code> entry). That gitlink ends up in
+squash commits and breaks any consumer build using <code>submodules: recursive</code>:</p>
+<pre><code>fatal: No url found for submodule path &#39;.workflow-scripts&#39; in .gitmodules
+</code></pre>
+<p><strong>Fix:</strong> Wrap the script as a composite action. Composite actions get <code>$GITHUB_ACTION_PATH</code>
+pointing at the action&#39;s own directory — the script is accessible with no checkout:</p>
+<pre><code class="language-yaml"># .github/actions/my-action/action.yml
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: python3 &quot;$GITHUB_ACTION_PATH/my_script.py&quot; ...
+</code></pre>
+<p>Call it from a reusable workflow with <code>uses: projectbluefin/actions/.github/actions/my-action@v1</code>.
+GitHub checks out the actions repo to a runner cache path, never inside the caller workspace.</p>
+<p>Also: <code>.gitignore</code> rules without a leading <code>/</code> match anywhere in the tree.
+<code>actions/</code> ignores <code>.github/actions/</code> too. Use <code>/actions/</code> to scope to the repo root.</p>
+<hr>
+<h2>common suite execution model — runner container, not inside VM</h2>
+<p><strong>The common suite is an SSH-driven black-box tester.</strong> It runs FROM the Argo runner
+container (fedora:latest) and SSHes INTO the VM. It is NOT an AT-SPI suite and does not
+require qecore-headless or a display.</p>
+<p><strong>Environment variables required in the runner container:</strong></p>
+<ul>
+<li><code>VM_IP</code> — IP of the Bluefin VM (set by run-gnome-tests.yaml automatically)</li>
+<li><code>VM_USER</code> — SSH user (default: <code>bluefin-test</code>)</li>
+<li><code>SSH_KEY</code> — path to the private key, e.g. <code>/etc/ssh/test-key/id_ed25519</code></li>
+</ul>
+<p><strong>Root cause of &quot;Cannot reach VM at  over SSH after 5 attempts&quot;:</strong>
+The common suite&#39;s <code>environment.py</code> reads <code>VM_IP</code> from env. If behave runs inside
+the VM via qecore-headless (old bug), <code>VM_IP</code> is empty and every SSH step fails.</p>
+<p><strong>Fix (applied in testing-lab <code>a70e1c4</code>):</strong> <code>run-gnome-tests.yaml</code> now has a dedicated
+<code>elif [[ &quot;${SUITE}&quot; == &quot;common&quot; ]]</code> branch that:</p>
+<ol>
+<li>Installs behave in the runner container if absent</li>
+<li>Exports <code>VM_IP</code>, <code>VM_USER</code>, <code>SSH_KEY</code></li>
+<li>Runs <code>python3 -m behave /workspace/bluefin-test-suite/tests/common/features/</code></li>
+<li>Writes results.json locally (skips the VM→runner SCP step)</li>
+</ol>
+<p>Do NOT add common to the qecore-headless path. Common has no GNOME AT-SPI dependency.</p>
+<hr>
+<h2>smoke suite — pre-existing lab failures (GNOME 50 AT-SPI)</h2>
+<p>Many smoke suite scenarios fail in the lab on <code>bluefin:testing</code> for infrastructure
+reasons unrelated to the PR being tested. These are expected until the lab image is
+updated:</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Failure</th>
+<th>Root cause</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>bluefin_extensions.feature</code></td>
+<td>Extensions state=99</td>
+<td>Extensions not loaded — GNOME 50 changes to extension init</td>
+</tr>
+<tr>
+<td><code>bluefin_desktop.feature</code></td>
+<td>Shell.Eval rc=1</td>
+<td>QEMU guest agent not responding — AT-SPI unsafe_mode set fails</td>
+</tr>
+<tr>
+<td><code>gnome_shell.feature</code></td>
+<td>Shell.Eval rc=1</td>
+<td>Same — D-Bus Shell.Eval interface not responding</td>
+</tr>
+<tr>
+<td><code>gnome_notifications.feature</code></td>
+<td>Shell.Eval rc=1</td>
+<td>Same</td>
+</tr>
+<tr>
+<td><code>gnome_accessibility.feature</code></td>
+<td>AT-SPI daemon not running</td>
+<td>AT-SPI registry not starting in KVM session</td>
+</tr>
+<tr>
+<td><code>gnome_apps.feature</code></td>
+<td>No launch candidate</td>
+<td>OOTB Flatpaks not installed (no OOBE run)</td>
+</tr>
+<tr>
+<td><code>system_health.feature</code></td>
+<td>Root filesystem 5% free</td>
+<td>VM disk too small (20GB VM vs ~17GB image)</td>
+</tr>
+</tbody></table>
+<p><strong>None of these failures indicate a bug in the PR under test.</strong> They are visible in
+smoke runs for unrelated PRs and for the post-merge smoke workflow. Tag scenarios
+exposing these as <code>@quarantine</code> when the failure is a lab constraint, not a product bug.</p>
+<p><strong>Flatpak scenarios:</strong> Quarantine until testing-lab runs OOBE before test execution.
+The <code>@quarantine</code> tag is correct — when the lab is fixed, remove the tag and re-test.</p>
+<hr>
+<h2>testing-lab ArgoCD template resolution timing</h2>
+<p>Argo WorkflowTemplates are resolved at pod creation time from the current state of the
+WorkflowTemplate object in the cluster. ArgoCD syncs testing-lab within ~2 minutes of
+a push. If a workflow is submitted before ArgoCD syncs a new template version, the
+running workflow pods will use the OLD template.</p>
+<p><strong>Impact:</strong> If you push a fix to run-gnome-tests.yaml, workflows already submitted will
+use the old version. Wait for the current workflow to finish, then dispatch a new one.</p>
+<p><strong>ArgoCD sync status:</strong></p>
+<pre><code class="language-bash">kubectl get application testing-lab -n argocd \
+  -o jsonpath=&#39;{.status.sync.status} {.status.sync.revision}&#39;
+</code></pre>
+</div> </article> </main>  </body></html> 

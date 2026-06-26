@@ -1,0 +1,599 @@
+<!DOCTYPE html><html lang="en" class="bg-brand-space text-slate-100 font-sans selection:bg-brand-glow/30 scroll-smooth"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v4.16.19"><title>Skills: e2e-workflow | Project Bluefin QA</title><link rel="stylesheet" href="/_astro/index.RAzdLmA4.css">
+<style>#markdown-body{font-size:.95rem}#markdown-body h1,#markdown-body h2,#markdown-body h3,#markdown-body h4{color:#f8fafc;font-weight:700;margin-top:1.85em;margin-bottom:.85em;line-height:1.35;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}#markdown-body h1{font-size:1.75rem;border-b:1px solid #1e293b;padding-bottom:.35em}#markdown-body h2{font-size:1.4rem;border-bottom:1px solid rgba(30,41,59,.4);padding-bottom:.25em}#markdown-body h3{font-size:1.15rem}#markdown-body p{margin-top:0;margin-bottom:1.25em;color:#cbd5e1}#markdown-body a{color:#3b82f6;text-decoration:underline;font-weight:500;transition:color .15s}#markdown-body a:hover{color:#06b6d4}#markdown-body ul,#markdown-body ol{margin-top:0;margin-bottom:1.25em;padding-left:1.6em}#markdown-body ul{list-style-type:disc}#markdown-body ol{list-style-type:decimal}#markdown-body li{margin-top:.35em;margin-bottom:.35em}#markdown-body code{background-color:#0f172a;color:#38bdf8;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.85em;padding:.15em .35em;border-radius:4px;border:1px solid rgba(255,255,255,.05)}#markdown-body pre{background-color:#030712;padding:1.15rem;border-radius:8px;border:1px solid #1e293b;margin-top:1.25em;margin-bottom:1.5em;overflow-x:auto}#markdown-body pre code{background-color:transparent;color:#e2e8f0;font-size:.85rem;padding:0;border:none;border-radius:0}#markdown-body blockquote{border-left:4px solid #3b82f6;background-color:#3b82f60a;padding:.85rem 1.15rem;margin-top:1.25em;margin-bottom:1.25em;border-radius:0 8px 8px 0}#markdown-body blockquote p{margin:0;font-style:italic;color:#94a3b8}#markdown-body table{width:100%;border-collapse:collapse;margin-top:1.25em;margin-bottom:1.5em;font-size:.85rem}#markdown-body th,#markdown-body td{padding:.65rem .85rem;border-bottom:1px solid #1e293b}#markdown-body th{background-color:#0f172a;color:#f8fafc;font-weight:600}#markdown-body tr:hover td{background-color:#ffffff03}
+</style></head> <body class="min-h-screen flex flex-col">  <header class="border-b border-slate-800 bg-slate-900/40 backdrop-blur-md sticky top-0 z-40"> <div class="container mx-auto px-4 h-16 flex items-center justify-between"> <div class="flex items-center gap-3"> <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white tracking-wider text-sm shadow-lg shadow-blue-500/20">
+BF
+</div> <a href="/" class="text-lg font-bold text-white hover:text-blue-400 transition-colors">
+Bluefin <span class="text-blue-500 font-mono text-xs px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 ml-1">QA</span> </a> </div> <nav class="flex items-center gap-6 text-sm font-medium text-slate-300"> <a href="/" class="hover:text-white transition-colors">Runs</a> <a href="/skills" class="hover:text-white transition-colors">Skills</a> <a href="https://hive.projectbluefin.io" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Hive
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> <a href="https://github.com/projectbluefin/testsuite" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Testsuite
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> </nav> </div> </header> <main class="container mx-auto px-4 py-8 max-w-4xl flex-grow" data-pagefind-body> <!-- Back to skills link --> <div class="mb-6 search-ignore"> <a href="/skills" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-white transition-colors"> <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path> </svg>
+Back to skills library
+</a> </div> <!-- Article Header --> <header class="mb-8 border-b border-slate-800 pb-6"> <div class="flex items-center gap-3.5 mb-2 flex-wrap"> <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20" data-pagefind-meta="category"> testsuite skill
+</span> <span class="text-xs text-slate-500 font-mono">version 1.0.0</span> </div> <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-1" data-pagefind-meta="title"> e2e-workflow </h1> <p class="text-base text-slate-400 mt-3 italic"> Use when integrating or debugging the reusable E2E workflow, changing QEMU boot pipeline steps, or adjusting GitHub Actions cache and workflow_call behavior. </p> </header> <!-- Markdown Rendered Content --> <article class="text-slate-300 leading-relaxed font-sans" id="markdown-body"> <div><h1>Reusable E2E Workflow — GNOME in QEMU</h1>
+<p>Load when: integrating the testsuite into another repo&#39;s CI (e.g. <code>projectbluefin/dakota</code>), debugging e2e workflow failures, or understanding how the QEMU boot pipeline works.</p>
+<h2>When to Use</h2>
+<ul>
+<li>Changing <code>.github/workflows/e2e.yml</code> inputs, matrix behavior, job timeouts, or artifact handling</li>
+<li>Debugging OCI image pulls, QEMU boot/setup stages, or reusable <code>workflow_call</code> behavior</li>
+<li>Adding or troubleshooting GitHub Actions caching for the root podman image store</li>
+</ul>
+<h2>When NOT to Use</h2>
+<ul>
+<li>Writing or debugging behave steps inside <code>tests/**</code> — use <code>behave.md</code>, <code>gnome.md</code>, or <code>bootc.md</code></li>
+<li>Changing Argo/KubeVirt lab infrastructure — that belongs in <code>projectbluefin/testing-lab</code></li>
+<li>Updating repo-wide contribution policy — use <code>contributing.md</code>, <code>human-gates.md</code>, or <code>skill-drift.md</code></li>
+</ul>
+<h2>Core Process</h2>
+<ol>
+<li>Confirm the change belongs in the reusable workflow and not in a consumer repo or infra repo.</li>
+<li>Preserve hard CI rules: SHA-pin external actions, keep <code>workflow_call</code> semantics stable, and respect human gates for interface changes.</li>
+<li>For OCI pull performance work, cache the root podman store (<code>/var/lib/containers/storage</code>) because <code>e2e.yml</code> pulls with <code>sudo podman</code>.</li>
+<li>Validate the workflow file parses, then run the repo&#39;s required local checks before committing.</li>
+<li>Write back any non-obvious workflow pattern discovered during the change in this skill file.</li>
+</ol>
+<h2>What it is</h2>
+<p><code>projectbluefin/testsuite/.github/workflows/e2e.yml</code> is a reusable <code>workflow_call</code> workflow.<br>It boots a bootc OCI image in a KVM-accelerated QEMU VM on <code>ubuntu-latest</code>, starts a GNOME session (via GDM autologin), and runs behave suites via qecore-headless.</p>
+<p><strong>No self-hosted runners. Pure GitHub Actions.</strong></p>
+<h2>PR validation sidecars</h2>
+<p><code>pr-validate.yml</code> now includes a <code>quarantine-age</code> job that runs <code>python3 scripts/check_quarantine_age.py</code>.
+The script walks <code>git log --follow</code> history for each <code>@quarantine</code> scenario and fails once the tag ages past the configured threshold.
+Because the check needs full history, the checkout step for that job must use <code>fetch-depth: 0</code>.
+Rollouts should start with <code>--grace-days</code> in CI (currently <code>--grace-days 30</code>) so the threshold can harden without instantly blocking every PR.</p>
+<p><code>e2e.yml</code> reuses the same script for job-summary reporting via <code>python3 scripts/check_quarantine_age.py --json</code>.
+That summary path is informational only, but it still needs the same prerequisites: the workflow checkout must include <code>scripts/check_quarantine_age.py</code>, the <code>tests/</code> tree, and full git history (<code>fetch-depth: 0</code>) or the age calculations will be incomplete.</p>
+<h2>How to call it from another repo</h2>
+<p><strong>Pin to <code>@v1</code></strong> — testsuite auto-updates v1 to main after every merge. Renovate does not need to manage this SHA.</p>
+<pre><code class="language-yaml"># .github/workflows/run-testsuite.yml  (in the consumer repo)
+jobs:
+  e2e:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
+    with:
+      image: ghcr.io/projectbluefin/bluefin:testing
+      suites: smoke,common,vanilla-gnome
+</code></pre>
+<p>Do <strong>not</strong> use a full SHA pin (creates Renovate churn) or <code>@main</code> (floating, security risk).</p>
+<h3>Inputs</h3>
+<table>
+<thead>
+<tr>
+<th>Input</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>image</code></td>
+<td>string</td>
+<td><code>ghcr.io/projectbluefin/dakota:latest</code></td>
+<td>OCI image to test (must be a bootc/ostree image)</td>
+</tr>
+<tr>
+<td><code>target-image</code></td>
+<td>string</td>
+<td><code>&quot;&quot;</code></td>
+<td>Full OCI ref to upgrade TO (optional). When set and the <code>lifecycle</code> suite is running, stages this image via <code>bootc switch</code> before the test suite. Used for migration testing.</td>
+</tr>
+<tr>
+<td><code>suites</code></td>
+<td>string</td>
+<td><code>smoke</code></td>
+<td>Comma-separated suite names: <code>smoke</code>, <code>developer</code>, <code>dx</code>, <code>software</code>, <code>vanilla-gnome</code>, <code>bazzite</code>, <code>common</code>. Note: <code>lifecycle</code> is also accepted but is not listed in the input description — use <code>manual.yml</code> or <code>projectbluefin/actions</code> wrapper workflows for lifecycle runs.</td>
+</tr>
+<tr>
+<td><code>skip_native_apps</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>When <code>true</code>, skips <code>@native_app</code> scenarios (Flatpak apps that may not be installed in all variants)</td>
+</tr>
+<tr>
+<td><code>screenshot_flatpaks</code></td>
+<td>string</td>
+<td><code>&quot;&quot;</code></td>
+<td>Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See <a href="../flatpak-screenshots.md">Flatpak screenshot gallery</a> for full details.</td>
+</tr>
+<tr>
+<td><code>chunked_enabled</code></td>
+<td>boolean</td>
+<td><code>false</code></td>
+<td>When <code>true</code>, sets <code>ZSTD_CHUNKED=true</code> so <code>@zstd_chunked</code> lifecycle scenarios run. Enable once the image ships <code>tar+zstd</code> OCI layers.</td>
+</tr>
+<tr>
+<td><code>test_ref</code></td>
+<td>string</td>
+<td><code>main</code></td>
+<td><code>projectbluefin/testsuite</code> ref to check out for test content. Wrapper workflows that start from <code>workflow_dispatch</code> should resolve this on the caller side with `${{ github.event.inputs.test_ref</td>
+</tr>
+</tbody></table>
+<p>Multiple suites run as a matrix (parallel jobs):</p>
+<pre><code class="language-yaml">with:
+  image: ghcr.io/projectbluefin/myimage:pr-123
+  suites: smoke,developer
+</code></pre>
+<p><strong>Dynamic suite sharding</strong>: <code>suites: smoke</code> expands to <code>smoke-a</code> + <code>smoke-b</code>, and <code>suites: common</code> expands to <code>common-a</code> + <code>common-b</code>. After checkout, the workflow glob-resolves <code>tests/&lt;suite&gt;/features/*.feature</code>, sorts alphabetically, and splits into two deterministic shards:</p>
+<pre><code class="language-python">files = sorted(glob.glob(f&quot;tests/{suite}/features/*.feature&quot;))
+chunk_size = math.ceil(len(files) / 2)
+chunk = files[shard_index * chunk_size:(shard_index + 1) * chunk_size]
+</code></pre>
+<p>Do <strong>not</strong> hardcode per-shard feature lists. New <code>.feature</code> files must land in a shard automatically or they will be silently skipped.</p>
+<p>Smoke shards still use <code>tests/smoke/</code> (same directory, same <code>environment.py</code>, same steps) and normalize screenshot publishing to <code>:smoke-latest</code> (last writer wins). Common shards use <code>tests/common/</code> and pass their feature-file paths directly to the runner-side behave invocation.</p>
+<h3>Unit-test parallelism</h3>
+<p><code>unit-tests.yml</code> runs pytest with <code>-n auto</code>, but coverage must stay on <code>coverage.py</code>, not a bare <code>pytest-cov</code> invocation. In this repo, xdist plus <code>pytest-cov</code> under-reports coverage. Keep this pattern:</p>
+<pre><code class="language-bash">COVERAGE_PROCESS_START=.coveragerc coverage run -m pytest -n auto tests/unit/ -v
+coverage combine
+coverage xml
+coverage report --fail-under=75
+</code></pre>
+<p><code>.coveragerc</code> must keep <code>parallel = True</code> and <code>patch = subprocess</code> so worker coverage files are written and merged correctly.</p>
+<h3>Lifecycle suite — special execution model</h3>
+<p>The <code>lifecycle</code> and <code>common</code> suites do <strong>not</strong> run inside the VM container. They run from the GHA runner via SSH — <code>lifecycle</code> because the test process must survive the mid-upgrade reboot; <code>common</code> because it only needs dconf/shell access, not a full AT-SPI bus. The pipeline branches at the &quot;Run behave suite&quot; step:</p>
+<pre><code>if [[ &quot;${SUITE_DIR}&quot; == &quot;common&quot; || &quot;${SUITE_DIR}&quot; == &quot;lifecycle&quot; ]]
+  → python3 tests/shared/behave_retry.py ...   (runner-side, SSH via VM_IP/VM_USER env vars)
+else
+  → scp tests/ to VM, then
+    podman run --rm ghcr.io/projectbluefin/testsuite:runner \
+      &quot;python3 /tmp/bluefin-tests/tests/shared/behave_retry.py ...&quot;  (inside VM)
+</code></pre>
+<p>When <code>target-image</code> is set and the <code>lifecycle</code> suite is running, the <strong>&quot;Pre-stage target image via bootc switch&quot;</strong> step SSHes into the VM and runs <code>sudo bootc switch &#39;&lt;target-image&gt;&#39;</code> before the behave run begins, staging the upgrade target.</p>
+<p>After the lifecycle suite finishes, a separate <strong>&quot;Capture post-upgrade desktop screenshot&quot;</strong> step re-SSHes with <code>ControlMaster=no</code> (fresh connection after reboot), waits up to 60 s for the Wayland socket at <code>/run/user/1001/wayland-0</code>, and calls <code>org.gnome.Shell.Eval</code> via gdbus to capture a screenshot. The screenshot is saved to <code>results/screenshot_lifecycle_upgrade_final.png</code> and uploaded in the <code>e2e-results-*</code> artifact.</p>
+<p>A <strong>&quot;Capture post-migration screenshot and status&quot;</strong> step also runs (<code>always()</code>, <code>continue-on-error: true</code>) for the lifecycle suite. It captures the QEMU framebuffer via <code>tests/shared/qemu_screendump.py</code> and SSHes in to write <code>results/migration-status.txt</code> containing <code>bootc status</code>, <code>fastfetch</code>, and <code>os-release</code> output — useful for confirming the active image ref and OS version after a migration reboot. Both files are included in the <code>e2e-results-*</code> artifact.</p>
+<p><strong>Preferred manual trigger:</strong> dispatch <code>upgrade-test.yml</code> in <code>projectbluefin/actions</code> — it calls <code>e2e.yml</code> cross-repo (which works). Do NOT dispatch <code>manual.yml</code> in this repo for lifecycle runs (see ops.md &quot;manual.yml startup_failure&quot;).</p>
+<h2>Pipeline stages</h2>
+<ol>
+<li><strong>Resolve matrix</strong> — splits <code>suites</code> CSV into a JSON array for the strategy matrix; <code>smoke</code> becomes <code>smoke-a,smoke-b</code> and <code>common</code> becomes <code>common-a,common-b</code></li>
+<li><strong>Checkout testsuite</strong> — sparse checkout of <code>flatpak-app-list.txt</code>, <code>tests/</code>, and <code>scripts/check_quarantine_age.py</code> from <code>projectbluefin/testsuite</code> at <code>inputs.test_ref</code>; always <code>fetch-depth: 0</code></li>
+<li><strong>Resolve suite shard</strong> — Python step computes <code>SUITE_DIR</code> (physical directory), <code>FEATURE_ARGS</code> (specific <code>.feature</code> files for shards), and <code>SCREENSHOT_SUITE</code> (normalized suite name for GHCR tags)</li>
+<li><strong>Restore/prime Flatpak download cache</strong> — Bluefin GUI suites only; caches a runner-side user Flatpak repo keyed on <code>flatpak-app-list.txt</code> hash</li>
+<li><strong>Free disk space</strong> — runs <code>ublue-os/remove-unwanted-software@v9</code>; keeps the 30 GB <code>disk.raw</code> allocation viable on GitHub-hosted runners</li>
+<li><strong>Enable KVM</strong> — udev rule for <code>/dev/kvm</code> access</li>
+<li><strong>Install QEMU + pull OCI image</strong> — parallel: <code>apt-get install qemu-system-x86</code> while <code>sudo podman pull &lt;image&gt;</code> and <code>sudo podman pull ghcr.io/projectbluefin/testsuite:runner</code> run concurrently in background</li>
+<li><strong>Generate SSH keypair</strong> — creates <code>ed25519</code> keypair at <code>/tmp/vm_key</code>; public key stored in <code>VM_PUBKEY</code> env var</li>
+<li><strong>Install OCI image and configure disk</strong> — combined step that:<ul>
+<li><code>fallocate -l 30G disk.raw</code></li>
+<li><code>bootc install to-disk --via-loopback disk.raw --filesystem ext4</code> (with <code>--bootloader systemd</code> flag when bootc ≥0.1.13; older images skip the flag)</li>
+<li>Mounts the raw disk, finds <code>ROOT_UUID</code> (partition 3), ostree deployment hash, and <code>KVER</code></li>
+<li>Copies <code>vmlinuz</code> + <code>initramfs.img</code> from deployment <code>usr/lib/modules/&lt;kver&gt;/</code> (or boot partition fallback)</li>
+<li>Creates <code>boot.N</code> symlinks needed by <code>ostree-system-generator</code> (including canonical <code>boot.N</code> alias for versioned <code>boot.N.M</code> dirs produced by newer bootc)</li>
+<li>Sets <code>KERNEL_ARGS</code> env (includes <code>root=UUID=...</code>, masked services, serial console, <code>selinux=0</code>)</li>
+<li>Iterates all deployment directories and writes: <code>bluefin-test</code> user (UID 1001), GDM autologin, sshd drop-in <code>00-ci-auth.conf</code>, dconf <code>local.d/00-ci-testing</code> override, <code>tmpfiles.d/ci-user.conf</code>, masked service symlinks</li>
+<li>Pre-installs <code>unsafe-mode@bluefin-test</code> gnome-shell extension files into var home (pre-boot, so gnome-shell finds it during <code>_loadExtensions()</code>)</li>
+<li>Injects SSH authorized key into <code>/var/home/bluefin-test/.ssh/</code> and each deployment&#39;s <code>/etc/ssh/ci-authorized-keys</code></li>
+</ul>
+</li>
+<li><strong>Boot VM</strong> — <code>qemu-system-x86_64</code> with KVM, 4 GB RAM, 4 vCPUs, <code>virtio-gpu-pci</code>, forwarded SSH on port 2222; daemonized; QEMU monitor socket at <code>/tmp/qemu-monitor.sock</code> (chmod 666)</li>
+<li><strong>Wait for SSH</strong> — polls port 2222 up to <strong>15 minutes</strong> (900 s)</li>
+<li><strong>Pre-stage target image via bootc switch</strong> — lifecycle suite only, when <code>inputs.target-image</code> is set; SSHes into VM and runs <code>sudo bootc switch &#39;&lt;target-image&gt;&#39;</code> to stage the upgrade target before the test run</li>
+<li><strong>Dump VM serial log</strong> — always runs (<code>if: always()</code>); primary debug tool when SSH never comes up</li>
+<li><strong>Wait for GNOME session</strong> — polls <code>/run/user/1001/wayland-0</code> up to 3 minutes</li>
+<li><strong>Capture boot time</strong> — SSHes in, runs <code>systemd-analyze time</code>, appends result to <code>$GITHUB_STEP_SUMMARY</code></li>
+<li><strong>Install cached Flatpaks in VM</strong> — Bluefin GUI suites (non-common/non-lifecycle) only; SCPs a tarred runner-side Flatpak repo into the VM and deploys missing apps with <code>sudo flatpak install --system --sideload-repo=...</code>, falling back to Flathub if cache is incomplete</li>
+<li><strong>Install shell tools for common suite</strong> — common suite only; installs <code>zsh</code>, <code>fish</code>, and brew CLI tools (<code>fzf</code>, <code>bat</code>, <code>eza</code>, <code>fd</code>, <code>ripgrep</code>, <code>starship</code>) via brew (if available) or <code>rpm-ostree --apply-live</code> / <code>dnf</code> fallback; <code>brew-setup.service</code> is masked in CI so these are installed manually</li>
+<li><strong>Load runner container into VM</strong> — non-common suites; ensures <code>bluefin-test</code> has <code>/etc/subuid</code>/<code>/etc/subgid</code>, runs <code>podman system migrate</code>, pipes <code>ghcr.io/projectbluefin/testsuite:runner</code> via <code>podman save | ssh podman load</code>; patches <code>openssh-clients</code> into the runner image if missing</li>
+<li><strong>Install Python test stack</strong> — non-common suites; loads <code>uinput</code> kernel module, sets device permissions, copies SSH private key into VM for <code>@plain_ssh</code> scenarios, queries GNOME session environment into <code>/tmp/session.env</code>, enables <code>unsafe-mode@bluefin-test</code> extension, sets <code>toolkit-accessibility true</code>, re-queries AT-SPI bus address after enabling accessibility, terminates any pre-started <code>gnome-control-center</code></li>
+<li><strong>Install gnome-ponytail-daemon</strong> — non-common suites; builds <code>gnome-ponytail-daemon</code> (tag <code>0.0.11</code>) and <code>grim</code> from source inside a <code>debian:bookworm</code> container on the runner (without libei, uses Mutter D-Bus fallback for input events; wayland-protocols 1.37 built from source for grim); SCPs binaries into <code>~/.local/libexec/</code> and <code>~/.local/bin/</code>; registers D-Bus service file and pre-starts the daemon</li>
+<li><strong>Run behave suite</strong> — <code>common</code>/<code>lifecycle</code>: runner-side <code>python3 tests/shared/behave_retry.py</code> with <code>VM_IP/VM_USER/SSH_KEY/SSH_PORT</code> env vars; GUI suites: SCP <code>tests/&lt;suite&gt;</code> + <code>tests/shared</code> + <code>tests/__init__.py</code> to VM, then <code>podman run ... ghcr.io/projectbluefin/testsuite:runner &quot;python3 .../behave_retry.py ... --format json.pretty&quot;</code> inside VM; always <code>--tags ~quarantine</code>; retries controlled by <code>BEHAVE_RETRIES=2</code></li>
+<li><strong>Capture post-upgrade desktop screenshot</strong> — lifecycle suite only; SSHes with <code>ControlMaster=no</code>, waits up to 60 s for Wayland socket, captures via <code>gdbus org.gnome.Shell.Eval</code></li>
+<li><strong>Capture post-migration screenshot and status</strong> — lifecycle suite only; QEMU framebuffer capture via <code>qemu_screendump.py</code> + SSH for <code>bootc status</code>, <code>fastfetch</code>, <code>os-release</code> into <code>results/migration-status.txt</code></li>
+<li><strong>Capture Flatpak screenshots</strong> — when <code>inputs.screenshot_flatpaks != &#39;&#39;</code>; runs <code>screenshot_cli.py</code> inside the runner container</li>
+<li><strong>Capture desktop screenshot (QEMU screendump fallback)</strong> — non-common suites; if no <code>screenshot_*fastfetch*.png</code> found in <code>results/</code>, captures QEMU VGA framebuffer via <code>/tmp/qemu-monitor.sock</code></li>
+<li><strong>Promote desktop screenshot</strong> — finds best screenshot (<code>screenshot-post-migration.png</code> &gt; upgrade &gt; fastfetch); for non-common/non-lifecycle suites, fails loud if no screenshot found</li>
+<li><strong>Push desktop screenshot to GHCR</strong> — pushes <code>:&lt;short-sha&gt;</code>, <code>:&lt;SCREENSHOT_SUITE&gt;-latest</code>, and <code>:&lt;image-slug&gt;-&lt;SCREENSHOT_SUITE&gt;-latest</code> tags; also pushes per-Flatpak gallery tags</li>
+<li><strong>Write job summary</strong> — parses <code>results.json</code>, writes pass/fail table + failed scenarios; includes quarantine age summary from <code>scripts/check_quarantine_age.py --json</code>; includes screenshot pull commands and gh-pages URL</li>
+<li><strong>Prepare artifact metadata</strong> — writes <code>results/artifact-metadata.json</code>; computes <code>artifact_suffix</code> by sanitizing the full image reference (not just image name — the full <code>ghcr.io/org/image:tag</code> string is sanitized)</li>
+<li><strong>Upload results artifact</strong> — <code>e2e-results-&lt;artifact-suffix&gt;-&lt;suite&gt;</code> (30 days); includes <code>results.json</code>, <code>results.txt</code>, <code>artifact-metadata.json</code>, and any screenshots</li>
+<li><strong>Upload serial log artifact</strong> — <code>vm-serial-log-&lt;artifact-suffix&gt;-&lt;suite&gt;</code> (3 days)</li>
+<li><strong>Fail job if tests failed</strong> — exits with behave&#39;s return code</li>
+<li><strong>Write + upload e2e metadata</strong> — writes <code>meta/e2e-metadata.json</code> (<code>image</code>, <code>suite</code>, <code>conclusion</code>); uploaded as <code>e2e-metadata-&lt;suite&gt;</code> artifact (1 day)</li>
+</ol>
+<p>Smoke-suite correctness rule: commands launched with plain <code>subprocess.run()</code> execute in the qecore runner container, not necessarily against the VM host state. In <code>tests/smoke/features/steps/system_health_steps.py</code>, host-facing probes (<code>systemctl</code>, <code>journalctl</code>, <code>df</code>, <code>getent hosts</code>, etc.) must use the VM helper (<code>_run_host()</code>). Using <code>_run()</code> for those checks only tests the runner container and can miss VM regressions.</p>
+<h2>Image requirements</h2>
+<p>The OCI image under test <strong>must</strong>:</p>
+<ul>
+<li>Be a bootc/ostree image (<code>bootc install to-disk</code> compatible)</li>
+<li>Include GNOME + GDM</li>
+<li>Have <code>python3</code> available in the deployment</li>
+</ul>
+<p><strong><code>gnome-ponytail-daemon</code> is built at runtime</strong> — the workflow compiles it from source in a <code>debian:bookworm</code> container on the runner and SCPs the binary into the VM. The image does NOT need to ship <code>gnome-ponytail-daemon</code>. (See step 20 above.)</p>
+<p>The workflow injects the test user, SSH keys, autologin config, and the unsafe-mode gnome-shell extension at disk-prep time — nothing needs to be baked into the image for those.</p>
+<h2>Common Rationalizations</h2>
+<ul>
+<li>&quot;The cache can target the runner user&#39;s podman storage.&quot;<br>It cannot here — the pulls run under <code>sudo</code>, so cache the root store or the pull will still miss.</li>
+<li>&quot;A floating <code>uses:</code> tag is fine for a speedup-only change.&quot;<br>It is not; external actions in this repo must stay SHA-pinned.</li>
+<li>&quot;We can replace <code>ublue-os/remove-unwanted-software</code> with an inline cleanup for speed.&quot;<br>The workflow currently uses <code>ublue-os/remove-unwanted-software@v9</code> for disk cleanup. Switching to an inline cleanup is only worthwhile if the action is the measured bottleneck — do not change this without profiling.</li>
+</ul>
+<h2>Flatpak cache pattern for Bluefin GUI suites</h2>
+<p><code>e2e.yml</code> masks <code>flatpak-preinstall.service</code> in <code>KERNEL_ARGS</code>, so CI first boot never waits on the image&#39;s bulk Flathub pull. When a Bluefin-family GUI suite still needs specific Flatpaks (currently <code>org.mozilla.firefox</code> and <code>io.github.kolunmi.Bazaar</code>), cache a <strong>user</strong> Flatpak repo on the GHA runner and inject it over SSH after GNOME is up:</p>
+<ol>
+<li>Add the manifest file (currently <code>flatpak-app-list.txt</code>) to the sparse checkout, or both <code>hashFiles()</code> and SCP will miss it.</li>
+<li>Cache <code>${GITHUB_WORKSPACE}/.flatpak-cache-home/.local/share/flatpak</code> with <code>actions/cache</code>.</li>
+<li>On a miss, run <code>flatpak install --user --no-deploy ...</code> on the runner to download refs/runtimes without deploying them.</li>
+<li>Copy that repo into the VM, then deploy missing apps system-wide with <code>sudo flatpak install --system --sideload-repo=&lt;copied repo&gt; ...</code>, falling back to a normal pull only if the cache is incomplete.</li>
+</ol>
+<p>Do <strong>not</strong> preload these apps on non-Bluefin images: that mutates dakota/gnomeos coverage instead of testing what those images actually ship.</p>
+<h2>Screenshots and GHCR artifacts</h2>
+<p>Every e2e run produces a desktop screenshot at end-of-run as visual proof of a working GNOME session.</p>
+<h3>Desktop screenshot — two capture paths</h3>
+<p><strong>Primary path (in-VM):</strong> <code>take_fastfetch_screenshot()</code> is called in <code>after_all</code> for every GUI suite. It uses <code>gnome-screenshot</code> or <code>grim</code> inside the VM and writes to <code>results/desktop_screenshot.png</code>.</p>
+<p><strong>Fallback path (QEMU monitor screendump):</strong> If no in-VM screenshot lands (behave crashed, container never started, AT-SPI unavailable), <code>e2e.yml</code> captures the QEMU VGA framebuffer directly via the monitor socket at <code>/tmp/qemu-monitor.sock</code>. QEMU maintains this framebuffer internally even with <code>-display none</code> because mutter uses bochs-drm (card1) as the KMS device, which maps to the VGA framebuffer. The screendump is converted PPM→PNG via Python stdlib (<code>tests/shared/qemu_screendump.py</code>).</p>
+<p>If <strong>both</strong> paths fail (QEMU monitor socket missing or empty framebuffer), the &quot;Promote desktop screenshot&quot; step fails loud — a missing screenshot from a non-<code>common</code> suite is treated as a job failure, not a silent pass.</p>
+<h3>Desktop screenshot distribution</h3>
+<p>After the behave suite finishes, <code>take_fastfetch_screenshot()</code> is called in <code>after_all</code> for every GUI suite. The screenshot is taken in-VM via AT-SPI/Wayland. If <code>after_all</code> was not reached (e.g. the runner container failed to start), the GHA runner falls back to a QEMU monitor screendump: <code>sudo python3 tests/shared/qemu_screendump.py</code> sends a <code>screendump</code> command to <code>/tmp/qemu-monitor.sock</code> (opened at QEMU boot) and converts the PPM output to PNG using the Python stdlib. The &quot;Promote desktop screenshot&quot; step fails loud with <code>::error::</code> if neither source produces a file — that failure is intentional and means the container never loaded or behave exited before <code>after_all</code>.</p>
+<p>The screenshot is:</p>
+<ol>
+<li>Uploaded to the <code>e2e-results-*</code> artifact (as <code>desktop_screenshot.png</code> or <code>screenshot_&lt;suite&gt;_fastfetch_endofrun.png</code>)</li>
+<li>Rendered inline in the <strong>GitHub Actions job summary</strong></li>
+<li>Pushed to GHCR as an OCI artifact:</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ghcr.io/projectbluefin/testsuite/desktop-screenshot:&lt;suite&gt;-latest</code></td>
+<td>Most recent run for that suite, e.g. <code>:smoke-latest</code></td>
+</tr>
+<tr>
+<td><code>ghcr.io/projectbluefin/testsuite/desktop-screenshot:&lt;slug&gt;-&lt;suite&gt;-latest</code></td>
+<td>Per-image slug tag, e.g. <code>bluefin-testing-smoke-latest</code> — used by publish-to-pages</td>
+</tr>
+<tr>
+<td><code>ghcr.io/projectbluefin/testsuite/desktop-screenshot:&lt;short-sha&gt;</code></td>
+<td>Immutable per-commit tag</td>
+</tr>
+</tbody></table>
+<p><strong>No <code>:latest</code> tag is pushed.</strong> <code>latest</code> is not a tag used in this repo — do not add it.</p>
+<p>Pull the latest screenshot locally:</p>
+<pre><code class="language-bash">oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:smoke-latest
+</code></pre>
+<h3>gh-pages screenshot publishing</h3>
+<p><strong>Architecture: schedule-based polling, not workflow_run.</strong></p>
+<p><code>workflow_run</code> only fires for workflows running in the <strong>same repository</strong>. When consumer repos (bluefin, bluefin-lts, dakota) call <code>e2e.yml</code> via <code>workflow_call</code>, the run is recorded in the <strong>caller&#39;s</strong> repo — testsuite&#39;s <code>workflow_run</code> never fires. The metadata-artifact handoff approach is dead for cross-repo calls.</p>
+<p>The working approach:</p>
+<ol>
+<li><p><strong><code>e2e.yml</code> pushes a slug-specific GHCR tag per run</strong> alongside the existing suite tag:</p>
+<pre><code>ghcr.io/projectbluefin/testsuite/desktop-screenshot:&lt;slug&gt;-&lt;suite&gt;-latest
+</code></pre>
+<p>Slug derivation: strip <code>ghcr.io/&lt;org&gt;/</code> from <code>inputs.image</code>, replace <code>:</code> with <code>-</code>.
+Example: <code>ghcr.io/projectbluefin/bluefin:testing</code> → <code>bluefin-testing-smoke-latest</code></p>
+<p><strong>SCREENSHOT_SUITE normalization:</strong> smoke sharding pushes <code>SCREENSHOT_SUITE=smoke</code> for both
+<code>smoke-a</code> and <code>smoke-b</code>. The GHCR tag is always <code>{slug}-smoke-latest</code>, never <code>{slug}-smoke-a-latest</code>.
+If you add new shards, update the <code>SCREENSHOT_SUITE</code> normalization block in e2e.yml and keep
+<code>SUITES=(smoke common vanilla-gnome)</code> in <code>publish-to-pages.yml</code> unchanged.</p>
+<p>The tag is annotated with <code>io.github.projectbluefin.run_id</code> and <code>io.github.projectbluefin.caller_repo</code> for JSONL traceability.</p>
+</li>
+<li><p><strong><code>publish-to-pages.yml</code> runs on a 2-hour schedule</strong> (+ <code>workflow_dispatch</code> for manual trigger). It pulls the known slug-specific tags directly from GHCR — no metadata artifacts, no cross-repo auth. JSONL reads <code>run_id</code> and <code>caller_repo</code> from OCI manifest annotations via <code>oras manifest fetch</code>.</p>
+</li>
+</ol>
+<p>Known slugs hardcoded in <code>publish-to-pages.yml</code>:</p>
+<pre><code class="language-bash">SLUGS=(bluefin-testing bluefin-lts-testing dakota-testing)
+SUITES=(smoke common vanilla-gnome)
+</code></pre>
+<p>Add new slugs here when the fleet grows. <strong>Do not add <code>dx</code>, <code>developer</code>, or <code>lifecycle</code> to SUITES</strong> — these suites are not tracked by publish-to-pages (dx/developer run on gdx images not in the SLUGS list; lifecycle is a migration workflow with no desktop screenshots).</p>
+<p><strong>Dashboard source of truth:</strong> The QA dashboard is now a modern Astro static-site project located in the <code>dashboard/</code> directory on <code>main</code>. Every run of the scheduled <code>publish-to-pages.yml</code> workflow checks out the repository, pulls the latest test results and screenshots from GHCR, parses/converts behave logs, aggregates historical statistics, compiles Astro to static HTML, indexes the entire site with Pagefind, and deploys it natively to GitHub Pages.</p>
+<p>Never edit files on the <code>gh-pages</code> branch directly—always make edits inside the <code>dashboard/</code> directory on <code>main</code>.</p>
+<p>Stable URL format:</p>
+<pre><code class="language-text">https://projectbluefin.github.io/testsuite/screenshots/{slug}-{suite}-latest.png
+</code></pre>
+<p>The historical runs are compiled and indexed natively at <code>qa.projectbluefin.io</code> (or <code>https://projectbluefin.github.io/testsuite/</code>).</p>
+<h3>Flatpak screenshot gallery</h3>
+<p>Set <code>screenshot_flatpaks</code> to capture per-app screenshots useful for app authors:</p>
+<pre><code class="language-yaml">uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
+with:
+  image: ghcr.io/projectbluefin/bluefin:testing
+  suites: smoke
+  screenshot_flatpaks: &quot;org.gnome.Calculator,io.github.kolunmi.Bazaar&quot;
+</code></pre>
+<p>Each app is launched, held for 3 seconds, then captured. Results pushed to:
+<code>ghcr.io/projectbluefin/testsuite/desktop-screenshot:flatpak-&lt;slug&gt;-latest</code></p>
+<p>See <a href="../flatpak-screenshots.md"><code>docs/flatpak-screenshots.md</code></a> for full documentation.</p>
+<h2>Artifacts</h2>
+<table>
+<thead>
+<tr>
+<th>Artifact</th>
+<th>Content</th>
+<th>Retention</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>e2e-results-&lt;artifact-suffix&gt;-&lt;suite&gt;</code></td>
+<td><code>results.json</code> (behave JSON), <code>results.txt</code> (pretty output), <code>artifact-metadata.json</code> (image + suite metadata), screenshots, <code>migration-status.txt</code> (lifecycle only)</td>
+<td>30 days</td>
+</tr>
+<tr>
+<td><code>vm-serial-log-&lt;artifact-suffix&gt;-&lt;suite&gt;</code></td>
+<td>QEMU serial console output</td>
+<td>3 days</td>
+</tr>
+<tr>
+<td><code>e2e-metadata-&lt;suite&gt;</code></td>
+<td><code>e2e-metadata.json</code> — <code>{&quot;image&quot;:…,&quot;suite&quot;:…,&quot;conclusion&quot;:…}</code> for downstream promotion jobs</td>
+<td>1 day</td>
+</tr>
+</tbody></table>
+<p><code>&lt;artifact-suffix&gt;</code> is derived by sanitizing the full image reference (e.g. <code>ghcr.io/projectbluefin/bluefin:testing</code> → <code>ghcr.io-projectbluefin-bluefin-testing</code>), not just the image name.</p>
+<p>The serial log is always uploaded (even on failure) — it&#39;s the primary debug tool when the VM doesn&#39;t boot or SSH never comes up.</p>
+<h2>Debugging failures</h2>
+<h3>podman load exits 125 (all GUI suites fail at &quot;Load runner container into VM&quot;)</h3>
+<p><strong>Root cause:</strong> <code>bluefin-test</code> lacks <code>/etc/subuid</code>/<code>/etc/subgid</code> entries. The Fedora 44 runner base image has a layer with <code>gid=12</code> (mail group) for <code>/var/spool/mail</code>. Rootless podman can&#39;t map this gid without subgid entries.</p>
+<p><strong>Evidence:</strong> Look for <code>lchown /var/spool/mail: invalid argument</code> in the &quot;Load runner container into VM&quot; step log.</p>
+<p><strong>Fix:</strong> The <code>e2e.yml</code> &quot;Load runner container into VM&quot; step now adds the entries and runs <code>podman system migrate</code> before loading. If you see this on an older branch, cherry-pick PR #224.</p>
+<h3>behave crashes with PermissionError: [Errno 13] at &#39;&#39;</h3>
+<p><strong>Root cause:</strong> Python 3.14 sets <code>sys.executable = &#39;&#39;</code> inside podman containers with <code>--pid=host</code>. Old <code>behave_retry.py</code> passed <code>sys.executable</code> directly to <code>subprocess.run</code>.</p>
+<p><strong>Evidence:</strong> Traceback in the &quot;Run behave suite&quot; step log ending at <code>subprocess.run([&#39;&#39;, &#39;-m&#39;, &#39;behave&#39;, ...])</code>.</p>
+<p><strong>Fix:</strong> <code>_find_python()</code> in <code>tests/shared/behave_retry.py</code> resolves a real interpreter via <code>shutil.which</code>. If you see this, the tests are being checked out from <code>main</code> (which lacks the fix) rather than the fix branch. Check <code>test_ref</code> in the run inputs.</p>
+<h3>behave crashes with gi.RepositoryError: Typelib file for namespace &#39;xlib&#39; not found</h3>
+<p><strong>Root cause:</strong> <code>gobject-introspection</code> is not installed in the runner container. Fedora 44 + <code>--setopt=install_weak_deps=0</code> skips it even though <code>python3-gobject</code> depends on it weakly.</p>
+<p><strong>Fix:</strong> Rebuild the runner container after adding <code>gobject-introspection</code> to <code>container/Containerfile.runner</code>. Dispatch <code>build-runner.yml</code> to push a new <code>ghcr.io/projectbluefin/testsuite:runner</code>.</p>
+<h3>qecore-headless exits with &quot;pgrep: command not found&quot;</h3>
+<p><strong>Root cause:</strong> <code>procps-ng</code> is not in the runner container.</p>
+<p><strong>Fix:</strong> Same as above — add <code>procps-ng</code> to <code>Containerfile.runner</code> and rebuild.</p>
+<h3>All AT-SPI calls silently fail / KeyError(&#39;XDG_SESSION_TYPE&#39;)</h3>
+<p><strong>Root cause:</strong> <code>XDG_SESSION_TYPE</code> and <code>XDG_SESSION_DESKTOP</code> are not forwarded to the podman container. qecore-headless can&#39;t read them from <code>/proc/&lt;pid&gt;/environ</code> inside the container (permission denied), so it enters <code>__unavailable__</code> mode.</p>
+<p><strong>Fix:</strong> Add <code>-e XDG_SESSION_TYPE=wayland -e XDG_SESSION_DESKTOP=gnome</code> to the <code>podman run</code> call in <code>e2e.yml</code>, and write those same vars into <code>/tmp/session.env</code> before starting the container.</p>
+<h3>Tests always run from main regardless of dispatched branch</h3>
+<p><strong>Root cause:</strong> <code>github.ref_name</code> inside a <code>workflow_call</code> reusable workflow always resolves to the default branch (<code>main</code>). If <code>e2e.yml</code> uses it directly as the test checkout ref, it always pulls from <code>main</code>.</p>
+<p><strong>Fix:</strong> Pass <code>test_ref</code> through the <code>workflow_dispatch</code> caller (<code>manual.yml</code>, <code>migration-test.yml</code>, or another wrapper) using <code>github.ref_name</code> on the <strong>workflow_dispatch</strong> side (where it correctly reflects the dispatched branch), then forward it as an input to <code>e2e.yml</code>. Inside <code>e2e.yml</code>, the checkout must use <code>inputs.test_ref</code> directly — never <code>github.ref_name</code>. See ops.md &quot;test_ref and github.ref_name&quot; for the exact pattern.</p>
+<h3>SSH never became ready</h3>
+<p>Check the serial log artifact. Common causes:</p>
+<ul>
+<li>ostree deployment missing: <code>bootc install</code> exited before writing layers (check for <code>ERROR: ostree deployment missing</code> in the install step)</li>
+<li>Kernel args wrong: <code>root=UUID=…</code> mismatch — verify <code>ROOT_UUID</code> in the install step output</li>
+<li><code>selinux=0</code> is set, so SELinux policy isn&#39;t the cause</li>
+</ul>
+<h3>GNOME session did not start</h3>
+<p>Check the serial log for GDM/systemd errors. Common causes:</p>
+<ul>
+<li><code>gnome-ponytail-daemon</code> missing from the image</li>
+<li>GDM failing due to a missing display driver (virtio-gpu should always work)</li>
+</ul>
+<p>The &quot;Wait for GNOME session&quot; step runs <code>journalctl -u gdm --no-pager -n 50</code> on timeout — look for that in the step output.</p>
+<h3>behave: UndefinedStep</h3>
+<p>The testsuite is checked out sparse (<code>tests/&lt;suite&gt;</code> + <code>tests/shared</code> only). If the suite imports from a path outside those two directories, the copy will be incomplete. Verify the suite&#39;s <code>environment.py</code> imports.</p>
+<h3>Timeout (120 min job limit)</h3>
+<p>The install + configure step is the heaviest (~10–15 min depending on image size). OCI layer caching should remove most repeat pull time; if jobs still hit the 120-minute limit, reduce suite scope or check for unusually large uncached images.</p>
+<h2>Consumer constraints — what you cannot do from the reusable action</h2>
+<p>When calling this workflow from another repo, the following are explicitly banned:</p>
+<ul>
+<li><strong>No RPM installs</strong> — do not add <code>dnf install</code> or <code>rpm -i</code> steps to consumer workflows or to the action inputs (<code>setup_script</code>). The test VM is a fully-baked bootc image; package mutations break repeatability and may conflict with the image&#39;s ostree deployment. Use Flatpak installs or pre-bake packages into the image.</li>
+<li><strong>No <code>apt install</code> in test steps</strong> — the GHA runner uses <code>ubuntu-latest</code> for QEMU hosting only; apt installs in test steps (as opposed to the infrastructure setup) are not permitted.</li>
+<li><strong>No VM tuning inputs</strong> — do not request inputs for CPU/RAM/kernel params. The pipeline runs on GitHub-hosted runners; the VM spec is fixed.</li>
+</ul>
+<h2>Known limitations</h2>
+<ul>
+<li><code>bootupd</code> may fail (not in bootc images by default), but a non-zero <code>bootc install to-disk</code> exit is only acceptable if the ostree deployment directory is populated. The workflow now logs the full install output, records the exit code, and hard-fails if the deployment directory is empty.</li>
+<li>No display output: <code>virtio-gpu</code> with <code>-display none</code>. Tests must use AT-SPI (dogtail/qecore), not pixel-based assertions.</li>
+<li>No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests require SSH-mode suites not yet in the GHA action (epics #43/#44).</li>
+<li>Partition layout assumes <code>p3</code> is the root partition. Tested against standard Anaconda/bootc partition tables. Non-standard layouts may break the disk-configure step.</li>
+</ul>
+<h2>Red Flags</h2>
+<ul>
+<li>A cache step targets <code>~/.local/share/containers</code> or another non-root path even though pulls use <code>sudo podman</code></li>
+<li><code>workflow_call</code> checkout logic starts using <code>github.ref_name</code> inside <code>e2e.yml</code></li>
+<li>External actions are added with floating tags instead of full SHAs</li>
+<li>A workflow change lands without updating this skill file with the discovered rule or workaround</li>
+<li><code>continue-on-error</code> set on a job that uses <code>uses:</code> — this is a parse-time error (see below)</li>
+</ul>
+<h2>Verification</h2>
+<ul>
+<li><input disabled="" type="checkbox"> <code>.github/workflows/e2e.yml</code> parses with <code>yaml.safe_load</code></li>
+<li><input disabled="" type="checkbox"> Every external <code>uses:</code> line in <code>e2e.yml</code> is SHA-pinned with a version comment</li>
+<li><input disabled="" type="checkbox"> Repo-required local check passes: <code>python3 -m ruff check tests/ --select E,F,W --ignore E501</code></li>
+<li><input disabled="" type="checkbox"> Any new workflow-specific workaround or convention discovered in the session is captured here</li>
+</ul>
+<hr>
+<h2>test_ref and github.ref_name</h2>
+<p><strong>Symptom:</strong> Tests always run from <code>main</code> even when dispatching <code>manual.yml</code> from a feature branch.</p>
+<p><strong>Cause:</strong> <code>github.ref_name</code> inside a <code>workflow_call</code> reusable workflow always resolves to the <strong>default branch</strong> (<code>main</code>), not the caller&#39;s branch. This is a GitHub Actions platform behavior — it does not reflect the dispatched branch.</p>
+<p><strong>Fix:</strong> Set <code>test_ref</code> in the <code>workflow_dispatch</code> caller (<code>manual.yml</code>, <code>migration-test.yml</code>), where <code>github.ref_name</code> correctly reflects the dispatched branch:</p>
+<pre><code class="language-yaml">jobs:
+  test:
+    uses: ./.github/workflows/e2e.yml
+    with:
+      test_ref: ${{ github.event.inputs.test_ref || github.ref_name }}
+</code></pre>
+<p>Never use <code>github.ref_name</code> as a test-checkout ref inside <code>e2e.yml</code> itself — always <code>inputs.test_ref</code>.</p>
+<hr>
+<h2>manual.yml: do not add @ref to same-repo workflow calls</h2>
+<p><strong>Symptom:</strong> <code>manual.yml</code> workflow_dispatch runs fail immediately with <code>startup_failure</code>.</p>
+<p><strong>Cause:</strong> GitHub Actions returns <code>startup_failure</code> when a <code>workflow_dispatch</code> workflow calls a same-repo reusable workflow with an explicit ref (<code>uses: ./.github/workflows/e2e.yml@main</code>).</p>
+<p><strong>Fix:</strong> Use the bare local path with no ref:</p>
+<pre><code class="language-yaml">uses: ./.github/workflows/e2e.yml    # correct
+# NOT:
+# uses: ./.github/workflows/e2e.yml@main   # causes startup_failure
+</code></pre>
+<p>Cross-repo calls (<code>projectbluefin/testsuite/.github/workflows/e2e.yml@&lt;sha&gt;</code>) work correctly.</p>
+<p>For lifecycle manual runs, dispatch <code>upgrade-test.yml</code> in <code>projectbluefin/actions</code> — it calls <code>e2e.yml</code> cross-repo with full lifecycle inputs.</p>
+<hr>
+<h2>zstd:chunked migration toggle</h2>
+<p>The <code>@zstd_chunked</code> tag gates the final-state migration scenario. It is <strong>skipped</strong> (not failed) when disabled.</p>
+<table>
+<thead>
+<tr>
+<th>Workflow input</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>chunked_enabled: false</code> (default)</td>
+<td><code>@zstd_chunked</code> scenarios skip</td>
+</tr>
+<tr>
+<td><code>chunked_enabled: true</code></td>
+<td><code>@zstd_chunked</code> scenarios run</td>
+</tr>
+</tbody></table>
+<p>Enable once <code>ghcr.io/projectbluefin/bluefin:latest</code> ships <code>tar+zstd</code> OCI layers. Verify:</p>
+<pre><code class="language-bash">skopeo inspect --raw docker://ghcr.io/projectbluefin/bluefin:latest \
+  | jq &#39;.layers[0].mediaType&#39;
+</code></pre>
+<hr>
+<h2>Running migration tests manually</h2>
+<p>Use <code>migration-test.yml</code> in <code>projectbluefin/actions</code> to run only the <code>@migration</code> scenario group.</p>
+<p><strong>Go to:</strong> <a href="https://github.com/projectbluefin/actions/actions/workflows/migration-test.yml">projectbluefin/actions → Actions → bootc Migration Test → Run workflow</a></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Non-LTS</th>
+<th>LTS</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>source_image</code></td>
+<td><code>ghcr.io/ublue-os/bluefin:latest</code></td>
+<td><code>ghcr.io/ublue-os/bluefin-lts:lts</code></td>
+</tr>
+<tr>
+<td><code>migration_target</code></td>
+<td><em>(leave blank)</em></td>
+<td><code>ghcr.io/projectbluefin/bluefin-lts:stable</code></td>
+</tr>
+<tr>
+<td><code>chunked_enabled</code></td>
+<td><code>false</code> (default)</td>
+<td><code>false</code> (default)</td>
+</tr>
+</tbody></table>
+<p>Wire as a consumer post-build gate:</p>
+<pre><code class="language-yaml">migration-test:
+  needs: build
+  uses: projectbluefin/actions/.github/workflows/migration-test.yml@&lt;ref&gt;
+  with:
+    source_image: ghcr.io/ublue-os/bluefin-lts:lts
+    migration_target: ghcr.io/projectbluefin/bluefin-lts@${{ needs.build.outputs.digest }}
+</code></pre>
+<p>For non-migration lifecycle runs: dispatch <code>upgrade-test.yml</code> in <code>projectbluefin/actions</code>.</p>
+<hr>
+<h2>Post-upgrade desktop screenshot</h2>
+<p>After a lifecycle suite run, <code>e2e.yml</code> captures a full-screen desktop screenshot directly from the host runner via QEMU&#39;s monitor socket:</p>
+<pre><code class="language-bash">sudo python3 tests/shared/qemu_screendump.py results/screenshot_lifecycle_upgrade_final.png
+</code></pre>
+<p>This bypasses the fragile GDM session security, polkit rules, and GNOME 50 <code>gdbus</code> session-bus permission barriers entirely.</p>
+<p><strong>Key constraints implemented for reliability:</strong></p>
+<ul>
+<li><strong>Wait with Settle Sleep</strong>: The workflow SSHes into the VM using <code>ControlMaster=no</code> (since a reboot occurred mid-lifecycle) to wait up to 60s for <code>/run/user/1001/wayland-0</code>. Once active, it sleeps for an additional 5 seconds to allow GDM/GNOME Shell to finish painting the desktop before the screenshot is taken.</li>
+<li><strong>Root-to-Runner Permission Handling</strong>: Because QEMU runs as root, the monitor socket writes files owned by root. The workflow executes <code>sudo chown runner:runner</code> and <code>sudo chmod 644</code> on the output PNG to guarantee the ORAS push and artifact upload steps can read the file without permission errors.</li>
+</ul>
+<p>Saved to <code>results/screenshot_lifecycle_upgrade_final.png</code> and promoted to the <code>desktop-screenshot</code> artifact.</p>
+<h2>dconf local.d overrides and test interference (2026-06-21)</h2>
+<p><strong>Pattern</strong>: The e2e.yml VM setup writes <code>enabled-extensions=[&#39;unsafe-mode@bluefin-test&#39;]</code> to <code>/etc/dconf/db/local.d/00-ci-testing</code>. The dconf profile shipped by bluefin images is:</p>
+<pre><code>user-db:user
+system-db:local
+system-db:site
+system-db:distro
+</code></pre>
+<p><code>local</code> has higher priority than <code>distro</code>. Any <code>gsettings get</code> call on a key set in <code>local.d/00-ci-testing</code> will return the CI value, NOT the distribution default. This means tests that check <code>gsettings get org.gnome.shell enabled-extensions</code> will see only <code>[&#39;unsafe-mode@bluefin-test&#39;]</code>, not what the distro configured.</p>
+<p><strong>Fix for tests checking distribution defaults</strong>: Use <code>Gio.Settings.get_default_value()</code> which reads the compiled gschema default, bypassing ALL dconf databases:</p>
+<pre><code class="language-gherkin">* Run SSH command: &quot;python3 -c \&quot;import gi; gi.require_version(&#39;Gio&#39;,&#39;2.0&#39;); from gi.repository import Gio; v = Gio.Settings.new(&#39;org.gnome.shell&#39;).get_default_value(&#39;enabled-extensions&#39;); print(v.unpack() if v else [])\&quot;&quot;
+* Last command output contains &quot;custom-command-list@storageb.github.com&quot;
+</code></pre>
+<p><strong>When to use <code>gsettings get</code> vs <code>get_default_value</code></strong>:</p>
+<ul>
+<li><code>gsettings get</code>: tests the EFFECTIVE value (what a real user sees). Affected by <code>local.d</code> CI overrides.</li>
+<li><code>get_default_value</code>: tests whether the DISTRIBUTION ships a default. Immune to CI overrides.</li>
+<li>Use <code>gsettings get</code> for tests of locked keys (in <code>distro.d/locks/</code>) — locked keys aren&#39;t overridable by <code>local.d</code>.</li>
+</ul>
+<p><strong>Keys written by local.d/00-ci-testing</strong>:</p>
+<ul>
+<li><code>org.gnome.shell allow-extension-installation</code> = <code>true</code></li>
+<li><code>org.gnome.shell enabled-extensions</code> = <code>[&#39;unsafe-mode@bluefin-test&#39;]</code></li>
+</ul>
+<hr>
+<h2>Gating :testing behind a post-build smoke check</h2>
+<p>Every consuming repo has a local <code>run-testsuite.yml</code> wrapper that pins the testsuite SHA. <strong>Always call the wrapper — never call <code>projectbluefin/testsuite/.github/workflows/e2e.yml</code> directly.</strong> Renovate manages the SHA in one place; all callers inherit it automatically.</p>
+<h3><code>publish_stream_tag: &quot;false&quot;</code> — the gate input</h3>
+<p><code>projectbluefin/actions/.github/workflows/reusable-build.yml</code> has a <code>publish_stream_tag</code> input (default <code>&quot;true&quot;</code>). When set to <code>&quot;false&quot;</code>, the build pushes only the SHA-tagged image (<code>:$sha</code>) and withholds the stream tag (<code>:testing</code>, <code>:stable</code>). The post-build smoke workflow promotes the stream tag only after smoke passes.</p>
+<p>Set it conditionally in the consuming repo&#39;s build workflow:</p>
+<pre><code class="language-yaml">publish_stream_tag: ${{ (github.ref == &#39;refs/heads/lts&#39; || github.event_name == &#39;pull_request&#39;) &amp;&amp; &#39;true&#39; || &#39;false&#39; }}
+</code></pre>
+<p>This keeps <code>:lts</code> publishing directly (via <code>execute-release.yml</code>) and gates <code>:testing</code> for all push events.</p>
+<h3>Post-build promote pattern (4 jobs)</h3>
+<p>The canonical post-build gate follows bluefin&#39;s <code>post-testing-e2e.yml</code>:</p>
+<pre><code>get-image   — download image-digest-testing-&lt;brand&gt;-main-x86_64 artifact from build run
+    └── e2e-smoke  — run-testsuite.yml, suites: smoke,common
+          └── promote-to-testing  — skopeo copy :sha → :testing for all digest entries
+          └── report-failure      — open/update GitHub issue; :testing not promoted
+</code></pre>
+<p>Digest artifact name pattern: <code>image-digest-{stream_name}-{brand_name}-{image_flavor}-{architecture}</code>
+Digest file format (two lines per image): <code>IMAGE_NAME=sha256:...</code> (= format) and <code>IMAGE_NAME|platform|sha256:...</code> (| format).
+Use the <code>=</code> format to extract the digest; use <code>--pattern &quot;image-digest-testing-*&quot;</code> to download all flavors at promote time.</p>
+<pre><code class="language-yaml">DIGEST=$(grep &quot;^bluefin-lts-hwe=&quot; /tmp/digest/*.txt | head -1 | cut -d= -f2-)
+echo &quot;image=ghcr.io/${{ github.repository_owner }}/bluefin-lts-hwe@${DIGEST}&quot; &gt;&gt; &quot;$GITHUB_OUTPUT&quot;
+</code></pre>
+<h3>Per-repo wiring state</h3>
+<table>
+<thead>
+<tr>
+<th>Repo</th>
+<th>Gate location</th>
+<th>Pattern</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>bluefin</code></td>
+<td><code>post-testing-e2e.yml</code></td>
+<td>digest artifact → smoke,common → promote</td>
+</tr>
+<tr>
+<td><code>bluefin-lts</code></td>
+<td><code>post-merge-e2e.yml</code></td>
+<td>digest artifact → smoke,common → promote; <code>build-regular-hwe.yml</code> sets <code>publish_stream_tag: false</code></td>
+</tr>
+<tr>
+<td><code>dakota</code></td>
+<td><code>publish.yml</code> (<code>smoke</code> job)</td>
+<td><code>:sha</code> image → smoke → <code>promote</code> job; SBOM runs in parallel</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>GHCR screenshot push — cross-repo token scope</h2>
+<p><strong>Symptom:</strong> <code>e2e.yml</code> &quot;Push desktop screenshot to GHCR&quot; step silently succeeds (exit 0) but no tag appears in <code>ghcr.io/projectbluefin/testsuite/desktop-screenshot</code>. Dashboard shows 0 screenshots.</p>
+<p><strong>Cause:</strong> When consumer repos (bluefin, bluefin-lts, dakota) call <code>e2e.yml</code> via <code>workflow_call</code>, <code>github.token</code> is scoped to the <strong>caller&#39;s</strong> repository. It can write to that repo&#39;s own GHCR packages, but NOT to <code>ghcr.io/projectbluefin/testsuite/desktop-screenshot</code> (owned by this repo). The push step has <code>continue-on-error: true</code>, so the failure is silent.</p>
+<p><strong>Fix:</strong> Grant explicit write access to each consumer repo on the <code>desktop-screenshot</code> package:</p>
+<ol>
+<li>Go to <a href="https://github.com/orgs/projectbluefin/packages/container/testsuite%2Fdesktop-screenshot/settings">ghcr.io/projectbluefin/testsuite/desktop-screenshot</a></li>
+<li>Package Settings → Manage Access</li>
+<li>Add each consumer repo (<code>bluefin</code>, <code>bluefin-lts</code>, <code>dakota</code>) with <code>Write</code> role</li>
+</ol>
+<p>This is a one-time UI operation — there is no programmatic API for cross-repo package grants.</p>
+<hr>
+<h2>Dashboard seeding — initial population</h2>
+<p>If the <code>https://projectbluefin.github.io/testsuite/</code> dashboard shows &quot;No JSONL results found&quot; or no screenshots, the GHCR slug tags don&#39;t exist yet. Trigger manual e2e runs to populate them:</p>
+<pre><code class="language-bash"># Trigger smoke runs for each image (each takes ~2h)
+gh workflow run &quot;Manual Test Run&quot; --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing -f suites=smoke
+
+gh workflow run &quot;Manual Test Run&quot; --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin-lts:testing -f suites=smoke
+
+gh workflow run &quot;Manual Test Run&quot; --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/dakota:testing -f suites=smoke
+
+# After runs complete, trigger publish immediately (instead of waiting 2h schedule):
+gh workflow run publish-to-pages.yml --repo projectbluefin/testsuite
+</code></pre>
+<p>Prerequisites: GHCR cross-repo package write access must be granted first (see above).</p>
+<hr>
+<h2>continue-on-error is forbidden on reusable-workflow jobs</h2>
+<p><strong>Symptom:</strong> Every push to main produces &quot;This run likely failed because of a workflow file issue.&quot; No jobs start. GitHub doesn&#39;t show a syntax error line number.</p>
+<p><strong>Cause:</strong> GitHub Actions forbids <code>continue-on-error</code> on a job that uses <code>uses:</code> to call a reusable workflow. The workflow is rejected at parse time — not at runtime — so every run fails before any job is created.</p>
+<p><strong>Broken pattern:</strong></p>
+<pre><code class="language-yaml">jobs:
+  e2e:
+    continue-on-error: ${{ matrix.allow_failure == true }}  # FORBIDDEN with uses:
+    uses: ./.github/workflows/run-testsuite.yml
+    with:
+      image: ${{ matrix.image }}
+</code></pre>
+<p><strong>Fix:</strong> Remove <code>continue-on-error</code> entirely. If non-blocking matrix entries are needed, split blocking and non-blocking jobs into separate job definitions, each with its own <code>uses:</code> and <code>if:</code> condition — or just make all entries blocking.</p>
+<p><strong>Verified with:</strong> <code>actionlint</code> catches this (<code>continue-on-error is not available</code> for reusable workflow jobs). Run <code>actionlint</code> on any workflow that uses <code>uses:</code> before pushing.</p>
+<hr>
+<h2>Dashboard Static-Site Compilation and Path Robustness</h2>
+<p><strong>Pattern</strong>: Python helper scripts (such as <code>compile_data.py</code>) executed from repository root inside GitHub Actions, but developed locally inside subdirectories, must resolve their base directories dynamically relative to <code>Path(__file__)</code> rather than hardcoding relative string paths like <code>./raw-runs</code>. This avoids directory execution discrepancies between local and CI environments.</p>
+<p><strong>Pattern</strong>: In Astro static sites, using <code>import.meta.glob(&#39;../data/runs/*.json&#39;, { eager: true })</code> to load detailed raw JSON files at build-time allows robust, offline-safe compilation of metrics, sparklines, and broken scenario aggregations directly from logs, entirely removing runtime client-side fetch or API performance overhead.</p>
+</div> </article> </main>  </body></html> 

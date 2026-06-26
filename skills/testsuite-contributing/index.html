@@ -1,0 +1,381 @@
+<!DOCTYPE html><html lang="en" class="bg-brand-space text-slate-100 font-sans selection:bg-brand-glow/30 scroll-smooth"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v4.16.19"><title>Skills: contributing | Project Bluefin QA</title><link rel="stylesheet" href="/_astro/index.RAzdLmA4.css">
+<style>#markdown-body{font-size:.95rem}#markdown-body h1,#markdown-body h2,#markdown-body h3,#markdown-body h4{color:#f8fafc;font-weight:700;margin-top:1.85em;margin-bottom:.85em;line-height:1.35;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}#markdown-body h1{font-size:1.75rem;border-b:1px solid #1e293b;padding-bottom:.35em}#markdown-body h2{font-size:1.4rem;border-bottom:1px solid rgba(30,41,59,.4);padding-bottom:.25em}#markdown-body h3{font-size:1.15rem}#markdown-body p{margin-top:0;margin-bottom:1.25em;color:#cbd5e1}#markdown-body a{color:#3b82f6;text-decoration:underline;font-weight:500;transition:color .15s}#markdown-body a:hover{color:#06b6d4}#markdown-body ul,#markdown-body ol{margin-top:0;margin-bottom:1.25em;padding-left:1.6em}#markdown-body ul{list-style-type:disc}#markdown-body ol{list-style-type:decimal}#markdown-body li{margin-top:.35em;margin-bottom:.35em}#markdown-body code{background-color:#0f172a;color:#38bdf8;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.85em;padding:.15em .35em;border-radius:4px;border:1px solid rgba(255,255,255,.05)}#markdown-body pre{background-color:#030712;padding:1.15rem;border-radius:8px;border:1px solid #1e293b;margin-top:1.25em;margin-bottom:1.5em;overflow-x:auto}#markdown-body pre code{background-color:transparent;color:#e2e8f0;font-size:.85rem;padding:0;border:none;border-radius:0}#markdown-body blockquote{border-left:4px solid #3b82f6;background-color:#3b82f60a;padding:.85rem 1.15rem;margin-top:1.25em;margin-bottom:1.25em;border-radius:0 8px 8px 0}#markdown-body blockquote p{margin:0;font-style:italic;color:#94a3b8}#markdown-body table{width:100%;border-collapse:collapse;margin-top:1.25em;margin-bottom:1.5em;font-size:.85rem}#markdown-body th,#markdown-body td{padding:.65rem .85rem;border-bottom:1px solid #1e293b}#markdown-body th{background-color:#0f172a;color:#f8fafc;font-weight:600}#markdown-body tr:hover td{background-color:#ffffff03}
+</style></head> <body class="min-h-screen flex flex-col">  <header class="border-b border-slate-800 bg-slate-900/40 backdrop-blur-md sticky top-0 z-40"> <div class="container mx-auto px-4 h-16 flex items-center justify-between"> <div class="flex items-center gap-3"> <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white tracking-wider text-sm shadow-lg shadow-blue-500/20">
+BF
+</div> <a href="/" class="text-lg font-bold text-white hover:text-blue-400 transition-colors">
+Bluefin <span class="text-blue-500 font-mono text-xs px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 ml-1">QA</span> </a> </div> <nav class="flex items-center gap-6 text-sm font-medium text-slate-300"> <a href="/" class="hover:text-white transition-colors">Runs</a> <a href="/skills" class="hover:text-white transition-colors">Skills</a> <a href="https://hive.projectbluefin.io" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Hive
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> <a href="https://github.com/projectbluefin/testsuite" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Testsuite
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> </nav> </div> </header> <main class="container mx-auto px-4 py-8 max-w-4xl flex-grow" data-pagefind-body> <!-- Back to skills link --> <div class="mb-6 search-ignore"> <a href="/skills" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-white transition-colors"> <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path> </svg>
+Back to skills library
+</a> </div> <!-- Article Header --> <header class="mb-8 border-b border-slate-800 pb-6"> <div class="flex items-center gap-3.5 mb-2 flex-wrap"> <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20" data-pagefind-meta="category"> testsuite skill
+</span> <span class="text-xs text-slate-500 font-mono">version 1.0.0</span> </div> <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-1" data-pagefind-meta="title"> contributing </h1> <p class="text-base text-slate-400 mt-3 italic"> Agent contribution guide for projectbluefin/testsuite — branch naming, pre-PR validation, what to update in a PR, merge queue process, and how to review PRs before merging. </p> </header> <!-- Markdown Rendered Content --> <article class="text-slate-300 leading-relaxed font-sans" id="markdown-body"> <div><h1>Agent Contribution Guide</h1>
+<p>Load when: you found a bug, gap, or improvement while working in this repo.</p>
+<p>This is an agent-first repo — agents MAY file issues and PRs directly. No human gating required.</p>
+<p>Nightly CI is gone. PR gates are the only CI signal, and <code>smoke</code> is the standard gate suite for all consumer repos.</p>
+<h2>Decision: which repo?</h2>
+<table>
+<thead>
+<tr>
+<th>Found in</th>
+<th>Fix goes in</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Feature files, step defs, qecore/dogtail patterns, shared SSH helpers</td>
+<td><code>projectbluefin/testsuite</code> (this repo)</td>
+</tr>
+<tr>
+<td>VM specs, CronWorkflows, cluster manifests, infra</td>
+<td><code>projectbluefin/testing-lab</code></td>
+</tr>
+</tbody></table>
+<p>If a fix touches both repos, split into two PRs — one per repo.</p>
+<h2>When to contribute</h2>
+<p>Contribute when you encounter any of the following mid-task:</p>
+<ul>
+<li>A skill doc that describes wrong behavior (wrong API, stale path, incorrect command)</li>
+<li>A missing pattern you had to figure out from scratch (add it so the next agent doesn&#39;t)</li>
+<li>A new operational gotcha (failed workflow, unexpected infra behavior)</li>
+<li>A step that&#39;s broken or uses a deprecated API</li>
+<li>A coverage gap that&#39;s now worth tracking</li>
+</ul>
+<p>Don&#39;t defer. File the PR as part of your current working session.</p>
+<h2>Branch naming</h2>
+<pre><code>feat/&lt;area&gt;/&lt;short-desc&gt;    # new scenarios, new step files
+fix/&lt;area&gt;/&lt;short-desc&gt;     # broken steps, wrong docs, stale patterns
+docs/&lt;area&gt;/&lt;short-desc&gt;    # doc-only updates
+</code></pre>
+<p>Areas: <code>smoke</code>, <code>lifecycle</code>, <code>gnome</code>, <code>bootc</code>, <code>behave</code>, <code>security</code>, <code>dx</code>, <code>hardware</code>, <code>flatcar</code>, <code>ops</code>, <code>skills</code></p>
+<p>Examples:</p>
+<pre><code>fix/gnome/update-shell50-eval-pattern
+docs/skills/add-contributing-guide
+feat/smoke/add-calendar-scenario
+</code></pre>
+<h2>Cross-repo work and worktree hygiene</h2>
+<h3>Starting a branch — always from main</h3>
+<p>Before creating any branch, verify you are on main and current:</p>
+<pre><code class="language-bash">cd ~/src/testsuite
+git checkout main
+git pull origin main
+git branch --show-current   # must print &quot;main&quot; before proceeding
+git checkout -b &lt;branch-name&gt;
+</code></pre>
+<p><strong>Never commit while on a branch you did not create for the current task.</strong> Run <code>git branch --show-current</code> before every <code>git commit</code>. If the output is anything other than your intended branch, stop and fix it first.</p>
+<h3>Background agents must use worktrees</h3>
+<p>When dispatching a background agent that will make commits, give it an isolated worktree — never have it <code>git checkout -b</code> in the same main worktree you are working in:</p>
+<pre><code class="language-bash"># WRONG — agent and orchestrator share the same working tree
+# Agent does: git checkout -b docs/agent-branch origin/main
+# Result: you land on the wrong branch, commits go to the wrong place
+
+# CORRECT — agent gets its own worktree
+cd ~/src/testsuite
+git worktree add ../testsuite-agent-work -b docs/agent-branch origin/main
+# Then tell the agent: work in /var/home/jorge/src/testsuite-agent-work
+</code></pre>
+<h3>After each PR merges — clean up</h3>
+<p>Run immediately after your PR is merged:</p>
+<pre><code class="language-bash">cd ~/src/testsuite
+git checkout main &amp;&amp; git pull origin main
+git branch --merged origin/main | grep -v &quot;^\* \|^  main$&quot; | xargs -r git branch -d
+git worktree prune
+</code></pre>
+<p>This keeps the local branch list short and avoids landing on stale branches next session.</p>
+<h3>Cross-repo work</h3>
+<p>The factory pattern for cross-repo work is <strong>sibling directories under <code>~/src/</code></strong>, named <code>&lt;repo&gt;-&lt;short-desc&gt;</code>. Do not clone into <code>/tmp</code> or create ad-hoc directories elsewhere.</p>
+<pre><code class="language-bash"># The repos you need are already on disk at ~/src/
+ls ~/src/         # common, dakota, bluefin, bluefin-lts, testsuite, ...
+
+# For a new branch on an existing repo, use a git worktree at the sibling location:
+cd ~/src/common
+git worktree add ../common-fix-e2e -b fix/e2e-foo
+
+# Work in the sibling dir; it&#39;s a full working tree
+cd ~/src/common-fix-e2e
+# ... make changes, pre-commit, push ...
+
+# Remove when done
+cd ~/src/common
+git worktree remove ../common-fix-e2e
+git worktree prune
+</code></pre>
+<p>Rules agents must follow:</p>
+<ul>
+<li><strong>Never clone into <code>/tmp</code></strong> — the repos are already on disk. Cloning wastes time and loses pre-commit hooks, git config, and branch context.</li>
+<li>Sibling dirs are named <code>&lt;repo&gt;-&lt;short-desc&gt;</code>, e.g. <code>dakota-fix-sync-next</code>, <code>common-fix-e2e</code>.</li>
+<li>Remove the worktree immediately after the PR merges or you abandon the branch.</li>
+<li><code>git worktree prune</code> after removal to clean stale refs.</li>
+</ul>
+<p>To audit live worktrees:</p>
+<pre><code class="language-bash">git worktree list                     # shows all worktrees with branch and prunable status
+git worktree prune --dry-run          # lists refs that can be cleaned up
+</code></pre>
+<p>A worktree is stale when:</p>
+<ul>
+<li>Its branch has been squash-merged into main (check: <code>git log --oneline origin/main.. 2&gt;/dev/null</code> returns empty)</li>
+<li>It is marked <code>prunable</code> in <code>git worktree list</code> output</li>
+<li>The feature it was created for was superseded by another PR</li>
+</ul>
+<h2>Working in projectbluefin/actions</h2>
+<p>When fixing promote bugs or shared workflow issues, changes go to <code>~/src/actions</code>.</p>
+<h3>Consumer validation — exact PR body format</h3>
+<p>Every PR to <code>projectbluefin/actions</code> that touches a reusable workflow or composite action requires three lines in the PR body. The check uses an exact regex — the URL must be on the <strong>same line</strong> as the label (not a heading with the URL below):</p>
+<pre><code>Consumer PR: https://github.com/projectbluefin/bluefin/pull/672
+Consumer CI run: https://github.com/projectbluefin/bluefin/actions/runs/27979754906
+Out-of-org consumer impact: N/A. aurora and bazzite do not call this workflow.
+</code></pre>
+<p>The regex for <code>Consumer PR:</code> requires <code>^Consumer PR:\s+https://github\.com/projectbluefin/(bluefin|bluefin-lts|dakota)/pull/[0-9]+</code>. A markdown heading (<code>## Consumer PR</code>) with the URL on the next line fails validation.</p>
+<p>For the consumer PR URL, use an open promote PR (<code>gh pr list --repo projectbluefin/bluefin | grep promote</code>). For the run URL, use the most recent promote run on that branch.</p>
+<h3>v1 tag — no SHA bumps needed in consumer repos</h3>
+<p><code>projectbluefin/actions</code> auto-updates the mutable <code>v1</code> tag on every push to <code>main</code> via <code>update-v1-tag.yml</code>. Consumer repos (<code>bluefin</code>, <code>bluefin-lts</code>, <code>dakota</code>) reference <code>@v1</code> — fixes propagate automatically on the next promote run. Do not open Renovate-style SHA-bump PRs in consumer repos for actions changes.</p>
+<h3>CI sometimes doesn&#39;t trigger on PR open</h3>
+<p>The <code>projectbluefin/actions</code> repo occasionally fails to queue CI when a PR is first opened. If <code>gh run list --repo projectbluefin/actions --branch &lt;branch&gt;</code> returns empty after 2 minutes:</p>
+<pre><code class="language-bash">git push --force-with-lease   # force-push (no change needed) — re-triggers all PR workflows
+</code></pre>
+<p>Close-and-reopen also works (<code>gh pr close N &amp;&amp; gh pr reopen N</code>) but force-push is faster.</p>
+<h3>CI checks (<code>.github/workflows/pr-validate.yml</code> — must pass)</h3>
+<pre><code class="language-bash"># Ruff lint
+ruff check tests/ --select E,F,W --ignore E501
+
+# Python syntax
+python3 -m py_compile $(find tests/ -name &#39;*.py&#39; | tr &#39;\n&#39; &#39; &#39;)
+</code></pre>
+<p>CI also runs <code>behave --dry-run</code> across all suites in a Fedora 41 container. This catches undefined step patterns (feature file uses a phrase with no matching <code>@step</code> decorator). <strong>If you add a step phrase to a <code>.feature</code> file you must implement the <code>@step</code> before pushing.</strong></p>
+<p>To replicate locally (requires Fedora or the runner container <code>ghcr.io/projectbluefin/testsuite:runner</code>):</p>
+<pre><code class="language-bash">for suite in tests/*/features/; do
+  PYTHONPATH=. python3 -m behave &quot;$suite&quot; --dry-run --no-capture
+done
+</code></pre>
+<p><strong>GNOME suite dry-run requires a D-Bus session.</strong> Suites that import <code>qecore.sandbox</code> load <code>gi.repository.Atspi</code> at import time. Without an AT-SPI bus, <code>libatspi</code> calls <code>g_error()</code> → <code>SIGTRAP</code> even during <code>--dry-run</code>.</p>
+<p>Required packages (Fedora 41):</p>
+<pre><code class="language-bash">dnf install -y python3-gobject at-spi2-core dbus-daemon gtk3 gsettings-desktop-schemas
+</code></pre>
+<p>Run inside a session bus:</p>
+<pre><code class="language-bash">cat &gt; /tmp/dry-run.sh &lt;&lt; &#39;DRYEOF&#39;
+/usr/libexec/at-spi-bus-launcher --launch-immediately &amp;
+sleep 1
+for suite in tests/*/features/; do
+  PYTHONPATH=. python3 -m behave &quot;$suite&quot; --dry-run --no-capture
+done
+DRYEOF
+chmod +x /tmp/dry-run.sh
+dbus-run-session -- bash /tmp/dry-run.sh
+</code></pre>
+<p>Key package notes:</p>
+<ul>
+<li><code>dbus-run-session</code> is in the <code>dbus-daemon</code> package on Fedora 41 (not <code>dbus-tools</code> or <code>dbus</code>)</li>
+<li><code>at-spi-bus-launcher</code> is at <code>/usr/libexec/at-spi-bus-launcher</code> from <code>at-spi2-core</code></li>
+<li>PyGObject from Ubuntu always fights ABI with the GHA toolcache Python — always use a Fedora container</li>
+</ul>
+<h3>Recommended local checks (not in CI but catch common mistakes)</h3>
+<pre><code class="language-bash"># Duplicate step patterns (replace &lt;suite&gt; with the suite you touched)
+grep -h &quot;^@step&quot; tests/&lt;suite&gt;/features/steps/*.py | sort | uniq -d
+
+# @future inventory (verify no accidental tag changes)
+just list-stubs
+</code></pre>
+<p>All CI checks must pass cleanly before pushing. Local checks should also be clean.</p>
+<h2>What to update in the PR</h2>
+<table>
+<thead>
+<tr>
+<th>Change</th>
+<th>Files to update</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>New scenario in any suite</td>
+<td>Feature file + steps file</td>
+</tr>
+<tr>
+<td>Scenario count changes</td>
+<td><code>QA-REVIEW.md</code> coverage table + <code>docs/skills/suite-map.md</code> coverage snapshot</td>
+</tr>
+<tr>
+<td>New unit test file</td>
+<td><code>QA-REVIEW.md</code> unit test table</td>
+</tr>
+<tr>
+<td>New suite or variant-matrix change</td>
+<td><code>docs/skills/suite-map.md</code> variant matrix + <code>RUNBOOK.md</code> suite layout table</td>
+</tr>
+<tr>
+<td>New step pattern discovered</td>
+<td><code>docs/skills/behave.md</code></td>
+</tr>
+<tr>
+<td>New dogtail / GNOME anti-pattern</td>
+<td><code>docs/skills/gnome.md</code></td>
+</tr>
+<tr>
+<td>New bootc JSON path or gotcha</td>
+<td><code>docs/skills/bootc.md</code></td>
+</tr>
+<tr>
+<td>Infra gotcha (GDM, VM)</td>
+<td><code>docs/skills/ops.md</code></td>
+</tr>
+<tr>
+<td>New hard rule for all agents</td>
+<td><code>docs/skills/index.md</code> (rules section)</td>
+</tr>
+<tr>
+<td>e2e workflow changes (inputs, stages, image requirements)</td>
+<td><code>docs/skills/e2e-workflow.md</code></td>
+</tr>
+<tr>
+<td>Quarantine expiry enforcement or stale <code>@quarantine</code> policy</td>
+<td><code>docs/skills/quarantine-age.md</code></td>
+</tr>
+<tr>
+<td>Behavior or command change</td>
+<td><code>README.md</code> and/or <code>RUNBOOK.md</code> if agent-facing docs describe the old behavior</td>
+</tr>
+<tr>
+<td>@future scenario now implemented</td>
+<td>Remove <code>@future</code> tag; update <code>QA-REVIEW.md</code> + <code>docs/skills/suite-map.md</code> status</td>
+</tr>
+<tr>
+<td>Coverage gap resolved</td>
+<td>Update <code>QA-REVIEW.md</code> known gaps + <code>docs/skills/suite-map.md</code> known gaps</td>
+</tr>
+<tr>
+<td><code>container/Containerfile.runner</code> changed</td>
+<td>Dispatch <code>build-runner.yml</code> manually before dispatching any test run — the runner image is NOT auto-rebuilt on push; the new image must be pushed to GHCR before tests will see it</td>
+</tr>
+</tbody></table>
+<h2>PR description format</h2>
+<pre><code class="language-markdown">## What
+
+One sentence: what changed and why.
+
+## Evidence
+
+- [ ] Ruff passes
+- [ ] py_compile passes
+- [ ] No duplicate step phrases
+
+## Scenario count (if changed)
+
+Before: N  After: M  (+/- delta)
+</code></pre>
+<h2>Improving skill docs</h2>
+<p>If a skill doc (<code>docs/skills/*.md</code>) is wrong or incomplete:</p>
+<ol>
+<li>Edit the relevant file in <code>docs/skills/</code></li>
+<li>Branch: <code>docs/skills/&lt;what-changed&gt;</code></li>
+<li>In the PR description, quote the old incorrect text and explain what you found</li>
+<li>No need for the scenario count section if it&#39;s docs-only</li>
+</ol>
+<p><strong>Do not add hard rules to individual skill docs</strong> — rules go in <code>docs/skills/index.md</code> (single source). Skill docs hold patterns and examples only.</p>
+<p><strong>The skill-improvement mandate:</strong> every PR that changes <code>tests/**</code>, <code>.github/workflows/**</code>, or <code>scripts/**</code> should include a matching skill file update. See <a href="skill-improvement.md"><code>docs/skills/skill-improvement.md</code></a> for what counts as a learning, which skill to update, and how to commit it together. The skill-drift CI check will warn if this is skipped.</p>
+<h2>Testing your changes with the GitHub Action</h2>
+<p>No cluster access needed. Add a workflow to your branch or fork:</p>
+<pre><code class="language-yaml">name: Test my scenario
+on: push
+jobs:
+  e2e:
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@&lt;your-branch&gt;
+    with:
+      image: ghcr.io/projectbluefin/bluefin:testing
+      suites: smoke
+</code></pre>
+<p>Or use the composite action directly for full control over artifact names and failure handling (see <code>README.md</code>).</p>
+<p>For scenarios in the <code>developer</code> or <code>dx</code> suites, swap <code>bluefin:latest</code> for the appropriate DX image.</p>
+<p>For consumer repos, keep the standard PR gate on <code>suites: smoke</code> unless a human explicitly asks for broader coverage.</p>
+<h2>Tagging infrastructure-flaky scenarios</h2>
+<p>Tag infrastructure-flaky scenarios with <code>@retry</code>. Use it for failures that usually clear on rerun (for example slow app launch, GNOME Shell timing, or transient notification races), not for real product regressions.</p>
+<p>See <code>tests/shared/behave_retry.py</code> for the retry harness behavior.</p>
+<h2>Reviewing PRs before merging</h2>
+<p>Before enqueuing any PR, read the diff (<code>gh pr diff &lt;N&gt; --repo projectbluefin/testsuite</code>). Check:</p>
+<ol>
+<li><strong>Correctness</strong> — step names in <code>.feature</code> files have matching <code>@step</code> implementations; new steps don&#39;t duplicate existing ones.</li>
+<li><strong>Not superseded</strong> — compare the PR&#39;s changes against <code>git show origin/main:&lt;file&gt;</code> for each modified file. If the core change is already in main (landed via another PR), close the PR with a comment explaining which commit superseded it.</li>
+<li><strong>Contributor PRs</strong> — check <code>maintainerCanModify</code> before deciding to fix vs close:<pre><code class="language-bash">gh pr view &lt;N&gt; --repo projectbluefin/testsuite --json maintainerCanModify,headRepositoryOwner,headRefName
+</code></pre>
+If <code>maintainerCanModify: true</code>, check out and push fixes directly to the contributor&#39;s branch rather than opening a new PR.</li>
+</ol>
+<h3>Resolving count conflicts when rebasing</h3>
+<p>PRs that update <code>QA-REVIEW.md</code> or <code>docs/skills/suite-map.md</code> counts frequently conflict when rebased. Resolve by recalculating from main&#39;s current counts plus the PR&#39;s delta — never blindly accept either side:</p>
+<pre><code># Identify what the PR changes (e.g. removes 8 @quarantine tags)
+# Start from main&#39;s numbers and apply the delta:
+#   main:  268 total / 30 quarantined / 217 active / 21 stubs
+#   PR:    removes 8 quarantine tags
+#   result: 268 / 22 quarantined / 225 active / 21 stubs
+</code></pre>
+<p>The suite table row for the affected suite must also be updated to reflect the correct active/quarantined split.</p>
+<h3>Merge queue dependency ordering</h3>
+<p>If PR B depends on step functions added by PR A (e.g. B&#39;s <code>.feature</code> uses <code>Switch to migration target</code> defined in A&#39;s <code>steps.py</code>), enqueue A first. The merge queue tests each entry against all preceding entries in the queue, so B will see A&#39;s steps in CI even before A merges to <code>main</code>.</p>
+<p>Corollary: do not close or skip enqueuing a &quot;dependency&quot; PR just because its CI ran against an older <code>main</code> — re-enqueue both in order.</p>
+<h2>Merging PRs — lab test first, then merge queue</h2>
+<p><strong>The review workflow is: submit to lab → wait for results → merge on pass, fix on fail.</strong></p>
+<p>The <code>pr-label-poller</code> CronWorkflow in <code>projectbluefin/testing-lab</code> automatically picks up every open testsuite PR every 5 minutes and runs <code>smoke,common</code> suites on a real KubeVirt VM. It posts a <code>ghost-lab</code> commit status on the PR SHA.</p>
+<p>Wait for the <code>ghost-lab</code> status to be <code>success</code> before enqueuing. If it is <code>failure</code>, fix the PR and let the poller re-run.</p>
+<p><strong>Do not enqueue before the lab result is posted.</strong> GHA CI (lint, dry-run, pytest) passing is necessary but not sufficient — those checks do not boot a real VM.</p>
+<p>Once <code>ghost-lab</code> is green, enqueue with:</p>
+<pre><code class="language-bash">gh pr merge &lt;NUMBER&gt; --repo projectbluefin/testsuite --squash --auto
+</code></pre>
+<p>The <code>--auto</code> flag enqueues the PR; the merge queue runs all required CI checks on the merge commit and lands to <code>main</code> automatically on green.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Workflow</th>
+<th>Trigger</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>Lint &amp; syntax</code></td>
+<td><code>pr-validate.yml</code></td>
+<td><code>pull_request</code>, <code>merge_group</code>, <code>push: main</code></td>
+</tr>
+<tr>
+<td><code>Behave dry-run</code></td>
+<td><code>pr-validate.yml</code></td>
+<td>same</td>
+</tr>
+<tr>
+<td><code>pytest</code></td>
+<td><code>unit-tests.yml</code></td>
+<td><code>pull_request</code>, <code>merge_group</code>, <code>push: main</code></td>
+</tr>
+</tbody></table>
+<p>Do not attempt <code>--admin</code> bypasses.</p>
+<h2>Dependency updates (Renovate / mergeraptor)</h2>
+<p>Dependency updates for this repo and <code>projectbluefin/bluefin</code> are managed by Renovate (bot login: <code>app/mergeraptor</code>). No manual action is required from agents.</p>
+<p><strong>Automerge policy (configured in <code>renovate.json</code>):</strong></p>
+<table>
+<thead>
+<tr>
+<th>Update type</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>digest</code>, <code>pin</code>, <code>patch</code>, <code>minor</code></td>
+<td>Automerged when CI passes (squash)</td>
+</tr>
+<tr>
+<td><code>major</code></td>
+<td>Opens a PR — requires manual review</td>
+</tr>
+</tbody></table>
+<p><strong>Triggering Renovate manually</strong> (e.g. after config changes):</p>
+<ol>
+<li>Open the <a href="https://github.com/projectbluefin/testsuite/issues">Dependency Dashboard</a> issue (titled &quot;Dependency Dashboard&quot;)</li>
+<li>Check the <strong>&quot;rebase all open PRs&quot;</strong> checkbox — Renovate will pick up the updated config and rebase all open dep PRs</li>
+</ol>
+<p>Or edit the checkbox directly via gh:</p>
+<pre><code class="language-bash">gh issue view &lt;dashboard-issue-number&gt; --repo projectbluefin/testsuite --json body --jq &#39;.body&#39; | \
+  sed &#39;s/ - \[ \] &lt;!-- rebase-all-open-prs --&gt;/ - [x] &lt;!-- rebase-all-open-prs --&gt;/&#39; | \
+  gh issue edit &lt;dashboard-issue-number&gt; --repo projectbluefin/testsuite --body-file -
+</code></pre>
+<p><strong>bluefin-specific:</strong> <code>renovate.json</code> in <code>projectbluefin/bluefin</code> sets <code>&quot;baseBranches&quot;: [&quot;testing&quot;]</code> — all Renovate PRs there target the <code>testing</code> branch, not <code>main</code>.</p>
+<h2>After the PR merges</h2>
+<ul>
+<li>If you changed <code>QA-REVIEW.md</code>, verify the scenario count is still accurate</li>
+<li>If you resolved a <code>@future</code> scenario, confirm <code>just list-stubs</code> no longer lists it</li>
+<li>If you added a new operational gotcha to <code>docs/skills/ops.md</code>, check <code>docs/skills/index.md</code>&#39;s rules section doesn&#39;t already cover it (avoid duplication)</li>
+</ul>
+</div> </article> </main>  </body></html> 

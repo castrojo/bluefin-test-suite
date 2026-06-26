@@ -1,0 +1,344 @@
+<!DOCTYPE html><html lang="en" class="bg-brand-space text-slate-100 font-sans selection:bg-brand-glow/30 scroll-smooth"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="generator" content="Astro v4.16.19"><title>Skills: behave-patterns | Project Bluefin QA</title><link rel="stylesheet" href="/_astro/index.RAzdLmA4.css">
+<style>#markdown-body{font-size:.95rem}#markdown-body h1,#markdown-body h2,#markdown-body h3,#markdown-body h4{color:#f8fafc;font-weight:700;margin-top:1.85em;margin-bottom:.85em;line-height:1.35;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif}#markdown-body h1{font-size:1.75rem;border-b:1px solid #1e293b;padding-bottom:.35em}#markdown-body h2{font-size:1.4rem;border-bottom:1px solid rgba(30,41,59,.4);padding-bottom:.25em}#markdown-body h3{font-size:1.15rem}#markdown-body p{margin-top:0;margin-bottom:1.25em;color:#cbd5e1}#markdown-body a{color:#3b82f6;text-decoration:underline;font-weight:500;transition:color .15s}#markdown-body a:hover{color:#06b6d4}#markdown-body ul,#markdown-body ol{margin-top:0;margin-bottom:1.25em;padding-left:1.6em}#markdown-body ul{list-style-type:disc}#markdown-body ol{list-style-type:decimal}#markdown-body li{margin-top:.35em;margin-bottom:.35em}#markdown-body code{background-color:#0f172a;color:#38bdf8;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:.85em;padding:.15em .35em;border-radius:4px;border:1px solid rgba(255,255,255,.05)}#markdown-body pre{background-color:#030712;padding:1.15rem;border-radius:8px;border:1px solid #1e293b;margin-top:1.25em;margin-bottom:1.5em;overflow-x:auto}#markdown-body pre code{background-color:transparent;color:#e2e8f0;font-size:.85rem;padding:0;border:none;border-radius:0}#markdown-body blockquote{border-left:4px solid #3b82f6;background-color:#3b82f60a;padding:.85rem 1.15rem;margin-top:1.25em;margin-bottom:1.25em;border-radius:0 8px 8px 0}#markdown-body blockquote p{margin:0;font-style:italic;color:#94a3b8}#markdown-body table{width:100%;border-collapse:collapse;margin-top:1.25em;margin-bottom:1.5em;font-size:.85rem}#markdown-body th,#markdown-body td{padding:.65rem .85rem;border-bottom:1px solid #1e293b}#markdown-body th{background-color:#0f172a;color:#f8fafc;font-weight:600}#markdown-body tr:hover td{background-color:#ffffff03}
+</style></head> <body class="min-h-screen flex flex-col">  <header class="border-b border-slate-800 bg-slate-900/40 backdrop-blur-md sticky top-0 z-40"> <div class="container mx-auto px-4 h-16 flex items-center justify-between"> <div class="flex items-center gap-3"> <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white tracking-wider text-sm shadow-lg shadow-blue-500/20">
+BF
+</div> <a href="/" class="text-lg font-bold text-white hover:text-blue-400 transition-colors">
+Bluefin <span class="text-blue-500 font-mono text-xs px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 ml-1">QA</span> </a> </div> <nav class="flex items-center gap-6 text-sm font-medium text-slate-300"> <a href="/" class="hover:text-white transition-colors">Runs</a> <a href="/skills" class="hover:text-white transition-colors">Skills</a> <a href="https://hive.projectbluefin.io" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Hive
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> <a href="https://github.com/projectbluefin/testsuite" target="_blank" class="hover:text-white transition-colors flex items-center gap-1">
+Testsuite
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path> </svg> </a> </nav> </div> </header> <main class="container mx-auto px-4 py-8 max-w-4xl flex-grow" data-pagefind-body> <!-- Back to skills link --> <div class="mb-6 search-ignore"> <a href="/skills" class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 hover:text-white transition-colors"> <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path> </svg>
+Back to skills library
+</a> </div> <!-- Article Header --> <header class="mb-8 border-b border-slate-800 pb-6"> <div class="flex items-center gap-3.5 mb-2 flex-wrap"> <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20" data-pagefind-meta="category"> testsuite skill
+</span> <span class="text-xs text-slate-500 font-mono">version 1.0.0</span> </div> <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mt-1" data-pagefind-meta="title"> behave-patterns </h1> <p class="text-base text-slate-400 mt-3 italic"> Use when writing behave tests, scaffolding suites, or debugging step resolution in projectbluefin/testsuite. </p> </header> <!-- Markdown Rendered Content --> <article class="text-slate-300 leading-relaxed font-sans" id="markdown-body"> <div><h1>Behave Patterns Reference</h1>
+<h2>When to Use</h2>
+<ul>
+<li>Writing or extending behave <code>.feature</code> files in any suite</li>
+<li>Reusing or checking shared SSH step phrases</li>
+<li>Debugging <code>UndefinedStep</code>, <code>AmbiguousStep</code>, or dry-run failures</li>
+<li>Verifying suite-local step placement and cross-suite visibility</li>
+</ul>
+<h2>When NOT to Use</h2>
+<ul>
+<li>Smoke-suite GUI implementation details that belong in <code>docs/skills/gnome.md</code></li>
+<li>Bootc / upgrade / rollback workflow rules that belong in <code>docs/skills/bootc.md</code></li>
+<li>CI workflow ownership, runner, or reusable-action changes that belong in workflow skills</li>
+</ul>
+<h2>Core Process</h2>
+<ol>
+<li>Read the target <code>.feature</code> file and the suite&#39;s <code>steps/*.py</code> before adding phrases.</li>
+<li>Reuse <code>tests/shared/ssh_steps.py</code> for generic SSH command/assertion steps instead of duplicating helpers.</li>
+<li>Keep step phrases unique within the loaded suite and check for collisions before committing.</li>
+<li>Choose assertions that match the command shape: equality for single-line output, substring for multiline output.</li>
+<li>Run <code>behave --dry-run</code> on the touched suite before pushing so undefined or ambiguous phrases fail locally.</li>
+</ol>
+<h2>Shared SSH helpers</h2>
+<p><code>tests/shared/ssh_steps.py</code> is canonical for:</p>
+<ul>
+<li><code>Bluefin VM is booted and reachable over SSH</code></li>
+<li><code>Run SSH command: &quot;&lt;cmd&gt;&quot;</code></li>
+<li><code>SSH command return code is &quot;&lt;code&gt;&quot;</code></li>
+<li><code>SSH command output &quot;is&quot; &quot;&lt;expected&gt;&quot;</code></li>
+<li><code>SSH command output stripped &quot;is&quot; &quot;&lt;expected&gt;&quot;</code></li>
+<li><code>SSH command output contains &quot;&lt;text&gt;&quot;</code></li>
+<li><code>SSH command output does not contain &quot;&lt;text&gt;&quot;</code></li>
+<li><code>SSH command output is not &quot;&lt;value&gt;&quot;</code></li>
+<li><code>SSH command output is not &quot;&lt;a&gt;&quot; and not &quot;&lt;b&gt;&quot;</code></li>
+<li><code>SSH command output is not empty</code></li>
+</ul>
+<p>For Bluefin desktop-model assertions, keep SSH-only Flatpak checks in the
+<code>common</code> suite (remote configuration, bundled app IDs, <code>/usr/share/applications</code>
+scans). GUI Flatpak-management coverage (Bazaar, Flatseal, per-app permissions)
+belongs in the <code>software</code> suite.</p>
+<p>When asserting Bluefin&#39;s bundled terminal app over SSH, accept either
+<code>org.gnome.Ptyxis</code> or <code>com.raggesilver.BlackBox</code>. Images may ship either app ID
+depending on the terminal packaging generation under test.</p>
+<p>Import in suite <code>environment.py</code>:</p>
+<pre><code class="language-python">from tests.shared.ssh_steps import *  # noqa: F401,F403
+</code></pre>
+<p>Never duplicate <code>_ssh()</code> or generic step definitions in suite-specific <code>steps.py</code>.<br>Default <code>run_ssh()</code> timeout: <strong>60s</strong> (not 30s — hardware commands are slow).
+In <code>tests/common/features/</code>, <code>environment.py</code> already exports
+<code>XDG_RUNTIME_DIR</code>, <code>DBUS_SESSION_BUS_ADDRESS</code>, and <code>WAYLAND_DISPLAY</code> for every
+SSH command via <code>ssh_command_prefix</code>. Prefer plain <code>systemctl --user</code>,
+<code>gsettings</code>, and <code>gdbus</code> commands there instead of manually sourcing
+<code>/tmp/session.env</code> inside each scenario.</p>
+<p>For common-suite systemd health checks, oneshot services finish in <code>inactive (dead)</code>
+after a successful run — their <code>ActiveState</code> is <code>inactive</code>, not <code>active</code>. Do NOT
+assert <code>ActiveState==active</code> for units like <code>dconf-update.service</code>,
+<code>ublue-system-setup.service</code>, <code>ublue-user-setup.service</code>, or
+<code>bootc-unified-storage.service</code>. Use <code>Result</code> instead:</p>
+<pre><code class="language-gherkin">* Run SSH command: &quot;systemctl show ublue-system-setup.service --property=Result --value&quot;
+* SSH command return code is &quot;0&quot;
+* SSH command output stripped &quot;is&quot; &quot;success&quot;
+</code></pre>
+<p>The <code>Result</code> property is <code>success</code> when the service exited cleanly, <code>failed</code> if it
+errored, and <code>exit-code</code> / <code>signal</code> for specific exit failures. Asserting
+<code>ActiveState==active</code> on a completed oneshot always returns <code>inactive</code> and causes
+false failures in QEMU CI even when the service ran correctly.</p>
+<p><strong>Keep <code>@quarantine</code></strong> for services that are masked or disabled in the CI
+<code>KERNEL_ARGS</code> (e.g. <code>flatpak-preinstall.service</code>) — those cannot be unquarantined
+until the image-level masking is removed.</p>
+<p>When a scenario is meant to fail on a bad command, never append <code>; true</code> (or
+similar success-forcing trailers) to the SSH command. That masks the real exit
+status and turns <code>SSH command return code is &quot;0&quot;</code> into a no-op. Use <code>2&gt;&amp;1</code> to
+capture diagnostics, but preserve the original command&#39;s exit code.</p>
+<h2><code>grep -q</code> vs <code>grep -c</code> for existence checks</h2>
+<p><strong>Never use <code>grep -c ... || echo 0</code></strong> for existence checks in SSH commands. This is a false-positive trap:</p>
+<ul>
+<li>On no match: <code>grep -c</code> prints <code>0</code> and exits 1, then <code>echo 0</code> fires and the overall command exits 0</li>
+<li>The output is now <code>&quot;0\n0&quot;</code> — the step <code>SSH command output is not &quot;0&quot;</code> sees <code>&quot;0\n0&quot;</code> which is not equal to <code>&quot;0&quot;</code> and <strong>passes falsely</strong></li>
+</ul>
+<p><strong>Correct pattern</strong> — use <code>grep -q</code> and assert the return code:</p>
+<pre><code class="language-gherkin">Scenario: Portal interface is present
+  * Run SSH command: &quot;gdbus introspect ... | grep -q &#39;InterfaceName&#39;&quot;
+  * SSH command return code is &quot;0&quot;
+</code></pre>
+<p><code>grep -q</code> exits 0 on match, 1 on no match, with no output. The return code assertion is the signal.
+The same applies to <code>wc -l</code>, <code>grep -c</code>, or any count-based check used as an existence gate.</p>
+<h2>Common suite <code>ujust</code> recipe coverage</h2>
+<p>Keep SSH-based <code>ujust</code> recipe checks in <code>tests/common/features/common_ujust.feature</code>.
+Prefer assertions against the wrapper&#39;s own output, not the underlying tool&#39;s raw
+output — for example <code>ujust bios-info</code> prints <code>Manufacturer:</code> / <code>Release Date:</code>
+labels itself, so checking for raw <code>dmidecode</code> keys like <code>Vendor</code> is brittle.</p>
+<p>If a recipe is gated by <code>gum choose</code>, <code>pkexec</code>, or package-install side effects,
+land the coverage as <code>@pending @wip</code> until a non-interactive harness exists.
+Current example: <code>ujust toggle-updates</code> is interactive and flips <code>uupd.timer</code>
+or <code>rpm-ostreed-automatic.timer</code> (not <code>ublue-update.timer</code>).</p>
+<h2>Smoke suite — local subprocess (not SSH)</h2>
+<p>The smoke suite runs <strong>inside</strong> the VM via qecore-headless. Steps in <code>tests/smoke/features/steps/</code> execute locally using <code>subprocess.run</code>, <strong>not</strong> over SSH.</p>
+<pre><code class="language-python">def _run(cmd: str):
+    result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+    return result.stdout.strip(), result.returncode, result.stderr.strip()
+</code></pre>
+<p><strong>Never</strong> import <code>tests.shared.ssh_steps</code> into the smoke environment — those steps require <code>context.vm_ip</code> / <code>context.ssh_key</code> which don&#39;t exist in the smoke context, and will collide with qecore step phrases.</p>
+<p>For system-level checks in <code>system_health.feature</code>, define named steps in <code>system_health_steps.py</code> that call <code>_run()</code> directly. For tools that reside on the VM host and not in the runner container (such as tailscale, uupd, and fastfetch), define custom steps that call <code>_run_host()</code> to run them on the host VM via SSH.</p>
+<h2>MIME type handler verification (smoke suite)</h2>
+<p>Use <code>xdg-mime query default &lt;mime-type&gt;</code> to verify handler registration without launching apps. Assert against known <code>.desktop</code> file names or an allow-set:</p>
+<pre><code class="language-python">DOCUMENT_VIEWERS = {&quot;org.gnome.Papers.desktop&quot;, &quot;evince.desktop&quot;}
+actual = subprocess.run([&quot;xdg-mime&quot;, &quot;query&quot;, &quot;default&quot;, &quot;application/pdf&quot;],
+                        capture_output=True, text=True).stdout.strip()
+assert actual in DOCUMENT_VIEWERS
+</code></pre>
+<p>This validates the MIME database end-to-end (xdg-mime, .desktop file registration, mimeapps.list) without window management flake.</p>
+<p>For lightweight smoke-suite CLI assertions (for example <code>gsettings</code>, <code>pgrep</code>, or <code>journalctl</code> checks), prefer qecore&#39;s built-in command capture steps in the <code>.feature</code> file instead of adding wrappers:</p>
+<p>For MIME-handler coverage, prefer direct <code>subprocess.run([&quot;xdg-mime&quot;, &quot;query&quot;, &quot;default&quot;, mime])</code> helpers in <code>tests/smoke/features/steps/steps.py</code> and assert the resolved <code>.desktop</code> file (or an allowed viewer set) instead of launching the app with <code>xdg-open</code>. This keeps smoke checks local to the VM and avoids window-management flake while still validating Bluefin&#39;s handler registration end to end.</p>
+<pre><code class="language-gherkin">* Run and save command output: &quot;gsettings get org.gnome.desktop.a11y.keyboard enable&quot;
+* Return code of last command output &quot;is&quot; &quot;0&quot;
+* Last command output &quot;contains&quot; &quot;true&quot;
+</code></pre>
+<p>Do <strong>not</strong> invent alternate phrases like <code>Run command:</code> / <code>Command output contains ...</code> in smoke features unless you are also intentionally adding matching step definitions.</p>
+<p>When a smoke assertion needs an allow-set result (for example <code>systemctl is-enabled</code>
+returning either <code>enabled</code> or <code>static</code>), keep using the built-in qecore command
+steps and encode the allow-set in the shell command itself:</p>
+<pre><code class="language-gherkin">* Run and save command output: &quot;systemctl is-enabled uupd.timer | grep -E &#39;^(enabled|static)$&#39;&quot;
+* Return code of last command output &quot;is&quot; &quot;0&quot;
+</code></pre>
+<p>This avoids adding a one-off step definition just to express &quot;one of these two
+values is acceptable&quot;.</p>
+<h2>Avoiding AmbiguousStep with qecore.common_steps</h2>
+<p><code>from qecore.common_steps import *</code> registers qecore&#39;s steps in behave&#39;s global registry on first import. If your <code>steps.py</code> defines the <strong>same pattern string</strong> you get <code>AmbiguousStep</code> at runtime (not import time).</p>
+<p>Fix: give suite-local steps a distinct phrase.</p>
+<pre><code class="language-python"># BAD — collides with qecore
+@step(&quot;Run and save command output:&quot;)
+
+# GOOD — unique to this suite
+@step(&quot;Run DX SSH command:&quot;)
+</code></pre>
+<p>Check for collisions before committing:</p>
+<pre><code class="language-bash">grep -h &quot;^@step&quot; tests/&lt;suite&gt;/features/steps/*.py | sort | uniq -d
+</code></pre>
+<p>All step files under a suite directory are loaded together — duplicates across files in the same suite are also ambiguous.</p>
+<h2>Feature scaffolding with @future</h2>
+<p>Use <code>@future</code> when the step implementation isn&#39;t ready yet:</p>
+<pre><code class="language-gherkin">@future
+Scenario: Hardware watchdog is active
+    Given the VM has TPM 2.0
+    ...
+</code></pre>
+<p>Remove <code>@future</code> when all three are true:</p>
+<ol>
+<li>VM spec supports the hardware/feature</li>
+<li>Step implementations are complete</li>
+</ol>
+<p>Find remaining stubs:</p>
+<pre><code class="language-bash">just list-stubs
+# or
+grep -r &quot;@future&quot; tests/*/features/*.feature
+</code></pre>
+<h2>Selective reruns with @retry</h2>
+<p>Use a plain <code>@retry</code> tag on scenarios whose common failure mode is
+infrastructure timing (GNOME session startup, AT-SPI render races, slow app
+launch in QEMU). <code>tests/shared/behave_retry.py</code> only re-runs failing rerun
+entries whose effective tags include <code>retry</code>; untagged failures fail the job
+immediately after the first pass.</p>
+<p>The retry budget comes from <code>BEHAVE_RETRIES</code> / <code>--retries</code> (default: <code>2</code>), so
+<code>@retry</code> means &quot;eligible for the normal retry loop&quot; rather than a per-scenario
+count override.</p>
+<h2>Suite layout</h2>
+<pre><code>tests/
+  smoke/          # GUI smoke — behave + dogtail
+  developer/      # developer tools
+  software/       # software installation
+  flatcar/        # Flatcar compatibility
+  lifecycle/      # bootc upgrade/rollback
+  security/       # security posture
+  dx/             # DX variant
+  nvidia/         # GPU tests
+  hardware/       # hardware feature detection
+  vanilla-gnome/  # upstream GNOME parity
+  shared/
+    ssh_steps.py  # canonical SSH step library
+</code></pre>
+<p>Each suite has:</p>
+<pre><code>&lt;suite&gt;/
+  features/
+    *.feature
+    environment.py
+    steps/
+      steps.py   (+ additional step files)
+</code></pre>
+<h2>Cross-suite step isolation</h2>
+<p>Each suite loads only its own <code>steps/*.py</code> files plus <code>qecore.common_steps</code>. A step defined in <code>tests/software/features/steps/steps.py</code> is <strong>not</strong> available in <code>tests/developer/features/steps/steps.py</code> even if both import qecore.</p>
+<p><strong>Rule:</strong> When the audit agent (or any agent) moves a step phrase from a shared/smoke context into a suite-specific file, verify that every <code>.feature</code> file using that phrase is in the same suite. If multiple suites use the phrase, define it in each suite&#39;s <code>steps.py</code>.</p>
+<p>Lesson surfaced 2026-05-30: <code>No journal entries match &quot;{pattern}&quot;</code> was added to <code>software/steps.py</code> but <code>ptyxis.feature</code> (developer suite) also used it — causing <code>UndefinedStep</code> at runtime.</p>
+<h2>behave rerun output can contain non-path noise</h2>
+<p><code>behave --format rerun</code> on 1.3.x adds header comments like:</p>
+<pre><code class="language-text"># -- RERUN: 7 failing scenarios during last test run.
+tests/smoke/features/foo.feature:5
+</code></pre>
+<p><code>tests/shared/behave_retry.py</code> must filter out comment or non-<code>.feature[:line]</code>
+entries before retrying. Passing those lines back to behave causes:</p>
+<pre><code class="language-text">ConfigError: No steps directory in &#39;/.../# -- RERUN: 7 failing scenarios ...&#39;
+</code></pre>
+<h2><code>Last command output stripped &quot;is&quot;</code> vs multiline output</h2>
+<p><code>stripped &quot;is&quot; &quot;&lt;value&gt;&quot;</code> strips whitespace from the <strong>entire</strong> captured output and checks equality. This only works correctly for <strong>single-line</strong> command output (e.g. <code>grep -c</code>, <code>echo X</code>).</p>
+<p>For commands that produce multiline output (e.g. <code>flatpak install ... 2&gt;&amp;1; echo rc:$?</code>), use <code>Last command output contains &quot;rc:0&quot;</code> instead.</p>
+<pre><code class="language-gherkin"># WRONG — fails when flatpak install produces install progress lines
+* Last command output stripped &quot;is&quot; &quot;rc:0&quot;
+
+# CORRECT — substring check works with multiline output
+* Last command output contains &quot;rc:0&quot;
+</code></pre>
+<h2>Bluefin desktop identity defaults: <code>gsettings get</code> vs <code>dconf read</code></h2>
+<p>In the SSH-driven <code>common</code> suite, validate Bluefin desktop identity overrides with the API that matches the schema type:</p>
+<ul>
+<li>Use <code>gsettings get</code> for regular schemas shipped via <code>zz0-bluefin-modifications.gschema.override</code> (for example <code>org.gnome.desktop.interface accent-color</code> or <code>org.gnome.desktop.app-folders folder-children</code>).</li>
+<li>Use <code>dconf read</code> for relocatable schemas and extensions without XML schemas (for example custom media-key keybindings under <code>/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/</code>, Search Light under <code>/org/gnome/shell/extensions/search-light/</code>, and Ptyxis profile palette keys under <code>/org/gnome/Ptyxis/Profiles/&lt;uuid&gt;/</code>).</li>
+</ul>
+<p>This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in <code>projectbluefin/common</code>.</p>
+<h2>Quarantine Protocol</h2>
+<p>When a scenario fails in QEMU CI due to a known environment limitation (not a code bug), tag it <code>@quarantine</code> and file a tracking issue:</p>
+<pre><code class="language-gherkin">@quarantine
+Scenario: Flathub remote is configured
+  ...
+</code></pre>
+<p>The CI runs behave with <code>--tags ~quarantine</code>, so quarantined scenarios are skipped and do not block the gate.</p>
+<h3>When to quarantine vs fix</h3>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Scenario fails because a first-boot service is masked in CI</td>
+<td>Quarantine + image-side issue</td>
+</tr>
+<tr>
+<td>Scenario fails due to GNOME 50 API change</td>
+<td>Quarantine + investigate new API</td>
+</tr>
+<tr>
+<td>Scenario fails due to a real regression in the image</td>
+<td>Do NOT quarantine — it&#39;s a gate hit</td>
+</tr>
+<tr>
+<td>Scenario fails intermittently (flaky network, timing)</td>
+<td>Add <code>@retry</code> tag instead</td>
+</tr>
+</tbody></table>
+<h3>Known quarantine categories (2026-06)</h3>
+<p><strong>smoke-b:</strong> screen lock (#528), PDF/PNG/video MIME defaults (#529)</p>
+<ul>
+<li>Screen lock: GNOME 50 headless QEMU — lock screen doesn&#39;t engage within 10s</li>
+<li>MIME defaults: Fedora system mimeapps.list sets Firefox as default; Flatpak Papers/Loupe don&#39;t override at system level on fresh install</li>
+</ul>
+<p><strong>common-a/b:</strong> 13 scenarios in dconf, flatpak, immutable, polkit (#531)</p>
+<ul>
+<li>Flatpak: /var/lib/flatpak not preserved from OCI build; flatpak-preinstall.service masked in CI</li>
+<li>dconf: some schema defaults may require un-investigated setup; Ptyxis palette is user-session state</li>
+<li>Immutable: rpm-ostree status / bootc status / /usr ro failing for unknown reason in fresh QEMU bootc install</li>
+<li>Polkit: rules may be in /usr/share/ not /etc/polkit-1/rules.d/</li>
+</ul>
+<h2>Behave Background scope — don&#39;t put app-open preconditions for all scenarios</h2>
+<p>Behave&#39;s <code>Background:</code> runs before <strong>every scenario</strong> in the feature, including scenarios that don&#39;t
+need the app to be open (e.g. coredump checks, version assertions, cleanup verifications).</p>
+<p><strong>Anti-pattern:</strong></p>
+<pre><code class="language-gherkin">Feature: GNOME Settings smoke tests
+  Background:
+    * Settings window is accessible   # ← runs before EVERY scenario
+
+  Scenario: Settings closes cleanly via Ctrl+Q
+    * Key combo: &quot;&lt;Ctrl&gt;&lt;Q&gt;&quot; with uinput
+    * Settings is no longer running   # ← explicitly kills Settings
+
+  Scenario: No gnome-control-center coredump after session start
+    * No coredump entries exist for &quot;gnome-control-center&quot;
+    # ^ Background runs first: tries to find Settings after it was just killed → FAILS
+</code></pre>
+<p><strong>Fix options (prefer first):</strong></p>
+<ol>
+<li>Move regression/coredump checks to a separate feature file without an app-open Background</li>
+<li>If the Background must re-launch the app, split launch from accessibility check:<pre><code class="language-gherkin">Background:
+  * Launch Settings via command
+  * Settings window is accessible
+</code></pre>
+Then even after Ctrl+Q, the next Background re-launches it.</li>
+</ol>
+<p><strong>Rule:</strong> A feature Background should only assert state that is valid for ALL scenarios in that
+feature. If any scenario tears down that state, either restructure the teardown or move the
+non-dependent scenarios to a separate feature.</p>
+<table>
+<thead>
+<tr>
+<th>Rationalization</th>
+<th>Reality</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>&quot;I&#39;ll just add a tiny local SSH helper.&quot;</td>
+<td>Shared SSH phrases already exist in <code>tests/shared/ssh_steps.py</code>; duplication creates drift and inconsistent assertions.</td>
+</tr>
+<tr>
+<td>&quot;This phrase is descriptive enough; collisions are unlikely.&quot;</td>
+<td>Behave loads all step files in a suite together, and duplicate phrases fail at runtime with <code>AmbiguousStep</code>.</td>
+</tr>
+<tr>
+<td>&quot;Equality is stricter, so I&#39;ll use it for all command output.&quot;</td>
+<td><code>... stripped &quot;is&quot;</code> only works for single-line output; multiline commands need substring assertions.</td>
+</tr>
+<tr>
+<td>&quot;A dry-run is overkill for a simple feature edit.&quot;</td>
+<td>CI runs dry-run and will catch missing step definitions immediately; local dry-run is the cheap failure path.</td>
+</tr>
+</tbody></table>
+<h2>Red Flags</h2>
+<ul>
+<li>New suite-specific code duplicates <code>Run SSH command</code> or other shared SSH assertions</li>
+<li>A <code>.feature</code> file introduces a phrase with no matching <code>@step</code> decorator</li>
+<li>The same decorator text appears in multiple step files loaded by one suite</li>
+<li>A test checks relocatable dconf keys with the wrong tool (<code>gsettings</code> vs <code>dconf read</code>)</li>
+<li>A PR changes <code>tests/**</code> without a matching skill update</li>
+<li>A feature Background opens an app but a scenario in the same feature closes that app (next scenario&#39;s Background will fail)</li>
+<li><code>@retry</code> added to a scenario to mask a missing retry loop in the underlying <code>_&lt;app&gt;_app()</code> helper</li>
+</ul>
+<h2>Verification</h2>
+<ul>
+<li><input disabled="" type="checkbox"> New or changed step phrases exist in the correct suite or shared helper module</li>
+<li><input disabled="" type="checkbox"> No duplicate step phrases exist in the touched suite</li>
+<li><input disabled="" type="checkbox"> <code>behave --dry-run</code> passes for the touched suite</li>
+<li><input disabled="" type="checkbox"> Output assertions match the command shape (single-line equality vs multiline substring)</li>
+<li><input disabled="" type="checkbox"> Any newly discovered reusable pattern is written back to a skill file in the same PR</li>
+</ul>
+</div> </article> </main>  </body></html> 
