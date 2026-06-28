@@ -4,7 +4,7 @@ import tailwind from '@astrojs/tailwind';
 // https://astro.build/config
 export default defineConfig({
   outDir: './dist',
-  site: 'https://qa.projectbluefin.io',
-  base: '/',
+  site: 'https://projectbluefin.github.io',
+  base: '/testsuite/',
   integrations: [tailwind()],
 });
