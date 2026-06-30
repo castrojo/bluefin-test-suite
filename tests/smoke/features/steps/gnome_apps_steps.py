@@ -61,6 +61,26 @@ IMPRESSION_LAUNCH_TARGETS = (
     ("desktop", "io.gitlab.adhami3310.Impression.desktop"),
     ("flatpak", "io.gitlab.adhami3310.Impression"),
 )
+CLOCKS_APP_NAMES = ("org.gnome.clocks", "Clocks")
+CLOCKS_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.clocks.desktop"),
+    ("flatpak", "org.gnome.clocks"),
+)
+WEATHER_APP_NAMES = ("org.gnome.Weather", "Weather", "gnome-weather")
+WEATHER_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.Weather.desktop"),
+    ("flatpak", "org.gnome.Weather"),
+)
+CALENDAR_APP_NAMES = ("org.gnome.Calendar", "Calendar", "gnome-calendar")
+CALENDAR_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.Calendar.desktop"),
+    ("flatpak", "org.gnome.Calendar"),
+)
+DECIBELS_APP_NAMES = ("org.gnome.Decibels", "Decibels")
+DECIBELS_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.Decibels.desktop"),
+    ("flatpak", "org.gnome.Decibels"),
+)
 
 # Map app name fragments → WM class substrings for Shell.Eval force-close.
 # GNOME 50 apps (Ptyxis, Settings, Files) run as background daemons and
@@ -425,4 +445,56 @@ def impression_launches_successfully(context) -> None:
         IMPRESSION_APP_NAMES,
         {"Impression"},
         "Impression",
+    )
+
+
+@step("the Clocks app launches successfully")
+def clocks_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        CLOCKS_LAUNCH_TARGETS,
+        CLOCKS_APP_NAMES,
+        {"Clocks"},
+        "Clocks",
+    )
+
+
+@step("the Weather app launches successfully")
+def weather_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        WEATHER_LAUNCH_TARGETS,
+        WEATHER_APP_NAMES,
+        {"Weather"},
+        "Weather",
+    )
+
+
+@step("the Calendar app launches successfully")
+def calendar_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        CALENDAR_LAUNCH_TARGETS,
+        CALENDAR_APP_NAMES,
+        {"Calendar"},
+        "Calendar",
+    )
+
+
+@step("the Decibels app launches successfully")
+def decibels_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        DECIBELS_LAUNCH_TARGETS,
+        DECIBELS_APP_NAMES,
+        {"Decibels"},
+        "Decibels",
     )
