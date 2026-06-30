@@ -4,36 +4,148 @@ Feature: OOTB Flatpak sandbox permission auditing
   host filesystem access.
 
   @permissions @quarantine
+  Scenario: be.alexandervanhee.gradia is installed system-wide
+    * Flatpak "be.alexandervanhee.gradia" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: com.github.PintaProject.Pinta is installed system-wide
+    * Flatpak "com.github.PintaProject.Pinta" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: com.github.tchx84.Flatseal is installed system-wide
+    * Flatpak "com.github.tchx84.Flatseal" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: com.mattjakeman.ExtensionManager is installed system-wide
+    * Flatpak "com.mattjakeman.ExtensionManager" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: com.ranfdev.DistroShelf is installed system-wide
+    * Flatpak "com.ranfdev.DistroShelf" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: io.github.flattool.Ignition is installed system-wide
+    * Flatpak "io.github.flattool.Ignition" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: io.github.flattool.Warehouse is installed system-wide
+    * Flatpak "io.github.flattool.Warehouse" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: io.github.kolunmi.Bazaar is installed system-wide
+    * Flatpak "io.github.kolunmi.Bazaar" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: io.gitlab.adhami3310.Impression is installed system-wide
+    * Flatpak "io.gitlab.adhami3310.Impression" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: io.missioncenter.MissionCenter is installed system-wide
+    * Flatpak "io.missioncenter.MissionCenter" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: it.mijorus.smile is installed system-wide
+    * Flatpak "it.mijorus.smile" is installed system-wide
+
+  @permissions @quarantine
   Scenario: org.gnome.Calculator is installed system-wide
     * Flatpak "org.gnome.Calculator" is installed system-wide
-
-  @permissions @quarantine
-  Scenario: org.gnome.Loupe is installed system-wide
-    * Flatpak "org.gnome.Loupe" is installed system-wide
-
-  @permissions @quarantine
-  Scenario: org.gnome.TextEditor is installed system-wide
-    * Flatpak "org.gnome.TextEditor" is installed system-wide
-
-  @permissions @quarantine
-  Scenario: org.gnome.Papers is installed system-wide
-    * Flatpak "org.gnome.Papers" is installed system-wide
-
-  @permissions @quarantine
-  Scenario: org.mozilla.firefox is installed system-wide
-    * Flatpak "org.mozilla.firefox" is installed system-wide
-
-  @permissions @quarantine
-  Scenario: org.gnome.clocks is installed system-wide
-    * Flatpak "org.gnome.clocks" is installed system-wide
 
   @permissions @quarantine
   Scenario: org.gnome.Calendar is installed system-wide
     * Flatpak "org.gnome.Calendar" is installed system-wide
 
   @permissions @quarantine
-  Scenario: io.missioncenter.MissionCenter is installed system-wide
-    * Flatpak "io.missioncenter.MissionCenter" is installed system-wide
+  Scenario: org.gnome.Characters is installed system-wide
+    * Flatpak "org.gnome.Characters" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Connections is installed system-wide
+    * Flatpak "org.gnome.Connections" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Contacts is installed system-wide
+    * Flatpak "org.gnome.Contacts" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Decibels is installed system-wide
+    * Flatpak "org.gnome.Decibels" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.DejaDup is installed system-wide
+    * Flatpak "org.gnome.DejaDup" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.FileRoller is installed system-wide
+    * Flatpak "org.gnome.FileRoller" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Firmware is installed system-wide
+    * Flatpak "org.gnome.Firmware" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Logs is installed system-wide
+    * Flatpak "org.gnome.Logs" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Loupe is installed system-wide
+    * Flatpak "org.gnome.Loupe" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Maps is installed system-wide
+    * Flatpak "org.gnome.Maps" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.NautilusPreviewer is installed system-wide
+    * Flatpak "org.gnome.NautilusPreviewer" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Papers is installed system-wide
+    * Flatpak "org.gnome.Papers" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Showtime is installed system-wide
+    * Flatpak "org.gnome.Showtime" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.SimpleScan is installed system-wide
+    * Flatpak "org.gnome.SimpleScan" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Snapshot is installed system-wide
+    * Flatpak "org.gnome.Snapshot" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.TextEditor is installed system-wide
+    * Flatpak "org.gnome.TextEditor" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.Weather is installed system-wide
+    * Flatpak "org.gnome.Weather" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.baobab is installed system-wide
+    * Flatpak "org.gnome.baobab" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.clocks is installed system-wide
+    * Flatpak "org.gnome.clocks" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.gnome.font-viewer is installed system-wide
+    * Flatpak "org.gnome.font-viewer" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.mozilla.Thunderbird is installed system-wide
+    * Flatpak "org.mozilla.Thunderbird" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: org.mozilla.firefox is installed system-wide
+    * Flatpak "org.mozilla.firefox" is installed system-wide
+
+  @permissions @quarantine
+  Scenario: page.tesk.Refine is installed system-wide
+    * Flatpak "page.tesk.Refine" is installed system-wide
 
   @permissions @quarantine
   Scenario: Calculator Flatpak has no host filesystem access

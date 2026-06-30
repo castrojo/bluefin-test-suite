@@ -23,7 +23,7 @@ Feature: Bluefin Flatpak-only desktop model
     * Run SSH command: "flatpak list --app --columns=application"
     * SSH command return code is "0"
     * SSH command output contains "org.mozilla.firefox"
-    * Run SSH command: "flatpak list --app --columns=application | grep -Eq '^(org.gnome.Ptyxis|com.raggesilver.BlackBox)$' && echo present || echo missing"
+    * Run SSH command: "flatpak list --app --columns=application | grep -q 'io.github.kolunmi.Bazaar' && echo present || echo missing"
     * SSH command output "is" "present"
 
   Scenario: No graphical RPM desktop entries point to /usr/bin executables
