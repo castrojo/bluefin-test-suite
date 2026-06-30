@@ -25,3 +25,19 @@ Feature: GNOME app launch smoke tests
   @bluefin @retry @apps @flatpak @sla_15s
   Scenario: Impression launches successfully
     * the Impression app launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Clocks launches successfully
+    * the Clocks app launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Weather launches successfully
+    * the Weather app launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Calendar launches successfully
+    * the Calendar app launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Decibels launches successfully
+    * the Decibels app launches successfully
