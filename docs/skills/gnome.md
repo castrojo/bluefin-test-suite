@@ -257,6 +257,32 @@ dirs (`/var/lib/flatpak/exports/...`) and launches them on the VM via SSH, so
 you should not hardcode `/usr/share/applications/<app>.desktop` for Flatpak-only
 apps.
 
+### Apps with launch-only smoke tests in gnome_apps.feature
+
+All 17 apps follow the identical `_launch_targets_assert_and_close` pattern:
+
+| App | Flatpak ID | Notes |
+|---|---|---|
+| Ptyxis | `org.gnome.Ptyxis` | native; uses `_launch_assert_and_close` |
+| Files | `org.gnome.Nautilus` | native; needs `--quit` after close |
+| Mission Center | `io.missioncenter.MissionCenter` | |
+| Extension Manager | `com.mattjakeman.ExtensionManager` | |
+| Warehouse | `io.github.flattool.Warehouse` | |
+| Impression | `io.gitlab.adhami3310.Impression` | |
+| Clocks | `org.gnome.clocks` | |
+| Weather | `org.gnome.Weather` | |
+| Calendar | `org.gnome.Calendar` | |
+| Decibels | `org.gnome.Decibels` | |
+| Loupe | `org.gnome.Loupe` | image viewer |
+| Papers | `org.gnome.Papers` | PDF viewer |
+| Showtime | `org.gnome.Showtime` | video player |
+| Baobab | `org.gnome.baobab` | disk usage analyzer; window titles vary: "Disk Usage Analyzer" or "baobab" |
+| Characters | `org.gnome.Characters` | character map |
+| Logs | `org.gnome.Logs` | log viewer |
+| File Roller | `org.gnome.FileRoller` | archive manager; window titles vary: "File Roller" or "Archive Manager" |
+
+**Not covered (reasons):** SimpleScan (scanner hardware), Snapshot (camera), Maps/Connections (network), DejaDup (shows interactive wizard), Firmware (requires root/PolicyKit dialog), font-viewer (requires a font file argument).
+
 ## Extension state via D-Bus (bazzite / GNOME 50)
 
 For suites that need to poll an extension's activation state (e.g. the bazzite suite which runs over SSH), **do not** use `Shell.Eval + Main.extensionManager.lookup(uuid)?.state`. On GNOME 50 this API consistently returns state=6 (INITIALIZED) regardless of actual activation.

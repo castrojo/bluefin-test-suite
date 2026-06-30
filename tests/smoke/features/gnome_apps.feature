@@ -41,3 +41,31 @@ Feature: GNOME app launch smoke tests
   @bluefin @retry @apps @flatpak @sla_15s
   Scenario: Decibels launches successfully
     * the Decibels app launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Loupe image viewer launches successfully
+    * the Loupe image viewer launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Papers PDF viewer launches successfully
+    * the Papers PDF viewer launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Showtime video player launches successfully
+    * the Showtime video player launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Baobab disk usage analyzer launches successfully
+    * the Baobab disk usage analyzer launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Characters launches successfully
+    * the Characters app launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: Logs launches successfully
+    * the Logs app launches successfully
+
+  @bluefin @retry @apps @flatpak @sla_15s
+  Scenario: File Roller archive manager launches successfully
+    * the File Roller archive manager launches successfully

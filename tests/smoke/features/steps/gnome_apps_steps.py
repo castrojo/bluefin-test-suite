@@ -81,6 +81,41 @@ DECIBELS_LAUNCH_TARGETS = (
     ("desktop", "org.gnome.Decibels.desktop"),
     ("flatpak", "org.gnome.Decibels"),
 )
+LOUPE_APP_NAMES = ("org.gnome.Loupe", "Loupe")
+LOUPE_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.Loupe.desktop"),
+    ("flatpak", "org.gnome.Loupe"),
+)
+PAPERS_APP_NAMES = ("org.gnome.Papers", "Papers")
+PAPERS_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.Papers.desktop"),
+    ("flatpak", "org.gnome.Papers"),
+)
+SHOWTIME_APP_NAMES = ("org.gnome.Showtime", "Showtime")
+SHOWTIME_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.Showtime.desktop"),
+    ("flatpak", "org.gnome.Showtime"),
+)
+BAOBAB_APP_NAMES = ("org.gnome.baobab", "Disk Usage Analyzer", "baobab")
+BAOBAB_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.baobab.desktop"),
+    ("flatpak", "org.gnome.baobab"),
+)
+CHARACTERS_APP_NAMES = ("org.gnome.Characters", "Characters")
+CHARACTERS_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.Characters.desktop"),
+    ("flatpak", "org.gnome.Characters"),
+)
+LOGS_APP_NAMES = ("org.gnome.Logs", "Logs")
+LOGS_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.Logs.desktop"),
+    ("flatpak", "org.gnome.Logs"),
+)
+FILE_ROLLER_APP_NAMES = ("org.gnome.FileRoller", "File Roller", "Archive Manager")
+FILE_ROLLER_LAUNCH_TARGETS = (
+    ("desktop", "org.gnome.FileRoller.desktop"),
+    ("flatpak", "org.gnome.FileRoller"),
+)
 
 # Map app name fragments → WM class substrings for Shell.Eval force-close.
 # GNOME 50 apps (Ptyxis, Settings, Files) run as background daemons and
@@ -497,4 +532,95 @@ def decibels_launches_successfully(context) -> None:
         DECIBELS_APP_NAMES,
         {"Decibels"},
         "Decibels",
+    )
+
+
+@step("the Loupe image viewer launches successfully")
+def loupe_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        LOUPE_LAUNCH_TARGETS,
+        LOUPE_APP_NAMES,
+        {"Loupe"},
+        "Loupe",
+    )
+
+
+@step("the Papers PDF viewer launches successfully")
+def papers_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        PAPERS_LAUNCH_TARGETS,
+        PAPERS_APP_NAMES,
+        {"Papers"},
+        "Papers",
+    )
+
+
+@step("the Showtime video player launches successfully")
+def showtime_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        SHOWTIME_LAUNCH_TARGETS,
+        SHOWTIME_APP_NAMES,
+        {"Showtime"},
+        "Showtime",
+    )
+
+
+@step("the Baobab disk usage analyzer launches successfully")
+def baobab_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        BAOBAB_LAUNCH_TARGETS,
+        BAOBAB_APP_NAMES,
+        {"Disk Usage Analyzer", "baobab"},
+        "Baobab",
+    )
+
+
+@step("the Characters app launches successfully")
+def characters_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        CHARACTERS_LAUNCH_TARGETS,
+        CHARACTERS_APP_NAMES,
+        {"Characters"},
+        "Characters",
+    )
+
+
+@step("the Logs app launches successfully")
+def logs_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        LOGS_LAUNCH_TARGETS,
+        LOGS_APP_NAMES,
+        {"Logs"},
+        "Logs",
+    )
+
+
+@step("the File Roller archive manager launches successfully")
+def file_roller_launches_successfully(context) -> None:
+    if _skip_if_no_atspi(context):
+        return
+    _launch_targets_assert_and_close(
+        context,
+        FILE_ROLLER_LAUNCH_TARGETS,
+        FILE_ROLLER_APP_NAMES,
+        {"File Roller", "Archive Manager"},
+        "File Roller",
     )
