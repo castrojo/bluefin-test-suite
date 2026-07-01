@@ -1053,6 +1053,80 @@ jobs:
             done
           "
 
+      - name: Install KDE selenium-webdriver-at-spi inputsynth
+        if: ${{ steps.shard.outputs.suite_dir != 'common' }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+          SCP_OPTS="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -o ControlPath=/tmp/ssh-ctrl-%C -P 2222"
+
+          # Build inputsynth from KDE/selenium-webdriver-at-spi on fedora:40
+          # and deploy to the VM at ~/.local/bin/selenium-webdriver-at-spi-inputsynth.
+          mkdir -p /tmp/kde-build
+          podman run --rm -v /tmp/kde-build:/out:Z fedora:40 bash -c "
+            set -e
+            dnf install -y cmake extra-cmake-modules gcc-c++ make git \
+              qt6-qtbase-devel qt6-qtwayland-devel plasma-wayland-protocols-devel \
+              libxkbcommon-devel wayland-devel
+            git clone --quiet --depth 1 https://github.com/KDE/selenium-webdriver-at-spi.git /src
+            cd /src
+            # Patch root CMakeLists.txt to disable heavy unused subdirectories (screenshotter, videorecorder, autotests, appidlister)
+            sed -i 's/add_subdirectory(screenshotter)/#/' CMakeLists.txt
+            sed -i 's/add_subdirectory(videorecorder)/#/' CMakeLists.txt
+            sed -i 's/add_subdirectory(autotests)/#/' CMakeLists.txt
+            sed -i 's/add_subdirectory(appidlister)/#/' CMakeLists.txt
+            sed -i 's/find_package(KF6/#/' CMakeLists.txt
+            sed -i 's/find_package(KWayland/#/' CMakeLists.txt
+            sed -i 's/find_package(KPipeWire REQUIRED)/#/' CMakeLists.txt
+            mkdir build && cd build
+            cmake -DCMAKE_BUILD_TYPE=Release ..
+            make -j\$(nproc)
+            cp inputsynth/selenium-webdriver-at-spi-inputsynth /out/
+          "
+
+          scp ${SCP_OPTS} /tmp/kde-build/selenium-webdriver-at-spi-inputsynth \
+            bluefin-test@127.0.0.1:/home/bluefin-test/.local/bin/selenium-webdriver-at-spi-inputsynth
+          $SSH "chmod +x \$HOME/.local/bin/selenium-webdriver-at-spi-inputsynth && echo 'inputsynth deployed to ~/.local/bin/'"
+
+      - name: Configure Steam remote debugging wrapper
+        if: ${{ steps.shard.outputs.suite_dir != 'common' }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+
+          # Write wrappers to ~/.local/bin/
+          $SSH "
+            mkdir -p \$HOME/.local/bin
+
+            # Native Steam wrapper
+            cat <<'EOF' > \$HOME/.local/bin/steam
+          #!/bin/bash
+          exec /usr/bin/steam --remote-debugging-port=9222 \"\$@\"
+          EOF
+            chmod +x \$HOME/.local/bin/steam
+
+            # Flatpak wrapper (to inject --remote-debugging-port when launching Flatpak Steam)
+            cat <<'EOF' > \$HOME/.local/bin/flatpak
+          #!/bin/bash
+          if [[ \"\$*\" == *\"run com.valvesoftware.Steam\"* ]]; then
+            args=()
+            for arg in \"\$@\"; do
+              args+=(\"\$arg\")
+              if [[ \"\$arg\" == \"com.valvesoftware.Steam\" ]]; then
+                args+=(\"--remote-debugging-port=9222\")
+              fi
+            done
+            exec /usr/bin/flatpak \"\${args[@]}\"
+          else
+            exec /usr/bin/flatpak \"\$@\"
+          fi
+          EOF
+            chmod +x \$HOME/.local/bin/flatpak
+
+            echo 'Steam and Flatpak remote-debugging wrappers deployed to ~/.local/bin/'
+          "
+
       - name: Run behave suite
         id: run
         timeout-minutes: 110

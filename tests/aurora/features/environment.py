@@ -1,15 +1,10 @@
 """
-Bazzite test environment — qecore TestSandbox for GNOME Shell + extensions.
-
-Identical setup to the smoke suite. Bazzite ships 11 enabled extensions;
-this environment enables unsafe_mode and waits for the full panel (including
-Logo Menu which replaces the Activities button) to be ready.
+Aurora test environment — qecore TestSandbox for KDE/Plasma.
 """
 import subprocess
 import sys
 import traceback
 
-from qecore.sandbox import TestSandbox
 from qecore.common_steps import *  # noqa: F401,F403
 
 try:
@@ -37,12 +32,11 @@ except Exception as exc:  # noqa: BLE001
     print(f"WARNING: screenshot steps unavailable: {exc}", flush=True)
 
 
-SUITE_NAME = "bazzite"
+SUITE_NAME = "aurora"
 
 
 def _is_kde_environment() -> bool:
     from steps.app_support import _IN_CONTAINER, _ssh_run
-    import subprocess
     try:
         if _IN_CONTAINER:
             r = _ssh_run("pgrep -x kwin_wayland")
@@ -58,7 +52,6 @@ def _setup_kde_environment(context) -> None:
     import urllib.request
     import os
     import sys
-    import subprocess
     import time
 
     print("KDE/Plasma environment detected — configuring KDE testing stack", flush=True)
@@ -112,69 +105,12 @@ def _setup_kde_environment(context) -> None:
 
 
 def before_all(context) -> None:
-    import time
-    # qecore sandbox.py accesses context.html_formatter in reporting hooks;
-    # set to None to avoid AttributeError when behave-html-formatter is absent.
-    context.html_formatter = None
-
     if _is_kde_environment():
         _setup_kde_environment(context)
         return
-
-    # Wait for GDM autologin + all extensions to initialize
-    time.sleep(8)
-
-    # Enable unsafe_mode for Shell.Eval access
-    for attempt in range(3):
-        try:
-            subprocess.run(
-                [
-                    "gdbus", "call", "--session",
-                    "--dest", "org.gnome.Shell",
-                    "--object-path", "/org/gnome/Shell",
-                    "--method", "org.gnome.Shell.Eval",
-                    "global.context.unsafe_mode = true",
-                ],
-                capture_output=True, timeout=5,
-            )
-            print(f"unsafe_mode set (attempt {attempt + 1})", flush=True)
-            break
-        except Exception as e:  # noqa: BLE001
-            print(f"unsafe_mode attempt {attempt + 1} failed: {e}", flush=True)
-            time.sleep(2)
-
-    # Poll until panel toggle buttons appear (Logo Menu replaces Activities)
-    from dogtail import tree as dtree
-    deadline = time.time() + 20
-    while time.time() < deadline:
-        try:
-            shell = dtree.root.application("gnome-shell")
-            panels = shell.findChildren(lambda n: n.roleName == "panel")
-            if panels:
-                toggles = panels[0].findChildren(
-                    lambda n: n.roleName == "toggle button" and n.showing
-                )
-                if len(toggles) >= 1:
-                    print(
-                        f"Panel ready — toggles: {[t.name for t in toggles]}",
-                        flush=True,
-                    )
-                    break
-        except Exception as e:  # noqa: BLE001
-            print(f"AT-SPI poll: {e}", flush=True)
-        time.sleep(1)
     else:
-        print("WARNING: panel toggles not ready after 20s — proceeding", flush=True)
-
-    try:
-        context.sandbox = TestSandbox("gnome-shell", context=context)
-        context.sandbox.attach_faf = False
-        context.sandbox.production = False
-        context.sandbox.set_keyring = False  # GNOME 50: GDM restart flushes PATH
-        context.shell = context.sandbox.shell
-    except Exception as error:
-        print(f"Environment error: before_all: {error}", flush=True)
-        context.failed_setup = traceback.format_exc()
+        # If not KDE, we skip all scenarios
+        context.failed_setup = "This suite requires a KDE/Plasma environment"
 
 
 def before_scenario(context, scenario) -> None:
@@ -191,12 +127,7 @@ def before_scenario(context, scenario) -> None:
     if skip_quarantine(scenario):
         return
     configure_screenshot_context(context, SUITE_NAME, scenario.name)
-    try:
-        context.sandbox.before_scenario(context, scenario)
-    except Exception:
-        tb = traceback.format_exc()
-        print(f"WARNING: before_scenario setup error — skipping scenario:\n{tb}", flush=True)
-        scenario.skip(reason="before_scenario setup failed (environment not ready)")
+    scenario.skip(reason="before_scenario setup failed (environment not ready)")
 
 
 def after_scenario(context, scenario) -> None:
@@ -212,9 +143,6 @@ def after_scenario(context, scenario) -> None:
                     print(f"WARNING: failed to capture KDE driver screenshot: {e}", flush=True)
         else:
             take_screenshot(scenario.status.name)
-    sandbox = getattr(context, "sandbox", None)
-    if sandbox is not None:
-        context.sandbox.after_scenario(context, scenario)
 
 
 def after_step(context, step) -> None:

@@ -37,6 +37,7 @@ New test scenarios → this repo. New infra (VM specs, manifests, Argo templates
 | Writing behave tests, scaffolding suites, debugging step resolution | `docs/skills/behave.md` |
 | MIME handler verification, xdg-open patterns | `docs/skills/behave.md` |
 | GNOME Shell / AT-SPI / dogtail interactions | `docs/skills/gnome.md` |
+| KDE/Plasma GUI, Gamescope remote-debugging, inputsynth | `docs/skills/kde.md` |
 | GNOME extension testing patterns | `docs/skills/gnome.md` |
 | bootc lifecycle, upgrade, rollback tests | `docs/skills/bootc.md` |
 | Variant matrix, coverage snapshot, @future gaps | `docs/skills/suite-map.md` |

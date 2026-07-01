@@ -63,6 +63,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `smoke` | ✅ | ✅ | ✅ | ✅ | — | — | — | Core GNOME smoke; automatically sharded into `smoke-a` + `smoke-b` parallel jobs |
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
+| `aurora` | — | — | — | — | — | — | — | Aurora settings + KCM accessibility (runs on Aurora images) |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
 | `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, config YAML validation, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios remain quarantined (#176) |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | Flatpak model/state, XDG portals, container runtime, polkit, shell env/sourcing, system scripts, ujust recipes, GSettings/dconf, immutable OS integrity |
@@ -138,7 +139,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-434 scenarios across 52 feature files (last audit: 2026-06-30). 81 quarantined, 338 active, 15 future/hardware_blocked.
+438 scenarios across 55 feature files (last audit: 2026-07-01). 81 quarantined, 342 active, 15 future/hardware_blocked.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
@@ -150,7 +151,8 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 | lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
 | hardware | 13 | 13 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
 | security | 15 | 15 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
-| bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
+| bazzite | 23 | 23 | 0 | Extension presence + shell behaviour + Portal & Gamepad UI |
+| aurora | 1 | 1 | 0 | Custom Aurora Plasma settings & SDDM login |
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
 | nvidia | 12 | 0 | 0 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
 | flatcar | 13 | 10 | 0 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
