@@ -1,0 +1,697 @@
+{
+  "id": "29220682014",
+  "timestamp": "2026-07-13T05:10:08Z",
+  "stream": "testing",
+  "flavor": "bluefin",
+  "suite": "smoke",
+  "version": "40.latest",
+  "git_commit": {
+    "sha": "739a560075723ac49c7768ca5ad9f583c6d42d08",
+    "message": "E2E test run compiled via projectbluefin/bluefin",
+    "author": "KubeVirt Lab",
+    "repo_url": "https://github.com/projectbluefin/bluefin"
+  },
+  "environment": {
+    "runner_id": "homelab-kubevirt-worker",
+    "kubevirt_version": "v1.2.0",
+    "k3s_version": "v1.29.3",
+    "hardware_profile": {
+      "cpu_cores": 8,
+      "memory_gb": 32,
+      "gpu": "None",
+      "disk_type": "NVMe"
+    }
+  },
+  "summary": {
+    "status": "failed",
+    "total_tests": 94,
+    "passed_tests": 14,
+    "failed_tests": 17,
+    "skipped_tests": 63,
+    "total_duration_ms": 1140144
+  },
+  "tests": [
+    {
+      "name": "Bluefin desktop identity > Session is running under Wayland",
+      "status": "passed",
+      "duration_ms": 139,
+      "error_message": null,
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Wayland session type is active"
+    },
+    {
+      "name": "Bluefin desktop identity > No software rendering fallback (LLVMpipe)",
+      "status": "passed",
+      "duration_ms": 155,
+      "error_message": null,
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * GNOME Shell is not using software rendering"
+    },
+    {
+      "name": "Bluefin desktop identity > Dash to Dock is visible in the shell",
+      "status": "failed",
+      "duration_ms": 134,
+      "error_message": "ASSERT FAILED: Dash to Dock panel is not visible",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * Dash to Dock panel is visible\n\u001b[1;31m[ERROR] ASSERT FAILED: Dash to Dock panel is not visible\u001b[0m"
+    },
+    {
+      "name": "Bluefin desktop identity > System tray indicators are available",
+      "status": "passed",
+      "duration_ms": 143,
+      "error_message": null,
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * System tray area is present in the panel"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > AppIndicator support extension is enabled",
+      "status": "failed",
+      "duration_ms": 79851,
+      "error_message": "ASSERT FAILED: Extension 'appindicatorsupport@rgcjonas.gmail.com' is not enabled (state=99). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"appindicatorsupport@rgcjonas.gmail.com\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'appindicatorsupport@rgcjonas.gmail.com' is not enabled (state=99). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > Bazaar Integration extension is enabled",
+      "status": "failed",
+      "duration_ms": 92602,
+      "error_message": "ASSERT FAILED: Extension 'bazaar-integration@kolunmi.github.io' is not enabled (state=6). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"bazaar-integration@kolunmi.github.io\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'bazaar-integration@kolunmi.github.io' is not enabled (state=6). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > Blur My Shell extension is enabled",
+      "status": "failed",
+      "duration_ms": 23699,
+      "error_message": "ASSERT FAILED: Extension 'blur-my-shell@aunetx' is not enabled (state=99). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"blur-my-shell@aunetx\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'blur-my-shell@aunetx' is not enabled (state=99). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > Caffeine extension is enabled",
+      "status": "failed",
+      "duration_ms": 28921,
+      "error_message": "ASSERT FAILED: Extension 'caffeine@patapon.info' is not enabled (state=99). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"caffeine@patapon.info\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'caffeine@patapon.info' is not enabled (state=99). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > Dash to Dock extension is enabled",
+      "status": "failed",
+      "duration_ms": 92078,
+      "error_message": "ASSERT FAILED: Extension 'dash-to-dock@micxgx.gmail.com' is not enabled (state=6). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"dash-to-dock@micxgx.gmail.com\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'dash-to-dock@micxgx.gmail.com' is not enabled (state=6). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > Gradia Integration extension is enabled",
+      "status": "failed",
+      "duration_ms": 64684,
+      "error_message": "ASSERT FAILED: Extension 'gradia-integration@alexandervanhee.github.io' is not enabled (state=99). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"gradia-integration@alexandervanhee.github.io\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'gradia-integration@alexandervanhee.github.io' is not enabled (state=99). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > GSConnect extension is enabled",
+      "status": "failed",
+      "duration_ms": 92315,
+      "error_message": "ASSERT FAILED: Extension 'gsconnect@andyholmes.github.io' is not enabled (state=6). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"gsconnect@andyholmes.github.io\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'gsconnect@andyholmes.github.io' is not enabled (state=6). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > Custom Command List extension is enabled",
+      "status": "failed",
+      "duration_ms": 91946,
+      "error_message": "ASSERT FAILED: Extension 'custom-command-list@storageb.github.com' is not enabled (state=6). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"custom-command-list@storageb.github.com\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'custom-command-list@storageb.github.com' is not enabled (state=6). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Bluefin GNOME extension presence > Search Light extension is enabled",
+      "status": "failed",
+      "duration_ms": 39385,
+      "error_message": "ASSERT FAILED: Extension 'search-light@icedman.github.com' is not enabled (state=99). Expected state=1 (ENABLED).",
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[FAILED] * GNOME extension \"search-light@icedman.github.com\" is enabled\n\u001b[1;31m[ERROR] ASSERT FAILED: Extension 'search-light@icedman.github.com' is not enabled (state=99). Expected state=1 (ENABLED).\u001b[0m"
+    },
+    {
+      "name": "Dakota desktop identity > ghostty is available as Dakota's terminal",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Run and save command output: \"ghostty --version\"\n[SKIPPED] * Return code of last command output \"is\" \"0\""
+    },
+    {
+      "name": "Dakota desktop identity > sudo-rs provides the sudo command",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Run and save command output: \"sudo --version\"\n[SKIPPED] * Return code of last command output \"is\" \"0\"\n[SKIPPED] * Last command output \"contains\" \"sudo-rs\""
+    },
+    {
+      "name": "Dakota desktop identity > Homebrew is preinstalled",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Run and save command output: \"brew --version\"\n[SKIPPED] * Return code of last command output \"is\" \"0\""
+    },
+    {
+      "name": "Dakota desktop identity > distrobox is available",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Run and save command output: \"distrobox --version\"\n[SKIPPED] * Return code of last command output \"is\" \"0\""
+    },
+    {
+      "name": "Dakota desktop identity > Bazaar Integration extension is enabled",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * GNOME Shell is accessible via AT-SPI\n[SKIPPED] * GNOME extension \"bazaar-integration@kolunmi.github.io\" is enabled"
+    },
+    {
+      "name": "Firefox smoke tests > Firefox launches and main window is accessible",
+      "status": "passed",
+      "duration_ms": 21643,
+      "error_message": null,
+      "logs": "[PASSED] * Launch Firefox via command\n[PASSED] * Firefox main window is accessible\n[PASSED] * Firefox main window is accessible"
+    },
+    {
+      "name": "Firefox smoke tests > Address bar is present and focusable",
+      "status": "failed",
+      "duration_ms": 21992,
+      "error_message": "ASSERT FAILED: Firefox address bar not found",
+      "logs": "[PASSED] * Launch Firefox via command\n[PASSED] * Firefox main window is accessible\n[FAILED] * Address bar is present in Firefox\n\u001b[1;31m[ERROR] ASSERT FAILED: Firefox address bar not found\u001b[0m"
+    },
+    {
+      "name": "Firefox smoke tests > Navigating to about:blank loads successfully",
+      "status": "failed",
+      "duration_ms": 22109,
+      "error_message": "ASSERT FAILED: Firefox address bar not found",
+      "logs": "[PASSED] * Launch Firefox via command\n[PASSED] * Firefox main window is accessible\n[FAILED] * Navigate Firefox to \"about:blank\"\n\u001b[1;31m[ERROR] ASSERT FAILED: Firefox address bar not found\u001b[0m\n[SKIPPED] * Address bar is present in Firefox"
+    },
+    {
+      "name": "Firefox smoke tests > New tab opens via Ctrl+T and tab count increases",
+      "status": "failed",
+      "duration_ms": 22354,
+      "error_message": "ASSERT FAILED: Firefox tab list not found",
+      "logs": "[PASSED] * Launch Firefox via command\n[PASSED] * Firefox main window is accessible\n[FAILED] * Firefox tab count increases after Ctrl+T\n\u001b[1;31m[ERROR] ASSERT FAILED: Firefox tab list not found\u001b[0m"
+    },
+    {
+      "name": "Firefox smoke tests > Closing tab via Ctrl+W reduces tab count",
+      "status": "failed",
+      "duration_ms": 22627,
+      "error_message": "ASSERT FAILED: Firefox tab list not found",
+      "logs": "[PASSED] * Launch Firefox via command\n[PASSED] * Firefox main window is accessible\n[FAILED] * Firefox tab count increases after Ctrl+T\n\u001b[1;31m[ERROR] ASSERT FAILED: Firefox tab list not found\u001b[0m\n[SKIPPED] * Firefox tab count decreases after Ctrl+W"
+    },
+    {
+      "name": "Firefox smoke tests > Navigating to a real URL loads the page",
+      "status": "failed",
+      "duration_ms": 22910,
+      "error_message": "ASSERT FAILED: Firefox address bar not found",
+      "logs": "[PASSED] * Launch Firefox via command\n[PASSED] * Firefox main window is accessible\n[FAILED] * Navigate Firefox to \"https://projectbluefin.io\"\n\u001b[1;31m[ERROR] ASSERT FAILED: Firefox address bar not found\u001b[0m\n[SKIPPED] * Address bar is present in Firefox"
+    },
+    {
+      "name": "Firefox smoke tests > Firefox closes cleanly via Ctrl+Q",
+      "status": "failed",
+      "duration_ms": 242981,
+      "error_message": "ASSERT FAILED: Firefox is still visible in the AT-SPI tree",
+      "logs": "[PASSED] * Launch Firefox via command\n[PASSED] * Firefox main window is accessible\n[PASSED] * Key combo: \"<Ctrl><Q>\" with uinput\n[FAILED] * Firefox is no longer running\n\u001b[1;31m[ERROR] ASSERT FAILED: Firefox is still visible in the AT-SPI tree\u001b[0m"
+    },
+    {
+      "name": "Firefox smoke tests > No Firefox coredump after session start",
+      "status": "passed",
+      "duration_ms": 12332,
+      "error_message": null,
+      "logs": "[PASSED] * Launch Firefox via command\n[PASSED] * Firefox main window is accessible\n[PASSED] * No coredump entries exist for \"firefox\""
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > be.alexandervanhee.gradia is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"be.alexandervanhee.gradia\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > com.github.PintaProject.Pinta is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"com.github.PintaProject.Pinta\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > com.github.tchx84.Flatseal is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"com.github.tchx84.Flatseal\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > com.mattjakeman.ExtensionManager is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"com.mattjakeman.ExtensionManager\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > com.ranfdev.DistroShelf is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"com.ranfdev.DistroShelf\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > io.github.flattool.Ignition is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"io.github.flattool.Ignition\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > io.github.flattool.Warehouse is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"io.github.flattool.Warehouse\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > io.github.kolunmi.Bazaar is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"io.github.kolunmi.Bazaar\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > io.gitlab.adhami3310.Impression is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"io.gitlab.adhami3310.Impression\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > io.missioncenter.MissionCenter is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"io.missioncenter.MissionCenter\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > it.mijorus.smile is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"it.mijorus.smile\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Calculator is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Calculator\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Calendar is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Calendar\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Characters is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Characters\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Connections is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Connections\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Contacts is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Contacts\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Decibels is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Decibels\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.DejaDup is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.DejaDup\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.FileRoller is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.FileRoller\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Firmware is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Firmware\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Logs is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Logs\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Loupe is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Loupe\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Maps is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Maps\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.NautilusPreviewer is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.NautilusPreviewer\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Papers is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Papers\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Showtime is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Showtime\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.SimpleScan is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.SimpleScan\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Snapshot is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Snapshot\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.TextEditor is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.TextEditor\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.Weather is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Weather\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.baobab is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.baobab\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.clocks is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.clocks\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.gnome.font-viewer is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.font-viewer\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.mozilla.Thunderbird is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.mozilla.Thunderbird\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > org.mozilla.firefox is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.mozilla.firefox\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > page.tesk.Refine is installed system-wide",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"page.tesk.Refine\" is installed system-wide"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > Calculator Flatpak has no host filesystem access",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Calculator\" sandbox does not have excessive filesystem permissions"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > Loupe Flatpak has no host filesystem access",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.gnome.Loupe\" sandbox does not have excessive filesystem permissions"
+    },
+    {
+      "name": "OOTB Flatpak sandbox permission auditing > Firefox Flatpak has no host filesystem access",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Flatpak \"org.mozilla.firefox\" sandbox does not have excessive filesystem permissions"
+    },
+    {
+      "name": "GNOME accessibility > Accessibility settings panel is reachable",
+      "status": "passed",
+      "duration_ms": 41230,
+      "error_message": null,
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Accessibility\"\n[PASSED] * Settings panel \"Accessibility\" is visible\n[PASSED] * Key combo: \"<Ctrl><Q>\" with uinput\n[PASSED] * Settings is no longer running"
+    },
+    {
+      "name": "GNOME accessibility > High contrast mode can be toggled via gsettings",
+      "status": "passed",
+      "duration_ms": 14,
+      "error_message": null,
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Run and save command output: \"gsettings set org.gnome.desktop.a11y.interface high-contrast true\"\n[PASSED] * Return code of last command output \"is\" \"0\"\n[PASSED] * Run and save command output: \"gsettings get org.gnome.desktop.a11y.interface high-contrast\"\n[PASSED] * Last command output \"contains\" \"true\"\n[PASSED] * Run and save command output: \"gsettings set org.gnome.desktop.a11y.interface high-contrast false\"\n[PASSED] * Return code of last command output \"is\" \"0\""
+    },
+    {
+      "name": "GNOME accessibility > Keyboard accessibility settings key is readable",
+      "status": "passed",
+      "duration_ms": 4,
+      "error_message": null,
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Run and save command output: \"gsettings get org.gnome.desktop.a11y.keyboard enable\"\n[PASSED] * Return code of last command output \"is\" \"0\""
+    },
+    {
+      "name": "GNOME accessibility > AT-SPI registry daemon is running",
+      "status": "failed",
+      "duration_ms": 18,
+      "error_message": [
+        "ASSERT FAILED: ",
+        "Output should contain: 'running'",
+        "But it does not: ''"
+      ],
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Run and save command output: \"pgrep -x at-spi-bus-launcher && echo running\"\n[FAILED] * Last command output \"contains\" \"running\"\n\u001b[1;31m[ERROR] ['ASSERT FAILED: ', \"Output should contain: 'running'\", \"But it does not: ''\"]\u001b[0m"
+    },
+    {
+      "name": "GNOME accessibility > No accessibility-related journal errors after session start",
+      "status": "passed",
+      "duration_ms": 4,
+      "error_message": null,
+      "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Run and save command output: \"journalctl -b --no-pager -p err -g 'at-spi|orca|accessibility' | grep -v '^$' | wc -l\"\n[PASSED] * Last command output \"contains\" \"0\""
+    },
+    {
+      "name": "GNOME app launch smoke tests > Ptyxis terminal launches successfully",
+      "status": "passed",
+      "duration_ms": 23912,
+      "error_message": null,
+      "logs": "[PASSED] * the Ptyxis terminal launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Files file manager launches successfully",
+      "status": "passed",
+      "duration_ms": 74587,
+      "error_message": null,
+      "logs": "[PASSED] * the Files file manager launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Mission Center launches successfully",
+      "status": "failed",
+      "duration_ms": 575,
+      "error_message": null,
+      "logs": "[SKIPPED] * the Mission Center app launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Extension Manager launches successfully",
+      "status": "failed",
+      "duration_ms": 573,
+      "error_message": null,
+      "logs": "[SKIPPED] * the Extension Manager app launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Warehouse launches successfully",
+      "status": "failed",
+      "duration_ms": 585,
+      "error_message": null,
+      "logs": "[SKIPPED] * the Warehouse app launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Impression launches successfully",
+      "status": "failed",
+      "duration_ms": 550,
+      "error_message": null,
+      "logs": "[SKIPPED] * the Impression app launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Clocks launches successfully",
+      "status": "failed",
+      "duration_ms": 584,
+      "error_message": null,
+      "logs": "[SKIPPED] * the Clocks app launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Weather launches successfully",
+      "status": "failed",
+      "duration_ms": 556,
+      "error_message": null,
+      "logs": "[SKIPPED] * the Weather app launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Calendar launches successfully",
+      "status": "failed",
+      "duration_ms": 551,
+      "error_message": null,
+      "logs": "[SKIPPED] * the Calendar app launches successfully"
+    },
+    {
+      "name": "GNOME app launch smoke tests > Decibels launches successfully",
+      "status": "failed",
+      "duration_ms": 553,
+      "error_message": null,
+      "logs": "[SKIPPED] * the Decibels app launches successfully"
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Calculator launches and window is accessible",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible"
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Basic addition",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible\n[SKIPPED] * Click calculator button \"1\"\n[SKIPPED] * Click calculator button \"+\"\n[SKIPPED] * Click calculator button \"2\"\n[SKIPPED] * Click calculator button \"=\"\n[SKIPPED] * Calculator display shows \"3\""
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Basic subtraction",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible\n[SKIPPED] * Click calculator button \"9\"\n[SKIPPED] * Click calculator button \"-\"\n[SKIPPED] * Click calculator button \"4\"\n[SKIPPED] * Click calculator button \"=\"\n[SKIPPED] * Calculator display shows \"5\""
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Clear button resets display",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible\n[SKIPPED] * Click calculator button \"8\"\n[SKIPPED] * Click calculator button \"+\"\n[SKIPPED] * Click calculator button \"1\"\n[SKIPPED] * Clear calculator display\n[SKIPPED] * Calculator display shows \"0\""
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Basic multiplication",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible\n[SKIPPED] * Click calculator button \"6\"\n[SKIPPED] * Click calculator button \"\u00d7\"\n[SKIPPED] * Click calculator button \"7\"\n[SKIPPED] * Click calculator button \"=\"\n[SKIPPED] * Calculator display shows \"42\""
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Basic division",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible\n[SKIPPED] * Click calculator button \"9\"\n[SKIPPED] * Click calculator button \"\u00f7\"\n[SKIPPED] * Click calculator button \"3\"\n[SKIPPED] * Click calculator button \"=\"\n[SKIPPED] * Calculator display shows \"3\""
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Decimal arithmetic",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible\n[SKIPPED] * Click calculator button \"1\"\n[SKIPPED] * Click calculator button \".\"\n[SKIPPED] * Click calculator button \"5\"\n[SKIPPED] * Click calculator button \"+\"\n[SKIPPED] * Click calculator button \"1\"\n[SKIPPED] * Click calculator button \".\"\n[SKIPPED] * Click calculator button \"5\"\n[SKIPPED] * Click calculator button \"=\"\n[SKIPPED] * Calculator display shows \"3\""
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Subtracting to a negative result",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible\n[SKIPPED] * Click calculator button \"3\"\n[SKIPPED] * Click calculator button \"-\"\n[SKIPPED] * Click calculator button \"8\"\n[SKIPPED] * Click calculator button \"=\"\n[SKIPPED] * Calculator display shows \"-5\""
+    },
+    {
+      "name": "GNOME Calculator smoke tests > Calculator closes cleanly via Ctrl+Q",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * Calculator window is accessible\n[SKIPPED] * Key combo: \"<Ctrl><Q>\" with uinput\n[SKIPPED] * Calculator is no longer running"
+    },
+    {
+      "name": "GNOME Calculator smoke tests > No gnome-calculator coredump after session start",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Calculator via command\n[SKIPPED] * No coredump entries exist for \"gnome-calculator\""
+    },
+    {
+      "name": "GNOME Extensions smoke tests > At least one GNOME extension is installed",
+      "status": "passed",
+      "duration_ms": 361,
+      "error_message": null,
+      "logs": "[PASSED] * At least one GNOME extension is installed"
+    },
+    {
+      "name": "GNOME Extensions smoke tests > At least one GNOME extension is enabled",
+      "status": "passed",
+      "duration_ms": 346,
+      "error_message": null,
+      "logs": "[PASSED] * At least one GNOME extension is enabled"
+    },
+    {
+      "name": "GNOME Extensions smoke tests > GNOME Extensions preferences app launches",
+      "status": "failed",
+      "duration_ms": 0,
+      "error_message": null,
+      "logs": "[SKIPPED] * Launch Extensions preferences via command\n[SKIPPED] * Extensions window is accessible\n[SKIPPED] * Key combo: \"<Alt><F4>\" with uinput\n[SKIPPED] * Extensions is no longer running"
+    },
+    {
+      "name": "GNOME Extensions smoke tests > No gnome-shell crash on extension load",
+      "status": "passed",
+      "duration_ms": 141,
+      "error_message": null,
+      "logs": "[PASSED] * No gnome-shell extension load journal errors exist"
+    }
+  ]
+}
