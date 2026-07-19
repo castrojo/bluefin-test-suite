@@ -33,32 +33,39 @@ Feature: GNOME Shell smoke tests
     * System menu toggle is visible in top bar
 
   # ── Activities overview ───────────────────────────────────────────────────
-  # NOTE: uinput Super key (KEY_LEFTMETA) is unreliable on GNOME 50 Wayland —
-  # Mutter does not route it from python-uinput devices. Use Shell.Eval instead.
+  # GNOME 50 disables Shell.Eval outside unsafe mode, and unsafe mode cannot be
+  # enabled from a cold session via D-Bus.  Use the stable org.gnome.Shell
+  # OverviewActive property and AT-SPI for search-entry state instead.
+  #
+  # IMPORTANT: commands are routed through an SSH wrapper that prefixes them
+  # with ``source /tmp/session.env``.  gdbus GVariant literals like ``<true>``
+  # are interpreted as shell redirection operators in that wrapper, so overview
+  # D-Bus calls must use busctl (no angle brackets).  See PR #602.
 
-  @retry @activities @sla_5s @quarantine
+  @retry @activities @sla_5s
   Scenario: Super key opens Activities overview
     * GNOME Shell is accessible via AT-SPI
-    * Open Activities overview via Shell.Eval
+    * Open Activities overview
     * Overview is open
-    * Close Activities overview via Shell.Eval
+    * Close Activities overview via D-Bus
     * Overview is closed
 
-  @activities @quarantine
+  @activities
   Scenario: Typing in overview populates search bar
     * GNOME Shell is accessible via AT-SPI
-    * Open Activities overview via Shell.Eval
+    * Open Activities overview
     * Overview is open
-    * Set overview search text to "Files" via Shell.Eval
+    * Dismiss the Bluefin welcome dialog if it appears
+    * Type "Files" in overview search entry
     * Overview search bar contains "Files"
-    * Close Activities overview via Shell.Eval
+    * Close Activities overview via D-Bus
 
-  @activities @quarantine
-  Scenario: Escape closes Activities overview
+  @activities
+  Scenario: D-Bus closes Activities overview
     * GNOME Shell is accessible via AT-SPI
-    * Open Activities overview via Shell.Eval
+    * Open Activities overview
     * Overview is open
-    * Close Activities overview via Shell.Eval
+    * Close Activities overview via D-Bus
     * Overview is closed
 
   # ── Quick Settings ────────────────────────────────────────────────────────
@@ -118,12 +125,12 @@ Feature: GNOME Shell smoke tests
   # ── Lock screen ──────────────────────────────────────────────────────────
   # Lock screen is highest-priority: extensions can silently break it.
 
-  @lock_screen @quarantine
+  @lock_screen
   Scenario: Screen lock engages without crashing GNOME Shell
     * GNOME Shell is accessible via AT-SPI
-    * Lock screen via Shell.Eval
+    * Lock screen via loginctl
     * Session is locked
-    * Unlock screen via Shell.Eval
+    * Unlock screen via loginctl
 
   # ── Workspaces ────────────────────────────────────────────────────────────
 

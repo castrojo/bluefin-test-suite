@@ -18,9 +18,11 @@ dogtail API: root.application(), Node.findChild(), Node.child(roleName=)
 """
 import os
 import subprocess
+import time
 from time import sleep
 
 from behave import step
+
 try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
@@ -61,6 +63,44 @@ def _run_host(cmd: str, timeout: int = 30):
             env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{os.getuid()}/bus"
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout, env=env)
     return result.stdout.strip(), result.returncode, result.stderr.strip()
+
+
+# ── D-Bus helpers (GNOME 50: Shell.Eval requires unsafe_mode, which cannot be
+# enabled from a cold session via D-Bus. Use stable org.gnome.Shell properties
+# and methods instead.) ──
+
+def _gdbus_call(
+    method: str,
+    interface: str = "org.gnome.Shell",
+    object_path: str = "/org/gnome/Shell",
+    args: str = "",
+) -> str:
+    """Call a D-Bus method on org.gnome.Shell via gdbus (routed over SSH in CI)."""
+    cmd = (
+        "source /tmp/session.env 2>/dev/null; "
+        f"gdbus call --session --dest org.gnome.Shell "
+        f"--object-path {object_path} "
+        f"--method {interface}.{method} {args}"
+    ).strip()
+    stdout, rc, stderr = _run_host(cmd)
+    assert rc == 0, f"gdbus {interface}.{method} failed: {stderr}"
+    return stdout.strip()
+
+
+def _gdbus_property_get(interface: str, property_name: str) -> str:
+    """Get a D-Bus property on org.gnome.Shell."""
+    return _gdbus_call(
+        method="org.freedesktop.DBus.Properties.Get",
+        args=f"{interface} {property_name}",
+    )
+
+
+def _gdbus_property_set(interface: str, property_name: str, value: str) -> None:
+    """Set a D-Bus property on org.gnome.Shell; value is a GVariant string."""
+    _gdbus_call(
+        method="org.freedesktop.DBus.Properties.Set",
+        args=f"{interface} {property_name} {value}",
+    )
 
 
 # ── Shell.Eval helpers (GNOME 50: uinput Super + AT-SPI toggle click broken) ──
@@ -161,6 +201,147 @@ _DND_TOGGLE_JS = (
 )
 
 
+def _overview_active() -> bool:
+    """Read the org.gnome.Shell OverviewActive property via busctl.
+
+    busctl is used instead of gdbus because gdbus requires GVariant angle
+    brackets (<true>) which are misinterpreted as shell redirection operators
+    by the SSH/wrapper layer that prefixes commands with ``source /tmp/session.env``.
+    """
+    cmd = (
+        "source /tmp/session.env 2>/dev/null; "
+        "busctl --user get-property org.gnome.Shell /org/gnome/Shell org.gnome.Shell OverviewActive"
+    )
+    stdout, rc, stderr = _run_host(cmd)
+    assert rc == 0, f"busctl get-property OverviewActive failed: {stderr}"
+    return stdout.strip().endswith("true")
+
+
+def _set_overview_active(active: bool) -> None:
+    """Set the org.gnome.Shell OverviewActive property via busctl."""
+    value = "true" if active else "false"
+    cmd = (
+        "source /tmp/session.env 2>/dev/null; "
+        f"busctl --user set-property org.gnome.Shell /org/gnome/Shell org.gnome.Shell OverviewActive b {value}"
+    )
+    stdout, rc, stderr = _run_host(cmd)
+    assert rc == 0, f"busctl set-property OverviewActive {value} failed: {stderr}"
+
+
+def _wait_overview_active(expected: bool, retries: int = 12, delay: float = 0.5) -> bool:
+    """Poll OverviewActive until it equals expected or timeout."""
+    for _ in range(retries):
+        try:
+            if _overview_active() == expected:
+                return True
+        except AssertionError:
+            pass
+        sleep(delay)
+    return False
+
+
+def _overview_search_entry(context, timeout: int = 10):
+    """Find the overview search entry in the gnome-shell AT-SPI tree.
+
+    GNOME 50 headless QEMU: the search entry role varies (text/entry) and its
+    accessible name may be the placeholder "Type to search…" or empty.  Search
+    the whole gnome-shell tree and prefer a search-like name.
+    """
+    shell = context.sandbox.shell
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        candidates = shell.findChildren(
+            lambda n: n.showing and n.roleName in {"text", "entry"}
+        )
+        for candidate in candidates:
+            name = (candidate.name or "").lower()
+            if "search" in name or "type to" in name:
+                return candidate
+        if candidates:
+            return candidates[0]
+        sleep(0.2)
+    raise AssertionError("Overview search entry not found in AT-SPI tree")
+
+
+def _dismiss_welcome_dialog() -> None:
+    """Dismiss the Bluefin first-boot Welcome dialog if it blocks the session.
+
+    Fresh CI VMs show a "Welcome to Bluefin" modal with Skip/Take Tour buttons.
+    Click Skip so subsequent AT-SPI steps can reach the overview search entry.
+    """
+    try:
+        from dogtail import tree
+    except Exception:  # noqa: BLE001
+        return
+    for _ in range(10):
+        skip_buttons = tree.root.findChildren(
+            lambda n: n.showing
+            and n.roleName in {"push button", "button"}
+            and (n.name or "").strip().lower() == "skip"
+        )
+        if not skip_buttons:
+            return
+        try:
+            skip_buttons[0].click()
+        except Exception:  # noqa: BLE001
+            try:
+                actions = skip_buttons[0].actions or {}
+                for action in ("click", "press", "activate"):
+                    if action in actions:
+                        skip_buttons[0].do_action_named(action)
+                        break
+            except Exception:  # noqa: BLE001
+                pass
+        sleep(0.5)
+
+
+@step('Dismiss the Bluefin welcome dialog if it appears')
+def dismiss_welcome_dialog(context) -> None:
+    """Behave step wrapper for _dismiss_welcome_dialog."""
+    _dismiss_welcome_dialog()
+
+
+def _node_text_value(node) -> str:
+    """Return the accessible text of a node, including child text entries.
+
+    GNOME 50's overview search entry sometimes stores the typed text on a child
+    text node rather than on the entry itself; gather text from all children too.
+    """
+    parts = []
+    name = (getattr(node, "name", "") or "").strip()
+    if name:
+        parts.append(name)
+    try:
+        text = (getattr(node, "text", "") or "").strip()
+        if text:
+            parts.append(text)
+    except Exception:  # noqa: BLE001
+        pass
+    for child in getattr(node, "children", []) or []:
+        child_text = _node_text_value(child)
+        if child_text and child_text not in parts:
+            parts.append(child_text)
+    return " ".join(parts)
+
+
+def _loginctl_session_id() -> str:
+    """Return the first graphical session ID from loginctl."""
+    stdout, rc, _ = _run_host("loginctl list-sessions --no-legend 2>/dev/null | head -1")
+    assert rc == 0, f"loginctl list-sessions failed: {stdout}"
+    assert stdout.strip(), "No loginctl sessions found"
+    return stdout.strip().split()[0]
+
+
+def _session_locked_hint() -> bool:
+    """Return the logind LockedHint for the current session."""
+    session_id = _loginctl_session_id()
+    stdout, rc, _ = _run_host(
+        f"loginctl show-session {session_id} --property=LockedHint 2>/dev/null"
+    )
+    assert rc == 0, f"loginctl show-session {session_id} failed: {stdout}"
+    return "LockedHint=yes" in stdout
+
+
 def _dnd_toggle_exists_js() -> str:
     # GNOME 50: _doNotDisturb may exist as an object but lack a .checked property.
     # Verify both the toggle and its .checked accessor exist before relying on it.
@@ -237,10 +418,18 @@ def no_journal_entries_at_priority_contain(context, priority: str, text: str) ->
     assert not matches, f"Unexpected journal matches for {text!r}: {matches}"
 
 
-@step('Open Activities overview via Shell.Eval')
-def open_overview_eval(context) -> None:
-    _shell_eval('Main.overview.show()')
-    sleep(1)
+@step('Open Activities overview')
+def open_activities_overview(context) -> None:
+    """Open the Activities overview via the stable org.gnome.Shell D-Bus property."""
+    _set_overview_active(True)
+    sleep(0.2)
+
+
+@step('Close Activities overview via D-Bus')
+def close_activities_overview_via_dbus(context) -> None:
+    """Close the Activities overview via the stable org.gnome.Shell D-Bus property."""
+    _set_overview_active(False)
+    sleep(0.2)
 
 
 @step('Quick Settings panel is open via Shell.Eval')
@@ -352,70 +541,58 @@ def date_menu_open_eval(context) -> None:
         raise AssertionError(f"Date menu not open — Shell.Eval returned: {out!r}")
 
 
-@step('Set overview search text to "{text}" via Shell.Eval')
-def set_overview_search_eval(context, text) -> None:
-    """Populate overview search bar via GNOME Shell JS.
+@step('Type "{text}" in overview search entry')
+def type_in_overview_search_entry(context, text: str) -> None:
+    """Type text into the overview search entry via dogtail/rawinput.
 
-    Uses clutter_text.set_text() which naturally emits the text-changed
-    signal, triggering the search controller without relying on the private
-    _onSearchChanged() method that was removed in GNOME 47+.
+    GNOME 50 headless: opening the overview via D-Bus shows it but may not give
+    keyboard focus to the search entry.  Click the entry first, then type.
     """
-    safe_text = text.replace('"', '\\"')
-    # clutter_text.set_text() emits text-changed, which the SearchEntry
-    # propagates to the search controller — works across GNOME 45–50.
-    _shell_eval(f'Main.overview.searchEntry.clutter_text.set_text("{safe_text}")')
+    entry = _overview_search_entry(context)
+    try:
+        entry.click()
+    except Exception:  # noqa: BLE001
+        try:
+            entry.grabFocus()
+        except Exception:  # noqa: BLE001
+            pass
+    sleep(0.2)
+    from dogtail.rawinput import typeText
+
+    typeText(text)
+    sleep(0.2)
+
+
+@step("Lock screen via loginctl")
+def lock_screen_via_loginctl(context) -> None:
+    """Lock the GNOME session via loginctl lock-session (robust in headless)."""
+    session_id = _loginctl_session_id()
+    stdout, rc, stderr = _run_host(f"loginctl lock-session {session_id}")
+    assert rc == 0, f"loginctl lock-session failed: {stderr}\n{stdout}"
     sleep(0.5)
-
-
-@step("Lock screen via Shell.Eval")
-def lock_screen_via_shell_eval(context) -> None:
-    """Lock the GNOME session via org.gnome.ScreenSaver.Lock d-bus call."""
-    cmd = "source /tmp/session.env 2>/dev/null; gdbus call --session --dest org.gnome.ScreenSaver --object-path /org/gnome/ScreenSaver --method org.gnome.ScreenSaver.Lock"
-    _run_host(cmd)
-    sleep(1)
 
 
 @step("Session is locked")
 def session_is_locked(context) -> None:
-    """Assert the current session is in a locked state via loginctl."""
-    for _ in range(10):
-        stdout, rc, _ = _run_host(
-            "loginctl list-sessions --no-legend 2>/dev/null | head -1"
-        )
-        if not stdout.strip():
-            sleep(1)
-            continue
-        session_id = stdout.strip().split()[0]
-        locked_out, _, _ = _run_host(
-            f"loginctl show-session {session_id} --property=LockedHint 2>/dev/null"
-        )
-        if "LockedHint=yes" in locked_out:
+    """Assert the current session is in a locked state via logind LockedHint."""
+    for _ in range(20):
+        if _session_locked_hint():
             return
-        sleep(1)
+        sleep(0.5)
     raise AssertionError("Session is not locked after 10s")
 
 
-@step("Unlock screen via Shell.Eval")
-def unlock_screen_via_shell_eval(context) -> None:
-    """Unlock the GNOME session via gdbus ScreenSaver SetActive(false)."""
-    stdout, rc, stderr = _run_host(
-        "source /tmp/session.env 2>/dev/null; "
-        "gdbus call --session "
-        "--dest org.gnome.ScreenSaver "
-        "--object-path /org/gnome/ScreenSaver "
-        "--method org.gnome.ScreenSaver.SetActive "
-        "false"
-    )
-    assert rc == 0, f"gdbus ScreenSaver.SetActive(false) failed: {stderr}"
+@step("Unlock screen via loginctl")
+def unlock_screen_via_loginctl(context) -> None:
+    """Unlock the GNOME session via loginctl unlock-session (robust in headless)."""
+    session_id = _loginctl_session_id()
+    stdout, rc, stderr = _run_host(f"loginctl unlock-session {session_id}")
+    assert rc == 0, f"loginctl unlock-session failed: {stderr}\n{stdout}"
 
-    for _ in range(10):
-        locked_out, _, _ = _run_host(
-            "loginctl list-sessions --no-legend 2>/dev/null | head -1 | "
-            "awk '{print $1}' | xargs -I{} loginctl show-session {} --property=LockedHint 2>/dev/null"
-        )
-        if "LockedHint=no" in locked_out:
+    for _ in range(20):
+        if not _session_locked_hint():
             return
-        sleep(1)
+        sleep(0.5)
 
     raise AssertionError("Session is still locked after unlock attempt")
 
@@ -470,35 +647,40 @@ def active_workspace_has_changed(context) -> None:
 
 @step("Overview is open")
 def overview_is_open(context) -> None:
-    """Check via Shell.Eval: AT-SPI overview node naming is unstable across GNOME versions."""
-    if not _wait_eval_bool('Main.overview.visible.toString()', expected=True, retries=8):
-        raise AssertionError("Activities overview did not open after 4s")
+    """Check the org.gnome.Shell OverviewActive D-Bus property.
+
+    GNOME 50 headless QEMU reports Main.overview.visible=false even when the
+    overview is shown; the D-Bus property tracks the same state but is exposed
+    without requiring Shell.Eval/unsafe_mode.
+    """
+    if not _wait_overview_active(expected=True, retries=12):
+        raise AssertionError("Activities overview did not open after 6s")
 
 
 @step("Overview is closed")
 def overview_is_closed(context) -> None:
-    """Check via Shell.Eval: AT-SPI overview node naming is unstable across GNOME versions."""
-    if not _wait_eval_bool('Main.overview.visible.toString()', expected=False, retries=8):
-        raise AssertionError("Activities overview is still showing after 4s")
+    """Check the org.gnome.Shell OverviewActive D-Bus property."""
+    if not _wait_overview_active(expected=False, retries=12):
+        raise AssertionError("Activities overview is still showing after 6s")
 
 
 @step('Overview search bar contains "{text}"')
-def overview_search_bar_contains(context, text) -> None:
-    """Verify search bar text via Shell.Eval for reliability across GNOME versions.
+def overview_search_bar_contains(context, text: str) -> None:
+    """Verify the overview search entry text via AT-SPI.
 
-    AT-SPI text entry roles vary (text/entry/document text) and the search
-    entry may not be visible until the controller activates — JS is faster.
+    GNOME 50 disables Shell.Eval outside unsafe mode, and unsafe mode cannot be
+    enabled from a cold session via D-Bus, so we read the accessible text of the
+    search entry directly.
     """
-    import re
-    for _ in range(8):
-        out = _shell_eval('Main.overview.searchEntry.clutter_text.get_text()')
-        # gdbus returns: (true, 'Files') — extract the JS result string
-        m = re.search(r",\s*'([^']*)'\s*\)", out)
-        if m and text in m.group(1):
+    for _ in range(20):
+        entry = _overview_search_entry(context)
+        current = _node_text_value(entry)
+        if text in current:
+            print(f"Overview search bar text: {current!r}", flush=True)
             return
-        sleep(0.5)
+        sleep(0.2)
     raise AssertionError(
-        f"Overview search bar does not contain {text!r} — last Shell.Eval: {out!r}"
+        f"Overview search bar does not contain {text!r}"
     )
 
 
