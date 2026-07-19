@@ -185,6 +185,9 @@ jobs:
       # suites must preload OOTB Flatpaks after SSH comes up. Build the manifest
       # from the image under test rather than hard-coding app IDs, so the cache
       # and the VM deployment always match what the image actually ships.
+      # Bluefin declares its default system flatpaks in a Homebrew Brewfile
+      # (/usr/share/ublue-os/homebrew/system-flatpaks.Brewfile) and any additional
+      # entries in /usr/share/flatpak/preinstall.d/*.preinstall.
       - name: Generate OOTB Flatpak manifest from image
         if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' }}
         id: manifest
@@ -192,10 +195,11 @@ jobs:
           set -euo pipefail
 
           CTR=$(sudo podman create "${IMAGE}")
-          mkdir -p preinstall-src
-          sudo podman cp "${CTR}:/usr/share/flatpak/preinstall.d" ./preinstall-src || true
+          mkdir -p flatpak-manifest-src
+          sudo podman cp "${CTR}:/usr/share/ublue-os/homebrew/system-flatpaks.Brewfile" ./flatpak-manifest-src/system-flatpaks.Brewfile || true
+          sudo podman cp "${CTR}:/usr/share/flatpak/preinstall.d" ./flatpak-manifest-src/preinstall.d || true
           sudo podman rm "${CTR}"
-          sudo chown -R runner:runner ./preinstall-src || true
+          sudo chown -R runner:runner ./flatpak-manifest-src || true
 
           python3 - <<'PY'
           import configparser
@@ -203,10 +207,26 @@ jobs:
           import hashlib
           import os
           import re
-          import sys
 
           apps = set()
-          for path in sorted(glob.glob("preinstall-src/preinstall.d/*.preinstall")):
+
+          # Primary source: Bluefin's system-wide flatpak Brewfile.
+          brewfile = "flatpak-manifest-src/system-flatpaks.Brewfile"
+          if os.path.isfile(brewfile):
+              with open(brewfile, encoding="utf-8") as fh:
+                  for line in fh:
+                      line = line.strip()
+                      match = re.match(r'^flatpak\s+"([^"]+)"', line)
+                      if not match:
+                          continue
+                      app_id = match.group(1)
+                      # Skip theme packages; they are not asserted as OOTB apps.
+                      if app_id.startswith("org.gtk.Gtk3theme."):
+                          continue
+                      apps.add(app_id)
+
+          # Supplemental source: any preinstall.d entries (e.g. Bazaar).
+          for path in sorted(glob.glob("flatpak-manifest-src/preinstall.d/*.preinstall")):
               cfg = configparser.ConfigParser()
               try:
                   cfg.read(path, encoding="utf-8")
@@ -225,11 +245,13 @@ jobs:
                           continue
                   except ValueError:
                       continue
+                  if app_id.startswith("org.gtk.Gtk3theme."):
+                      continue
                   apps.add(app_id)
 
           apps = sorted(apps)
           with open("flatpak-app-list.txt", "w", encoding="utf-8") as fh:
-              fh.write("# OOTB Flatpak apps derived from image /usr/share/flatpak/preinstall.d\n")
+              fh.write("# OOTB Flatpak apps derived from image-native manifests\n")
               for app in apps:
                   fh.write(f"{app}\n")
 
@@ -241,7 +263,7 @@ jobs:
           for app in apps:
               print(f"  {app}")
           PY
-          rm -rf ./preinstall-src
+          rm -rf ./flatpak-manifest-src
 
       - name: Restore Flatpak download cache
         if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' }}
@@ -296,14 +318,20 @@ jobs:
         run: |
           fallocate -l 30G disk.raw
 
-          # --bootloader was added in bootc ≥0.1.13. Older images (e.g. nvidia:latest
-          # built Oct 2025) ship an earlier bootc that rejects the flag. Probe
-          # support before constructing the install command.
+          # --bootloader was added in bootc ≥0.1.13. Newer bootc delegates
+          # bootloader installation to bootupd, which is not available in the CI
+          # install environment and is unnecessary because we boot the VM directly
+          # from the extracted vmlinuz/initramfs. Use --bootloader none when
+          # supported; fall back to --bootloader systemd for older images.
           # --karg is also not present in all bootc versions; omit it entirely since
           # systemd.firstboot=no is already included in the QEMU -append KERNEL_ARGS.
           BOOTLOADER_FLAG=""
           if sudo podman run --rm --quiet "${IMAGE}" bootc install to-disk --help 2>&1 | grep -q "\-\-bootloader"; then
-            BOOTLOADER_FLAG="--bootloader systemd"
+            if sudo podman run --rm --quiet "${IMAGE}" bootc install to-disk --help 2>&1 | grep -E "^\s+none" >/dev/null; then
+              BOOTLOADER_FLAG="--bootloader none"
+            else
+              BOOTLOADER_FLAG="--bootloader systemd"
+            fi
           fi
 
           BOOTC_INSTALL_LOG="$(pwd)/bootc-install.log"
