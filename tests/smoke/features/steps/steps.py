@@ -568,14 +568,14 @@ def system_tray_present(context) -> None:
 DOCUMENT_VIEWERS = {"org.gnome.Papers.desktop", "evince.desktop", "okular.desktop"}
 IMAGE_VIEWERS = {"org.gnome.Loupe.desktop", "eog.desktop", "gthumb.desktop", "shotwell.desktop"}
 TEXT_EDITORS = {"org.gnome.TextEditor.desktop", "gedit.desktop", "gnome-text-editor.desktop"}
-VIDEO_PLAYERS = {"io.github.celluloid_player.Celluloid.desktop", "totem.desktop", "vlc.desktop", "mpv.desktop"}
+VIDEO_PLAYERS = {"org.gnome.Showtime.desktop", "io.github.celluloid_player.Celluloid.desktop", "totem.desktop", "vlc.desktop", "mpv.desktop"}
 
 
 def _xdg_mime_default(mime_type: str) -> str:
     # When running inside the runner container, xdg-mime is not available on the
     # host — the MIME database lives in the QEMU VM.  Route via SSH in that case.
     # XDG_DATA_DIRS must include Flatpak export paths so Flatpak-installed app
-    # MIME registrations (Firefox, Papers, Loupe, Celluloid) are visible to
+    # MIME registrations (Firefox, Papers, Loupe, Showtime) are visible to
     # xdg-mime query; SSH sessions don't inherit the user session XDG_DATA_DIRS.
     from app_support import _IN_CONTAINER, _ssh_run
     if _IN_CONTAINER:
