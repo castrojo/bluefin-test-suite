@@ -49,10 +49,25 @@ def x11_client_glxgears_is_available(context) -> None:
             pass
 
 
-@step("No XWayland process is running")
-def no_xwayland_process_is_running(context) -> None:
-    stdout, _, _ = _run_host("pgrep -a -x Xwayland || true")
-    assert not stdout.strip(), f"XWayland is already running: {stdout.strip()}"
+def _xwayland_display_env() -> dict[str, str]:
+    """Return DISPLAY and XAUTHORITY for the running XWayland server."""
+    stdout, rc, _ = _run_host("pgrep -a -x Xwayland || true")
+    assert rc == 0 and stdout.strip(), "XWayland is not running"
+    line = stdout.splitlines()[0]
+    display = ":0"
+    auth = None
+    parts = line.split()
+    for i, part in enumerate(parts):
+        if part == "-auth" and i + 1 < len(parts):
+            auth = parts[i + 1]
+    for part in parts:
+        if part.startswith(":") and part[1:].isdigit():
+            display = part
+            break
+    env = {"DISPLAY": display}
+    if auth:
+        env["XAUTHORITY"] = auth
+    return env
 
 
 @step("Launch glxgears via command")
@@ -73,7 +88,11 @@ def xwayland_process_appears_within_seconds(context, timeout: int) -> None:
 
 @step("xprop can query the X root window")
 def xprop_can_query_x_root_window(context) -> None:
-    stdout, rc, stderr = _run_host_session("xprop -root >/dev/null 2>&1; echo $?")
+    xenv = _xwayland_display_env()
+    env_exports = " ".join(f'export {k}="{v}";' for k, v in xenv.items())
+    stdout, rc, stderr = _run_host_session(
+        f"{env_exports} xprop -root >/dev/null 2>&1; echo $?"
+    )
     assert rc == 0 and stdout.strip() == "0", (
         f"xprop -root failed (rc={rc}, exit={stdout.strip()}): {stderr}"
     )
@@ -84,6 +103,11 @@ def terminate_glxgears(context) -> None:
     _run_host("pkill -x glxgears 2>/dev/null || true")
     # Brief settle so XWayland has released the client before the next step polls.
     time.sleep(0.5)
+
+
+@step("Terminate any running glxgears")
+def terminate_any_running_glxgears(context) -> None:
+    _run_host("pkill -x glxgears 2>/dev/null || true")
 
 
 @step("Wait {seconds:d} seconds")

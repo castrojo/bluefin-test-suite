@@ -1,16 +1,16 @@
 @smoke_suite
 Feature: XWayland smoke tests
-  Validates XWayland starts on demand when a native X11 client connects and
-  runs without crashing.  Uses glxgears from glx-utils because it is a pure
-  X11 GLX client (links libX11, calls XOpenDisplay) that ships on stock
+  Validates XWayland is present and usable when a native X11 client connects
+  and runs without crashing.  Uses glxgears from glx-utils because it is a
+  pure X11 GLX client (links libX11, calls XOpenDisplay) that ships on stock
   Fedora/GNOME images.
 
   Background:
     * X11 client glxgears is available
+    * Terminate any running glxgears
 
   @xwayland @on_demand
-  Scenario: XWayland starts on demand for an X11 client
-    * No XWayland process is running
+  Scenario: XWayland process appears when an X11 client connects
     * Launch glxgears via command
     * XWayland process appears within 10 seconds
     * Terminate glxgears
