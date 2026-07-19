@@ -165,9 +165,15 @@ container SSHing into the VM), <code>xdg-mime</code> is not installed on the con
 host — it lives in the Bluefin VM. Always route through <code>_ssh_run</code> in that
 case.</p>
 <p><strong>Critical</strong>: SSH sessions do NOT inherit the GNOME user session <code>XDG_DATA_DIRS</code>.
-Flatpak apps (Firefox, Papers, Loupe, Celluloid) register MIME handlers under
+Flatpak apps (Firefox, Papers, Loupe, Showtime) register MIME handlers under
 <code>/var/lib/flatpak/exports/share/applications/</code>. Without this path in
 <code>XDG_DATA_DIRS</code>, <code>xdg-mime query default</code> returns empty for Flatpak MIME types.</p>
+<p><strong>Keep allowlists synced to the OOTB set</strong>: the <code>DOCUMENT_VIEWERS</code> /
+<code>IMAGE_VIEWERS</code> / <code>TEXT_EDITORS</code> / <code>VIDEO_PLAYERS</code> sets in smoke <code>steps.py</code>
+must match what <code>flatpak_permissions.feature</code> says the image actually ships.
+Bluefin ships <code>org.gnome.Showtime</code> as its OOTB video player — a stale
+allowlist (e.g. Celluloid-only) blocks the matching mimeapps.list default in
+projectbluefin/common from ever passing.</p>
 <p>Always set <code>XDG_DATA_DIRS</code> explicitly in the SSH call:</p>
 <pre><code class="language-python">from app_support import _IN_CONTAINER, _ssh_run
 if _IN_CONTAINER:
