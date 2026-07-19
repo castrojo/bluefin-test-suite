@@ -16,6 +16,7 @@ def _import_common_steps():
     sys.modules["behave"] = behave_stub
 
     ssh_steps_stub = types.ModuleType("tests.shared.ssh_steps")
+    ssh_steps_stub.run_ssh = lambda *a, **kw: ("", 0)
     sys.modules["tests.shared"] = sys.modules.get("tests.shared", types.ModuleType("tests.shared"))
     sys.modules["tests.shared.ssh_steps"] = ssh_steps_stub
 
