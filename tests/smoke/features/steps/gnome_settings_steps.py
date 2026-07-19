@@ -245,3 +245,38 @@ def about_page_shows_system_information(context) -> None:
     raise AssertionError(
         "About page did not expose visible system information text"
     )
+
+
+def _ancestor_with_name(node, name: str, max_depth: int = 8):
+    """Return the first ancestor of ``node`` whose name matches ``name``."""
+    current = getattr(node, "parent", None)
+    depth = 0
+    while current and depth < max_depth:
+        if (getattr(current, "name", "") or "").strip() == name:
+            return current
+        current = getattr(current, "parent", None)
+        depth += 1
+    return None
+
+
+@step("Online Accounts provider list is non-empty")
+def online_accounts_provider_list_is_non_empty(context) -> None:
+    app = _settings_app()
+    panel_name = "Online Accounts"
+    provider_roles = {"list item", "row", "table row"}
+    for _ in range(20):
+        rows = app.findChildren(
+            lambda n: n.showing
+            and n.roleName in provider_roles
+            and (n.name or "").strip()
+            and _ancestor_with_name(n, panel_name) is not None
+        )
+        if rows:
+            context.online_accounts_providers = [
+                (n.name or "").strip() for n in rows
+            ]
+            return
+        sleep(0.5)
+    raise AssertionError(
+        "No Online Accounts provider rows visible in the AT-SPI tree"
+    )
