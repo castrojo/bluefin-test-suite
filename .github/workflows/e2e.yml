@@ -166,18 +166,90 @@ jobs:
           echo "FEATURE_ARGS=${{ steps.shard.outputs.feature_args }}" >> "$GITHUB_ENV"
           echo "SCREENSHOT_SUITE=${{ steps.shard.outputs.screenshot_suite }}" >> "$GITHUB_ENV"
 
+      # Pull the image early so we can derive the OOTB Flatpak manifest from the
+      # image's /usr/share/flatpak/preinstall.d before deciding whether the
+      # runner-side cache matches the image under test.
+      - name: Install QEMU and pull OCI image
+        run: |
+          sudo podman pull "${IMAGE}" &
+          PULL_PID=$!
+          # Pull runner container in parallel — piped into VM after boot
+          sudo podman pull ghcr.io/projectbluefin/testsuite:runner &
+          RUNNER_PID=$!
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends qemu-system-x86
+          wait $PULL_PID
+          wait $RUNNER_PID
+
       # flatpak-preinstall.service is masked in KERNEL_ARGS, so Bluefin-family GUI
-      # suites must preload any explicitly-tested Flatpaks after SSH comes up.
-      # Cache a small user Flatpak repo on the runner, then inject and deploy it in-VM.
+      # suites must preload OOTB Flatpaks after SSH comes up. Build the manifest
+      # from the image under test rather than hard-coding app IDs, so the cache
+      # and the VM deployment always match what the image actually ships.
+      - name: Generate OOTB Flatpak manifest from image
+        if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' }}
+        id: manifest
+        run: |
+          set -euo pipefail
+
+          CTR=$(sudo podman create "${IMAGE}")
+          mkdir -p preinstall-src
+          sudo podman cp "${CTR}:/usr/share/flatpak/preinstall.d" ./preinstall-src || true
+          sudo podman rm "${CTR}"
+          sudo chown -R runner:runner ./preinstall-src || true
+
+          python3 - <<'PY'
+          import configparser
+          import glob
+          import hashlib
+          import os
+          import re
+          import sys
+
+          apps = set()
+          for path in sorted(glob.glob("preinstall-src/preinstall.d/*.preinstall")):
+              cfg = configparser.ConfigParser()
+              try:
+                  cfg.read(path, encoding="utf-8")
+              except Exception as exc:
+                  print(f"warning: failed to parse {path}: {exc}", file=sys.stderr)
+                  continue
+              for section in cfg.sections():
+                  match = re.match(r"Flatpak Preinstall\s+(.+)", section)
+                  if not match:
+                      continue
+                  app_id = match.group(1).strip()
+                  try:
+                      if not cfg.getboolean(section, "Install", fallback=True):
+                          continue
+                      if cfg.getboolean(section, "IsRuntime", fallback=False):
+                          continue
+                  except ValueError:
+                      continue
+                  apps.add(app_id)
+
+          apps = sorted(apps)
+          with open("flatpak-app-list.txt", "w", encoding="utf-8") as fh:
+              fh.write("# OOTB Flatpak apps derived from image /usr/share/flatpak/preinstall.d\n")
+              for app in apps:
+                  fh.write(f"{app}\n")
+
+          manifest = "\n".join(apps).encode("utf-8")
+          manifest_hash = hashlib.sha256(manifest).hexdigest()
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              print(f"hash={manifest_hash}", file=fh)
+          print(f"Generated flatpak-app-list.txt with {len(apps)} apps:")
+          for app in apps:
+              print(f"  {app}")
+          PY
+          rm -rf ./preinstall-src
+
       - name: Restore Flatpak download cache
         if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' }}
         id: flatpak-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ${{ github.workspace }}/.flatpak-cache-home/.local/share/flatpak
-          key: flatpak-home-${{ runner.os }}-${{ hashFiles('flatpak-app-list.txt') }}
-          restore-keys: |
-            flatpak-home-${{ runner.os }}-
+          key: flatpak-ootb-${{ runner.os }}-${{ steps.manifest.outputs.hash }}
 
       - name: Prime Flatpak download cache
         if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' && steps.flatpak-cache.outputs.cache-hit != 'true' }}
@@ -210,19 +282,6 @@ jobs:
             sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules && sudo udevadm trigger --name-match=kvm
           ls -la /dev/kvm
-
-      # Pull OCI image in background while apt installs QEMU — saves ~2 min
-      - name: Install QEMU and pull OCI image
-        run: |
-          sudo podman pull "${IMAGE}" &
-          PULL_PID=$!
-          # Pull runner container in parallel — piped into VM after boot
-          sudo podman pull ghcr.io/projectbluefin/testsuite:runner &
-          RUNNER_PID=$!
-          sudo apt-get update -q
-          sudo apt-get install -y --no-install-recommends qemu-system-x86
-          wait $PULL_PID
-          wait $RUNNER_PID
 
       - name: Generate SSH keypair
         run: |
