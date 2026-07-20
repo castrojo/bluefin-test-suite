@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 images.lock
 .coverage
+run-results/

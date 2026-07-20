@@ -324,6 +324,11 @@ def before_scenario(context, scenario) -> None:
 
     scenario_tags = set(getattr(scenario, "effective_tags", scenario.tags))
 
+    # @permissions scenarios only assert host Flatpak state over SSH; skip the
+    # expensive qecore GUI sandbox round-trip per scenario. The screenshot and
+    # sandbox lifecycle are likewise skipped in after_scenario below.
+    context._permissions_scenario = "permissions" in scenario_tags
+
     # Skip @bluefin scenarios on non-Bluefin images (e.g. dakota).
     if not getattr(context, "is_bluefin_image", True):
         if "bluefin" in scenario_tags:
@@ -371,6 +376,9 @@ def before_scenario(context, scenario) -> None:
                 scenario.skip()
             print(f"Skipping {scenario.name}: {tag} app is not installed in this image", flush=True)
             return
+    if getattr(context, "_permissions_scenario", False):
+        return
+
     sandbox = getattr(context, "sandbox", None)
     if sandbox is None:
         return
@@ -400,6 +408,8 @@ def after_scenario(context, scenario) -> None:
     if getattr(context, 'failed_setup', None):
         return
     record_end(context, scenario)
+    if getattr(context, "_permissions_scenario", False):
+        return
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
