@@ -109,11 +109,11 @@ def _find_current_mode(monitor):
     """Return the currently-active mode tuple from a top-level monitor."""
     modes = monitor[1]
     for mode in modes:
-        props = dict(mode[7])
+        props = dict(mode[6])
         if props.get("is-current", False):
             return mode
     for mode in modes:
-        props = dict(mode[7])
+        props = dict(mode[6])
         if props.get("is-preferred", False):
             return mode
     if modes:
