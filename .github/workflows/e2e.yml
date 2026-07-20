@@ -833,6 +833,12 @@ jobs:
               sudo flatpak install --system --assumeyes --noninteractive flathub "$app"
             fi
           done
+
+          # The sideload repo in the test user's home is a duplicate of what is
+          # now deployed under /var/lib/flatpak. Remove it before loading the
+          # runner container so the VM root disk does not run out of space.
+          rm -rf "$CACHE_DIR/flatpak"
+          df -h /
           EOF
 
           rm -f "${CACHE_TAR}"
