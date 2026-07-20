@@ -10,6 +10,25 @@ Automated behave + qecore-headless + dogtail and shared libraries for testing GN
 
 We continuously test **323 active end-to-end BDD scenarios** across **52 feature files** against live Wayland desktop sessions in QEMU.
 
+### Coverage badges
+
+Per-suite active/quarantined counts are computed dynamically at publish time from the `.feature` files in this repo and served as shields.io endpoint badges from the `gh-pages` branch.
+
+[![smoke](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/smoke.json)](https://projectbluefin.github.io/testsuite/)
+[![common](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/common.json)](https://projectbluefin.github.io/testsuite/)
+[![developer](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/developer.json)](https://projectbluefin.github.io/testsuite/)
+[![dx](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/dx.json)](https://projectbluefin.github.io/testsuite/)
+[![software](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/software.json)](https://projectbluefin.github.io/testsuite/)
+[![lifecycle](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/lifecycle.json)](https://projectbluefin.github.io/testsuite/)
+[![hardware](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/hardware.json)](https://projectbluefin.github.io/testsuite/)
+[![security](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/security.json)](https://projectbluefin.github.io/testsuite/)
+[![nvidia](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/nvidia.json)](https://projectbluefin.github.io/testsuite/)
+[![vanilla-gnome](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/vanilla-gnome.json)](https://projectbluefin.github.io/testsuite/)
+[![bazzite](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/bazzite.json)](https://projectbluefin.github.io/testsuite/)
+[![flatcar](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/flatcar.json)](https://projectbluefin.github.io/testsuite/)
+[![total coverage](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/total.json)](https://projectbluefin.github.io/testsuite/)
+[![stubs](https://img.shields.io/endpoint?url=https://projectbluefin.github.io/testsuite/badges/stubs.json)](https://projectbluefin.github.io/testsuite/)
+
 ### 5 Most Vital Desktop Gating Stats
 
 | Metric / Gating Dimension | Active Tests | Coverage & Validation Scope |
