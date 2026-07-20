@@ -26,7 +26,7 @@ PR opened
 
 Currently advisory (warns but does not block merge). Treat warnings as hard requirements — the check is expected to harden into a block.
 
-Calls the reusable `<image-org>/actions/.github/workflows/skill-drift-check.yml` at a pinned SHA.
+Calls the reusable `<image-org>/actions/.github/workflows/skill-drift-check.yml` at a pinned SHA. See `.github/workflows/skill-drift.yml`.
 
 ---
 
@@ -34,11 +34,11 @@ Calls the reusable `<image-org>/actions/.github/workflows/skill-drift-check.yml`
 
 | code-paths | skill-paths |
 |---|---|
-| `.github/workflows/**` | `docs/skills/**`, `docs/*.md`, `AGENTS.md` |
-| `.github/actions/**` | `docs/skills/**`, `docs/*.md`, `AGENTS.md` |
-| `tests/**` | `docs/skills/**`, `docs/*.md`, `AGENTS.md` |
-| `scripts/**` | `docs/skills/**`, `docs/*.md`, `AGENTS.md` |
-| `Justfile` | `docs/skills/**`, `docs/*.md`, `AGENTS.md` |
+| `.github/workflows/**` | `docs/**/*.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md` |
+| `.github/actions/**` | `docs/**/*.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md` |
+| `tests/**` | `docs/**/*.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md` |
+| `scripts/**` | `docs/**/*.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md` |
+| `Justfile` | `docs/**/*.md`, `AGENTS.md`, `README.md`, `CONTRIBUTING.md` |
 
 ---
 
@@ -48,14 +48,15 @@ Use this when the check fires and you need to know which skill to update:
 
 | Changed path | Update this skill |
 |---|---|
-| `tests/smoke/**` | `gnome.md` (AT-SPI patterns) or `behave.md` (step structure) |
-| `tests/lifecycle/**` | `bootc.md` |
-| `tests/shared/**` | `behave.md` (shared helper conventions) |
+| `tests/smoke/**` | `test-authoring/gnome/SKILL.md` (AT-SPI patterns) or `test-authoring/behave/SKILL.md` (step structure) |
+| `tests/lifecycle/**` | `test-authoring/bootc/SKILL.md` |
+| `tests/shared/**` | `test-authoring/behave/SKILL.md` (shared helper conventions) |
 | `tests/unit/**` | No skill update required — unit tests are internal quality tools |
-| `.github/workflows/e2e.yml`, `e2e-*.yml` | `e2e-workflow.md` |
-| `.github/workflows/skill-drift.yml` | `skill-drift.md` (this file) |
-| `.github/actions/gnome-e2e/**` | `e2e-workflow.md` |
-| `scripts/parse_results.py` | `e2e-workflow.md` (results persistence section) |
+| `.github/workflows/e2e.yml`, `e2e-*.yml` | `ci-ops/e2e-workflow/SKILL.md` |
+| `.github/workflows/skill-drift.yml` | `meta/skill-drift/SKILL.md` (this file) |
+| `.github/workflows/docs-validate.yml` | `meta/skill-drift/SKILL.md` or `meta/writing-skills/SKILL.md` |
+| `.github/actions/gnome-e2e/**` | `ci-ops/e2e-workflow/SKILL.md` |
+| `scripts/parse_results.py` | `ci-ops/e2e-workflow/SKILL.md` |
 | `Justfile` | whichever skill owns the changed recipe |
 
 Not sure? Check `docs/skills/index.md` for the full routing table.
