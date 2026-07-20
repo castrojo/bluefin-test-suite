@@ -132,6 +132,42 @@ def _supported_scales(monitor):
     return list(mode[5])
 
 
+def _common_supported_scales():
+    """Return the set of scales supported by every logical monitor."""
+    iface = _get_interface()
+    serial, monitors, logical_monitors, properties = iface.GetCurrentState()
+    monitors_by_id = {
+        (str(m[0][0]), str(m[0][1]), str(m[0][2]), str(m[0][3])): m
+        for m in monitors
+    }
+    common = None
+    for lm in logical_monitors:
+        for m in lm[5]:
+            key = (str(m[0]), str(m[1]), str(m[2]), str(m[3]))
+            top_monitor = monitors_by_id[key]
+            lm_supported = set(float(s) for s in _supported_scales(top_monitor))
+            common = lm_supported if common is None else common & lm_supported
+    return common if common is not None else set()
+
+
+def _choose_supported_scale(target):
+    """Return the supported scale nearest to target, preferring <= target."""
+    target = float(target)
+    common = _common_supported_scales()
+    if not common:
+        raise RuntimeError("No common supported scales for current monitors")
+    candidates = sorted(s for s in common if s > 1.0)
+    if not candidates:
+        raise RuntimeError("No scaling (>1.0) supported for current monitors")
+    if target in common:
+        return target
+    lower = [s for s in candidates if s <= target]
+    upper = [s for s in candidates if s > target]
+    if lower and upper:
+        return lower[-1] if (target - lower[-1]) <= (upper[0] - target) else upper[0]
+    return lower[-1] if lower else upper[0]
+
+
 def _build_logical_monitor(lm, monitors_by_id, new_scale=None):
     """Build an ApplyMonitorsConfig logical monitor from a GetCurrentState one."""
     x = int(lm[0])
@@ -211,15 +247,7 @@ def _apply_scale(scale, method=1):
 
     # Validate that the requested scale is supported by every logical monitor's
     # current mode so Mutter's ApplyMonitorsConfig gives a clear error up front.
-    supported = None
-    for lm in logical_monitors:
-        for m in lm[5]:
-            key = (str(m[0]), str(m[1]), str(m[2]), str(m[3]))
-            top_monitor = monitors_by_id[key]
-            lm_supported = set(float(s) for s in _supported_scales(top_monitor))
-            supported = lm_supported if supported is None else supported & lm_supported
-    if supported is None:
-        supported = set()
+    supported = _common_supported_scales()
     if scale not in supported:
         raise RuntimeError(
             f"Scale {scale} is not supported for the current resolution; "
@@ -254,6 +282,10 @@ elif action == "apply-scale":
     print(json.dumps({"applied": True, "scale": scale}))
 elif action == "get-scales":
     print(json.dumps({"scales": _get_scales()}))
+elif action == "choose-scale":
+    target = float(sys.argv[2])
+    chosen = _choose_supported_scale(target)
+    print(json.dumps({"target": target, "scale": chosen}))
 else:
     raise RuntimeError(f"Unknown action: {action}")
 '''
@@ -363,19 +395,31 @@ def enable_fractional_scaling_feature_if_required(context) -> None:
     sleep(0.5)
 
 
-@step('Set display scale to "{scale}" via Mutter DisplayConfig')
+@step('Set display scale to the nearest supported value of "{scale}" via Mutter DisplayConfig')
 def set_display_scale(context, scale: str) -> None:
-    """Apply the requested scale to all logical monitors (temporary config)."""
+    """Apply the supported scale nearest to the requested target.
+
+    The virtual QEMU output on the CI runner does not always support the
+    exact values 1.5 or 2.0 (e.g. 1280x800 only supports [1, 1.25, 4/3, 5/3]).
+    We choose the nearest supported scale, apply it, and store it so the
+    assertion step can verify the actual applied value.
+    """
     target = float(scale)
-    _apply_display_scale(target, method=1)
+    chosen = _display_config("choose-scale", target, timeout=30)["scale"]
+    _apply_display_scale(chosen, method=1)
     context.display_scale_changed = True
-    print(f"applied display scale {target}", flush=True)
+    context.display_scale_target = chosen
+    print(
+        f"requested scale {target}, chose supported scale {chosen}",
+        flush=True,
+    )
 
 
-@step('Current display scale is "{scale}"')
-def current_display_scale_is(context, scale: str) -> None:
-    """Assert every logical monitor reports the expected scale."""
-    expected = float(scale)
+@step("Current display scale matches the applied scale")
+def current_display_scale_matches_applied(context) -> None:
+    """Assert every logical monitor reports the scale chosen by the previous step."""
+    expected = getattr(context, "display_scale_target", None)
+    assert expected is not None, "No display scale was applied in this scenario"
     scales = _get_display_scales()
     assert scales, "No logical monitors found via DisplayConfig"
     for actual in scales:
