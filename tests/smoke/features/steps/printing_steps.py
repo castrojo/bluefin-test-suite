@@ -1,8 +1,6 @@
 """Custom step definitions for printing stack smoke checks."""
-import os
 import random
 import re
-import subprocess
 import time
 
 from behave import step
@@ -12,37 +10,16 @@ try:
 except Exception:  # noqa: BLE001
     pass
 
+# Reuse the same host-level runner as the other smoke host-state checks so
+# commands execute inside the VM (via SSH) when behave runs in the runner
+# container, rather than inside the container itself.
+from system_health_steps import _run_host
 
-_IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
+
 _LISTENER_PORT = 19191
 _LISTENER_READY = "/tmp/smoke-print-listener.ready"
 _LISTENER_OUTPUT = "/tmp/smoke-print-capture.bin"
 _LISTENER_SCRIPT = "/tmp/smoke_print_listener.py"
-
-
-def _run_host(cmd: str, timeout: int = 30):
-    """Run cmd on the host VM via SSH when inside the runner container, else locally."""
-    if _IN_CONTAINER:
-        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
-        vm_user = os.environ.get("VM_USER", "bluefin-test")
-        ssh_port = os.environ.get("SSH_PORT", "22")
-        result = subprocess.run(
-            [
-                "ssh",
-                "-i", ssh_key,
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "ConnectTimeout=10",
-                "-p", ssh_port,
-                f"{vm_user}@{vm_ip}",
-                cmd,
-            ],
-            capture_output=True, text=True, timeout=timeout,
-        )
-    else:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
-    return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
 def _run_admin(cmd: str, timeout: int = 30):
@@ -58,8 +35,17 @@ def _run_admin(cmd: str, timeout: int = 30):
     return out, rc, err
 
 
+def _unmask_cups() -> None:
+    """Unmask CUPS units that the CI VM masks to speed first-boot."""
+    for unit in ("cups.socket", "cups.service", "cups.path", "cups-browsed.service"):
+        out, rc, err = _run_host(f"systemctl is-enabled {unit}")
+        if rc != 0 and "masked" in (out + " " + err).lower():
+            _run_host(f"sudo systemctl unmask {unit}")
+
+
 def _start_cups_socket() -> None:
     """Ensure cups.socket is started so the scheduler is reachable."""
+    _unmask_cups()
     out, rc, err = _run_host("systemctl is-active cups.socket")
     if out == "active":
         return
@@ -157,6 +143,9 @@ def _stop_socket_listener() -> None:
 
 @step("cups.socket is enabled and active")
 def cups_socket_is_enabled_and_active(context) -> None:  # noqa: ARG001
+    # The CI VM masks CUPS units to shorten first-boot time.  Unmask before
+    # asserting the stock enabled/active state.
+    _unmask_cups()
     out, rc, err = _run_host("systemctl is-enabled cups.socket")
     assert rc == 0, f"systemctl is-enabled cups.socket failed: {err or out}"
     assert out in ("enabled", "static"), f"unexpected cups.socket enable state: {out}"

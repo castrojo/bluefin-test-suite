@@ -2,16 +2,14 @@
 
 Tests focus on pure helpers that do not need a live CUPS scheduler:
 - _parse_job_id(): lp stdout parsing
-- _run_host(): container vs direct routing
-- _IN_CONTAINER: detection constant
+- _unmask_cups(): unmasks only masked CUPS units
 """
-import os
 import sys
 import types
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 
-def _import_steps(in_container: bool = False):
+def _import_steps():
     """Import printing_steps.py with all GNOME dependencies stubbed out."""
     behave_stub = types.ModuleType("behave")
     behave_stub.step = lambda *a, **kw: (lambda f: f)
@@ -22,25 +20,17 @@ def _import_steps(in_container: bool = False):
     sys.modules["qecore"] = qecore_stub
     sys.modules["qecore.common_steps"] = qecore_common_stub
 
+    # printing_steps imports _run_host from system_health_steps; provide a stub.
+    system_health_stub = types.ModuleType("system_health_steps")
+    system_health_stub._run_host = lambda cmd, timeout=30: ("", 0, "")
+    sys.modules["system_health_steps"] = system_health_stub
+
     for key in list(sys.modules):
         if "printing_steps" in key:
             del sys.modules[key]
 
-    with patch.dict(os.environ, {}, clear=False):
-        with patch("os.path.lexists", return_value=in_container), \
-             patch("os.path.isfile", return_value=not in_container):
-            import tests.smoke.features.steps.printing_steps as m  # noqa: PLC0415
+    import tests.smoke.features.steps.printing_steps as m  # noqa: PLC0415
     return m
-
-
-class TestInContainer:
-    def test_false_outside_container(self):
-        m = _import_steps(in_container=False)
-        assert m._IN_CONTAINER is False
-
-    def test_true_inside_container(self):
-        m = _import_steps(in_container=True)
-        assert m._IN_CONTAINER is True
 
 
 class TestParseJobId:
@@ -61,28 +51,37 @@ class TestParseJobId:
         assert m._parse_job_id("") is None
 
 
-class TestRunHost:
-    def test_uses_ssh_when_in_container(self):
-        m = _import_steps(in_container=True)
-        m._IN_CONTAINER = True
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(stdout="output\n", returncode=0, stderr="")
-            stdout, rc, stderr = m._run_host("echo hi")
-        call_args = mock_run.call_args[0][0]
-        assert "ssh" in call_args[0]
-        assert stdout == "output"
-        assert rc == 0
-        assert stderr == ""
+class TestUnmaskCups:
+    def test_unmasks_masked_units(self):
+        m = _import_steps()
+        calls = []
 
-    def test_uses_shell_when_not_in_container(self):
-        m = _import_steps(in_container=False)
-        m._IN_CONTAINER = False
-        with patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(stdout="hello\n", returncode=0, stderr="")
-            stdout, rc, stderr = m._run_host("echo hi")
-        mock_run.assert_called_once()
-        call_kwargs = mock_run.call_args[1]
-        assert call_kwargs.get("shell") is True
-        assert stdout == "hello"
-        assert rc == 0
-        assert stderr == ""
+        def fake_run_host(cmd):
+            calls.append(cmd)
+            if "is-enabled" in cmd:
+                return ("masked", 1, "")
+            return ("", 0, "")
+
+        with patch.object(m, "_run_host", side_effect=fake_run_host):
+            m._unmask_cups()
+
+        unmask_commands = [c for c in calls if c.startswith("sudo systemctl unmask")]
+        assert len(unmask_commands) == 4
+        assert "sudo systemctl unmask cups.socket" in unmask_commands
+        assert "sudo systemctl unmask cups.service" in unmask_commands
+
+    def test_leaves_enabled_units_alone(self):
+        m = _import_steps()
+        calls = []
+
+        def fake_run_host(cmd):
+            calls.append(cmd)
+            if "is-enabled" in cmd:
+                return ("enabled", 0, "")
+            return ("", 0, "")
+
+        with patch.object(m, "_run_host", side_effect=fake_run_host):
+            m._unmask_cups()
+
+        unmask_commands = [c for c in calls if c.startswith("sudo systemctl unmask")]
+        assert not unmask_commands
