@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "label": "smoke",
-  "message": "127 active / 49 quarantined",
+  "message": "135 active / 45 quarantined",
   "color": "red"
 }
