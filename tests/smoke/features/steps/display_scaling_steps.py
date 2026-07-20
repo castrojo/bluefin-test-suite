@@ -105,20 +105,31 @@ def _native(value):
     return value
 
 
-def _find_current_mode_id(monitor):
-    """Return the ID of the currently-active mode from a top-level monitor."""
+def _find_current_mode(monitor):
+    """Return the currently-active mode tuple from a top-level monitor."""
     modes = monitor[1]
     for mode in modes:
-        props = dict(mode[6])
+        props = dict(mode[7])
         if props.get("is-current", False):
-            return str(mode[0])
+            return mode
     for mode in modes:
-        props = dict(mode[6])
+        props = dict(mode[7])
         if props.get("is-preferred", False):
-            return str(mode[0])
+            return mode
     if modes:
-        return str(modes[0][0])
+        return modes[0]
     raise RuntimeError(f"No modes available for monitor {monitor[0][0]}")
+
+
+def _find_current_mode_id(monitor):
+    """Return the ID of the currently-active mode from a top-level monitor."""
+    return str(_find_current_mode(monitor)[0])
+
+
+def _supported_scales(monitor):
+    """Return the supported scales list for the currently-active mode."""
+    mode = _find_current_mode(monitor)
+    return list(mode[5])
 
 
 def _build_logical_monitor(lm, monitors_by_id, new_scale=None):
@@ -197,6 +208,24 @@ def _apply_scale(scale, method=1):
         (str(m[0][0]), str(m[0][1]), str(m[0][2]), str(m[0][3])): m
         for m in monitors
     }
+
+    # Validate that the requested scale is supported by every logical monitor's
+    # current mode so Mutter's ApplyMonitorsConfig gives a clear error up front.
+    supported = None
+    for lm in logical_monitors:
+        for m in lm[5]:
+            key = (str(m[0]), str(m[1]), str(m[2]), str(m[3]))
+            top_monitor = monitors_by_id[key]
+            lm_supported = set(float(s) for s in _supported_scales(top_monitor))
+            supported = lm_supported if supported is None else supported & lm_supported
+    if supported is None:
+        supported = set()
+    if scale not in supported:
+        raise RuntimeError(
+            f"Scale {scale} is not supported for the current resolution; "
+            f"supported scales: {sorted(supported)}"
+        )
+
     new_logical_monitors = [
         _build_logical_monitor(lm, monitors_by_id, scale)
         for lm in logical_monitors
