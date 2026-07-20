@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Oneshot Systemd Service State Use Result Not Activestate
 
 ## Oneshot systemd service state — use Result, not ActiveState
 

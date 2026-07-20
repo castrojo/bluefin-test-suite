@@ -94,7 +94,7 @@ Any bootc/ostree GNOME image can plug in `smoke` and `common` as a portable heal
 - All consumer repos should gate on the `smoke` suite only.
 - Nightly CI is gone; PR gates are now the only CI signal for promotion decisions.
 - `e2e.yml` now caches OCI layers by image digest to speed repeated runs.
-- For workflow internals, cache behavior, and troubleshooting, see [`docs/skills/e2e-workflow.md`](e2e-workflow.md).
+- For workflow internals, cache behavior, and troubleshooting, see [`docs/skills/e2e-workflow.md`](../../ci-ops/e2e-workflow/SKILL.md).
 
 
 **Trigger a lifecycle run manually**:

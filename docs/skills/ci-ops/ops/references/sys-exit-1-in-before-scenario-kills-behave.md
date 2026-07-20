@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Sys Exit 1 In Before Scenario Kills Behave
 
 ## sys.exit(1) in before_scenario kills behave
 

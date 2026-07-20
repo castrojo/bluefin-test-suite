@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Lifecycle On Pr Opened Pr Needs Review Label Must Exist
 
 ## lifecycle / on-pr-opened: pr/needs-review label must exist
 

@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Troubleshooting
 
 ## Debugging failures
 

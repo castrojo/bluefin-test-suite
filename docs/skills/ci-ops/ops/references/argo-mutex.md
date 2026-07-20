@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Argo Mutex
 
 ## testing-lab ArgoCD template resolution timing
 

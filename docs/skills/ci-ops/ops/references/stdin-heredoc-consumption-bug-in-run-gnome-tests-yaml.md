@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Stdin Heredoc Consumption Bug In Run Gnome Tests Yaml
 
 ## Stdin Heredoc Consumption bug in run-gnome-tests.yaml
 

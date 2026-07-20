@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Polkit Rules Path Check Both Directories
 
 ## Polkit rules path — check both directories
 

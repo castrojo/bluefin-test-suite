@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Bootc Install Creates 0 Origin Alongside 0 Deploy Find Must
 
 ## bootc install creates .0.origin alongside .0 — DEPLOY find must use -type d
 

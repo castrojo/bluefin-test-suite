@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Top Bar
 
 ## GNOME Shell 50+ top-bar
 

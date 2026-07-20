@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Smoke Suite Run Vs Run Host For Network Checks
 
 ## Smoke suite: _run() vs _run_host() for network checks
 

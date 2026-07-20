@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Bootloader Flag Requires Bootc 0 1 13
 
 ## --bootloader flag requires bootc >= 0.1.13
 

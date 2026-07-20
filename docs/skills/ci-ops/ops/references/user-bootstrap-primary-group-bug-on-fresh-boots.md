@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# User Bootstrap Primary Group Bug On Fresh Boots
 
 ## User Bootstrap primary group bug on fresh boots
 

@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Git Restore Vs Git Checkout For Full Directory Reset
 
 ## git restore vs git checkout for full directory reset
 

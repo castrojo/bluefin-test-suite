@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Gnome 50 Requires Qecore 4 12
 
 ## GNOME 50 requires qecore >= 4.12
 

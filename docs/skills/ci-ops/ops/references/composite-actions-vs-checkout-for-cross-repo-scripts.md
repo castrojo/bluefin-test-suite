@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Composite Actions Vs Checkout For Cross Repo Scripts
 
 ## Composite actions vs checkout for cross-repo scripts
 

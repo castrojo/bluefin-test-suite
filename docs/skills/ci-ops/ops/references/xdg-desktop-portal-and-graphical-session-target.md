@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Xdg Desktop Portal And Graphical Session Target
 
 ## xdg-desktop-portal and graphical-session.target
 

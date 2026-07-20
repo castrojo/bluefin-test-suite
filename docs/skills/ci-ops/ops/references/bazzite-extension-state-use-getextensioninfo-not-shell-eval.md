@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Bazzite Extension State Use Getextensioninfo Not Shell Eval
 
 ## Bazzite extension state: use GetExtensionInfo, not Shell.Eval
 

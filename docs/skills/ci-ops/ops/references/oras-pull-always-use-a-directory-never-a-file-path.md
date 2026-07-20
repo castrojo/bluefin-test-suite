@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Oras Pull Always Use A Directory Never A File Path
 
 ## oras pull: always use a directory, never a file path
 

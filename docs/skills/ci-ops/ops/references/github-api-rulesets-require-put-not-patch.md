@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Github Api Rulesets Require Put Not Patch
 
 ## GitHub API: rulesets require PUT not PATCH
 

@@ -273,7 +273,7 @@ If a skill doc (`docs/skills/*.md`) is wrong or incomplete:
 
 **Do not add hard rules to individual skill docs** — rules go in `docs/skills/index.md` (single source). Skill docs hold patterns and examples only.
 
-**The skill-improvement mandate:** every PR that changes `tests/**`, `.github/workflows/**`, or `scripts/**` should include a matching skill file update. See [`docs/skills/skill-improvement.md`](skill-improvement.md) for what counts as a learning, which skill to update, and how to commit it together. The skill-drift CI check will warn if this is skipped.
+**The skill-improvement mandate:** every PR that changes `tests/**`, `.github/workflows/**`, or `scripts/**` should include a matching skill file update. See [`docs/skills/skill-improvement.md`](../../meta/skill-improvement/SKILL.md) for what counts as a learning, which skill to update, and how to commit it together. The skill-drift CI check will warn if this is skipped.
 
 ## Testing your changes with the GitHub Action
 

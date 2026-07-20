@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Composefs File Capability Regression
 
 ## composefs file-capability regression
 

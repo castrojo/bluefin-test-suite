@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Inputs Outputs
 
 ## Flatpak cache pattern for Bluefin GUI suites
 
@@ -109,4 +110,4 @@ with:
 Each app is launched, held for 3 seconds, then captured. Results pushed to:
 `ghcr.io/<image-org>/testsuite/desktop-screenshot:flatpak-<slug>-latest`
 
-See [`docs/flatpak-screenshots.md`](../flatpak-screenshots.md) for full documentation.
+See [`docs/flatpak-screenshots.md`](../../../flatpak-screenshots/SKILL.md) for full documentation.

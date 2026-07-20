@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Xdg Session Type And Xdg Session Desktop Must Be Forwarded
 
 ## XDG_SESSION_TYPE and XDG_SESSION_DESKTOP must be forwarded
 

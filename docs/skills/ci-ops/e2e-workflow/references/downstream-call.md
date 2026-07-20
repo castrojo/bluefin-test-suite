@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Downstream Call
 
 ## How to call it from another repo
 
@@ -31,7 +32,7 @@ Do **not** use a full SHA pin (creates Renovate churn) or `@main` (floating, sec
 | `target-image` | string | `""` | Full OCI ref to upgrade TO (optional). When set and the `lifecycle` suite is running, stages this image via `bootc switch` before the test suite. Used for migration testing. |
 | `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common`. Note: `lifecycle` is also accepted but is not listed in the input description — use `manual.yml` or `<image-org>/actions` wrapper workflows for lifecycle runs. |
 | `skip_native_apps` | boolean | `false` | When `true`, skips `@native_app` scenarios (Flatpak apps that may not be installed in all variants) |
-| `screenshot_flatpaks` | string | `""` | Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See [Flatpak screenshot gallery](../flatpak-screenshots.md) for full details. |
+| `screenshot_flatpaks` | string | `""` | Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See [Flatpak screenshot gallery](../../../flatpak-screenshots/SKILL.md) for full details. |
 | `chunked_enabled` | boolean | `false` | When `true`, sets `ZSTD_CHUNKED=true` so `@zstd_chunked` lifecycle scenarios run. Enable once the image ships `tar+zstd` OCI layers. |
 | `test_ref` | string | `main` | `<image-org>/testsuite` ref to check out for test content. Wrapper workflows that start from `workflow_dispatch` should resolve this on the caller side with `${{ github.event.inputs.test_ref || github.ref_name }}`. |
 

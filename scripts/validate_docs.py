@@ -29,12 +29,17 @@ def warn(msg: str) -> None:
 
 def collect_md_files() -> list[Path]:
     files: list[Path] = []
+    # When running inside a git worktree, don't exclude the whole tree.
+    inside_worktree = ".worktrees" in ROOT.parts
     for path in ROOT.rglob("*.md"):
         if ".git" in path.parts:
             continue
-        if ".worktrees" in path.parts:
+        if not inside_worktree and ".worktrees" in path.parts:
             continue
-        # Ignore GitHub issue templates / rendered pages if present
+        # Ignore common generated directories and GitHub issue templates
+        parts = set(path.parts)
+        if parts & {"node_modules", "__pycache__", ".venv"}:
+            continue
         if ".github/ISSUE_TEMPLATE" in str(path):
             continue
         files.append(path)
@@ -65,15 +70,27 @@ def heading_level(line: str) -> int | None:
 
 def validate_general(path: Path, text: str) -> None:
     lines = text.splitlines()
-    h1_count = sum(1 for line in lines if heading_level(line) == 1)
+    in_fence = False
+    fence = ""
+    h1_count = 0
+    for i, line in enumerate(lines, 1):
+        if not in_fence and re.match(r"^(```|~~~)\s*\S*$", line):
+            in_fence = True
+            fence = line[:3]
+            continue
+        if in_fence:
+            if line.startswith(fence):
+                in_fence = False
+            continue
+        lvl = heading_level(line)
+        if lvl == 1:
+            h1_count += 1
+        if lvl and lvl >= 5:
+            error(f"{path}:{i}: H{lvl} heading (max H4)")
     if h1_count == 0:
         error(f"{path}: missing H1")
     elif h1_count > 1:
         error(f"{path}: multiple H1s ({h1_count})")
-    for i, line in enumerate(lines, 1):
-        lvl = heading_level(line)
-        if lvl and lvl >= 5:
-            error(f"{path}:{i}: H{lvl} heading (max H4)")
 
 
 def validate_links(path: Path, text: str) -> None:
@@ -102,18 +119,23 @@ def validate_skill(path: Path) -> None:
         error(f"{path}: frontmatter missing 'name'")
     if not desc:
         error(f"{path}: frontmatter missing 'description'")
-    expected_dir = path.parent.name
-    if name and name != expected_dir:
-        error(f"{path}: frontmatter name '{name}' does not match directory '{expected_dir}'")
     lines = text.splitlines()
-    if path.name == "SKILL.md":
+    is_skill_md = path.name == "SKILL.md"
+    is_index = path.name == "index.md" and path.parent.name == "skills"
+    is_reference = path.parent.name == "references"
+    if is_skill_md and not is_index:
+        expected_dir = path.parent.name
+        if name and name != expected_dir:
+            error(f"{path}: frontmatter name '{name}' does not match directory '{expected_dir}'")
+    elif is_reference:
+        if name and path.stem != name:
+            warn(f"{path}: frontmatter name '{name}' does not match filename '{path.stem}'")
+    if is_skill_md:
         if len(lines) > 500:
             error(f"{path}: SKILL.md exceeds 500 lines ({len(lines)})")
     else:
         if len(lines) > 200:
             error(f"{path}: reference exceeds 200 lines ({len(lines)})")
-        if name and path.stem != name:
-            warn(f"{path}: frontmatter name '{name}' does not match filename '{path.stem}'")
     validate_general(path, text)
     validate_links(path, text)
 

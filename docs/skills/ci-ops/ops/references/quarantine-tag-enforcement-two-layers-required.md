@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Quarantine Tag Enforcement Two Layers Required
 
 ## @quarantine tag enforcement — two layers required
 

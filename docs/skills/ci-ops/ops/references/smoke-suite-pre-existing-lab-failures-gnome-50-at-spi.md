@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Smoke Suite Pre Existing Lab Failures Gnome 50 At Spi
 
 ## smoke suite — pre-existing lab failures (GNOME 50 AT-SPI)
 

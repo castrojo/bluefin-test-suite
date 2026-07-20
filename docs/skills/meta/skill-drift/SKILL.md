@@ -11,7 +11,7 @@ metadata:
 
 `skill-drift.yml` warns when a PR changes implementation files without updating the matching skill documentation. The goal: keep agent-facing docs in sync with real repo behavior while the implementation context is still fresh.
 
-The mandate for *why* you must write skill updates is in [`skill-improvement.md`](./skill-improvement.md).
+The mandate for *why* you must write skill updates is in [`skill-improvement.md`](../skill-improvement/SKILL.md).
 
 ---
 

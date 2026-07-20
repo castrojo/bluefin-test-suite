@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Preinstalled Flatpak Desktop App Launch Checks
 
 ## Preinstalled Flatpak desktop app launch checks
 

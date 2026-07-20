@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Display Config
 
 ## xdg-mime in container mode
 

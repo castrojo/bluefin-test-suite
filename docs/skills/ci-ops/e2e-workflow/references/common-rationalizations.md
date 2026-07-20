@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Common Rationalizations
 
 ## Common Rationalizations
 

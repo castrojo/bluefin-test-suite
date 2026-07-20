@@ -9,18 +9,18 @@ metadata:
 
 # Operational Gotchas
 
-# → success
-# /etc/gdm/custom.conf
-# WRONG — tests the container's DNS, not the VM's
-# CORRECT — tests DNS inside the VM
-# must return nothing
-# Listener running?
-# Jobs being picked up? (empty arc-runners is healthy — minRunners=0)
-# Runner logs (catch before pod completes)
-# WRONG — creates scratch/smoke.png/ directory, cp fails silently
-# CORRECT — pull to dir, then find the PNG inside
-# edit /tmp/ruleset.json, then PUT
-# .github/actions/my-action/action.yml
+    # → success
+    # /etc/gdm/custom.conf
+    # WRONG — tests the container's DNS, not the VM's
+    # CORRECT — tests DNS inside the VM
+    # must return nothing
+    # Listener running?
+    # Jobs being picked up? (empty arc-runners is healthy — minRunners=0)
+    # Runner logs (catch before pod completes)
+    # WRONG — creates scratch/smoke.png/ directory, cp fails silently
+    # CORRECT — pull to dir, then find the PNG inside
+    # edit /tmp/ruleset.json, then PUT
+    # .github/actions/my-action/action.yml
 
 ## When to Use
 

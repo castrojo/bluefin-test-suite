@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Ublue Motd Prepended To Ssh Output
 
 ## ublue-motd prepended to SSH output
 

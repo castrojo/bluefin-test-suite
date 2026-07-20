@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Permissions
 
 ## Consumer constraints — what you cannot do from the reusable action
 

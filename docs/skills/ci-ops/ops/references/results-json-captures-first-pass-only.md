@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Results Json Captures First Pass Only
 
 ## results.json captures first-pass only
 

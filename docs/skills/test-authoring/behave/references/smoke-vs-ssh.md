@@ -6,6 +6,7 @@ metadata:
   audience: agents
   maturity: stable
 ---
+# Smoke Vs Ssh
 
 ## Smoke suite — local subprocess (not SSH)
 
