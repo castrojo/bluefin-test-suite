@@ -234,8 +234,10 @@ def _gsettings_get_features() -> tuple[list[str], str]:
             f"gsettings get experimental-features failed: {stderr or stdout}"
         )
     raw = stdout.strip()
+    # gsettings prints empty string arrays as '@as []'; strip the type prefix.
+    parseable = raw[4:] if raw.startswith("@as ") else raw
     try:
-        features = ast.literal_eval(raw)
+        features = ast.literal_eval(parseable)
     except Exception as exc:  # noqa: BLE001
         raise AssertionError(
             f"Could not parse experimental-features value {raw!r}: {exc}"
