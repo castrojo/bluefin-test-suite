@@ -52,14 +52,12 @@ class TestParseJobId:
 
 
 class TestUnmaskCups:
-    def test_unmasks_masked_units(self):
+    def test_unmasks_all_units_and_reloads_daemon(self):
         m = _import_steps()
         calls = []
 
         def fake_run_host(cmd):
             calls.append(cmd)
-            if "is-enabled" in cmd:
-                return ("masked", 1, "")
             return ("", 0, "")
 
         with patch.object(m, "_run_host", side_effect=fake_run_host):
@@ -67,21 +65,6 @@ class TestUnmaskCups:
 
         unmask_commands = [c for c in calls if c.startswith("sudo systemctl unmask")]
         assert len(unmask_commands) == 4
-        assert "sudo systemctl unmask cups.socket" in unmask_commands
-        assert "sudo systemctl unmask cups.service" in unmask_commands
-
-    def test_leaves_enabled_units_alone(self):
-        m = _import_steps()
-        calls = []
-
-        def fake_run_host(cmd):
-            calls.append(cmd)
-            if "is-enabled" in cmd:
-                return ("enabled", 0, "")
-            return ("", 0, "")
-
-        with patch.object(m, "_run_host", side_effect=fake_run_host):
-            m._unmask_cups()
-
-        unmask_commands = [c for c in calls if c.startswith("sudo systemctl unmask")]
-        assert not unmask_commands
+        assert any("cups.socket" in c for c in unmask_commands)
+        assert any("cups.service" in c for c in unmask_commands)
+        assert "sudo systemctl daemon-reload" in calls

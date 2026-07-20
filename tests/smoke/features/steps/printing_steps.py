@@ -38,9 +38,10 @@ def _run_admin(cmd: str, timeout: int = 30):
 def _unmask_cups() -> None:
     """Unmask CUPS units that the CI VM masks to speed first-boot."""
     for unit in ("cups.socket", "cups.service", "cups.path", "cups-browsed.service"):
-        out, rc, err = _run_host(f"systemctl is-enabled {unit}")
-        if rc != 0 and "masked" in (out + " " + err).lower():
-            _run_host(f"sudo systemctl unmask {unit}")
+        # Unmask unconditionally; the CI image symlinks these to /dev/null and
+        # systemctl is-enabled may report an empty/error response for them.
+        _run_host(f"sudo systemctl unmask {unit} 2>/dev/null || true")
+    _run_host("sudo systemctl daemon-reload")
 
 
 def _start_cups_socket() -> None:
