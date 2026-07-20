@@ -146,6 +146,10 @@ jobs:
           mkdir -p dashboard/dist/data
           cp -r dashboard/src/data/runs dashboard/dist/data/
 
+      - name: Generate Coverage Badges
+        run: |
+          python3 scripts/generate_badges.py --repo-root . --output-dir dashboard/dist/badges
+
       - name: Deploy Compiled Dashboard to gh-pages Branch
         run: |
           cd old-gh-pages
