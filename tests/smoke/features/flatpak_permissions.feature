@@ -136,8 +136,8 @@ Feature: OOTB Flatpak sandbox permission auditing
     * Flatpak "org.gnome.font-viewer" is installed system-wide
 
   @permissions
-  Scenario: org.mozilla.Thunderbird is installed system-wide
-    * Flatpak "org.mozilla.Thunderbird" is installed system-wide
+  Scenario: org.mozilla.thunderbird_esr is installed system-wide
+    * Flatpak "org.mozilla.thunderbird_esr" is installed system-wide
 
   @permissions
   Scenario: org.mozilla.firefox is installed system-wide

@@ -300,7 +300,40 @@ jobs:
           fi
 
           flatpak install --user --assumeyes --noninteractive --no-deploy \
-            flathub "${APPS[@]}"
+            flathub "${APPS[@]}" 2>&1 | tee flatpak-install.log
+
+          # Flathub may redirect an EOL app ID to a successor (e.g.
+          # org.mozilla.Thunderbird -> org.mozilla.thunderbird_esr). Rewrite
+          # flatpak-app-list.txt with the IDs that were actually downloaded so
+          # the VM deployment and the behave assertions stay in sync.
+          python3 - <<'PY'
+          import re
+          try:
+              with open("flatpak-install.log", encoding="utf-8") as fh:
+                  log = fh.read()
+          except FileNotFoundError:
+              log = ""
+          mapping = {}
+          for line in log.splitlines():
+              match = re.search(
+                  r'Info:\s+(\S+)\s+is end-of-life,\s+in favor of\s+app/(\S+)/x86_64/stable',
+                  line,
+              )
+              if match:
+                  mapping[match.group(1)] = match.group(2)
+          if mapping:
+              with open("flatpak-app-list.txt", encoding="utf-8") as fh:
+                  lines = fh.read().splitlines()
+              with open("flatpak-app-list.txt", "w", encoding="utf-8") as fh:
+                  for line in lines:
+                      app = line.strip()
+                      if app.startswith("#") or not app:
+                          fh.write(f"{line}\n")
+                          continue
+                      resolved = mapping.get(app, app)
+                      fh.write(f"{resolved}\n")
+              print("Resolved EOL Flatpak aliases:", mapping)
+          PY
 
           df -h /
           du -sh "${XDG_DATA_HOME}/flatpak" || true
