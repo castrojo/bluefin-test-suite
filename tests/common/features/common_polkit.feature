@@ -21,6 +21,6 @@ Feature: Polkit rules presence
     * Last command output contains "active"
 
   Scenario: no polkit rules have syntax errors
-    * Run SSH command: "if command -v node >/dev/null 2>&1; then for f in /etc/polkit-1/rules.d/*.rules /usr/share/polkit-1/rules.d/*.rules; do [ -f \"$f\" ] && node --check \"$f\" 2>&1 && echo OK; done; else for f in /etc/polkit-1/rules.d/*.rules /usr/share/polkit-1/rules.d/*.rules; do [ -r \"$f\" ] && [ -s \"$f\" ] && echo OK; done; fi; true"
+    * Run SSH command: "if command -v node >/dev/null 2>&1; then for f in /etc/polkit-1/rules.d/*.rules /usr/share/polkit-1/rules.d/*.rules; do [ -f $f ] && node --check $f 2>&1 && echo OK; done; else for f in /etc/polkit-1/rules.d/*.rules /usr/share/polkit-1/rules.d/*.rules; do [ -r $f ] && [ -s $f ] && echo OK; done; fi; true"
     * SSH command return code is "0"
     * SSH command output is not empty

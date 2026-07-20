@@ -28,7 +28,7 @@ Feature: XDG desktop portal integration
     * SSH command return code is "0"
 
   Scenario: Document portal fuse filesystem is mounted
-    * Run SSH command: "mount | grep -q fuse.xdg-document-portal"
+    * Run SSH command: "mount | grep -qE 'fuse\.(portal|xdg-document-portal)'"
     * SSH command return code is "0"
 
   Scenario: OpenURI portal can handle a URI without crashing
@@ -56,11 +56,11 @@ Feature: XDG desktop portal integration
     * SSH command output contains "ok"
 
   Scenario: Settings portal exposes accent-color preference
-    * Run SSH command: "gdbus call --session --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop --method org.freedesktop.portal.Settings.Read 'org.freedesktop.appearance' 'accent-color' 2>/dev/null | grep -qE 'double|uint|struct'"
+    * Run SSH command: "gdbus call --session --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop --method org.freedesktop.portal.Settings.Read 'org.freedesktop.appearance' 'accent-color' 2>/dev/null | grep -qE '<<|uint'"
     * SSH command return code is "0"
 
   Scenario: Settings portal ReadAll returns appearance namespace
-    * Run SSH command: "gdbus call --session --dest org.freedesktop.portal.Desktop --object-path /org/freedesktop/portal/desktop --method org.freedesktop.portal.Settings.ReadAll \"['org.freedesktop.appearance']\" 2>/dev/null | grep -q 'color-scheme'"
+    * Run SSH command: "busctl --user call org.freedesktop.portal.Desktop /org/freedesktop/portal/desktop org.freedesktop.portal.Settings ReadAll as 1 org.freedesktop.appearance 2>/dev/null | grep -q color-scheme"
     * SSH command return code is "0"
 
   Scenario: Camera portal IsCameraPresent property is readable

@@ -20,6 +20,6 @@ Feature: Immutable OS integrity
     * SSH command output is not empty
 
   Scenario: /usr filesystem is mounted read-only
-    * Run SSH command: "findmnt /usr --output OPTIONS -n 2>/dev/null | grep -q ro && echo read-only || mount | grep 'on /usr ' | grep -q ro && echo read-only"
+    * Run SSH command: "findmnt -T /usr --output OPTIONS -n 2>/dev/null | grep -qE '(^|,)ro(,|$)' && echo read-only"
     * SSH command return code is "0"
     * Last command output contains "read-only"
