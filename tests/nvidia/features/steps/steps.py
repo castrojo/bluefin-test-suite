@@ -3,7 +3,7 @@ NVIDIA variant step definitions.
 
 Most steps are SSH command + output assertion (reuse common patterns).
 TODO: Implement NVIDIA-specific steps once GPU passthrough is available.
-See QA-REVIEW.md Epic E08. Also see issue #39 for freedesktop tool integration.
+See docs/qa-review.md Epic E08. Also see issue #39 for freedesktop tool integration.
 """
 from behave import step
 

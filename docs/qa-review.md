@@ -1,0 +1,60 @@
+# testsuite QA review
+
+Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/SKILL.md`. Read that file for the current per-suite matrix and `@future` stub list rather than duplicating counts here.
+
+## What this repo is responsible for
+
+- Behave suite coverage and quality
+- qecore + dogtail integration patterns
+- Shared step/harness reuse across suites
+- Reliable scenario-level validation logic
+
+What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan VM lifecycle → `testing-lab`.
+
+## Highest-risk test correctness areas
+
+1. GNOME Shell 50+ top-bar AT-SPI gaps (must use `Shell.Eval` fallback where needed)
+2. dogtail API misuse (`requireResult` on `findChild`) causing runtime errors
+3. Step-definition collisions in suites where multiple step files are loaded
+4. Duplicated SSH logic instead of shared helper reuse
+
+## Review gate for testsuite PRs
+
+1. Are new scenarios added in the correct suite?
+2. Are shared helpers reused where applicable?
+3. Are step phrases unique within each loaded suite?
+4. Is dogtail usage compatible with the current API behavior?
+5. Do docs (`README.md`, `docs/runbook.md`, `docs/skills/`) still match behavior?
+6. Are new scenario tests added as behave steps, with pytest reserved for `tests/unit/` helper coverage?
+7. If scenario counts changed, are `docs/skills/test-authoring/suite-map/SKILL.md` and feature-file totals updated?
+
+## Unit test coverage
+
+Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`unit-tests.yml`) runs on every PR and merge queue entry.
+
+| File | What it covers |
+|---|---|
+| `test_gnome_shell_steps.py` | Shell.Eval, AT-SPI step helpers, ShellEval bool variants |
+| `test_gnome_settings_steps.py` | Settings panel navigation and toggle helpers |
+| `test_lifecycle_steps.py` | bootc upgrade/rollback/migration step helpers |
+| `test_ssh_steps.py` | `run_ssh()`, journal/coredump matchers, output assertions |
+| `test_timing.py` | SLA tag thresholds and timing helpers |
+| `test_screenshot.py` | Screenshot capture helpers |
+| `test_shared.py` | Shared step utilities |
+| `test_screenshot_cli.py` | `screenshot_cli.main()` argument parsing and dispatch |
+| `test_security_steps.py` | `_cosign_entries()` JSON validation and `_collect_values()` recursive extraction |
+| `test_quarantine.py` | `@quarantine` / `@pending` skip logic |
+| `test_qemu_screendump.py` | `_ppm_to_png` conversion and `main()` entry point |
+| `test_app_support.py` | `_desktop_path`, `_flatpak_available`, launch helpers |
+| `test_system_health_steps.py` | `_has_image_reference`, `_running_in_vm`, ignored failed units |
+| `test_brew_steps.py` | Brew step helpers and formula detection |
+| `test_gnome_notifications_steps.py` | Notification step helpers |
+| `test_retry.py` | Behave retry harness, `sys.executable` fallback |
+| `test_parse_results.py` | `scripts/parse_results.py` parsing integration |
+| `test_quarantine_age.py` | `scripts/check_quarantine_age.py` parsing and reporting |
+
+## Current stub posture
+
+- `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
+- `security/selinux`: all scenarios active (cosign verification across image variants).
+- `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.

@@ -11,9 +11,9 @@ Write production-ready behave scenarios for this repo's coverage gaps.
 
 ```bash
 cat docs/skills/index.md          # routing table and hard rules
-cat docs/skills/suite-map.md      # coverage snapshot and @future gaps
-cat docs/skills/behave.md         # step patterns and suite scaffolding
-cat docs/skills/gnome.md          # AT-SPI/dogtail patterns (if writing GNOME tests)
+cat docs/skills/test-authoring/suite-map/SKILL.md      # coverage snapshot and @future gaps
+cat docs/skills/test-authoring/behave/SKILL.md         # step patterns and suite scaffolding
+cat docs/skills/test-authoring/gnome/SKILL.md          # AT-SPI/dogtail patterns (if writing GNOME tests)
 ```
 
 ## Authoring Rules
@@ -38,7 +38,7 @@ All three must pass before pushing.
 ## After Writing
 
 Update **both** scenario count files if the count changed:
-- `docs/skills/suite-map.md` — per-suite table
-- `QA-REVIEW.md` — total count line at the top
+- `docs/skills/test-authoring/suite-map/SKILL.md` — per-suite table
+- `docs/qa-review.md` — total count line at the top
 
 Update the relevant skill doc if a new pattern was discovered.

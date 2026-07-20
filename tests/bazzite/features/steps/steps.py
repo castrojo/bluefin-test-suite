@@ -10,7 +10,7 @@ Covers:
   - GSConnect indicator
 
 common_steps from qecore provides standard AT-SPI steps.
-Shell.Eval patterns: docs/skills/gnome.md
+Shell.Eval patterns: docs/skills/test-authoring/gnome/SKILL.md
 """
 import subprocess
 import time

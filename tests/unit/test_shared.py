@@ -108,25 +108,25 @@ def test_feature_files_have_scenarios():
     assert not empty_features, f"Feature files with no Scenario: {empty_features}"
 
 
-def test_qa_review_has_scenario_count():
-    """QA-REVIEW.md contains a scenario count line."""
-    qa_path = os.path.join(os.path.dirname(__file__), "..", "..", "QA-REVIEW.md")
-    assert os.path.isfile(qa_path), "QA-REVIEW.md is missing"
+def test_qa_review_points_to_suite_map():
+    """docs/qa-review.md points to suite-map for the canonical scenario count."""
+    qa_path = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "qa-review.md")
+    assert os.path.isfile(qa_path), "docs/qa-review.md is missing"
     with open(qa_path) as fh:
         content = fh.read()
-    assert "scenarios across" in content, (
-        "QA-REVIEW.md must contain a 'N scenarios across M feature files' line"
+    assert "suite-map" in content, (
+        "docs/qa-review.md must reference docs/skills/test-authoring/suite-map/SKILL.md for counts"
     )
 
 
 def test_suite_map_has_scenario_count():
-    """docs/skills/suite-map.md contains a scenario count line."""
+    """docs/skills/test-authoring/suite-map/SKILL.md contains a scenario count line."""
     map_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "docs", "skills", "suite-map.md"
+        os.path.dirname(__file__), "..", "..", "docs", "skills", "test-authoring", "suite-map", "SKILL.md"
     )
-    assert os.path.isfile(map_path), "docs/skills/suite-map.md is missing"
+    assert os.path.isfile(map_path), "docs/skills/test-authoring/suite-map/SKILL.md is missing"
     with open(map_path) as fh:
         content = fh.read()
     assert "scenarios across" in content, (
-        "suite-map.md must contain a 'N scenarios across M feature files' line"
+        "suite-map/SKILL.md must contain a 'N scenarios across M feature files' line"
     )

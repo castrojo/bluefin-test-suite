@@ -23,7 +23,7 @@ Triage open issues and PRs in `projectbluefin/testsuite`.
 ## When NOT to Use
 
 - You are about to write implementation code (switch to `test-author` or the relevant implementation skill)
-- The issue requires a human design, security, or breakage gate decision → route to `docs/skills/human-gates.md`
+- The issue requires a human design, security, or breakage gate decision → route to `docs/skills/meta/human-gates/SKILL.md`
 - You are tempted to file issues on `ublue-os/*`, `cncf/*`, or `homebrew/*` — stop and tell the human
 - The issue is #232 (UEFI 3-lane migration workflow) while it is on `status/hold`
 
@@ -71,7 +71,7 @@ Triage open issues and PRs in `projectbluefin/testsuite`.
 | Type | Label | Notes |
 |---|---|---|
 | Ready to claim | `status/queued` | Clear spec, fix is in testsuite, no human gate |
-| Missing scenario / coverage gap | `coverage-gap` + `status/queued` | Add scenario; update `suite-map.md` and `QA-REVIEW.md` |
+| Missing scenario / coverage gap | `coverage-gap` + `status/queued` | Add scenario; update `suite-map.md` and `docs/qa-review.md` |
 | Test correctness bug | `test-quality` + `status/queued` | Point to the broken step or assertion |
 | Infrastructure / structural | `structural` + `status/queued` | Check if the real fix belongs in `projectbluefin/testing-lab` |
 | Upstream image regression | `status/hold` | bazzite extensions, composefs caps, MIME defaults, etc. |
