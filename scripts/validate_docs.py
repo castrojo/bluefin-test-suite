@@ -2,7 +2,6 @@
 """Validate docs/skills/ files and general markdown hygiene."""
 from __future__ import annotations
 
-import os
 import re
 import sys
 from pathlib import Path
