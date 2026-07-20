@@ -419,6 +419,38 @@ def drag_the_marker_file_from_source_to_destination(context) -> None:
     )
 
 
+def _main_content_area(window):
+    """Return the largest visible file-listing container inside a Files window."""
+    for _ in range(5):
+        candidates = window.findChildren(
+            lambda n: n.showing
+            and n.roleName in {"list", "table", "scroll pane", "icon"}
+        )
+        if candidates:
+            return max(
+                candidates,
+                key=lambda n: (n.size[0] if n.size else 0) * (n.size[1] if n.size else 0),
+            )
+        sleep(0.2)
+    return window
+
+
+def _click_content_area(window) -> None:
+    """Click the center of the main file-listing area to move focus there."""
+    area = _main_content_area(window)
+    try:
+        area.click()
+        return
+    except Exception:  # noqa: BLE001
+        pass
+    if Atspi is None:
+        return
+    extents = area.extents
+    x = extents.x + extents.width // 2
+    y = extents.y + extents.height // 2
+    Atspi.generate_mouse_event(x, y, "b1c")
+
+
 @step("Select all files in the source Files window")
 def select_all_files_in_the_source_files_window(context) -> None:
     if _skip_if_no_atspi(context):
@@ -427,10 +459,8 @@ def select_all_files_in_the_source_files_window(context) -> None:
     src_window = getattr(context, "dnd_src_window", None)
     assert src_window, "Source Files window not set on context"
 
-    try:
-        src_window.click()
-    except Exception:  # noqa: BLE001
-        pass
+    _click_content_area(src_window)
+    sleep(0.3)
     _keyboard_combo("<ctrl>a")
     sleep(0.3)
 
@@ -441,14 +471,8 @@ def focus_the_destination_files_window(context) -> None:
         return
     dst_window = getattr(context, "dnd_dst_window", None)
     assert dst_window, "Destination Files window not set on context"
-    try:
-        dst_window.click()
-    except Exception:  # noqa: BLE001
-        extents = dst_window.extents
-        x = extents.x + extents.width // 2
-        y = extents.y + extents.height // 2
-        if Atspi is not None:
-            Atspi.generate_mouse_event(x, y, "b1c")
+
+    _click_content_area(dst_window)
     sleep(0.3)
 
 
