@@ -43,7 +43,7 @@ def _unmask_cups() -> None:
     removes the config symlinks, but ``daemon-reload`` re-runs
     ``systemd-debug-generator`` which recreates runtime masks under
     ``/run/systemd/generator.early``.  That directory has higher precedence than
-    ``/etc/systemd/system``, so we pin the real units in
+    ``/etc/systemd/system``, so we copy the real unit files into
     ``/etc/systemd/system.control`` (the highest-priority load path) to shadow
     the regenerated masks.
     """
@@ -52,11 +52,12 @@ def _unmask_cups() -> None:
     for unit in units:
         # Remove any /etc or /run mask symlinks.
         _run_host(f"sudo -n systemctl unmask {unit} 2>/dev/null || true")
-        # Place the real unit in the highest-priority load path so it wins over
+        # Copy the real unit into the highest-priority load path so it wins over
         # the runtime generator mask in /run/systemd/generator.early.
         _run_host(
             f"if [ -f /usr/lib/systemd/system/{unit} ]; then "
-            f"sudo -n ln -sf /usr/lib/systemd/system/{unit} "
+            f"sudo -n rm -f /etc/systemd/system.control/{unit} && "
+            f"sudo -n cp /usr/lib/systemd/system/{unit} "
             f"/etc/systemd/system.control/{unit}; "
             f"fi",
             timeout=10,
