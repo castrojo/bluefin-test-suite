@@ -18,10 +18,7 @@ Coverage metrics and screenshots are published to the [Live Build Health Dashboa
 Any GNOME bootc image ──────────────────▶ testsuite (smoke + common)
 ```
 
-| Concern | Canonical repo |
-|---|---|
-| Test framework and suite content (features, steps, helpers) | `testsuite` |
-| Infrastructure (ArgoCD, KubeVirt, manifests, CronWorkflows) | `testing-lab` |
+For the canonical ownership boundary between this repo, `testing-lab`, and downstream image repos, see [`docs/architecture.md`](docs/architecture.md).
 
 ## Test stack
 

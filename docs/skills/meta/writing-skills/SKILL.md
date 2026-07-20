@@ -28,6 +28,10 @@ metadata:
 - `name`: 1–64 chars, lowercase alphanumerics and hyphens only, no leading/trailing hyphen, no consecutive hyphens.
 - Optional: `references/`, `scripts/`, `assets/` inside the skill directory.
 
+### Manifest exception
+
+`docs/skills/index.md` is the lazy-load manifest. Its frontmatter `name` may be `testsuite-skills` (or `index`) even though the parent directory is `skills`, because the manifest is loaded by convention, not by directory name. All *task* skills must follow the directory-name rule.
+
 ## Frontmatter schema
 
 ```yaml
@@ -41,9 +45,16 @@ metadata:
 ---
 ```
 
-- `description` is required and must tell the agent when to load the file.
-- `compatibility` may list env constraints (≤500 chars).
-- Reference files may also include frontmatter with a short `name` and `description`.
+Required fields:
+- `name` — matches the parent directory (except the manifest, see above).
+- `description` — ≤1024 chars and must tell the agent *when* to load the file.
+
+Optional fields (aligned with the Agent Skills open spec):
+- `compatibility` — environment constraints, ≤500 chars.
+- `license` — license name or reference.
+- `metadata` — arbitrary key/value map for repo-local taxonomy (`type`, `audience`, `maturity`).
+
+Reference files may also include frontmatter with a short `name` and `description`.
 
 ## Progressive disclosure budgets
 
@@ -55,6 +66,7 @@ metadata:
 | Scripts/assets | as needed | Loaded only when the skill instructs it |
 
 As a rule of thumb: `SKILL.md` ≤ 500 lines; references ≤ 200 lines.
+These are hard limits enforced by `scripts/validate_docs.py` in CI.
 
 ## Token rules
 
