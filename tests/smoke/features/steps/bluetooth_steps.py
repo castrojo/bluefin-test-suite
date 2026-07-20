@@ -94,8 +94,16 @@ def bluetooth_service_started_if_inactive(context) -> None:
             return
 
     # bluetooth.service refuses to start unless a Bluetooth class device exists.
-    out, rc, _ = _run_host("test -d /sys/class/bluetooth", timeout=5)
-    if rc != 0:
+    # Give hci_vhci up to 5 s to register the virtual controller.
+    bt_class_ready = False
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        _, rc, _ = _run_host("test -d /sys/class/bluetooth", timeout=5)
+        if rc == 0:
+            bt_class_ready = True
+            break
+        time.sleep(0.5)
+    if not bt_class_ready:
         _skip_scenario(context, "hci_vhci adapter not visible under /sys/class/bluetooth")
         return
 
@@ -113,15 +121,48 @@ def bluetooth_service_started_if_inactive(context) -> None:
     _skip_scenario(context, "bluetooth.service did not become active after start")
 
 
+def _start_vhci_keepalive() -> str:
+    """Load hci_vhci and open /dev/vhci so the kernel creates a virtual adapter.
+
+    The hci_vhci driver only registers an HCI device after a process opens
+    /dev/vhci and keeps it open. A forked keepalive process detaches, holds the
+    device open, and writes its PID to /tmp/vhci-keepalive.pid. The parent
+    returns the PID immediately.
+    """
+    _run_host("sudo modprobe hci_vhci", timeout=30)
+    cmd = (
+        "sudo python3 -c "
+        "'import os, sys, time; "
+        "pid = os.fork(); "
+        "if pid != 0: print(pid); sys.exit(); "
+        "os.setsid(); "
+        "os.close(0); os.close(1); os.close(2); "
+        'os.open(\"/dev/null\", os.O_RDONLY); '
+        'os.open(\"/dev/null\", os.O_WRONLY); '
+        'os.open(\"/dev/null\", os.O_WRONLY); '
+        'with open(\"/tmp/vhci-keepalive.pid\", \"w\") as f: '
+        '    f.write(str(os.getpid())); '
+        'fd = os.open(\"/dev/vhci\", os.O_RDWR); '
+        "time.sleep(3600)'"
+    )
+    out, rc, err = _run_host(cmd, timeout=10)
+    if rc != 0:
+        return ""
+    pid = out.strip().splitlines()[-1]
+    return pid
+
+
 @step("the hci_vhci kernel module is loaded")
 def hci_vhci_module_loaded(context) -> None:
-    """Load the hci_vhci virtual HCI controller module."""
+    """Load hci_vhci and instantiate a virtual adapter via /dev/vhci."""
     if not _sudo_available():
         _skip_scenario(context, "passwordless sudo not available; cannot load hci_vhci")
         return
-    _, rc, err = _run_host("sudo modprobe hci_vhci", timeout=30)
-    if rc != 0:
-        _skip_scenario(context, f"modprobe hci_vhci failed: {err}")
+    pid = _start_vhci_keepalive()
+    if not pid:
+        _skip_scenario(context, "failed to start hci_vhci keepalive process")
+        return
+    context.vhci_keepalive_pid = pid
 
 
 @step("a Bluetooth controller appears within {timeout:d} seconds")
@@ -174,11 +215,16 @@ def bluetooth_controller_powered_off_if_present(context) -> None:  # noqa: ARG00
 
 
 @step("the hci_vhci kernel module is removed if possible")
-def hci_vhci_module_removed(context) -> None:  # noqa: ARG001
+def hci_vhci_module_removed(context) -> None:
     """Best-effort removal of hci_vhci; ignore failures when module is in use.
 
-    Stop bluetoothd before unloading so the virtual adapter is not held by the
-    daemon. The VM is ephemeral, so leaving bluetooth.service stopped is fine.
+    Kill the keepalive process that holds /dev/vhci open, stop bluetoothd so
+    the virtual adapter is not held by the daemon, then unload the module.
+    The VM is ephemeral, so leaving bluetooth.service stopped is fine.
     """
+    pid = getattr(context, "vhci_keepalive_pid", "")
+    if pid:
+        _run_host(f"sudo kill {pid} || true", timeout=5)
+    _run_host("sudo rm -f /tmp/vhci-keepalive.pid", timeout=5)
     _run_host("sudo systemctl stop bluetooth.service", timeout=15)
     _run_host("sudo modprobe -r hci_vhci || true", timeout=15)
