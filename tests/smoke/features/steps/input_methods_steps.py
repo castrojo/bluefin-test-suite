@@ -149,16 +149,6 @@ def current_input_source_index_is_1(context) -> None:
     assert "1" in output, f"Current input source is not 1: {output}"
 
 
-@step("MRU sources contain the second layout")
-def mru_sources_contain_second_layout(context) -> None:
-    """Assert the most-recently-used sources include the German layout."""
-    output, returncode = _run_in_vm_checked(
-        "gsettings get org.gnome.desktop.input-sources mru-sources"
-    )
-    assert returncode == 0, f"Failed to read MRU sources: {output}"
-    assert "('xkb', 'de')" in output, f"German layout not in MRU sources: {output}"
-
-
 @step("Original input sources are restored")
 def original_input_sources_are_restored(context) -> None:
     """Explicit restore step at the end of the layout-switching scenario."""

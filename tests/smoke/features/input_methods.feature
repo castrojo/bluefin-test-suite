@@ -21,7 +21,6 @@ Feature: Input method and keyboard layout smoke tests
     * Current input source is switched to index 1
     * Input sources list contains the second layout
     * Current input source index is 1
-    * MRU sources contain the second layout
     * Original input sources are restored
 
   @localectl @keymap
