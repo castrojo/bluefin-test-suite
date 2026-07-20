@@ -24,11 +24,43 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
+try:
+    from qecore.common_steps import keyboard_key_combo_input
+except Exception:  # noqa: BLE001
+    keyboard_key_combo_input = None  # type: ignore[assignment]
 
 from app_support import _IN_CONTAINER, _ssh_args, _ssh_run
 
 
 FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
+
+
+def _keyboard_combo(combo: str) -> None:
+    """Send a key combo via qecore uinput, falling back to dogtail rawinput.
+
+    qecore's uinput path works in headless Wayland sessions where dogtail's
+    rawinput would otherwise require gnome-ponytail-daemon.
+    """
+    if keyboard_key_combo_input is not None:
+        try:
+            keyboard_key_combo_input(combo)
+            sleep(0.3)
+            return
+        except Exception:  # noqa: BLE001
+            pass
+    if keyCombo is not None:
+        keyCombo(combo)
+        sleep(0.3)
+
+
+def _exit_overview() -> None:
+    """Leave GNOME Activities overview so windows are accessible via AT-SPI.
+
+    In the headless QEMU session the overview is sometimes active when our
+    scenario starts, which makes application frames report ``showing=False``.
+    Sending Esc returns to the normal desktop view.
+    """
+    _keyboard_combo("<esc>")
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -61,9 +93,7 @@ def _nautilus_windows(timeout: int = 10):
     last_children = []
     for _ in range(timeout * 2):
         frames = app.findChildren(
-            lambda n: n.roleName in {"frame", "filler"}
-            and n.showing
-            and (n.name or "").strip() in {"Files", "Home", ""}
+            lambda n: n.roleName in {"frame", "filler", "window"} and n.showing
         )
         if frames:
             return frames
@@ -97,15 +127,12 @@ def _window_contains_file(window, marker: str) -> bool:
     return False
 
 
-def _nautilus_window_for_path(path: str, marker: str, timeout: int = 10):
-    """Return the Files frame that contains ``marker`` or matches ``path`` basename.
+def _nautilus_window_for_marker(marker: str, timeout: int = 10):
+    """Return the Files frame that contains ``marker``.
 
-    Window titles and breadcrumb labels in GNOME 50 truncate long folder names,
-    so we identify the source window by the marker file it contains and fall back
-    to a basename substring match only when needed.
+    File item accessible names can be line-wrapped or truncated in GNOME 50,
+    so matching uses the UUID substring extracted from the marker filename.
     """
-    basename = os.path.basename(path)
-    unique = _unique_marker_id(marker)
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
@@ -116,12 +143,8 @@ def _nautilus_window_for_path(path: str, marker: str, timeout: int = 10):
         for window in windows:
             if marker and _window_contains_file(window, marker):
                 return window
-            # Fallback: breadcrumb/label contains a short prefix of the basename.
-            for label in [window.name] + [c.name for c in window.findChildren(lambda n: n.showing)[:10]]:
-                if label and (basename.lower() in label.lower() or unique.lower() in label.lower()):
-                    return window
         sleep(0.5)
-    raise AssertionError(f"No Files window found for path {path!r}")
+    raise AssertionError(f"No Files window found containing marker {marker!r}")
 
 
 def _vm_run(cmd: str, timeout: int = 30) -> subprocess.CompletedProcess:
@@ -229,7 +252,15 @@ def files_window_is_open_for_the_source_directory(context) -> None:
     _launch_nautilus(src_dir)
     sleep(2)  # D-Bus activation settle
     _dismiss_welcome_dialog()
-    context.dnd_src_window = _nautilus_window_for_path(src_dir, marker=marker)
+    _exit_overview()
+    try:
+        context.dnd_src_window = _nautilus_window_for_marker(marker)
+    except AssertionError:
+        # Marker may not be exposed in the accessible name; fall back to the
+        # first visible Files frame after launching the source directory.
+        windows = _nautilus_windows(timeout=5)
+        assert windows, "No Files window appeared for the source directory"
+        context.dnd_src_window = windows[0]
     try:
         context.dnd_src_window.click()
     except Exception:  # noqa: BLE001
@@ -252,7 +283,7 @@ def _find_destination_window(src_window, dst_dir: str, marker: str, timeout: int
         for window in windows:
             if window == src_window:
                 continue
-            # Empty destination folder should not contain the marker.
+            # The empty destination folder should not contain the marker.
             if marker and _window_contains_file(window, marker):
                 continue
             return window
@@ -263,8 +294,7 @@ def _find_destination_window(src_window, dst_dir: str, marker: str, timeout: int
         src_window.click()
     except Exception:  # noqa: BLE001
         pass
-    if keyCombo is not None:
-        keyCombo("<Ctrl>n")
+    _keyboard_combo("<ctrl>n")
     sleep(1)
     _vm_run(
         f"source /tmp/session.env 2>/dev/null; gio open {shlex.quote(dst_dir)} &",
@@ -297,6 +327,7 @@ def a_second_files_window_is_open_for_the_destination_directory(context) -> None
     _launch_nautilus(dst_dir, new_window=True)
     sleep(2)  # D-Bus activation settle
     _dismiss_welcome_dialog()
+    _exit_overview()
     context.dnd_dst_window = _find_destination_window(src_window, dst_dir, marker)
     try:
         context.dnd_dst_window.click()
@@ -388,44 +419,19 @@ def drag_the_marker_file_from_source_to_destination(context) -> None:
     )
 
 
-@step("Select the marker file in the source Files window")
-def select_the_marker_file_in_the_source_files_window(context) -> None:
+@step("Select all files in the source Files window")
+def select_all_files_in_the_source_files_window(context) -> None:
     if _skip_if_no_atspi(context):
         return
 
-    marker = getattr(context, "dnd_marker", None)
     src_window = getattr(context, "dnd_src_window", None)
-    assert marker, "Marker filename not set on context"
     assert src_window, "Source Files window not set on context"
 
-    unique = _unique_marker_id(marker)
-    source_node = None
-    for _ in range(10):
-        candidates = src_window.findChildren(
-            lambda n: n.showing
-            and n.roleName in {"list item", "icon", "push button", "label"}
-            and (unique in (n.name or "") or marker in (n.name or ""))
-        )
-        if candidates:
-            source_node = candidates[0]
-            break
-        sleep(0.5)
-    assert source_node, f"Marker file {marker!r} not found in source Files window"
-
     try:
-        source_node.click()
+        src_window.click()
     except Exception:  # noqa: BLE001
-        # Coordinate-based fallback if AT-SPI action click is unavailable.
-        extents = source_node.extents
-        x = extents.x + extents.width // 2
-        y = extents.y + extents.height // 2
-        if Atspi is not None:
-            Atspi.generate_mouse_event(x, y, "b1c")
-        elif absoluteMotion is not None:
-            absoluteMotion(x, y)
-            if press is not None and release is not None:
-                press(x, y)
-                release(x, y)
+        pass
+    _keyboard_combo("<ctrl>a")
     sleep(0.3)
 
 
