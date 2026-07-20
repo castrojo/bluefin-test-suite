@@ -48,6 +48,7 @@ New test scenarios → this repo. New infra (VM specs, manifests, Argo templates
 | UEFI boot via OVMF + systemd-boot (migration reboot testing) | `docs/skills/uefi-boot.md` |
 | Flatpak screenshot gallery (screenshot_flatpaks input, GHCR artifact tags) | `docs/flatpak-screenshots.md` |
 | Submitting improvements, PRs, doc updates | `docs/skills/contributing.md` |
+| Triage issues/PRs, stale-issue detection, label hygiene | `docs/skills/triage.md` |
 | When to stop and request human input (design/security/breakage gates) | `docs/skills/human-gates.md` |
 | What counts as a skill update, how to write and commit it | `docs/skills/skill-improvement.md` |
 | How the skill-drift CI check works, path mapping, waiver process | `docs/skills/skill-drift.md` |
