@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "label": "total coverage",
+  "message": "353 active / 94 quarantined",
+  "color": "red"
+}

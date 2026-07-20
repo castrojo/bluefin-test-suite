@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "label": "smoke",
+  "message": "127 active / 49 quarantined",
+  "color": "red"
+}
