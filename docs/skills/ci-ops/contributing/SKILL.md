@@ -229,19 +229,19 @@ All CI checks must pass cleanly before pushing. Local checks should also be clea
 | Change | Files to update |
 |---|---|
 | New scenario in any suite | Feature file + steps file |
-| Scenario count changes | `QA-REVIEW.md` coverage table + `docs/skills/suite-map.md` coverage snapshot |
-| New unit test file | `QA-REVIEW.md` unit test table |
-| New suite or variant-matrix change | `docs/skills/suite-map.md` variant matrix + `RUNBOOK.md` suite layout table |
-| New step pattern discovered | `docs/skills/behave.md` |
-| New dogtail / GNOME anti-pattern | `docs/skills/gnome.md` |
-| New bootc JSON path or gotcha | `docs/skills/bootc.md` |
-| Infra gotcha (GDM, VM) | `docs/skills/ops.md` |
+| Scenario count changes | `docs/qa-review.md` coverage table + `docs/skills/test-authoring/suite-map/SKILL.md` coverage snapshot |
+| New unit test file | `docs/qa-review.md` unit test table |
+| New suite or variant-matrix change | `docs/skills/test-authoring/suite-map/SKILL.md` variant matrix + `docs/runbook.md` suite layout table |
+| New step pattern discovered | `docs/skills/test-authoring/behave/SKILL.md` |
+| New dogtail / GNOME anti-pattern | `docs/skills/test-authoring/gnome/SKILL.md` |
+| New bootc JSON path or gotcha | `docs/skills/test-authoring/bootc/SKILL.md` |
+| Infra gotcha (GDM, VM) | `docs/skills/ci-ops/ops/SKILL.md` |
 | New hard rule for all agents | `docs/skills/index.md` (rules section) |
-| e2e workflow changes (inputs, stages, image requirements) | `docs/skills/e2e-workflow.md` |
-| Quarantine expiry enforcement or stale `@quarantine` policy | `docs/skills/quarantine-age.md` |
-| Behavior or command change | `README.md` and/or `RUNBOOK.md` if agent-facing docs describe the old behavior |
-| @future scenario now implemented | Remove `@future` tag; update `QA-REVIEW.md` + `docs/skills/suite-map.md` status |
-| Coverage gap resolved | Update `QA-REVIEW.md` known gaps + `docs/skills/suite-map.md` known gaps |
+| e2e workflow changes (inputs, stages, image requirements) | `docs/skills/ci-ops/e2e-workflow/SKILL.md` |
+| Quarantine expiry enforcement or stale `@quarantine` policy | `docs/skills/test-authoring/quarantine-age/SKILL.md` |
+| Behavior or command change | `README.md` and/or `docs/runbook.md` if agent-facing docs describe the old behavior |
+| @future scenario now implemented | Remove `@future` tag; update `docs/qa-review.md` + `docs/skills/test-authoring/suite-map/SKILL.md` status |
+| Coverage gap resolved | Update `docs/qa-review.md` known gaps + `docs/skills/test-authoring/suite-map/SKILL.md` known gaps |
 | `container/Containerfile.runner` changed | Dispatch `build-runner.yml` manually before dispatching any test run — the runner image is NOT auto-rebuilt on push; the new image must be pushed to GHCR before tests will see it |
 
 ## PR description format
@@ -273,7 +273,7 @@ If a skill doc (`docs/skills/*.md`) is wrong or incomplete:
 
 **Do not add hard rules to individual skill docs** — rules go in `docs/skills/index.md` (single source). Skill docs hold patterns and examples only.
 
-**The skill-improvement mandate:** every PR that changes `tests/**`, `.github/workflows/**`, or `scripts/**` should include a matching skill file update. See [`docs/skills/skill-improvement.md`](../../meta/skill-improvement/SKILL.md) for what counts as a learning, which skill to update, and how to commit it together. The skill-drift CI check will warn if this is skipped.
+**The skill-improvement mandate:** every PR that changes `tests/**`, `.github/workflows/**`, or `scripts/**` should include a matching skill file update. See [`docs/skills/meta/skill-improvement/SKILL.md`](../../meta/skill-improvement/SKILL.md) for what counts as a learning, which skill to update, and how to commit it together. The skill-drift CI check will warn if this is skipped.
 
 ## Testing your changes with the GitHub Action
 
@@ -316,7 +316,7 @@ Before enqueuing any PR, read the diff (`gh pr diff <N> --repo <image-org>/tests
 
 ### Resolving count conflicts when rebasing
 
-PRs that update `QA-REVIEW.md` or `docs/skills/suite-map.md` counts frequently conflict when rebased. Resolve by recalculating from main's current counts plus the PR's delta — never blindly accept either side:
+PRs that update `docs/qa-review.md` or `docs/skills/test-authoring/suite-map/SKILL.md` counts frequently conflict when rebased. Resolve by recalculating from main's current counts plus the PR's delta — never blindly accept either side:
 
 ```
 # Identify what the PR changes (e.g. removes 8 @quarantine tags)
@@ -387,6 +387,6 @@ gh issue view <dashboard-issue-number> --repo <image-org>/testsuite --json body 
 
 ## After the PR merges
 
-- If you changed `QA-REVIEW.md`, verify the scenario count is still accurate
+- If you changed `docs/qa-review.md`, verify the scenario count is still accurate
 - If you resolved a `@future` scenario, confirm `just list-stubs` no longer lists it
-- If you added a new operational gotcha to `docs/skills/ops.md`, check `docs/skills/index.md`'s rules section doesn't already cover it (avoid duplication)
+- If you added a new operational gotcha to `docs/skills/ci-ops/ops/SKILL.md`, check `docs/skills/index.md`'s rules section doesn't already cover it (avoid duplication)

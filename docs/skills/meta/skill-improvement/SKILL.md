@@ -55,12 +55,12 @@ The skill-drift CI check will warn if you modify `tests/**`, `.github/workflows/
 
 | Working in... | Write to |
 |---|---|
-| `tests/smoke/**` | `docs/skills/gnome.md` (AT-SPI patterns) or `docs/skills/behave.md` (step structure) |
-| `tests/lifecycle/**` | `docs/skills/bootc.md` |
-| `tests/shared/**` | `docs/skills/behave.md` (shared helper patterns) |
-| `.github/workflows/**` | `docs/skills/e2e-workflow.md` or `docs/skills/suite-map.md` |
-| `.github/actions/**` | `docs/skills/e2e-workflow.md` |
-| `scripts/**` | `docs/skills/e2e-workflow.md` |
+| `tests/smoke/**` | `docs/skills/test-authoring/gnome/SKILL.md` (AT-SPI patterns) or `docs/skills/test-authoring/behave/SKILL.md` (step structure) |
+| `tests/lifecycle/**` | `docs/skills/test-authoring/bootc/SKILL.md` |
+| `tests/shared/**` | `docs/skills/test-authoring/behave/SKILL.md` (shared helper patterns) |
+| `.github/workflows/**` | `docs/skills/ci-ops/e2e-workflow/SKILL.md` or `docs/skills/test-authoring/suite-map/SKILL.md` |
+| `.github/actions/**` | `docs/skills/ci-ops/e2e-workflow/SKILL.md` |
+| `scripts/**` | `docs/skills/ci-ops/e2e-workflow/SKILL.md` |
 | New domain entirely | Create `docs/skills/<area>.md` |
 | Cross-cutting (affects `<image-org>/testsuite` + other repos) | Update local skill first, then open a propagation issue in `<image-org>/actions` |
 
@@ -88,7 +88,7 @@ The skill update goes in the **same commit or same PR** as the implementation. N
 
 ```bash
 # Stage both the implementation and the skill update together
-git add tests/smoke/features/steps/gnome_files_steps.py docs/skills/gnome.md
+git add tests/smoke/features/steps/gnome_files_steps.py docs/skills/test-authoring/gnome/SKILL.md
 git commit -m "feat(smoke): add Nautilus sidebar navigation steps
 
 Update gnome.md: document GNOME 50 sidebar item role change
@@ -98,4 +98,4 @@ Assisted-by: Claude Sonnet 4.6 via GitHub Copilot
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 ```
 
-The skill-drift CI gate will warn if you forget. See `docs/skills/skill-drift.md` for the full path mapping and waiver process.
+The skill-drift CI gate will warn if you forget. See `docs/skills/meta/skill-drift/SKILL.md` for the full path mapping and waiver process.

@@ -21,8 +21,8 @@ metadata:
 ## When NOT to Use
 
 
-- Smoke-suite GUI implementation details that belong in `docs/skills/gnome.md`
-- Bootc / upgrade / rollback workflow rules that belong in `docs/skills/bootc.md`
+- Smoke-suite GUI implementation details that belong in `docs/skills/test-authoring/gnome/SKILL.md`
+- Bootc / upgrade / rollback workflow rules that belong in `docs/skills/test-authoring/bootc/SKILL.md`
 - CI workflow ownership, runner, or reusable-action changes that belong in workflow skills
 
 ## Core Process

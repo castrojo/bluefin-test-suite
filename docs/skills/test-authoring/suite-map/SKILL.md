@@ -30,13 +30,13 @@ Load when: deciding which suite to add a test to, checking existing coverage, or
 2. Confirm the suite/image matrix before adding variant-specific coverage.
 3. Verify the correct scenario tags for that image family.
 4. Update the coverage snapshot and per-suite counts when scenario totals change.
-5. Cross-check the same totals in `QA-REVIEW.md` before opening the PR.
+5. Cross-check the same totals in `docs/qa-review.md` before opening the PR.
 
 ## Common Rationalizations
 
 | Rationalization | Reality |
 |---|---|
-| "It is only one scenario, the counts can wait." | Coverage drift compounds quickly; `suite-map.md` and `QA-REVIEW.md` are co-authoritative. |
+| "It is only one scenario, the counts can wait." | Coverage drift compounds quickly; `suite-map.md` and `docs/qa-review.md` are co-authoritative. |
 | "The tag name is obvious." | Variant gating is implemented in suite hooks; confirm the actual tag semantics before writing image-specific scenarios. |
 | "Another skill file already mentions this suite." | This file is the source for suite-to-image mapping and coverage totals. |
 
@@ -45,16 +45,16 @@ Load when: deciding which suite to add a test to, checking existing coverage, or
 - Scenario totals changed but `suite-map.md` was not updated
 - A variant-specific scenario was added without checking whether the image actually runs that suite
 - A new tag was used without documenting its meaning here
-- `suite-map.md` and `QA-REVIEW.md` disagree on counts
+- `suite-map.md` and `docs/qa-review.md` disagree on counts
 
 ## Verification
 
 - [ ] Suite/image matrix still matches the intended coverage
 - [ ] Variant tag semantics match the actual suite hook behavior
-- [ ] Scenario totals here match `QA-REVIEW.md`
+- [ ] Scenario totals here match `docs/qa-review.md`
 - [ ] Notes describe timeless operating rules, not session history
 
-> Coverage snapshot here and in `QA-REVIEW.md` are co-authoritative — update both when scenario counts or gap status change.
+> Coverage snapshot here and in `docs/qa-review.md` are co-authoritative — update both when scenario counts or gap status change.
 
 ## Variant matrix
 
@@ -94,7 +94,7 @@ Any bootc/ostree GNOME image can plug in `smoke` and `common` as a portable heal
 - All consumer repos should gate on the `smoke` suite only.
 - Nightly CI is gone; PR gates are now the only CI signal for promotion decisions.
 - `e2e.yml` now caches OCI layers by image digest to speed repeated runs.
-- For workflow internals, cache behavior, and troubleshooting, see [`docs/skills/e2e-workflow.md`](../../ci-ops/e2e-workflow/SKILL.md).
+- For workflow internals, cache behavior, and troubleshooting, see [`docs/skills/ci-ops/e2e-workflow/SKILL.md`](../../ci-ops/e2e-workflow/SKILL.md).
 
 
 **Trigger a lifecycle run manually**:
@@ -205,11 +205,11 @@ Activate a `@future` scenario when all three conditions are met:
 2. Step implementations are complete
 3. Suite runs cleanly via the GHA action
 
-When activating: remove `@future`, update this file's coverage snapshot, update `QA-REVIEW.md`.
+When activating: remove `@future`, update this file's coverage snapshot, update `docs/qa-review.md`.
 
 ## smoke vs vanilla-gnome
 
 `smoke=failed` + `vanilla-gnome=passed` → Bluefin regression.  
 `smoke=failed` + `vanilla-gnome=failed` → upstream GNOME issue.  
 `vanilla-gnome` runs exclusively against `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` — the official upstream GNOME OS bootc image — so results are directly comparable to what GNOME ships.  
-Comparison commands and manual inspection procedure → `RUNBOOK.md`.
+Comparison commands and manual inspection procedure → `docs/runbook.md`.

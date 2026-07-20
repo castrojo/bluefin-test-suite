@@ -33,10 +33,10 @@ metadata:
 
 ## When NOT to Use
 
-- Writing behave step logic → `docs/skills/behave.md`
-- GNOME AT-SPI/dogtail patterns → `docs/skills/gnome.md`
-- bootc lifecycle steps → `docs/skills/bootc.md`
-- Workflow inputs, migration runs, manual.yml → `docs/skills/e2e-workflow.md`
+- Writing behave step logic → `docs/skills/test-authoring/behave/SKILL.md`
+- GNOME AT-SPI/dogtail patterns → `docs/skills/test-authoring/gnome/SKILL.md`
+- bootc lifecycle steps → `docs/skills/test-authoring/bootc/SKILL.md`
+- Workflow inputs, migration runs, manual.yml → `docs/skills/ci-ops/e2e-workflow/SKILL.md`
 
 ---
 

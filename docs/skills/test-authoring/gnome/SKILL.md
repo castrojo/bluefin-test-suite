@@ -19,9 +19,9 @@ metadata:
 
 ## When NOT to Use
 
-- SSH-based system checks → `docs/skills/behave.md` shared SSH steps
-- CI workflow or runner container setup → `docs/skills/ops.md`
-- Suite scaffolding or step hygiene → `docs/skills/behave.md`
+- SSH-based system checks → `docs/skills/test-authoring/behave/SKILL.md` shared SSH steps
+- CI workflow or runner container setup → `docs/skills/ci-ops/ops/SKILL.md`
+- Suite scaffolding or step hygiene → `docs/skills/test-authoring/behave/SKILL.md`
 
 ## Core Process
 

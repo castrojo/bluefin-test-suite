@@ -28,7 +28,7 @@ Affected services: `rechunker-group-fix.service`, `ublue-system-setup.service`,
 `ublue-user-setup.service` (--user), `dconf-update.service`,
 `bootc-unified-storage.service`.
 
-See `docs/skills/behave.md` "Shared SSH helpers" section for the feature-file pattern.
+See `docs/skills/test-authoring/behave/SKILL.md` "Shared SSH helpers" section for the feature-file pattern.
 
 **Exception:** Services that are masked in CI (`flatpak-preinstall.service`,
 `flatpak-nuke-fedora.service`) will have `Result=exit-code` or no result at all.

@@ -5,21 +5,21 @@ description: Review pull requests in projectbluefin/testsuite against contributi
 
 # PR Reviewer
 
-Review PRs in this repo against the contribution gates in `docs/skills/contributing.md`.
+Review PRs in this repo against the contribution gates in `docs/skills/ci-ops/contributing/SKILL.md`.
 
 ## First Action
 
 ```bash
 cat docs/skills/index.md
-cat docs/skills/contributing.md   # full contribution gates and review checklist
-cat docs/skills/behave.md         # step authoring patterns
-cat QA-REVIEW.md                  # current coverage baseline
+cat docs/skills/ci-ops/contributing/SKILL.md   # full contribution gates and review checklist
+cat docs/skills/test-authoring/behave/SKILL.md         # step authoring patterns
+cat docs/qa-review.md                  # current coverage baseline
 ```
 
 ## Review Checklist
 
 ### Correctness
-- [ ] New scenarios added to the correct suite (check `docs/skills/suite-map.md`)
+- [ ] New scenarios added to the correct suite (check `docs/skills/test-authoring/suite-map/SKILL.md`)
 - [ ] Shared SSH helpers used (`tests/shared/ssh_steps.py`) — no duplicated `_ssh()`
 - [ ] Step phrases are unique within the loaded suite: `grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d`
 - [ ] dogtail 4.16 API — no `requireResult` on `findChild`
@@ -32,7 +32,7 @@ cat QA-REVIEW.md                  # current coverage baseline
 - [ ] `behave --dry-run` passes (visible in `pr-validate.yml` CI job)
 
 ### Documentation
-- [ ] If scenario count changed: `docs/skills/suite-map.md` and `QA-REVIEW.md` both updated
+- [ ] If scenario count changed: `docs/skills/test-authoring/suite-map/SKILL.md` and `docs/qa-review.md` both updated
 - [ ] If new pattern discovered: relevant skill doc (`docs/skills/*.md`) updated
 - [ ] PR description includes Evidence section (what ran, what passed)
 

@@ -24,7 +24,7 @@ What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan V
 2. Are shared helpers reused where applicable?
 3. Are step phrases unique within each loaded suite?
 4. Is dogtail usage compatible with the current API behavior?
-5. Do docs (`README.md`, `RUNBOOK.md`, `docs/skills/`) still match behavior?
+5. Do docs (`README.md`, `docs/runbook.md`, `docs/skills/`) still match behavior?
 6. Are new scenario tests added as behave steps, with pytest reserved for `tests/unit/` helper coverage?
 7. If scenario counts changed, are `docs/skills/test-authoring/suite-map/SKILL.md` and feature-file totals updated?
 

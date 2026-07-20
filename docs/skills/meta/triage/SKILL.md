@@ -24,7 +24,7 @@ already-finished items.
 ## When NOT to Use
 
 - You are writing implementation code (use the relevant test-authoring skill)
-- The issue needs a human design/security/breakage decision (use `docs/skills/human-gates.md`)
+- The issue needs a human design/security/breakage decision (use `docs/skills/meta/human-gates/SKILL.md`)
 - The work belongs in `<image-org>/testing-lab` or another repo (file/link there)
 
 ## Canonical queue source
@@ -106,7 +106,7 @@ The triage-relevant labels are:
 | Situation | Labels | Notes |
 |---|---|---|
 | Fix is in testsuite, clear next step | `status/queued` (+ `test-quality`/`coverage-gap`/`structural`) | Ready to claim |
-| Missing scenario or `@future` stub | `coverage-gap` + `status/queued` | Update `suite-map.md` and `QA-REVIEW.md` when implemented |
+| Missing scenario or `@future` stub | `coverage-gap` + `status/queued` | Update `suite-map.md` and `docs/qa-review.md` when implemented |
 | Broken step/assertion | `test-quality` + `status/queued` | Reference the failing step |
 | Harness/CI issue | `structural` + `status/queued` | May need a split PR to `<image-org>/testing-lab` |
 | Upstream image regression (e.g. bazzite extensions, composefs caps, MIME defaults) | `status/hold` | Do not fix in testsuite; link tracking issue |
