@@ -67,5 +67,6 @@ class TestUnmaskCups:
         assert len(unmask_commands) == 4
         assert any("cups.socket" in c for c in unmask_commands)
         assert any("cups.service" in c for c in unmask_commands)
-        assert any("ln -sf /usr/lib/systemd/system/cups.socket" in c for c in calls)
+        assert any("/etc/systemd/system.control/cups.socket" in c for c in calls)
+        assert "sudo -n mkdir -p /etc/systemd/system.control" in calls
         assert "sudo -n systemctl daemon-reload" in calls

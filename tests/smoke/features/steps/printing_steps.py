@@ -40,20 +40,24 @@ def _unmask_cups() -> None:
 
     The workflow masks units with both kernel command line ``systemd.mask=`` and
     ``/etc/systemd/system`` symlinks to ``/dev/null``.  ``systemctl unmask``
-    removes the symlinks, but ``daemon-reload`` re-runs ``systemd-debug-generator``
-    which recreates the runtime mask from the kernel argument.  To make the
-    unmask stick we also place real unit symlinks under ``/etc/systemd/system``,
-    which take precedence over runtime generator output.
+    removes the config symlinks, but ``daemon-reload`` re-runs
+    ``systemd-debug-generator`` which recreates runtime masks under
+    ``/run/systemd/generator.early``.  That directory has higher precedence than
+    ``/etc/systemd/system``, so we pin the real units in
+    ``/etc/systemd/system.control`` (the highest-priority load path) to shadow
+    the regenerated masks.
     """
     units = ("cups.socket", "cups.service", "cups.path", "cups-browsed.service")
+    _run_host("sudo -n mkdir -p /etc/systemd/system.control", timeout=10)
     for unit in units:
         # Remove any /etc or /run mask symlinks.
         _run_host(f"sudo -n systemctl unmask {unit} 2>/dev/null || true")
-        # Pin the real unit in /etc so the generator's runtime mask is shadowed.
+        # Place the real unit in the highest-priority load path so it wins over
+        # the runtime generator mask in /run/systemd/generator.early.
         _run_host(
             f"if [ -f /usr/lib/systemd/system/{unit} ]; then "
             f"sudo -n ln -sf /usr/lib/systemd/system/{unit} "
-            f"/etc/systemd/system/{unit}; "
+            f"/etc/systemd/system.control/{unit}; "
             f"fi",
             timeout=10,
         )
