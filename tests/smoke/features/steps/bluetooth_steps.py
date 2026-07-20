@@ -84,12 +84,18 @@ def bluetooth_service_started_if_inactive(context) -> None:
         _skip_scenario(context, "bluetooth.service unit not found")
         return
     if load_state == "masked":
-        _, rc, err = _run_host("sudo systemctl unmask bluetooth.service", timeout=30)
+        # CI masks both the service and the socket; unmask both so the daemon
+        # can actually be activated.
+        _, rc, err = _run_host(
+            "sudo systemctl unmask bluetooth.service bluetooth.socket", timeout=30
+        )
         if rc != 0:
             _skip_scenario(context, f"Failed to unmask bluetooth.service: {err}")
             return
 
-    _, rc, err = _run_host("sudo systemctl start bluetooth.service", timeout=30)
+    _, rc, err = _run_host(
+        "sudo systemctl start bluetooth.service bluetooth.socket", timeout=30
+    )
     if rc != 0:
         _skip_scenario(context, f"Failed to start bluetooth.service: {err}")
         return
@@ -163,5 +169,10 @@ def bluetooth_controller_powered_off_if_present(context) -> None:  # noqa: ARG00
 
 @step("the hci_vhci kernel module is removed if possible")
 def hci_vhci_module_removed(context) -> None:  # noqa: ARG001
-    """Best-effort removal of hci_vhci; ignore failures when module is in use."""
+    """Best-effort removal of hci_vhci; ignore failures when module is in use.
+
+    Stop bluetoothd before unloading so the virtual adapter is not held by the
+    daemon. The VM is ephemeral, so leaving bluetooth.service stopped is fine.
+    """
+    _run_host("sudo systemctl stop bluetooth.service", timeout=15)
     _run_host("sudo modprobe -r hci_vhci || true", timeout=15)
