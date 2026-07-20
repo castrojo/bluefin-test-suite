@@ -1,3 +1,5 @@
+> **Archived spike** — Learning captured in 2026-05 for issue #229 / epic #227. Issue/line references may be stale. Kept for historical context only.
+
 # Spike: UEFI Boot via OVMF + bootc --bootloader systemd
 
 > Issue: #229 | Epic: #227 (migration upgrade path validation)

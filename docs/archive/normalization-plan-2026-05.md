@@ -1,3 +1,5 @@
+> **Archived** — This plan was written in 2026-05. Milestones 1-2 were completed; milestones 3-5 were superseded by later work. Kept for historical context only.
+
 # testsuite normalization plan
 
 > Last updated: 2026-05-29
