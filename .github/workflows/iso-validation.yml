@@ -1,0 +1,108 @@
+# Reusable ISO validation. ISO-specific harnesses remain owned by projectbluefin/iso.
+name: ISO Validation
+
+on:
+  workflow_call:
+    inputs:
+      iso_url:
+        description: "HTTPS URL for the ISO to validate"
+        type: string
+        required: true
+      iso_ref:
+        description: "Immutable projectbluefin/iso ref containing the test harness"
+        type: string
+        required: true
+      variant:
+        description: "ISO variant recorded in the run metadata"
+        type: string
+        required: false
+        default: ""
+      run_e2e:
+        description: "Run unattended installation and post-install boot validation"
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: ISO validation${{ inputs.variant != '' && format(' — {0}', inputs.variant) || '' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      ISO_URL: ${{ inputs.iso_url }}
+      ISO_REF: ${{ inputs.iso_ref }}
+      ISO_VARIANT: ${{ inputs.variant }}
+    steps:
+      - name: Checkout ISO harness
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          repository: projectbluefin/iso
+          ref: ${{ inputs.iso_ref }}
+          fetch-depth: 1
+          sparse-checkout: |
+            tests/iso
+          sparse-checkout-cone-mode: false
+
+      - name: Install ISO test dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            ffmpeg \
+            qemu-system-x86 \
+            qemu-utils \
+            xorriso
+
+      - name: Download ISO
+        run: |
+          set -euo pipefail
+          mkdir -p iso-input
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output iso-input/source.iso "$ISO_URL"
+          test -s iso-input/source.iso
+          sha256sum iso-input/source.iso | tee iso-input/source.iso.sha256
+          stat --format='ISO size: %s bytes' iso-input/source.iso
+
+      - name: Run ISO validation
+        env:
+          E2E_POST_INSTALL_TIMEOUT: 300
+        run: |
+          set -euo pipefail
+          if [[ "${{ inputs.run_e2e }}" == "true" ]]; then
+            bash tests/iso/suite.sh iso-input/source.iso iso-output
+          else
+            bash tests/iso/smoke.sh iso-input/source.iso iso-output/smoke
+          fi
+
+      - name: Write run metadata
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output = Path("iso-output")
+          output.mkdir(parents=True, exist_ok=True)
+          metadata = {
+              "iso_url": os.environ["ISO_URL"],
+              "iso_ref": os.environ["ISO_REF"],
+              "variant": os.environ["ISO_VARIANT"],
+              "run_e2e": "${{ inputs.run_e2e }}" == "true",
+          }
+          (output / "testsuite-iso-metadata.json").write_text(
+              json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Upload ISO validation evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: iso-validation-${{ github.run_id }}${{ inputs.variant != '' && format('-{0}', inputs.variant) || '' }}
+          if-no-files-found: error
+          path: |
+            iso-input/source.iso.sha256
+            iso-output/

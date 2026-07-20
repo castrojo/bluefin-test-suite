@@ -35,8 +35,13 @@ Load when: integrating the testsuite into another repo's CI (e.g. `<image-org>/d
 4. Validate the workflow file parses, then run the repo's required local checks before committing.
 5. Write back any non-obvious workflow pattern discovered during the change in this skill file.
 
-## What it is
+## ISO validation boundary
 
+ISO validation is intentionally separate from this OCI/GNOME workflow. Use `.github/workflows/iso-validation.yml` for a published ISO URL; it checks out `projectbluefin/iso` at the caller-provided immutable `iso_ref`, installs QEMU/xorriso tooling, runs the ISO repository's `tests/iso` harness, and uploads its smoke/E2E evidence. The matching `.github/workflows/iso-manual.yml` exposes the same contract in the Actions UI.
+
+The ISO workflow requires `iso_url` and `iso_ref`; `variant` is metadata and `run_e2e` defaults to true. Do not add an ISO mode to `e2e.yml`, copy the ISO harness into this repository, or use a floating ISO ref. ISO PR artifact validation remains owned by `projectbluefin/iso`; this workflow is for published URL handoffs.
+
+## What it is
 
 `<image-org>/testsuite/.github/workflows/e2e.yml` is a reusable `workflow_call` workflow.  
 It boots a bootc OCI image in a KVM-accelerated QEMU VM on `ubuntu-latest`, starts a GNOME session (via GDM autologin), and runs behave suites via qecore-headless.

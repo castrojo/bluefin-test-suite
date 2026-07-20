@@ -47,6 +47,12 @@ gh workflow run manual.yml --repo <image-org>/testsuite --ref main \
   -f image=ghcr.io/<image-org>/bluefin:testing \
   -f suites=smoke,common,vanilla-gnome
 
+# Manual ISO validation (smoke + unattended install)
+gh workflow run iso-manual.yml --repo projectbluefin/testsuite --ref main \
+  -f iso_url=https://example.invalid/candidate.iso \
+  -f iso_ref=<immutable-projectbluefin-iso-sha> \
+  -f variant=stable
+
 # Check recent runs
 gh run list --repo <image-org>/testsuite --workflow manual.yml --limit 5
 
