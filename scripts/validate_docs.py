@@ -28,15 +28,27 @@ def warn(msg: str) -> None:
 
 
 def collect_md_files() -> list[Path]:
+    # Prefer tracked files via git so untracked working artifacts are not linted.
+    try:
+        import subprocess
+
+        proc = subprocess.run(
+            ["git", "ls-files", "*.md"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        files = [ROOT / line for line in proc.stdout.splitlines() if line]
+        return sorted(files)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        pass
     files: list[Path] = []
-    # When running inside a git worktree, don't exclude the whole tree.
-    inside_worktree = ".worktrees" in ROOT.parts
     for path in ROOT.rglob("*.md"):
         if ".git" in path.parts:
             continue
-        if not inside_worktree and ".worktrees" in path.parts:
+        if ".worktrees" in path.parts:
             continue
-        # Ignore common generated directories and GitHub issue templates
         parts = set(path.parts)
         if parts & {"node_modules", "__pycache__", ".venv"}:
             continue
