@@ -71,7 +71,9 @@ def bluetooth_service_started_if_inactive(context) -> None:
     """Start bluetooth.service when it is not already active.
 
     The CI image masks bluetooth.service; unmask it first so the daemon can
-    actually start. The VM is ephemeral, so leaving it unmasked is harmless.
+    actually start. The service has ConditionPathIsDirectory=/sys/class/bluetooth,
+    so this step must run after the hci_vhci module has created that directory.
+    The VM is ephemeral, so leaving the service unmasked is harmless.
     """
     if _service_is_active("bluetooth.service"):
         return
@@ -84,17 +86,21 @@ def bluetooth_service_started_if_inactive(context) -> None:
         _skip_scenario(context, "bluetooth.service unit not found")
         return
     if load_state == "masked":
-        # CI masks both the service and the socket; unmask both so the daemon
-        # can actually be activated.
         _, rc, err = _run_host(
-            "sudo systemctl unmask bluetooth.service bluetooth.socket", timeout=30
+            "sudo systemctl unmask bluetooth.service", timeout=30
         )
         if rc != 0:
             _skip_scenario(context, f"Failed to unmask bluetooth.service: {err}")
             return
 
+    # bluetooth.service refuses to start unless a Bluetooth class device exists.
+    out, rc, _ = _run_host("test -d /sys/class/bluetooth", timeout=5)
+    if rc != 0:
+        _skip_scenario(context, "hci_vhci adapter not visible under /sys/class/bluetooth")
+        return
+
     _, rc, err = _run_host(
-        "sudo systemctl start bluetooth.service bluetooth.socket", timeout=30
+        "sudo systemctl start bluetooth.service", timeout=30
     )
     if rc != 0:
         _skip_scenario(context, f"Failed to start bluetooth.service: {err}")

@@ -11,15 +11,15 @@ Feature: Bluetooth stack coverage via virtual HCI
 
   @bluetooth @vhci @sla_30s @retry
   Scenario: hci_vhci virtual adapter appears and powers on
-    * bluetooth.service is started if inactive
     * the hci_vhci kernel module is loaded
+    * bluetooth.service is started if inactive
     * a Bluetooth controller appears within 10 seconds
     * the Bluetooth controller is powered on
 
   @bluetooth @gnome @settings @sla_30s @retry
   Scenario: GNOME Settings Bluetooth panel opens with virtual adapter
-    * bluetooth.service is started if inactive
     * the hci_vhci kernel module is loaded
+    * bluetooth.service is started if inactive
     * a Bluetooth controller appears within 10 seconds
     * Launch Settings via command
     * Settings window is accessible
