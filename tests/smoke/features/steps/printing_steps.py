@@ -23,7 +23,7 @@ _LISTENER_SCRIPT = "/tmp/smoke_print_listener.py"
 
 
 def _run_admin(cmd: str, timeout: int = 30):
-    """Run a command that may need root, falling back from sudo to unprivileged."""
+    """Run a command as root with non-interactive sudo; fall back once."""
     for prefix in ("sudo -n", ""):
         full = f"{prefix} {cmd}".strip() if prefix else cmd
         out, rc, err = _run_host(full, timeout=timeout)
@@ -36,12 +36,28 @@ def _run_admin(cmd: str, timeout: int = 30):
 
 
 def _unmask_cups() -> None:
-    """Unmask CUPS units that the CI VM masks to speed first-boot."""
-    for unit in ("cups.socket", "cups.service", "cups.path", "cups-browsed.service"):
-        # Unmask unconditionally; the CI image symlinks these to /dev/null and
-        # systemctl is-enabled may report an empty/error response for them.
-        _run_host(f"sudo systemctl unmask {unit} 2>/dev/null || true")
-    _run_host("sudo systemctl daemon-reload")
+    """Unmask CUPS units that the CI VM masks to speed first-boot.
+
+    The workflow masks units with both kernel command line ``systemd.mask=`` and
+    ``/etc/systemd/system`` symlinks to ``/dev/null``.  ``systemctl unmask``
+    removes the symlinks, but ``daemon-reload`` re-runs ``systemd-debug-generator``
+    which recreates the runtime mask from the kernel argument.  To make the
+    unmask stick we also place real unit symlinks under ``/etc/systemd/system``,
+    which take precedence over runtime generator output.
+    """
+    units = ("cups.socket", "cups.service", "cups.path", "cups-browsed.service")
+    for unit in units:
+        # Remove any /etc or /run mask symlinks.
+        _run_host(f"sudo -n systemctl unmask {unit} 2>/dev/null || true")
+        # Pin the real unit in /etc so the generator's runtime mask is shadowed.
+        _run_host(
+            f"if [ -f /usr/lib/systemd/system/{unit} ]; then "
+            f"sudo -n ln -sf /usr/lib/systemd/system/{unit} "
+            f"/etc/systemd/system/{unit}; "
+            f"fi",
+            timeout=10,
+        )
+    _run_host("sudo -n systemctl daemon-reload")
 
 
 def _start_cups_socket() -> None:

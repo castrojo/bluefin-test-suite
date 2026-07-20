@@ -56,15 +56,16 @@ class TestUnmaskCups:
         m = _import_steps()
         calls = []
 
-        def fake_run_host(cmd):
+        def fake_run_host(cmd, timeout=30):
             calls.append(cmd)
             return ("", 0, "")
 
         with patch.object(m, "_run_host", side_effect=fake_run_host):
             m._unmask_cups()
 
-        unmask_commands = [c for c in calls if c.startswith("sudo systemctl unmask")]
+        unmask_commands = [c for c in calls if c.startswith("sudo -n systemctl unmask")]
         assert len(unmask_commands) == 4
         assert any("cups.socket" in c for c in unmask_commands)
         assert any("cups.service" in c for c in unmask_commands)
-        assert "sudo systemctl daemon-reload" in calls
+        assert any("ln -sf /usr/lib/systemd/system/cups.socket" in c for c in calls)
+        assert "sudo -n systemctl daemon-reload" in calls
