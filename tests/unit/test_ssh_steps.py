@@ -110,6 +110,23 @@ class TestRunSsh:
         assert "export VAR=1" in last_arg
         assert "echo wrapped" in last_arg
 
+    def test_embedded_python_command_passed_verbatim(self):
+        """Regression for issue #531's immutable-suite shell quoting."""
+        ctx = _make_context()
+        proc = _make_proc(stdout="0\n", returncode=0)
+        command = (
+            "rpm-ostree status --json | python3 -c $'"
+            'import sys,json; d=json.load(sys.stdin); '
+            'print(len([p for dep in d.get(\\"deployments\\",[]) '
+            'for p in dep.get(\\"requested-packages\\",[])]))'
+            "'"
+        )
+        with patch("subprocess.run", return_value=proc) as mock_run:
+            stdout, rc = self.mod.run_ssh(ctx, command)
+        assert mock_run.call_args.args[0][-1] == command
+        assert stdout == "0"
+        assert rc == 0
+
     def test_ssh_port_included_when_set(self):
         ctx = _make_context(ssh_port=2222)
         proc = _make_proc(stdout="ok\n")
