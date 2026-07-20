@@ -8,6 +8,7 @@ running inside the runner container.
 import ast
 import json
 import os
+import re
 import shlex
 import subprocess
 from time import sleep
@@ -68,6 +69,17 @@ def _with_session_env(cmd: str) -> str:
     return cmd
 
 
+def _gnome_shell_major_version() -> int | None:
+    """Return the GNOME Shell major version, or None if it cannot be parsed."""
+    stdout, rc, _ = _run_host("gnome-shell --version 2>/dev/null || mutter --version 2>/dev/null")
+    if rc != 0 or not stdout:
+        return None
+    match = re.search(r"(\d+)\.\d+", stdout)
+    if match:
+        return int(match.group(1))
+    return None
+
+
 # Embedded helper script that runs on the VM and talks to Mutter over the
 # session bus. Kept as a single string so it can be passed via SSH without
 # creating files on the test runner filesystem.
@@ -94,8 +106,8 @@ def _native(value):
 
 
 def _find_current_mode_id(monitor):
-    """Return the ID of the currently-active mode, falling back to preferred."""
-    modes = monitor[4]
+    """Return the ID of the currently-active mode from a top-level monitor."""
+    modes = monitor[1]
     for mode in modes:
         props = dict(mode[6])
         if props.get("is-current", False):
@@ -109,7 +121,7 @@ def _find_current_mode_id(monitor):
     raise RuntimeError(f"No modes available for monitor {monitor[0]}")
 
 
-def _build_logical_monitor(lm, new_scale=None):
+def _build_logical_monitor(lm, monitors_by_id, new_scale=None):
     """Build an ApplyMonitorsConfig logical monitor from a GetCurrentState one."""
     x = int(lm[0])
     y = int(lm[1])
@@ -119,7 +131,14 @@ def _build_logical_monitor(lm, new_scale=None):
     monitors = []
     for m in lm[5]:
         connector = str(m[0])
-        mode_id = _find_current_mode_id(m)
+        vendor = str(m[1])
+        product = str(m[2])
+        serial = str(m[3])
+        key = (connector, vendor, product, serial)
+        top_monitor = monitors_by_id.get(key)
+        if top_monitor is None:
+            raise RuntimeError(f"Monitor {key} not found in top-level monitors")
+        mode_id = _find_current_mode_id(top_monitor)
         monitors.append((connector, mode_id, dbus.Dictionary({}, signature="sv")))
     return (x, y, scale, transform, primary, monitors)
 
@@ -135,6 +154,9 @@ def _get_interface():
 def _get_state():
     iface = _get_interface()
     serial, monitors, logical_monitors, properties = iface.GetCurrentState()
+    monitors_by_id = {
+        (str(m[0]), str(m[1]), str(m[2]), str(m[3])): m for m in monitors
+    }
     return {
         "serial": _native(serial),
         "logical_monitors": [
@@ -147,7 +169,16 @@ def _get_state():
                 "monitors": [
                     {
                         "connector": _native(m[0]),
-                        "current_mode": _find_current_mode_id(m),
+                        "current_mode": _find_current_mode_id(
+                            monitors_by_id[
+                                (
+                                    str(m[0]),
+                                    str(m[1]),
+                                    str(m[2]),
+                                    str(m[3]),
+                                )
+                            ]
+                        ),
                     }
                     for m in lm[5]
                 ],
@@ -161,8 +192,12 @@ def _apply_scale(scale, method=1):
     """Apply a scale to all current logical monitors. method=1 is temporary."""
     iface = _get_interface()
     serial, monitors, logical_monitors, properties = iface.GetCurrentState()
+    monitors_by_id = {
+        (str(m[0]), str(m[1]), str(m[2]), str(m[3])): m for m in monitors
+    }
     new_logical_monitors = [
-        _build_logical_monitor(lm, scale) for lm in logical_monitors
+        _build_logical_monitor(lm, monitors_by_id, scale)
+        for lm in logical_monitors
     ]
     iface.ApplyMonitorsConfig(
         serial,
@@ -259,12 +294,32 @@ def _gsettings_set_features(value: str) -> None:
 
 @step("Fractional scaling experimental feature is enabled if required")
 def enable_fractional_scaling_feature_if_required(context) -> None:
-    """Enable scale-monitor-framebuffer when absent; store original for cleanup."""
+    """Enable scale-monitor-framebuffer on older GNOME; store original for cleanup.
+
+    GNOME 42+ (and therefore GNOME 50 on Bluefin) enables fractional scaling by
+    default and no longer recognises scale-monitor-framebuffer as a valid
+    experimental feature. On those versions we only record the original value.
+    """
     features, raw = _gsettings_get_features()
     context.original_experimental_features = raw
     if _FRACTIONAL_SCALE_FEATURE in features:
         print(
             f"fractional scaling feature already enabled: {raw}",
+            flush=True,
+        )
+        return
+    major = _gnome_shell_major_version()
+    if major is None:
+        print(
+            "could not determine GNOME Shell version; assuming fractional "
+            f"scaling is available by default, leaving features as {raw}",
+            flush=True,
+        )
+        return
+    if major >= 42:
+        print(
+            f"GNOME Shell {major}: fractional scaling is default; "
+            f"leaving experimental-features as {raw}",
             flush=True,
         )
         return
