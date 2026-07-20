@@ -34,6 +34,21 @@ metadata:
 4. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
 5. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
 
+## Quote embedded Python in SSH commands safely
+
+`Run SSH command` already wraps the remote command in a quoted Gherkin string.
+When embedding `python3 -c`, use single quotes around the Python program and
+double quotes inside Python for dictionary keys and string literals. Do not
+nest escaped double quotes inside the outer command; those escapes can survive
+into the remote shell and break expressions containing parentheses.
+
+```gherkin
+* Run SSH command: "bootc status --json | python3 -c $'import sys,json; d=json.load(sys.stdin); print(d.get(\"status\",{}))'"
+```
+
+The `$'...'` ANSI-C quote is intentional: the shared SSH step wraps commands
+with `bash -c`, so it consumes the escaped quotes before Python receives them.
+
 ## `grep -q` vs `grep -c` for existence checks
 
 
