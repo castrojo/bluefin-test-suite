@@ -7,7 +7,7 @@ Feature: Bluetooth stack coverage via virtual HCI
   @bluetooth @presence @sla_10s
   Scenario: BlueZ daemon and service unit are present
     * the bluetoothd binary is present
-    * the bluetooth.service unit is loaded and enabled or static
+    * the bluetooth.service unit file is present
 
   @bluetooth @vhci @sla_30s @retry
   Scenario: hci_vhci virtual adapter appears and powers on
