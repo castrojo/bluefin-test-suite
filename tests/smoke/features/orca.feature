@@ -5,15 +5,15 @@ Feature: Orca screen reader
 
   @orca @binary @a11y
   Scenario: Orca and speech-dispatcher binaries are installed
-    * Run and save command output: "command -v orca && rpm -q orca speech-dispatcher"
-    * Return code of last command output "is" "0"
-    * Last command output "contains" "orca-"
-    * Last command output "contains" "speech-dispatcher-"
+    * Run command on VM: "command -v orca && rpm -q orca speech-dispatcher"
+    * VM command return code is "0"
+    * VM command output contains "orca-"
+    * VM command output contains "speech-dispatcher-"
 
   @orca @a11y @bus
   Scenario: AT-SPI accessibility bus name is registered
-    * Run and save command output: "busctl --user list | grep -q org.a11y.Bus"
-    * Return code of last command output "is" "0"
+    * Run command on VM: "busctl --user list | grep -q org.a11y.Bus"
+    * VM command return code is "0"
 
   @orca @a11y @screen_reader @retry
   Scenario: Screen reader toggle starts and stops Orca
@@ -21,5 +21,5 @@ Feature: Orca screen reader
 
   @orca @speech @retry
   Scenario: Speech Dispatcher responds to a module list request
-    * Run and save command output: "spd-say -O"
-    * Return code of last command output "is" "0"
+    * Run command on VM: "spd-say -O"
+    * VM command return code is "0"
