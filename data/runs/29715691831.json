@@ -1,12 +1,12 @@
 {
-  "id": "29708354466",
-  "timestamp": "2026-07-20T03:03:47Z",
+  "id": "29715691831",
+  "timestamp": "2026-07-20T05:13:50Z",
   "stream": "testing",
   "flavor": "bluefin",
   "suite": "smoke",
   "version": "40.latest",
   "git_commit": {
-    "sha": "c63c45d58e177a446d9da54f4cec873d35cf5a14",
+    "sha": "8c42fd018dbb2fafff35b16f7c224a2f99f02306",
     "message": "E2E test run compiled via projectbluefin/testsuite",
     "author": "KubeVirt Lab",
     "repo_url": "https://github.com/projectbluefin/testsuite"
@@ -28,41 +28,41 @@
     "passed_tests": 46,
     "failed_tests": 5,
     "skipped_tests": 19,
-    "total_duration_ms": 130436
+    "total_duration_ms": 161597
   },
   "tests": [
     {
       "name": "GNOME notification smoke tests > Desktop notification can be sent and acknowledged",
       "status": "passed",
-      "duration_ms": 353,
+      "duration_ms": 349,
       "error_message": null,
       "logs": "[PASSED] * A test desktop notification is sent via gdbus\n[PASSED] * Notification request returns a positive notification ID"
     },
     {
       "name": "GNOME notification smoke tests > Notification history is accessible from Quick Settings",
       "status": "passed",
-      "duration_ms": 1582,
+      "duration_ms": 1557,
       "error_message": null,
       "logs": "[PASSED] * A test desktop notification is sent via gdbus\n[PASSED] * Open date menu via Shell.Eval\n[PASSED] * Date menu panel is open via Shell.Eval\n[PASSED] * Close date menu via Shell.Eval"
     },
     {
       "name": "GNOME notification smoke tests > Toast notification banner can be dismissed",
       "status": "passed",
-      "duration_ms": 21705,
+      "duration_ms": 21727,
       "error_message": null,
       "logs": "[PASSED] * A test desktop notification is sent via gdbus\n[PASSED] * Notification request returns a positive notification ID\n[PASSED] * Dismiss the notification via gdbus CloseNotification\n[PASSED] * Notification banner is no longer showing via Shell.Eval"
     },
     {
       "name": "GNOME notification smoke tests > No gnome-shell journal errors after notification",
       "status": "passed",
-      "duration_ms": 473,
+      "duration_ms": 487,
       "error_message": null,
       "logs": "[PASSED] * A test desktop notification is sent via gdbus\n[PASSED] * No gnome-shell notification journal errors are present"
     },
     {
       "name": "GNOME Online Accounts smoke tests > Online Accounts panel is accessible",
       "status": "passed",
-      "duration_ms": 4597,
+      "duration_ms": 4555,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Online Accounts\"\n[PASSED] * Settings panel \"Online Accounts\" is visible"
     },
@@ -76,49 +76,49 @@
     {
       "name": "GNOME Online Accounts smoke tests > goa-daemon is running",
       "status": "passed",
-      "duration_ms": 3902,
+      "duration_ms": 3916,
       "error_message": null,
       "logs": "[PASSED] * Navigate to Settings panel \"Online Accounts\"\n[PASSED] * Run and save command output: \"sleep 3; pgrep -x goa-daemon && echo running\"\n[PASSED] * Last command output \"contains\" \"running\""
     },
     {
       "name": "GNOME regression checks > No gnome-control-center coredump after session start",
       "status": "passed",
-      "duration_ms": 140,
+      "duration_ms": 147,
       "error_message": null,
       "logs": "[PASSED] * No coredump entries exist for \"gnome-control-center\""
     },
     {
       "name": "GNOME Settings smoke tests > GNOME Settings launches and window is accessible",
       "status": "passed",
-      "duration_ms": 1555,
+      "duration_ms": 1444,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Settings window is accessible"
     },
     {
       "name": "GNOME Settings smoke tests > Settings sidebar is present with navigation items",
       "status": "passed",
-      "duration_ms": 1656,
+      "duration_ms": 1604,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Settings sidebar is present"
     },
     {
       "name": "GNOME Settings smoke tests > About page is accessible",
       "status": "passed",
-      "duration_ms": 2491,
+      "duration_ms": 2493,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"About\"\n[PASSED] * Settings panel \"About\" is visible"
     },
     {
       "name": "GNOME Settings smoke tests > About page shows OS information",
       "status": "passed",
-      "duration_ms": 3276,
+      "duration_ms": 3279,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"About\"\n[PASSED] * Settings panel \"About\" is visible\n[PASSED] * About page shows system information"
     },
     {
       "name": "GNOME Settings smoke tests > Displays settings panel is accessible",
       "status": "passed",
-      "duration_ms": 2447,
+      "duration_ms": 2464,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Displays\"\n[PASSED] * Settings panel \"Displays\" is visible"
     },
@@ -132,77 +132,77 @@
     {
       "name": "GNOME Settings smoke tests > Privacy settings panel is accessible",
       "status": "passed",
-      "duration_ms": 2523,
+      "duration_ms": 2460,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Privacy & Security\"\n[PASSED] * Settings panel \"Privacy & Security\" is visible"
     },
     {
       "name": "GNOME Settings smoke tests > Notifications settings panel is accessible",
       "status": "passed",
-      "duration_ms": 2486,
+      "duration_ms": 2469,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Notifications\"\n[PASSED] * Settings panel \"Notifications\" is visible"
     },
     {
       "name": "GNOME Settings smoke tests > Keyboard settings panel is accessible",
       "status": "passed",
-      "duration_ms": 2472,
+      "duration_ms": 2516,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Keyboard\"\n[PASSED] * Settings panel \"Keyboard\" is visible"
     },
     {
       "name": "GNOME Settings smoke tests > Power settings panel is accessible",
       "status": "passed",
-      "duration_ms": 2450,
+      "duration_ms": 2471,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Power\"\n[PASSED] * Settings panel \"Power\" is visible"
     },
     {
       "name": "GNOME Settings smoke tests > Accessibility settings panel is accessible",
       "status": "passed",
-      "duration_ms": 2490,
+      "duration_ms": 2466,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Accessibility\"\n[PASSED] * Settings panel \"Accessibility\" is visible"
     },
     {
       "name": "GNOME Settings smoke tests > Settings closes cleanly via Ctrl+Q",
       "status": "passed",
-      "duration_ms": 37974,
+      "duration_ms": 38022,
       "error_message": null,
       "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Key combo: \"<Ctrl><Q>\" with uinput\n[PASSED] * Settings is no longer running"
     },
     {
       "name": "GNOME Shell smoke tests > GNOME Shell process is running and accessible via AT-SPI",
       "status": "passed",
-      "duration_ms": 155,
+      "duration_ms": 169,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Dump panel children to log\n[PASSED] * Dump gnome-shell AT-SPI tree to results"
     },
     {
       "name": "GNOME Shell smoke tests > Panel is present in AT-SPI tree",
       "status": "passed",
-      "duration_ms": 941,
+      "duration_ms": 960,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Panel is present in AT-SPI tree"
     },
     {
       "name": "GNOME Shell smoke tests > Activities toggle button is visible in panel",
       "status": "passed",
-      "duration_ms": 1889,
+      "duration_ms": 1873,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Activities toggle button is present in gnome-shell panel"
     },
     {
       "name": "GNOME Shell smoke tests > Clock toggle button is visible in panel",
       "status": "passed",
-      "duration_ms": 1872,
+      "duration_ms": 1888,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Clock toggle is visible in top bar"
     },
     {
       "name": "GNOME Shell smoke tests > System menu toggle button is visible in panel",
       "status": "passed",
-      "duration_ms": 1968,
+      "duration_ms": 1865,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * System menu toggle is visible in top bar"
     },
@@ -230,42 +230,42 @@
     {
       "name": "GNOME Shell smoke tests > Clicking System menu opens Quick Settings",
       "status": "passed",
-      "duration_ms": 860,
+      "duration_ms": 864,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Open Quick Settings via Shell.Eval\n[PASSED] * Quick Settings panel is open via Shell.Eval"
     },
     {
       "name": "GNOME Shell smoke tests > Escape closes Quick Settings",
       "status": "passed",
-      "duration_ms": 1250,
+      "duration_ms": 1283,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Open Quick Settings via Shell.Eval\n[PASSED] * Quick Settings panel is open via Shell.Eval\n[PASSED] * Close Quick Settings via Shell.Eval\n[PASSED] * Quick Settings panel is closed via Shell.Eval"
     },
     {
       "name": "GNOME Shell smoke tests > Night Light can be enabled and disabled",
       "status": "passed",
-      "duration_ms": 874,
+      "duration_ms": 868,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Ensure Night Light starts disabled via gsettings\n[PASSED] * Enable Night Light via gsettings\n[PASSED] * Night Light is enabled via gsettings\n[PASSED] * Disable Night Light via gsettings\n[PASSED] * Night Light is disabled via gsettings"
     },
     {
       "name": "GNOME Shell smoke tests > Do-Not-Disturb can be toggled via Quick Settings",
       "status": "passed",
-      "duration_ms": 12460,
+      "duration_ms": 12554,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Open Quick Settings via Shell.Eval\n[PASSED] * Quick Settings panel is open via Shell.Eval\n[PASSED] * Enable Do-Not-Disturb via Shell.Eval toggle\n[PASSED] * Do-Not-Disturb is enabled via Shell.Eval\n[PASSED] * Disable Do-Not-Disturb via Shell.Eval toggle\n[PASSED] * Do-Not-Disturb is disabled via Shell.Eval\n[PASSED] * Close Quick Settings via Shell.Eval"
     },
     {
       "name": "GNOME Shell smoke tests > Clicking clock opens calendar popup",
       "status": "passed",
-      "duration_ms": 806,
+      "duration_ms": 818,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Open date menu via Shell.Eval\n[PASSED] * Date menu panel is open via Shell.Eval"
     },
     {
       "name": "GNOME Shell smoke tests > Escape closes calendar popup",
       "status": "passed",
-      "duration_ms": 1279,
+      "duration_ms": 1285,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Open date menu via Shell.Eval\n[PASSED] * Date menu panel is open via Shell.Eval\n[PASSED] * Close date menu via Shell.Eval\n[PASSED] * Date menu panel is closed via Shell.Eval"
     },
@@ -279,21 +279,21 @@
     {
       "name": "GNOME Shell smoke tests > Switching workspace changes the active workspace index",
       "status": "passed",
-      "duration_ms": 927,
+      "duration_ms": 917,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * Active workspace index is noted\n[PASSED] * Switch to next workspace via Shell.Eval\n[PASSED] * Active workspace has changed"
     },
     {
       "name": "GNOME Shell smoke tests > GNOME Shell extensions do not crash shell on load (bluefin#4612)",
       "status": "passed",
-      "duration_ms": 142,
+      "duration_ms": 148,
       "error_message": null,
       "logs": "[PASSED] * GNOME Shell is accessible via AT-SPI\n[PASSED] * No journal entries at priority \"err..emerg\" contain \"gnome-shell\""
     },
     {
       "name": "GNOME Shell smoke tests > No gnome-shell coredump after session start (bluefin#4642)",
       "status": "passed",
-      "duration_ms": 141,
+      "duration_ms": 133,
       "error_message": null,
       "logs": "[PASSED] * No coredump entries exist for \"gnome-shell\""
     },
@@ -347,91 +347,79 @@
       "logs": "[SKIPPED] * Launch Text Editor via command\n[SKIPPED] * No coredump entries exist for \"gnome-text-editor\""
     },
     {
-      "name": "Orca screen reader > Orca and speech-dispatcher binaries are installed",
+      "name": "Printing stack smoke checks > CUPS socket is enabled and active",
       "status": "failed",
-      "duration_ms": 2,
-      "error_message": [
-        "ASSERT FAILED: ",
-        "Wanted return code: '0'",
-        "Actual return code: '1'"
-      ],
-      "logs": "[PASSED] * Run and save command output: \"command -v orca && rpm -q orca speech-dispatcher\"\n[FAILED] * Return code of last command output \"is\" \"0\"\n\u001b[1;31m[ERROR] ['ASSERT FAILED: ', \"Wanted return code: '0'\", \"Actual return code: '1'\"]\u001b[0m\n[SKIPPED] * Last command output \"contains\" \"orca-\"\n[SKIPPED] * Last command output \"contains\" \"speech-dispatcher-\""
+      "duration_ms": 2646,
+      "error_message": "ASSERT FAILED: systemctl is-enabled cups.socket failed: Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.",
+      "logs": "[FAILED] * cups.socket is enabled and active\n\u001b[1;31m[ERROR] ASSERT FAILED: systemctl is-enabled cups.socket failed: Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.\u001b[0m"
     },
     {
-      "name": "Orca screen reader > AT-SPI accessibility bus name is registered",
+      "name": "Printing stack smoke checks > CUPS scheduler is running",
       "status": "failed",
-      "duration_ms": 3,
-      "error_message": [
-        "ASSERT FAILED: ",
-        "Wanted return code: '0'",
-        "Actual return code: '1'"
-      ],
-      "logs": "[PASSED] * Run and save command output: \"busctl --user list | grep -q org.a11y.Bus\"\n[FAILED] * Return code of last command output \"is\" \"0\"\n\u001b[1;31m[ERROR] ['ASSERT FAILED: ', \"Wanted return code: '0'\", \"Actual return code: '1'\"]\u001b[0m"
+      "duration_ms": 12925,
+      "error_message": "ASSERT FAILED: cups.socket did not become active: inactive (rc=3, Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.)",
+      "logs": "[FAILED] * CUPS scheduler is running\n\u001b[1;31m[ERROR] ASSERT FAILED: cups.socket did not become active: inactive (rc=3, Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.)\u001b[0m"
     },
     {
-      "name": "Orca screen reader > Screen reader toggle starts and stops Orca",
+      "name": "Printing stack smoke checks > GNOME Settings Printers panel is accessible",
       "status": "passed",
-      "duration_ms": 989,
+      "duration_ms": 3544,
       "error_message": null,
-      "logs": "[PASSED] * Screen reader enabled state toggles Orca on and off"
+      "logs": "[PASSED] * Launch Settings via command\n[PASSED] * Settings window is accessible\n[PASSED] * Navigate to Settings panel \"Printers\"\n[PASSED] * Settings panel \"Printers\" is visible"
     },
     {
-      "name": "Orca screen reader > Speech Dispatcher responds to a module list request",
+      "name": "Printing stack smoke checks > Virtual raw socket printer queue accepts and completes a job",
       "status": "failed",
-      "duration_ms": 1,
-      "error_message": [
-        "ASSERT FAILED: ",
-        "Wanted return code: '0'",
-        "Actual return code: '127'"
-      ],
-      "logs": "[PASSED] * Run and save command output: \"spd-say -O\"\n[FAILED] * Return code of last command output \"is\" \"0\"\n\u001b[1;31m[ERROR] ['ASSERT FAILED: ', \"Wanted return code: '0'\", \"Actual return code: '127'\"]\u001b[0m"
+      "duration_ms": 12912,
+      "error_message": "ASSERT FAILED: cups.socket did not become active: inactive (rc=3, Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.)",
+      "logs": "[FAILED] * virtual raw printer queue \"smokeprint\" accepts a test job and is removed\n\u001b[1;31m[ERROR] ASSERT FAILED: cups.socket did not become active: inactive (rc=3, Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.)\u001b[0m"
     },
     {
       "name": "System health smoke checks > No failed systemd units at boot",
       "status": "passed",
-      "duration_ms": 402,
+      "duration_ms": 433,
       "error_message": null,
       "logs": "[PASSED] * No failed systemd units at boot"
     },
     {
       "name": "System health smoke checks > No critical journal errors at boot",
       "status": "passed",
-      "duration_ms": 135,
+      "duration_ms": 134,
       "error_message": null,
       "logs": "[PASSED] * No critical kernel errors in journal"
     },
     {
       "name": "System health smoke checks > Bluefin image identity is present in /etc/os-release",
       "status": "passed",
-      "duration_ms": 128,
+      "duration_ms": 133,
       "error_message": null,
       "logs": "[PASSED] * Bluefin image identity is present in os-release"
     },
     {
       "name": "System health smoke checks > bootc status shows a known image reference",
       "status": "passed",
-      "duration_ms": 234,
+      "duration_ms": 241,
       "error_message": null,
       "logs": "[PASSED] * bootc status shows a valid image reference"
     },
     {
       "name": "System health smoke checks > Writable system storage has more than 15 percent free space",
       "status": "failed",
-      "duration_ms": 137,
+      "duration_ms": 147,
       "error_message": "ASSERT FAILED: Root filesystem free space 14% is below required 15%",
       "logs": "[FAILED] * Writable system storage has at least \"15\" percent free space\n\u001b[1;31m[ERROR] ASSERT FAILED: Root filesystem free space 14% is below required 15%\u001b[0m"
     },
     {
       "name": "System health smoke checks > External DNS resolves external hosts",
       "status": "passed",
-      "duration_ms": 137,
+      "duration_ms": 140,
       "error_message": null,
       "logs": "[PASSED] * External DNS resolves external hosts"
     },
     {
       "name": "System health smoke checks > ujust is available and lists at least one task",
       "status": "passed",
-      "duration_ms": 436,
+      "duration_ms": 453,
       "error_message": null,
       "logs": "[PASSED] * ujust is on PATH and returns exit 0\n[PASSED] * ujust --list prints at least one task"
     },
@@ -452,35 +440,35 @@
     {
       "name": "System health smoke checks > System boots to display manager, not emergency console",
       "status": "passed",
-      "duration_ms": 278,
+      "duration_ms": 274,
       "error_message": null,
       "logs": "[PASSED] * gdm.service is active\n[PASSED] * graphical.target is active"
     },
     {
       "name": "System health smoke checks > tailscale is installed and daemon is running",
       "status": "failed",
-      "duration_ms": 301,
+      "duration_ms": 298,
       "error_message": "ASSERT FAILED: tailscaled is not active (got 'inactive'; stderr=\"Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.\")",
       "logs": "[FAILED] * tailscale is installed and daemon is running\n\u001b[1;31m[ERROR] ASSERT FAILED: tailscaled is not active (got 'inactive'; stderr=\"Warning: Permanently added '127.0.0.1' (ED25519) to the list of known hosts.\")\u001b[0m"
     },
     {
       "name": "System health smoke checks > uupd auto-updater is installed and configured",
       "status": "passed",
-      "duration_ms": 291,
+      "duration_ms": 290,
       "error_message": null,
       "logs": "[PASSED] * uupd auto-updater is installed and configured"
     },
     {
       "name": "System health smoke checks > fastfetch is present and operational",
       "status": "passed",
-      "duration_ms": 152,
+      "duration_ms": 141,
       "error_message": null,
       "logs": "[PASSED] * fastfetch is present and operational"
     },
     {
       "name": "xdg-open MIME type handler registration > HTML files open in Firefox",
       "status": "passed",
-      "duration_ms": 159,
+      "duration_ms": 157,
       "error_message": null,
       "logs": "[PASSED] * xdg-mime query default for \"text/html\" returns \"org.mozilla.firefox.desktop\""
     },
@@ -515,21 +503,21 @@
     {
       "name": "XWayland smoke tests > XWayland process appears when an X11 client connects",
       "status": "passed",
-      "duration_ms": 1355,
+      "duration_ms": 1416,
       "error_message": null,
       "logs": "[PASSED] * X11 client glxgears is available\n[PASSED] * Terminate any running glxgears\n[PASSED] * Launch glxgears via command\n[PASSED] * XWayland process appears within 10 seconds\n[PASSED] * Terminate glxgears"
     },
     {
       "name": "XWayland smoke tests > X11 client can use the XWayland display",
       "status": "passed",
-      "duration_ms": 1655,
+      "duration_ms": 1696,
       "error_message": null,
       "logs": "[PASSED] * X11 client glxgears is available\n[PASSED] * Terminate any running glxgears\n[PASSED] * Launch glxgears via command\n[PASSED] * XWayland process appears within 10 seconds\n[PASSED] * xprop can query the X root window\n[PASSED] * Terminate glxgears"
     },
     {
       "name": "XWayland smoke tests > XWayland incurs no coredump after the X11 client closes",
       "status": "passed",
-      "duration_ms": 3505,
+      "duration_ms": 3566,
       "error_message": null,
       "logs": "[PASSED] * X11 client glxgears is available\n[PASSED] * Terminate any running glxgears\n[PASSED] * Launch glxgears via command\n[PASSED] * XWayland process appears within 10 seconds\n[PASSED] * Terminate glxgears\n[PASSED] * Wait 2 seconds\n[PASSED] * No coredump entries exist for \"Xwayland\""
     }
