@@ -74,13 +74,22 @@ def _nautilus_windows(timeout: int = 10):
     )
 
 
-def _window_contains_file(window, filename: str) -> bool:
-    """Return True if the Files window/frame contains an item named like ``filename``."""
+def _unique_marker_id(marker: str) -> str:
+    """Extract the UUID portion of ``moved-<uuid>.txt`` for resilient matching."""
+    # marker format: "moved-<unique>.txt"
+    if marker.startswith("moved-") and marker.endswith(".txt"):
+        return marker[6:-4]
+    return marker
+
+
+def _window_contains_file(window, marker: str) -> bool:
+    """Return True if the Files window/frame contains an item named like ``marker``."""
+    unique = _unique_marker_id(marker)
     for _ in range(3):
         items = window.findChildren(
             lambda n: n.showing
             and n.roleName in {"list item", "icon", "push button", "label"}
-            and filename in (n.name or "")
+            and (unique in (n.name or "") or marker in (n.name or ""))
         )
         if items:
             return True
@@ -96,6 +105,7 @@ def _nautilus_window_for_path(path: str, marker: str, timeout: int = 10):
     to a basename substring match only when needed.
     """
     basename = os.path.basename(path)
+    unique = _unique_marker_id(marker)
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
@@ -106,13 +116,10 @@ def _nautilus_window_for_path(path: str, marker: str, timeout: int = 10):
         for window in windows:
             if marker and _window_contains_file(window, marker):
                 return window
-            # Fallback: breadcrumb/label contains the basename (possibly truncated).
-            if basename.lower() in (window.name or "").lower():
-                return window
-            for child in window.findChildren(
-                lambda n: n.showing and basename[:12].lower() in (n.name or "").lower()
-            )[:5]:
-                return window
+            # Fallback: breadcrumb/label contains a short prefix of the basename.
+            for label in [window.name] + [c.name for c in window.findChildren(lambda n: n.showing)[:10]]:
+                if label and (basename.lower() in label.lower() or unique.lower() in label.lower()):
+                    return window
         sleep(0.5)
     raise AssertionError(f"No Files window found for path {path!r}")
 
@@ -309,13 +316,14 @@ def drag_the_marker_file_from_source_to_destination(context) -> None:
     assert src_window, "Source Files window not set on context"
     assert dst_window, "Destination Files window not set on context"
 
-    # Locate the source file icon by filename.
+    # Locate the source file icon by the resilient unique marker id.
+    unique = _unique_marker_id(marker)
     source_node = None
     for _ in range(10):
         candidates = src_window.findChildren(
             lambda n: n.showing
             and n.roleName in {"list item", "icon", "push button", "label"}
-            and marker in (n.name or "")
+            and (unique in (n.name or "") or marker in (n.name or ""))
         )
         if candidates:
             source_node = candidates[0]
@@ -390,12 +398,13 @@ def select_the_marker_file_in_the_source_files_window(context) -> None:
     assert marker, "Marker filename not set on context"
     assert src_window, "Source Files window not set on context"
 
+    unique = _unique_marker_id(marker)
     source_node = None
     for _ in range(10):
         candidates = src_window.findChildren(
             lambda n: n.showing
             and n.roleName in {"list item", "icon", "push button", "label"}
-            and marker in (n.name or "")
+            and (unique in (n.name or "") or marker in (n.name or ""))
         )
         if candidates:
             source_node = candidates[0]
