@@ -207,6 +207,7 @@ jobs:
           import hashlib
           import os
           import re
+          import sys
 
           apps = set()
 
@@ -273,9 +274,15 @@ jobs:
           path: ${{ github.workspace }}/.flatpak-cache-home/.local/share/flatpak
           key: flatpak-ootb-${{ runner.os }}-${{ steps.manifest.outputs.hash }}
 
+      # The full Bluefin OOTB Flatpak set is multi-GB; reclaim runner disk before
+      # any cache priming so the download has room to complete.
+      - name: Free disk space
+        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+
       - name: Prime Flatpak download cache
         if: ${{ contains(inputs.image, '/bluefin') && steps.shard.outputs.suite_dir != 'common' && steps.shard.outputs.suite_dir != 'lifecycle' && steps.flatpak-cache.outputs.cache-hit != 'true' }}
         run: |
+          df -h /
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends flatpak
 
@@ -295,8 +302,8 @@ jobs:
           flatpak install --user --assumeyes --noninteractive --no-deploy \
             flathub "${APPS[@]}"
 
-      - name: Free disk space
-        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+          df -h /
+          du -sh "${XDG_DATA_HOME}/flatpak" || true
 
       - name: Enable KVM access
         run: |
