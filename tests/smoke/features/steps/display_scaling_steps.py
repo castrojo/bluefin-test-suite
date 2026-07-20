@@ -118,7 +118,7 @@ def _find_current_mode_id(monitor):
             return str(mode[0])
     if modes:
         return str(modes[0][0])
-    raise RuntimeError(f"No modes available for monitor {monitor[0]}")
+    raise RuntimeError(f"No modes available for monitor {monitor[0][0]}")
 
 
 def _build_logical_monitor(lm, monitors_by_id, new_scale=None):
@@ -155,7 +155,8 @@ def _get_state():
     iface = _get_interface()
     serial, monitors, logical_monitors, properties = iface.GetCurrentState()
     monitors_by_id = {
-        (str(m[0]), str(m[1]), str(m[2]), str(m[3])): m for m in monitors
+        (str(m[0][0]), str(m[0][1]), str(m[0][2]), str(m[0][3])): m
+        for m in monitors
     }
     return {
         "serial": _native(serial),
@@ -193,7 +194,8 @@ def _apply_scale(scale, method=1):
     iface = _get_interface()
     serial, monitors, logical_monitors, properties = iface.GetCurrentState()
     monitors_by_id = {
-        (str(m[0]), str(m[1]), str(m[2]), str(m[3])): m for m in monitors
+        (str(m[0][0]), str(m[0][1]), str(m[0][2]), str(m[0][3])): m
+        for m in monitors
     }
     new_logical_monitors = [
         _build_logical_monitor(lm, monitors_by_id, scale)
