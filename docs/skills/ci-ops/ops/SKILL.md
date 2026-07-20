@@ -1,0 +1,108 @@
+---
+name: ops
+description: "Operational gotchas and failure signatures for the testsuite lab/CI setup. Load when debugging e2e failures, GDM, oomd, Argo, or runner issues."
+metadata:
+  type: pattern
+  audience: agents
+  maturity: stable
+---
+
+# Operational Gotchas
+
+# → success
+# /etc/gdm/custom.conf
+# WRONG — tests the container's DNS, not the VM's
+# CORRECT — tests DNS inside the VM
+# must return nothing
+# Listener running?
+# Jobs being picked up? (empty arc-runners is healthy — minRunners=0)
+# Runner logs (catch before pod completes)
+# WRONG — creates scratch/smoke.png/ directory, cp fails silently
+# CORRECT — pull to dir, then find the PNG inside
+# edit /tmp/ruleset.json, then PUT
+# .github/actions/my-action/action.yml
+
+## When to Use
+
+- VM boots to GDM greeter instead of a GNOME session
+- Debugging infra-layer CI failures (runner container, D-Bus, AT-SPI)
+- Adding new packages or patches to `container/Containerfile.runner`
+- SSH assertion failures from unexpected output
+- common-suite service health scenarios fail with unexpected `ActiveState` values
+- Polkit rules presence check returns zero results
+
+## When NOT to Use
+
+- Writing behave step logic → `docs/skills/behave.md`
+- GNOME AT-SPI/dogtail patterns → `docs/skills/gnome.md`
+- bootc lifecycle steps → `docs/skills/bootc.md`
+- Workflow inputs, migration runs, manual.yml → `docs/skills/e2e-workflow.md`
+
+---
+
+## Red Flags
+
+
+- Using `_run(cmd)` in smoke suite for DNS or network checks (runs on container, not VM)
+- Setting `sys.exit(1)` inside `before_scenario` (kills all subsequent scenarios silently)
+- Lowering the SSH timeout below 60 seconds (hardware commands are slow in QEMU)
+- Adding a second `-monitor` flag to QEMU (breaks `qemu_screendump.py`)
+- Using `hasattr(context, 'failed_setup')` instead of `getattr(..., None)` (always True)
+- Calling `sudo podman load` instead of rootless load (image goes to root storage)
+- Using `oras pull` with a file path instead of a directory
+
+## Verification
+
+
+- [ ] Smoke suite network/DNS checks use `_run_host()` not `_run()`
+- [ ] No `sys.exit()` calls in `before_scenario` / `after_scenario`
+- [ ] `before_scenario` guard uses `getattr(context, 'failed_setup', None)`, not `hasattr()`
+- [ ] SSH step timeout is 60s or higher for hardware/bootc commands
+- [ ] `oras pull` targets a directory, not a file path
+- [ ] Runner container changes followed by `build-runner.yml` dispatch before test runs
+
+---
+
+## On-demand references
+
+Load these when you hit the specific topic:
+
+- [Oneshot systemd service state — use Result, not ActiveState](references/oneshot-systemd-service-state-use-result-not-activestate.md)
+- [Polkit rules path — check both directories](references/polkit-rules-path-check-both-directories.md)
+- [Fedora version targets](references/fedora-version-targets.md)
+- [GDM autologin required](references/gdm-autologin.md)
+- [xdg-desktop-portal and graphical-session.target](references/xdg-desktop-portal-and-graphical-session-target.md)
+- [SSH step timeout](references/ssh-step-timeout.md)
+- [Smoke suite: _run() vs _run_host() for network checks](references/smoke-suite-run-vs-run-host-for-network-checks.md)
+- [sys.exit(1) in before_scenario kills behave](references/sys-exit-1-in-before-scenario-kills-behave.md)
+- [GNOME 50 requires qecore >= 4.12](references/gnome-50-requires-qecore-4-12.md)
+- [OCI layer caching](references/oci-layer-caching.md)
+- [@quarantine tag enforcement — two layers required](references/quarantine-tag-enforcement-two-layers-required.md)
+- [--bootloader flag requires bootc >= 0.1.13](references/bootloader-flag-requires-bootc-0-1-13.md)
+- [NVIDIA services always fail in QEMU](references/nvidia-services-always-fail-in-qemu.md)
+- [systemd-oomd: both .service AND .socket fail in QEMU](references/systemd-oomd.md)
+- [Bazzite extension state: use GetExtensionInfo, not Shell.Eval](references/bazzite-extension-state-use-getextensioninfo-not-shell-eval.md)
+- [Rootless podman load fails in VM (exit 125)](references/rootless-podman-load-fails-in-vm-exit-125.md)
+- [YAML orphan keys in e2e.yml](references/yaml-orphan-keys-in-e2e-yml.md)
+- [Containerfile.runner requirements](references/containerfile-runner-requirements.md)
+- [Python 3.14: sys.executable is empty in --pid=host containers](references/python-3-14-sys-executable-is-empty-in-pid-host-containers.md)
+- [XDG_SESSION_TYPE and XDG_SESSION_DESKTOP must be forwarded](references/xdg-session-type-and-xdg-session-desktop-must-be-forwarded.md)
+- [bootc install creates .0.origin alongside .0 — DEPLOY find must use -type d](references/bootc-install-creates-0-origin-alongside-0-deploy-find-must.md)
+- [before_scenario and after_scenario setup guard pattern](references/before-scenario-and-after-scenario-setup-guard-pattern.md)
+- [results.json captures first-pass only](references/results-json-captures-first-pass-only.md)
+- [ublue-motd prepended to SSH output](references/ublue-motd-prepended-to-ssh-output.md)
+- [Do not add a second -monitor flag to QEMU](references/do-not-add-a-second-monitor-flag-to-qemu.md)
+- [common shell tools missing on bluefin:lts / bluefin-gdx](references/common-shell-tools-missing-on-bluefin-lts-bluefin-gdx.md)
+- [lifecycle / on-pr-opened: pr/needs-review label must exist](references/lifecycle-on-pr-opened-pr-needs-review-label-must-exist.md)
+- [ARC ghost runners — local dev routing](references/arc-ghost-runners-local-dev-routing.md)
+- [oras pull: always use a directory, never a file path](references/oras-pull-always-use-a-directory-never-a-file-path.md)
+- [GitHub API: rulesets require PUT not PATCH](references/github-api-rulesets-require-put-not-patch.md)
+- [Cross-image tag skipping: @bluefin on non-bluefin images](references/cross-image-tag-skipping-bluefin-on-non-bluefin-images.md)
+- [composefs file-capability regression](references/composefs-file-capability-regression.md)
+- [Stdin Heredoc Consumption bug in run-gnome-tests.yaml](references/stdin-heredoc-consumption-bug-in-run-gnome-tests-yaml.md)
+- [User Bootstrap primary group bug on fresh boots](references/user-bootstrap-primary-group-bug-on-fresh-boots.md)
+- [git restore vs git checkout for full directory reset](references/git-restore-vs-git-checkout-for-full-directory-reset.md)
+- [Composite actions vs checkout for cross-repo scripts](references/composite-actions-vs-checkout-for-cross-repo-scripts.md)
+- [common suite execution model — runner container, not inside VM](references/common-suite-execution-model-runner-container-not-inside-vm.md)
+- [smoke suite — pre-existing lab failures (GNOME 50 AT-SPI)](references/smoke-suite-pre-existing-lab-failures-gnome-50-at-spi.md)
+- [testing-lab ArgoCD template resolution timing](references/argo-mutex.md)
