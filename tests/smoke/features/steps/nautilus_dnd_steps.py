@@ -74,8 +74,27 @@ def _nautilus_windows(timeout: int = 10):
     )
 
 
-def _nautilus_window_for_path(path: str, timeout: int = 10):
-    """Return the Files frame whose location bar contains the path basename."""
+def _window_contains_file(window, filename: str) -> bool:
+    """Return True if the Files window/frame contains an item named like ``filename``."""
+    for _ in range(3):
+        items = window.findChildren(
+            lambda n: n.showing
+            and n.roleName in {"list item", "icon", "push button", "label"}
+            and filename in (n.name or "")
+        )
+        if items:
+            return True
+        sleep(0.2)
+    return False
+
+
+def _nautilus_window_for_path(path: str, marker: str, timeout: int = 10):
+    """Return the Files frame that contains ``marker`` or matches ``path`` basename.
+
+    Window titles and breadcrumb labels in GNOME 50 truncate long folder names,
+    so we identify the source window by the marker file it contains and fall back
+    to a basename substring match only when needed.
+    """
     basename = os.path.basename(path)
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -85,11 +104,13 @@ def _nautilus_window_for_path(path: str, timeout: int = 10):
             sleep(0.5)
             continue
         for window in windows:
-            # GNOME 50 location bar exposes the folder basename as a label/button name.
+            if marker and _window_contains_file(window, marker):
+                return window
+            # Fallback: breadcrumb/label contains the basename (possibly truncated).
             if basename.lower() in (window.name or "").lower():
                 return window
             for child in window.findChildren(
-                lambda n: n.showing and basename.lower() in (n.name or "").lower()
+                lambda n: n.showing and basename[:12].lower() in (n.name or "").lower()
             )[:5]:
                 return window
         sleep(0.5)
@@ -195,27 +216,81 @@ def files_window_is_open_for_the_source_directory(context) -> None:
     if _skip_if_no_atspi(context):
         return
     src_dir = getattr(context, "dnd_src_dir", None)
+    marker = getattr(context, "dnd_marker", None)
     assert src_dir, "Source directory not set on context"
+    assert marker, "Marker filename not set on context"
     _launch_nautilus(src_dir)
-    sleep(1)  # D-Bus activation settle
+    sleep(2)  # D-Bus activation settle
     _dismiss_welcome_dialog()
-    context.dnd_src_window = _nautilus_window_for_path(src_dir)
+    context.dnd_src_window = _nautilus_window_for_path(src_dir, marker=marker)
     try:
         context.dnd_src_window.click()
     except Exception:  # noqa: BLE001
         pass
 
 
+def _find_destination_window(src_window, dst_dir: str, marker: str, timeout: int = 15):
+    """Return a Files frame that is not ``src_window`` and points at ``dst_dir``.
+
+    If ``nautilus --new-window`` merged into a tab or failed to open, fall back
+    to opening a new window with Ctrl+N and navigating to the destination path.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            windows = _nautilus_windows(timeout=2)
+        except AssertionError:
+            sleep(0.5)
+            continue
+        for window in windows:
+            if window == src_window:
+                continue
+            # Empty destination folder should not contain the marker.
+            if marker and _window_contains_file(window, marker):
+                continue
+            return window
+        sleep(0.5)
+
+    # Fallback: open a new window via keyboard shortcut and navigate to dst_dir.
+    try:
+        src_window.click()
+    except Exception:  # noqa: BLE001
+        pass
+    if keyCombo is not None:
+        keyCombo("<Ctrl>n")
+    sleep(1)
+    _vm_run(
+        f"source /tmp/session.env 2>/dev/null; gio open {shlex.quote(dst_dir)} &",
+        timeout=5,
+    )
+    sleep(2)
+    for _ in range(20):
+        try:
+            windows = _nautilus_windows(timeout=2)
+        except AssertionError:
+            sleep(0.5)
+            continue
+        for window in windows:
+            if window != src_window:
+                return window
+        sleep(0.5)
+    raise AssertionError(f"Could not open a second Files window for {dst_dir!r}")
+
+
 @step("A second Files window is open for the destination directory")
 def a_second_files_window_is_open_for_the_destination_directory(context) -> None:
     if _skip_if_no_atspi(context):
         return
+    src_window = getattr(context, "dnd_src_window", None)
     dst_dir = getattr(context, "dnd_dst_dir", None)
+    marker = getattr(context, "dnd_marker", None)
+    assert src_window, "Source Files window not set on context"
     assert dst_dir, "Destination directory not set on context"
+    assert marker, "Marker filename not set on context"
     _launch_nautilus(dst_dir, new_window=True)
-    sleep(1)  # D-Bus activation settle
+    sleep(2)  # D-Bus activation settle
     _dismiss_welcome_dialog()
-    context.dnd_dst_window = _nautilus_window_for_path(dst_dir)
+    context.dnd_dst_window = _find_destination_window(src_window, dst_dir, marker)
     try:
         context.dnd_dst_window.click()
     except Exception:  # noqa: BLE001
