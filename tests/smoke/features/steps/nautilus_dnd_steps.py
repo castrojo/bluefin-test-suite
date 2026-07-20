@@ -130,6 +130,39 @@ def _launch_nautilus(path: str, new_window: bool = False) -> None:
         )
 
 
+def _dismiss_welcome_dialog() -> None:
+    """Dismiss the Bluefin first-boot Welcome dialog if it is blocking the session.
+
+    Fresh CI VMs show a "Welcome to Bluefin" modal with Skip/Take Tour buttons.
+    The dialog is either a top-level frame/dialog in gnome-shell or a separate
+    application; search broadly and click Skip so subsequent AT-SPI steps can
+    reach the target window.
+    """
+    if tree is None:
+        return
+    for _ in range(10):
+        skip_buttons = tree.root.findChildren(
+            lambda n: n.showing
+            and n.roleName in {"push button", "button"}
+            and (n.name or "").strip().lower() == "skip"
+        )
+        if not skip_buttons:
+            return
+        try:
+            skip_buttons[0].click()
+        except Exception:  # noqa: BLE001
+            # Fallback: activate via AT-SPI action if the simple click fails.
+            try:
+                actions = skip_buttons[0].actions or {}
+                for action in ("click", "press", "activate"):
+                    if action in actions:
+                        skip_buttons[0].do_action_named(action)
+                        break
+            except Exception:  # noqa: BLE001
+                pass
+        sleep(0.5)
+
+
 @step("Source and destination directories are created with a marker file")
 def source_and_destination_directories_are_created_with_a_marker_file(context) -> None:
     """Create two fresh temp dirs on the VM and a marker file in the source dir."""
@@ -165,6 +198,7 @@ def files_window_is_open_for_the_source_directory(context) -> None:
     assert src_dir, "Source directory not set on context"
     _launch_nautilus(src_dir)
     sleep(1)  # D-Bus activation settle
+    _dismiss_welcome_dialog()
     context.dnd_src_window = _nautilus_window_for_path(src_dir)
     try:
         context.dnd_src_window.click()
@@ -180,6 +214,7 @@ def a_second_files_window_is_open_for_the_destination_directory(context) -> None
     assert dst_dir, "Destination directory not set on context"
     _launch_nautilus(dst_dir, new_window=True)
     sleep(1)  # D-Bus activation settle
+    _dismiss_welcome_dialog()
     context.dnd_dst_window = _nautilus_window_for_path(dst_dir)
     try:
         context.dnd_dst_window.click()
