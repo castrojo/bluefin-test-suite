@@ -5,7 +5,7 @@ This repo is the test framework and suite for GNOME-based bootc images. It runs 
 | Concern | Repo |
 |---|---|
 | Test content (features, steps, helpers) | `testsuite` (this repo) |
-| Infrastructure (ArgoCD, KubeVirt, manifests) | `testing-lab` |
+| Infrastructure (ArgoCD, KubeVirt, manifests) | [`projectbluefin/lab`](https://github.com/projectbluefin/lab) |
 
 ## Suites at a glance
 

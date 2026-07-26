@@ -1,12 +1,12 @@
 # testsuite
 
-[![Live Dashboard](https://img.shields.io/badge/Live--Dashboard-Active-brightgreen?style=flat-square)](https://<image-org>.github.io/testsuite/)
+[![Live Dashboard](https://img.shields.io/badge/Live--Dashboard-Active-brightgreen?style=flat-square)](https://projectbluefin.github.io/testsuite/)
 
 Automated behave + qecore-headless + dogtail testing for GNOME-based bootc images. Runs headless Wayland desktop sessions in QEMU on standard GitHub Actions runners — no self-hosted hardware required.
 
 ## Live Desktop Test Coverage
 
-Coverage metrics and screenshots are published to the [Live Build Health Dashboard](https://<image-org>.github.io/testsuite/). Per-suite counts are computed from the `.feature` files in this repo and served as shields.io endpoint badges from the `gh-pages` branch.
+Coverage metrics and screenshots are published to the [Live Build Health Dashboard](https://projectbluefin.github.io/testsuite/). Per-suite counts are computed from the `.feature` files in this repo and served as shields.io endpoint badges from the `gh-pages` branch.
 
 ## Where this repo fits
 
@@ -18,7 +18,7 @@ Coverage metrics and screenshots are published to the [Live Build Health Dashboa
 Any GNOME bootc image ──────────────────▶ testsuite (smoke + common)
 ```
 
-For the canonical ownership boundary between this repo, `testing-lab`, and downstream image repos, see [`docs/architecture.md`](docs/architecture.md).
+For the canonical ownership boundary between this repo, [`projectbluefin/lab`](https://github.com/projectbluefin/lab), and downstream image repos, see [`docs/architecture.md`](docs/architecture.md).
 
 ## Test stack
 
