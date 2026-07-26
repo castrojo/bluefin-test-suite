@@ -48,7 +48,7 @@ just list-stubs
 - **Never create issues, PRs, comments, forks, or writes in read-only upstream namespaces.** Read-only API calls are allowed; see `docs/skills/meta/human-gates/SKILL.md` for the prohibition details.
 - **Workflow action references must be pinned.** External `uses:` must be a full commit SHA with a version comment. Never use floating tags.
 - **No WIP PRs.** Open PRs must be ready to merge.
-- **Max 4 open PRs at a time.**
+- Keep open PRs scoped and mergeable; there is no artificial cap on the number of open PRs.
 
 ## Mandatory gates before enqueuing any PR
 
