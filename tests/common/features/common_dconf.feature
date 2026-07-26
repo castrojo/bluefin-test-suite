@@ -7,7 +7,7 @@ Feature: Bluefin common dconf and GSettings defaults
 
   @quarantine
   Scenario: custom-command-list extension is in distribution defaults
-    * Run SSH command: "python3 -c \"import gi; gi.require_version('Gio','2.0'); from gi.repository import Gio; v = Gio.Settings.new('org.gnome.shell').get_default_value('enabled-extensions'); print(v.unpack() if v else [])\""
+    * Run SSH command: "python3 -c 'import gi; gi.require_version(\"Gio\", \"2.0\"); from gi.repository import Gio; v = Gio.Settings.new(\"org.gnome.shell\").get_default_value(\"enabled-extensions\"); print(v.unpack() if v else [])'"
     * Last command output contains "custom-command-list@storageb.github.com"
 
   Scenario: legacy Logo Menu extension is not enabled
