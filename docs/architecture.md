@@ -40,4 +40,4 @@ A change that touches both testsuite test content and testing-lab infrastructure
 - **Read-only upstream namespace** — never write (issues, PRs, comments, forks) to any read-only upstream. Read-only API calls are allowed.
 - **Workflow pins** — external `uses:` references must be SHA-pinned with a version comment. Floating tags are forbidden.
 - **No WIP PRs** — every open PR must be ready for merge queue.
-- **Max 4 open PRs per agent**.
+- Keep open PRs scoped and mergeable; batch related work without an artificial per-agent cap.
