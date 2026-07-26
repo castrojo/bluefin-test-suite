@@ -51,6 +51,20 @@ Scenario: Portal interface is present
 `grep -q` exits 0 on match, 1 on no match, with no output. The return code assertion is the signal.
 The same applies to `wc -l`, `grep -c`, or any count-based check used as an existence gate.
 
+## Quote embedded Python in SSH commands safely
+
+`Run SSH command` passes the command to a remote shell. Put the Python
+expression in single quotes and use double quotes inside the Python code so
+shell word-splitting cannot break expressions containing parentheses or
+dictionary literals.
+
+```gherkin
+* Run SSH command: "bootc status --json | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get(\"status\", {}))'"
+```
+
+Audit every `python3 -c` added to an SSH command for this pattern. Avoid
+nested escaped double quotes around the entire Python expression.
+
 ## Common suite `ujust` recipe coverage
 
 

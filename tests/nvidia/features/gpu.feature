@@ -61,7 +61,7 @@ Feature: NVIDIA GPU passthrough validation
 
   @nvidia @drm_info
   Scenario: DRM node identifies as nvidia driver
-    * Run SSH command: "drm_info -j /dev/dri/card0 2>/dev/null | python3 -c \"import sys,json; d=json.load(sys.stdin); print(list(d.values())[0].get('driver',{}).get('desc','unknown'))\""
+    * Run SSH command: "drm_info -j /dev/dri/card0 2>/dev/null | python3 -c 'import sys,json; d=json.load(sys.stdin); print(list(d.values())[0].get(\"driver\",{}).get(\"desc\",\"unknown\"))'"
     * SSH command output contains "nvidia"
 
   @nvidia @vulkan @wayland_surface
