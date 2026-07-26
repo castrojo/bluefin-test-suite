@@ -6,8 +6,8 @@ Single source of truth for ownership boundaries, repo relationships, and where d
 
 | Repo | Owns | Consumes |
 |---|---|---|
-| `testsuite` (this repo) | Behave features/steps, qecore/dogtail patterns, shared SSH helpers, reusable GitHub Actions | Pinned by `testing-lab` workflows and downstream image build repos |
-| `testing-lab` | VM specs, KubeVirt manifests, Argo/CronWorkflows, persistent VM lifecycle | Clones testsuite at a pinned ref |
+| `testsuite` (this repo) | Behave features/steps, qecore/dogtail patterns, shared SSH helpers, reusable GitHub Actions | Pinned by [`projectbluefin/lab`](https://github.com/projectbluefin/lab) workflows and downstream image build repos |
+| [`projectbluefin/lab`](https://github.com/projectbluefin/lab) | VM specs, KubeVirt manifests, Argo/CronWorkflows, persistent VM lifecycle | Clones testsuite at a pinned ref |
 | downstream image repos (e.g., `bluefin`, `bluefin-lts`, `dakota`) | Image definitions and build workflows | Call testsuite reusable e2e workflow as a promotion gate |
 
 ## What belongs in testsuite
@@ -26,14 +26,14 @@ Single source of truth for ownership boundaries, repo relationships, and where d
 
 | Concern | Where |
 |---|---|
-| VM specs, KubeVirt resources | `testing-lab` |
-| Argo WorkflowTemplates / CronWorkflows | `testing-lab` |
+| VM specs, KubeVirt resources | [`projectbluefin/lab`](https://github.com/projectbluefin/lab) |
+| Argo WorkflowTemplates / CronWorkflows | [`projectbluefin/lab`](https://github.com/projectbluefin/lab) |
 | Image build definitions | downstream image repos |
 | Promotion / cosign / packaging logic | downstream image repos or shared actions repo |
 
 ## Pull-request split rule
 
-A change that touches both testsuite test content and testing-lab infrastructure must be split into two PRs. This keeps reviews scoped and prevents a single PR from coupling release gates.
+A change that touches both testsuite test content and projectbluefin/lab infrastructure must be split into two PRs. This keeps reviews scoped and prevents a single PR from coupling release gates.
 
 ## Trust boundaries
 
