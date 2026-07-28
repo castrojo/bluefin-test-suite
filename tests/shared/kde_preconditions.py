@@ -9,6 +9,9 @@ incomplete — the Tast ``SoftwareDeps`` model.
 from __future__ import annotations
 
 import dataclasses
+import posixpath
+import re
+import subprocess
 import shlex
 import time
 from typing import Optional
@@ -47,6 +50,32 @@ DETERMINISM_ENV = {
 }
 
 
+_VALID_USERNAME = re.compile(r"^[a-z_][a-z0-9_-]{0,31}$")
+
+
+def _validate_username(username: str) -> str:
+    """Reject anything that is not a plain POSIX account name.
+
+    shlex.quote() prevents shell injection but NOT path traversal: a value like
+    ``../../etc`` still yields a path under /etc despite the ``/home/`` prefix,
+    and seed_home() would then rm -rf it.
+    """
+    if not _VALID_USERNAME.match(username or ""):
+        raise ValueError(
+            f"refusing to operate on unsafe username {username!r}; "
+            "expected a plain POSIX account name"
+        )
+    return username
+
+
+def _home_for(username: str) -> str:
+    """Return the validated home directory for ``username``."""
+    home = posixpath.normpath(f"/home/{_validate_username(username)}")
+    if not home.startswith("/home/") or home.count("/") != 2:
+        raise ValueError(f"refusing to operate on unsafe home path {home!r}")
+    return home
+
+
 def _ssh(context, cmd: str, timeout: int = 60) -> None:
     """Run ``cmd`` on the DUT over SSH via the shared helper.
 
@@ -54,7 +83,19 @@ def _ssh(context, cmd: str, timeout: int = 60) -> None:
     """
     from tests.shared.ssh_steps import run_ssh
 
-    run_ssh(context, cmd, timeout=timeout)
+    try:
+        run_ssh(context, cmd, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # run_ssh re-raises on timeout. Letting that escape would blow up a
+        # capability probe (and the calling behave hook) instead of yielding a
+        # clean skip, so record it as a failed command and carry on.
+        context.ssh_rc = -1
+        context.command_stdout = ""
+        context.last_command_output = ""
+    except OSError as exc:  # transport failure (host unreachable, key missing)
+        context.ssh_rc = -1
+        context.command_stdout = ""
+        context.last_command_output = str(exc)
 
 
 def _ssh_ok(context, cmd: str, timeout: int = 60) -> bool:
@@ -120,10 +161,12 @@ def configure_sddm_autologin(
     lines = ["[Autologin]", f"User={username}", f"Session={session}"]
     content = "\n".join(lines) + "\n"
     dropin = _dropin_path("99-testsuite-autologin.conf")
+    # /etc is not writable by the unprivileged SSH user; use non-interactive
+    # sudo and surface a clear reason when privilege is unavailable.
     cmd = (
-        "mkdir -p /etc/sddm.conf.d && "
-        f"printf '%s' {shlex.quote(content)} > {dropin} && "
-        f"chmod 644 {dropin}"
+        "sudo -n mkdir -p /etc/sddm.conf.d && "
+        f"printf '%s' {shlex.quote(content)} | sudo -n tee {dropin} >/dev/null && "
+        f"sudo -n chmod 644 {dropin}"
     )
     if _ssh_ok(context, cmd):
         return KDEResult(ok=True, reason=f"SDDM autologin configured in {dropin}")
@@ -208,9 +251,26 @@ def emit_determinism_dropin(context) -> KDEResult:
     )
 
 
-def seed_home(context, username: str = "bluefin-test") -> KDEResult:
-    """Reset the test user's home directory to a deterministic seed state."""
-    home = f"/home/{username}"
+def seed_home(context, username: str = "bluefin-test", force: bool = False) -> KDEResult:
+    """Reset the test user's home directory to a deterministic seed state.
+
+    Refuses to run while a Plasma session is live unless ``force`` is set:
+    deleting .config/.local/.cache under a running session leaves Plasma with
+    stale in-memory state and destroys user data.
+    """
+    try:
+        home = _home_for(username)
+    except ValueError as exc:
+        return KDEResult(ok=False, reason=str(exc))
+
+    if not force and is_kde_session(context):
+        return KDEResult(
+            ok=False,
+            reason=(
+                "refusing to seed home while a Plasma session is running; "
+                "seed before session start or pass force=True"
+            ),
+        )
     cmd = (
         f"rm -rf {shlex.quote(home)}/.cache "
         f"{shlex.quote(home)}/.config "
@@ -289,19 +349,24 @@ def apply_kde_session_preconditions(
             reason="DUT is not running a KDE/Plasma session",
         )
 
+    # (name, step, fatal). Home seeding is deliberately NON-fatal: it is a
+    # pre-session operation. This function only runs once a Plasma session is
+    # already live, so seed_home() will refuse rather than wipe .config out from
+    # under a running session. Seeding must happen at disk-prep time instead.
     steps = [
-        ("seed home", lambda: seed_home(context, username=username)),
-        ("determinism drop-in", lambda: emit_determinism_dropin(context)),
-        ("SDDM autologin", lambda: configure_sddm_autologin(context, username=username)),
-        ("welcome wizard suppression", lambda: suppress_welcome_wizard(context, username=username)),
+        ("seed home", lambda: seed_home(context, username=username), False),
+        ("determinism drop-in", lambda: emit_determinism_dropin(context), True),
+        ("SDDM autologin", lambda: configure_sddm_autologin(context, username=username), True),
+        ("welcome wizard suppression", lambda: suppress_welcome_wizard(context, username=username), True),
     ]
-    for name, step in steps:
+    notes: list[str] = []
+    for name, step, fatal in steps:
         result = step()
-        if not result.ok:
-            return KDEResult(
-                ok=False,
-                reason=f"{name} failed: {result.reason}",
-            )
+        if result.ok:
+            continue
+        if fatal:
+            return KDEResult(ok=False, reason=f"{name} failed: {result.reason}")
+        notes.append(f"{name} skipped: {result.reason}")
 
     ready = wait_for_plasma_session(context)
     if not ready.ok:
@@ -310,4 +375,7 @@ def apply_kde_session_preconditions(
             reason=f"session readiness failed: {ready.reason}",
         )
 
-    return KDEResult(ok=True, reason="KDE session preconditions applied")
+    reason = "KDE session preconditions applied"
+    if notes:
+        reason = f"{reason} ({'; '.join(notes)})"
+    return KDEResult(ok=True, reason=reason)

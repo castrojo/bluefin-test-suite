@@ -8,6 +8,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from tests.shared import kde_preconditions
+import subprocess
+import sys
+from unittest import mock
 
 
 # ---------------------------------------------------------------------------
@@ -238,8 +241,10 @@ class TestSeedHome:
             commands.append(cmd)
             context.ssh_rc = 0
 
+        # Seeding is a pre-session operation; assert it under "no live session".
         with patch.object(kde_preconditions, "_ssh", side_effect=_fake_ssh):
-            result = kde_preconditions.seed_home(ctx, username="kde-test")
+            with patch.object(kde_preconditions, "is_kde_session", return_value=False):
+                result = kde_preconditions.seed_home(ctx, username="kde-test")
 
         assert result.ok is True
         cmd = commands[0]
@@ -352,4 +357,47 @@ class TestApplyKdeSessionPreconditions:
             with patch.object(kde_preconditions, "seed_home", return_value=kde_preconditions.KDEResult(ok=False, reason="disk full")):
                 result = kde_preconditions.apply_kde_session_preconditions(ctx)
         assert result.ok is False
-        assert "seed home failed" in result.reason
+        assert "determinism drop-in failed" in result.reason
+
+
+class TestReviewFixes:
+    """Regression tests for issues found in code review of PR #641."""
+
+    @pytest.mark.parametrize("bad", ["../../etc", "a/b", "root/../x", "", "-x", "A" * 40])
+    def test_seed_home_rejects_unsafe_usernames(self, bad):
+        """Quoting stops injection but not traversal; seed_home must refuse."""
+        ctx = mock.Mock()
+        with mock.patch.object(kde_preconditions, "is_kde_session", return_value=False):
+            result = kde_preconditions.seed_home(ctx, username=bad, force=True)
+        assert result.ok is False
+        assert "unsafe" in result.reason.lower()
+
+    def test_seed_home_refuses_while_session_live(self):
+        """Wiping .config under a running Plasma session destroys user state."""
+        ctx = mock.Mock()
+        with mock.patch.object(kde_preconditions, "is_kde_session", return_value=True):
+            result = kde_preconditions.seed_home(ctx, username="bluefin-test")
+        assert result.ok is False
+        assert "refusing to seed home" in result.reason
+
+    def test_ssh_timeout_does_not_escape(self):
+        """A timeout must become a failed probe, not an exception out of a hook."""
+        ctx = mock.Mock()
+        stub = mock.Mock()
+        stub.run_ssh.side_effect = subprocess.TimeoutExpired(cmd="x", timeout=1)
+        with mock.patch.dict(sys.modules, {"tests.shared.ssh_steps": stub}):
+            kde_preconditions._ssh(ctx, "true", timeout=1)
+        assert ctx.ssh_rc == -1
+
+    def test_autologin_write_uses_sudo(self):
+        """/etc/sddm.conf.d is not writable by the unprivileged SSH user."""
+        sent = {}
+
+        def fake_ok(context, cmd, timeout=60):
+            sent.setdefault("cmds", []).append(cmd)
+            return True
+
+        ctx = mock.Mock()
+        with mock.patch.object(kde_preconditions, "_ssh_ok", fake_ok):
+            kde_preconditions.configure_sddm_autologin(ctx, username="bluefin-test")
+        assert any("sudo -n" in c for c in sent["cmds"]), sent
