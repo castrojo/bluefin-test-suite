@@ -34,7 +34,8 @@ It must **not** fire for `smoke`, `common`, `developer`, `dx`, `software`,
 
 Gated workflow behavior includes:
 
-- Pulling the KDE runner image (`ghcr.io/projectbluefin/testsuite-kde-runner`) instead of the GNOME runner image.
+- Pulling the KDE runner image (`ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner`) instead of the GNOME runner image.
+  The `:kde-runner` tag is required — `build-kde-runner.yml` publishes only `:kde-runner` and `:kde-runner-<sha>`, never `:latest`.
 - Loading the runner container on the GitHub Actions runner (host-side), not into the VM.
 - Writing SDDM autologin and KDE determinism environment variables at disk-prep time.
 - Skipping the GNOME-only `gnome-ponytail-daemon` install.
@@ -50,7 +51,7 @@ GNOME suite behavior is unchanged.
 | Image | Purpose | Ships `inputsynth`? |
 |---|---|---|
 | `ghcr.io/projectbluefin/testsuite:runner` | GNOME/qecore orchestration inside the VM | yes (built in) |
-| `ghcr.io/projectbluefin/testsuite-kde-runner` | KDE/Appium orchestration on the GHA runner | **no** |
+| `ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner` | KDE/Appium orchestration on the GHA runner | **no** |
 
 The KDE runner image is **host-side only**. It contains pinned `behave`, `selenium`,
 `Appium-Python-Client`, `lxml`, and `odiff`. It does **not** contain `inputsynth`,

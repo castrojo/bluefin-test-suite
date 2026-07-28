@@ -102,7 +102,7 @@ jobs:
       SCREENSHOT_IMAGE: ghcr.io/projectbluefin/testsuite/desktop-screenshot
       # KDE suites use a dedicated runner image with KDE/Appium orchestration
       # deps; GNOME suites keep the original GNOME/qecore runner.
-      RUNNER_IMAGE: ${{ startsWith(matrix.suite, 'kde') && 'ghcr.io/projectbluefin/testsuite-kde-runner' || 'ghcr.io/projectbluefin/testsuite:runner' }}
+      RUNNER_IMAGE: ${{ startsWith(matrix.suite, 'kde') && 'ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner' || 'ghcr.io/projectbluefin/testsuite:runner' }}
 
     steps:
       # Always fetch the latest testsuite tests so test fixes are picked up
