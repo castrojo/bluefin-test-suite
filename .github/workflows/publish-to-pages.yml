@@ -162,6 +162,9 @@ jobs:
           
           # Disable Jekyll on GitHub Pages to serve _astro folder correctly
           touch .nojekyll
+
+          # Restore the custom domain: the wipe above deletes CNAME and 404s qa.projectbluefin.io
+          echo "qa.projectbluefin.io" > CNAME
           
           # Configure Git
           git config user.name "github-actions[bot]"
