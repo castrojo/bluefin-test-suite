@@ -3,9 +3,17 @@
 # Published to: ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner
 #
 # Used by the KDE e2e workflow to run behave + selenium/websocket-client on
-# the orchestration host.  It deliberately does NOT ship
-# selenium-webdriver-at-spi-inputsynth; that binary is a Qt6 Wayland client that
-# must be built for each device-under-test to match its Plasma/Qt/KWin ABI.
+# the orchestration host.  The suite drives the device-under-test over SSH
+# (tests/shared/ssh_steps.py shells out to the `ssh` binary), so an SSH client
+# (openssh-clients) is mandatory.  git is included for CI checkout/version
+# operations, matching the lab-runner image.
+#
+# It deliberately does NOT ship selenium-webdriver-at-spi-inputsynth; that
+# binary is a Qt6 Wayland client that must be built for each device-under-test
+# to match its Plasma/Qt/KWin ABI.
+#
+# It also does NOT ship virtctl — that is a lab/KubeVirt concern handled by the
+# lab-runner image and is not used by the GitHub Actions path.
 #
 # Triggered by: .github/workflows/build-kde-runner.yml
 
@@ -17,6 +25,8 @@ LABEL org.opencontainers.image.description="Host-side behave/selenium test runne
 RUN microdnf install -y --setopt=install_weak_deps=0 \
         python3 \
         python3-pip \
+        openssh-clients \
+        git \
     && microdnf clean all
 
 WORKDIR /runner
@@ -31,3 +41,9 @@ RUN python3 - <<'PY'
 import behave, selenium, websocket, lxml, yaml
 print("KDE runner Python stack OK")
 PY
+
+# Fail the build if required OS-level binaries are missing.
+# ssh is mandatory — tests/shared/ssh_steps.py shells out to it.
+# git is needed for CI checkout and version operations.
+RUN command -v ssh && command -v git \
+    && echo "OS tooling check OK: ssh and git present"
