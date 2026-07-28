@@ -1,8 +1,8 @@
-# E2E Reusable Workflow — GNOME desktop testing in QEMU on GitHub Actions
+# E2E Reusable Workflow — GNOME/KDE desktop testing in QEMU on GitHub Actions
 #
 # Called by consumer repos (e.g. projectbluefin/dakota) to gate PRs.
 # Boots a bootc OCI image in a KVM-accelerated QEMU VM, starts a GNOME
-# session, and runs behave tests via qecore-headless or runner-side SSH.
+# or KDE session, and runs behave tests via qecore-headless or runner-side SSH.
 #
 # No self-hosted runners. Pure GHA ubuntu-latest.
 #
@@ -11,7 +11,7 @@
 #   suites — comma-separated suite names (default: smoke)
 #            common runs in SSH mode on the runner; GUI suites use qecore.
 
-name: E2E — GNOME in QEMU
+name: E2E — GNOME/KDE in QEMU
 
 on:
   workflow_call:
@@ -26,7 +26,7 @@ on:
         default: ""
         required: false
       suites:
-        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common"
+        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common,lifecycle,kde-smoke"
         type: string
         default: "smoke"
       skip_native_apps:
@@ -74,7 +74,7 @@ jobs:
           parts = [s.strip() for s in sys.argv[1].split(',') if s.strip()]
           expanded = []
           for p in parts:
-              if p in {'smoke', 'common'}:
+              if p in {'smoke', 'common', 'kde-smoke'}:
                   expanded.extend([f'{p}-a', f'{p}-b'])
               else:
                   expanded.append(p)
@@ -84,7 +84,7 @@ jobs:
           echo "Suites: ${JSON}"
 
   e2e:
-    name: GNOME 50 — ${{ matrix.suite }}
+    name: ${{ startsWith(matrix.suite, 'kde') && 'KDE Plasma' || 'GNOME 50' }} — ${{ matrix.suite }}
     needs: matrix
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -100,6 +100,9 @@ jobs:
       IMAGE: ${{ inputs.image }}
       SUITE: ${{ matrix.suite }}
       SCREENSHOT_IMAGE: ghcr.io/projectbluefin/testsuite/desktop-screenshot
+      # KDE suites use a dedicated runner image with KDE/Appium orchestration
+      # deps; GNOME suites keep the original GNOME/qecore runner.
+      RUNNER_IMAGE: ${{ startsWith(matrix.suite, 'kde') && 'ghcr.io/projectbluefin/testsuite-kde-runner' || 'ghcr.io/projectbluefin/testsuite:runner' }}
 
     steps:
       # Always fetch the latest testsuite tests so test fixes are picked up
@@ -121,6 +124,7 @@ jobs:
             flatpak-app-list.txt
             tests
             scripts/check_quarantine_age.py
+            scripts/install-kde-webdriver.sh
           sparse-checkout-cone-mode: false
 
       # smoke-a/smoke-b and common-a/common-b are parallel shards of their
@@ -216,8 +220,9 @@ jobs:
         run: |
           sudo podman pull "${IMAGE}" &
           PULL_PID=$!
-          # Pull runner container in parallel — piped into VM after boot
-          sudo podman pull ghcr.io/projectbluefin/testsuite:runner &
+          # Pull runner container in parallel — piped into VM after boot.
+          # Suite type selects the GNOME/qecore runner or the KDE/Appium runner.
+          sudo podman pull "${RUNNER_IMAGE}" &
           RUNNER_PID=$!
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends qemu-system-x86
@@ -234,6 +239,8 @@ jobs:
       # step (bootupd not in the image). We catch that, then set up direct QEMU
       # kernel boot so OVMF/systemd-boot is not needed.
       - name: Install OCI image and configure disk
+        env:
+          SUITE_DIR: ${{ steps.shard.outputs.suite_dir }}
         run: |
           fallocate -l 30G disk.raw
 
@@ -454,6 +461,19 @@ jobs:
             printf '[daemon]\nAutomaticLoginEnable=True\nAutomaticLogin=bluefin-test\n' | \
               sudo tee "${DEP}/etc/gdm/custom.conf"
 
+            # KDE/Plasma suites need SDDM autologin and deterministic session settings.
+            # These files are harmless on GNOME images and required on KDE images.
+            if [[ "${SUITE_DIR}" == kde* ]]; then
+              sudo mkdir -p "${DEP}/etc/sddm.conf.d"
+              printf '[Autologin]\nUser=bluefin-test\nSession=plasma.desktop\nRelogin=false\n\n[X11]\nMinimumVT=1\n' | \
+                sudo tee "${DEP}/etc/sddm.conf.d/00-ci-autologin.conf" >/dev/null
+
+              # Determinism drop-in: disable animations, force software GL, enable a11y.
+              sudo mkdir -p "${DEP}/etc/environment.d"
+              printf 'KWIN_WAYLAND_NO_PERMISSION_CHECKS=1\nKWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1\nQT_ACCESSIBILITY=1\nQT_LINUX_ACCESSIBILITY_ALWAYS_ON=1\nQT_QPA_PLATFORM=wayland\nLIBGL_ALWAYS_SOFTWARE=1\nKWIN_NO_ANIMATIONS=1\nQT_NO_ANIMATIONS=1\nMESA_LOADER_DRIVER_OVERRIDE=llvmpipe\n' | \
+                sudo tee "${DEP}/etc/environment.d/99-kde-ci.conf" >/dev/null
+            fi
+
             # dconf system override: ensure allow-extension-installation=true so
             # gnome-shell scans ~/.local/share/gnome-shell/extensions/ at startup,
             # and pre-add our UUID to enabled-extensions so it activates automatically.
@@ -496,30 +516,32 @@ jobs:
           # and registers the extension during its startup scan.  After the GNOME
           # session is ready, we just call 'gnome-extensions enable' — no zip, no
           # gnome-extensions install, no ReloadExtension (removed in GNOME 47).
-          sudo mkdir -p "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test"
-          printf '{"uuid":"unsafe-mode@bluefin-test","name":"Unsafe Mode for Testing","description":"Enables Shell.Eval for automated testing","shell-version":["50","49","48","47","46","45"],"version":1}\n' | \
-            sudo tee "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/metadata.json" > /dev/null
-          sudo tee "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/extension.js" > /dev/null << 'EXTEOF'
-          import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
-          export default class UnsafeModeExtension extends Extension {
-              enable() {
-                  global.context.unsafe_mode = true;
-                  // GNOME Shell resets unsafe_mode to false after certain UI events
-                  // (overview open/close, modal dialogs, screen lock, etc.).
-                  // Re-enable it whenever it gets reset so Shell.Eval stays active.
-                  this._id = global.context.connect('notify::unsafe-mode', () => {
-                      if (!global.context.unsafe_mode)
-                          global.context.unsafe_mode = true;
-                  });
-              }
-              disable() {
-                  if (this._id) {
-                      global.context.disconnect(this._id);
-                      this._id = 0;
-                  }
-              }
-          }
-          EXTEOF
+          if [[ "${SUITE_DIR}" != kde* ]]; then
+            sudo mkdir -p "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test"
+            printf '{"uuid":"unsafe-mode@bluefin-test","name":"Unsafe Mode for Testing","description":"Enables Shell.Eval for automated testing","shell-version":["50","49","48","47","46","45"],"version":1}\n' | \
+              sudo tee "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/metadata.json" > /dev/null
+            sudo tee "${VAR}/home/bluefin-test/.local/share/gnome-shell/extensions/unsafe-mode@bluefin-test/extension.js" > /dev/null << 'EXTEOF'
+            import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
+            export default class UnsafeModeExtension extends Extension {
+                enable() {
+                    global.context.unsafe_mode = true;
+                    // GNOME Shell resets unsafe_mode to false after certain UI events
+                    // (overview open/close, modal dialogs, screen lock, etc.).
+                    // Re-enable it whenever it gets reset so Shell.Eval stays active.
+                    this._id = global.context.connect('notify::unsafe-mode', () => {
+                        if (!global.context.unsafe_mode)
+                            global.context.unsafe_mode = true;
+                    });
+                }
+                disable() {
+                    if (this._id) {
+                        global.context.disconnect(this._id);
+                        this._id = 0;
+                    }
+                }
+            }
+            EXTEOF
+          fi
 
           sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
           sudo chmod 700 "${VAR}/home/bluefin-test/.ssh"
@@ -623,21 +645,25 @@ jobs:
           echo "=== VM serial console output ==="
           cat "$(pwd)/vm-serial.log" 2>/dev/null || echo "(no serial log)"
 
-      # GDM autologin is pre-baked — common also needs a live user session for gsettings.
-      - name: Wait for GNOME session
+      # GDM/SDDM autologin is pre-baked — common also needs a live user session.
+      - name: Wait for desktop session
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
           DEADLINE=$((SECONDS + 180))
           while [ $SECONDS -lt $DEADLINE ]; do
             if $SSH "test -S /run/user/1001/wayland-0" 2>/dev/null; then
-              echo "GNOME session active after ${SECONDS}s"
+              echo "Desktop session active after ${SECONDS}s"
               exit 0
             fi
             sleep 3
           done
-          echo "ERROR: GNOME session did not start within 3 minutes"
-          $SSH "journalctl -u gdm --no-pager -n 50" 2>/dev/null || true
+          echo "ERROR: Desktop session did not start within 3 minutes"
+          if [[ "${SUITE_DIR}" == kde* ]]; then
+            $SSH "journalctl -u sddm --no-pager -n 50" 2>/dev/null || true
+          else
+            $SSH "journalctl -u gdm --no-pager -n 50" 2>/dev/null || true
+          fi
           exit 1
 
       - name: Capture boot time
@@ -808,7 +834,7 @@ jobs:
           " || true
 
       - name: Load runner container into VM
-        if: ${{ steps.shard.outputs.suite_dir != 'common' }}
+        if: ${{ steps.shard.outputs.suite_dir != 'common' && !startsWith(steps.shard.outputs.suite_dir, 'kde') }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           # Ensure subuid/subgid mappings exist for bluefin-test so rootless podman
@@ -818,7 +844,7 @@ jobs:
             "sudo bash -c 'grep -q bluefin-test /etc/subuid || echo \"bluefin-test:100000:65536\" >> /etc/subuid; grep -q bluefin-test /etc/subgid || echo \"bluefin-test:100000:65536\" >> /etc/subgid'"
           ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman system migrate
           echo "Piping runner container into VM (this replaces in-VM pip install)..."
-          sudo podman save ghcr.io/projectbluefin/testsuite:runner | \
+          sudo podman save "${RUNNER_IMAGE}" | \
             ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1 podman load
           echo "Runner container loaded in VM"
 
@@ -828,13 +854,13 @@ jobs:
           # _run_host() in step files can SSH from the container to the VM.
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
           $SSH "
-            if podman run --rm --entrypoint '' ghcr.io/projectbluefin/testsuite:runner sh -c 'command -v ssh >/dev/null 2>&1'; then
+            if podman run --rm --entrypoint '' ${RUNNER_IMAGE} sh -c 'command -v ssh >/dev/null 2>&1'; then
               echo 'openssh-clients already in runner image'
             else
               echo 'Patching runner image: adding openssh-clients...'
-              CID=\$(podman run -d --entrypoint '' ghcr.io/projectbluefin/testsuite:runner sh -c 'microdnf install -y openssh-clients >/dev/null 2>&1')
+              CID=\$(podman run -d --entrypoint '' ${RUNNER_IMAGE} sh -c 'microdnf install -y openssh-clients >/dev/null 2>&1')
               podman wait \$CID
-              podman commit --change 'ENTRYPOINT ["qecore-headless"]' \$CID ghcr.io/projectbluefin/testsuite:runner
+              podman commit --change 'ENTRYPOINT [\"qecore-headless\"]' \$CID ${RUNNER_IMAGE}
               podman rm \$CID
               echo 'Runner image patched with openssh-clients'
             fi
@@ -982,8 +1008,45 @@ jobs:
               --object-path /org/gnome/Shell/Screenshot 2>&1
           " || true
 
+      - name: Prepare KDE session environment
+        if: ${{ startsWith(steps.shard.outputs.suite_dir, 'kde') }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+
+          # Overwrite /tmp/session.env with KDE/Plasma-specific values.
+          # AT-SPI and Wayland discovery are identical to GNOME; the desktop/session
+          # identifiers and Qt a11y env differ.
+          $SSH "
+            XDG=/run/user/1001
+            SESSION_BUS=\$(systemctl --user show-environment 2>/dev/null \
+              | grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 | cut -d= -f2-)
+            [[ -z \"\${SESSION_BUS}\" ]] && SESSION_BUS=\"unix:path=\${XDG}/bus\"
+            WAYLAND_DISP=\$(ls /run/user/1001/wayland-* 2>/dev/null \
+              | head -1 | xargs basename 2>/dev/null || echo wayland-0)
+            ATSPI_ADDR=\"\"
+            for _i in 1 2 3 4 5 6 7 8 9 10; do
+              ATSPI_ADDR=\$(DBUS_SESSION_BUS_ADDRESS=\"\${SESSION_BUS}\" \
+                gdbus call --session --dest org.a11y.Bus --object-path /org/a11y/bus \
+                --method org.a11y.Bus.GetAddress 2>/dev/null \
+                | sed \"s/.*'\\(unix:[^']*\\)'.*/\\1/\")
+              [[ -n \"\${ATSPI_ADDR}\" ]] && break
+              sleep 2
+            done
+            if [[ -z \"\${ATSPI_ADDR}\" ]]; then
+              echo 'WARNING: Could not query AT-SPI bus address; falling back to session bus'
+              ATSPI_ADDR=\"\${SESSION_BUS}\"
+            else
+              echo \"AT-SPI bus address: \${ATSPI_ADDR}\"
+            fi
+            printf 'export DBUS_SESSION_BUS_ADDRESS=%s\nexport WAYLAND_DISPLAY=%s\nexport XDG_RUNTIME_DIR=%s\nexport AT_SPI_BUS_ADDRESS=%s\nexport PATH=%s\nexport XDG_SESSION_TYPE=wayland\nexport XDG_SESSION_DESKTOP=kde\nexport QT_ACCESSIBILITY=1\nexport QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1\nexport QT_QPA_PLATFORM=wayland\n' \
+              \"\${SESSION_BUS}\" \"\${WAYLAND_DISP}\" \"\${XDG}\" \"\${ATSPI_ADDR}\" \"\$HOME/.local/bin:\$PATH\" \
+              > /tmp/session.env
+            cat /tmp/session.env
+          "
+
       - name: Install gnome-ponytail-daemon
-        if: ${{ steps.shard.outputs.suite_dir != 'common' }}
+        if: ${{ steps.shard.outputs.suite_dir != 'common' && !startsWith(steps.shard.outputs.suite_dir, 'kde') }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
@@ -1053,6 +1116,32 @@ jobs:
             done
           "
 
+      - name: Install KDE webdriver stack
+        id: kde_webdriver
+        if: ${{ startsWith(steps.shard.outputs.suite_dir, 'kde') }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+          SCP="scp -i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ControlPath=/tmp/ssh-ctrl-%C -P 2222"
+
+          $SCP scripts/install-kde-webdriver.sh bluefin-test@127.0.0.1:/home/bluefin-test/install-kde-webdriver.sh
+          install_out="${GITHUB_WORKSPACE}/kde-webdriver-install.log"
+          if $SSH "bash /home/bluefin-test/install-kde-webdriver.sh" 2>&1 | tee "${install_out}"; then
+            skip_reason=$(grep -oE 'KDE_WEBDRIVER_SKIP=.*' "${install_out}" | head -1 | cut -d= -f2- || true)
+            if [[ -n "${skip_reason}" ]]; then
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              echo "skip_reason=${skip_reason}" >> "$GITHUB_OUTPUT"
+              echo "::warning::KDE suite skipped: ${skip_reason}"
+            else
+              echo "skip=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "::error::KDE webdriver stack install failed"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          rm -f "${install_out}"
+
       - name: Run behave suite
         id: run
         timeout-minutes: 110
@@ -1061,11 +1150,43 @@ jobs:
           SKIP_NATIVE_APPS: ${{ inputs.skip_native_apps && 'true' || '' }}
           TARGET_IMAGE: ${{ inputs.target-image }}
           ZSTD_CHUNKED: ${{ inputs.chunked_enabled && 'true' || 'false' }}
+          KDE_SKIP_REASON: ${{ steps.kde_webdriver.outputs.skip_reason }}
         run: |
           mkdir -p results
           BEHAVE_RC=0
           BEHAVE_TAG_ARGS="--tags ~quarantine"
           [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ~native_app"
+
+          # If the DUT was unsupported for KDE testing, emit a single skipped
+          # scenario so the run is reported clearly instead of as a phantom failure.
+          if [[ "${SUITE_DIR}" == kde* && "${{ steps.kde_webdriver.outputs.skip }}" == "true" ]]; then
+            python3 - <<'PY'
+          import json, os
+          reason = os.environ.get('KDE_SKIP_REASON', 'KDE webdriver stack skipped this suite')
+          data = [{
+              "keyword": "Feature",
+              "name": "KDE suite skipped",
+              "uri": "kde-webdriver-skip.feature",
+              "elements": [{
+                  "keyword": "Scenario",
+                  "name": "kde-webdriver-skip",
+                  "type": "scenario",
+                  "status": "skipped",
+                  "steps": [{
+                      "keyword": "Given ",
+                      "name": "the KDE webdriver stack is available",
+                      "result": {"status": "skipped", "error_message": reason},
+                      "status": "skipped"
+                  }]
+              }]
+          }]
+          with open('results/results.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          print(f"Wrote skip results: {reason}")
+          PY
+            echo "behave_rc=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
 
           if [[ "${SUITE_DIR}" == "common" || "${SUITE_DIR}" == "lifecycle" ]]; then
             python3 -m pip install -q --user behave
@@ -1083,6 +1204,27 @@ jobs:
             python3 tests/shared/behave_retry.py ${LOCAL_FEATURE_ARGS} \
               --format json.pretty --outfile results/results.json \
               --no-capture ${BEHAVE_TAG_ARGS} || BEHAVE_RC=$?
+          elif [[ "${SUITE_DIR}" == kde* ]]; then
+            # KDE runner image is host-side only: run behave on the GitHub Actions
+            # runner inside the KDE/Appium container, connecting to the DUT over SSH.
+            if [[ -n "${FEATURE_ARGS}" ]]; then
+              KDE_FEATURE_ARGS="${FEATURE_ARGS}"
+            else
+              KDE_FEATURE_ARGS="tests/${SUITE_DIR}/features/"
+            fi
+            mkdir -p results
+            sudo podman run --rm \
+              -v "$(pwd):/tmp/bluefin-tests:ro" \
+              -v "$(pwd)/results:/tmp/results" \
+              -e VM_IP=127.0.0.1 \
+              -e VM_USER=bluefin-test \
+              -e SSH_KEY=/tmp/vm_key \
+              -e SSH_PORT=2222 \
+              -e PYTHONPATH=/tmp/bluefin-tests \
+              -e BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \
+              -e TARGET_IMAGE="${TARGET_IMAGE}" \
+              "${RUNNER_IMAGE}" \
+              "python3 /tmp/bluefin-tests/tests/shared/behave_retry.py ${KDE_FEATURE_ARGS} --format json.pretty --outfile /tmp/results/results.json --no-capture ${BEHAVE_TAG_ARGS}" || BEHAVE_RC=$?
           else
             SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
             SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
@@ -1206,7 +1348,7 @@ jobs:
           echo "Migration status captured: results/migration-status.txt"
 
       - name: Capture Flatpak screenshots
-        if: always() && inputs.screenshot_flatpaks != '' && steps.shard.outputs.suite_dir != 'common'
+        if: always() && inputs.screenshot_flatpaks != '' && steps.shard.outputs.suite_dir != 'common' && !startsWith(steps.shard.outputs.suite_dir, 'kde')
         continue-on-error: true
         env:
           SCREENSHOT_FLATPAKS: ${{ inputs.screenshot_flatpaks }}
@@ -1247,7 +1389,7 @@ jobs:
               -e PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin \
               -e SUITE=${SUITE} \
               -e PYTHONPATH=/tmp/bluefin-tests \
-              ghcr.io/projectbluefin/testsuite:runner \
+              \"${RUNNER_IMAGE}\" \
               \"python3 /tmp/bluefin-tests/tests/shared/screenshot_cli.py ${APP_IDS}\"
           " || echo "WARNING: Flatpak screenshot step exited non-zero — partial results may exist"
 
