@@ -10,6 +10,7 @@ exception taxonomy.
 
 from __future__ import annotations
 
+import os
 import xml.etree.ElementTree as ET
 from typing import Callable, Pattern, TypeVar
 
@@ -132,9 +133,21 @@ def _find_by_regex(driver: WebDriver, pattern: Pattern[str]) -> list[WebElement]
     for name in matched_names:
         try:
             results.extend(driver.find_elements(NAME, name))
-        except WebDriverException:
+        except _RETRYABLE:
+            # The node vanished between the tree snapshot and resolution — normal
+            # AT-SPI churn. Skip this name and keep going.
             continue
+        except (*_SESSION_FATAL, *_BUG):
+            # Session death and protocol/argument errors must surface immediately.
+            # Swallowing them here would degrade a dead session into an eventual
+            # TimeoutException and hide the real cause.
+            raise
     return results
+
+
+def _xpath_allowed() -> bool:
+    """Whether xpath locators are permitted (quarantine-only escape hatch)."""
+    return os.environ.get("KDE_ALLOW_XPATH", "").lower() in ("1", "true", "yes")
 
 
 def _build_condition(
@@ -143,6 +156,13 @@ def _build_condition(
     """Return a wait condition and a human-readable description for ``locator``."""
     if isinstance(locator, tuple):
         by, value = locator
+        if by == By.XPATH and not _xpath_allowed():
+            raise ValueError(
+                "xpath locators are banned outside quarantined tests: AT-SPI trees "
+                "reshape constantly, so xpath is the KDE equivalent of a brittle "
+                "openQA needle. Prefer accessibility id, then name, then class "
+                "name. Set KDE_ALLOW_XPATH=1 only inside a quarantined scenario."
+            )
         description = f"({by}={value!r})"
 
         def condition(driver: WebDriver) -> WebElement:
@@ -188,6 +208,13 @@ def _build_all_condition(
     """Return a wait condition that returns a list of elements."""
     if isinstance(locator, tuple):
         by, value = locator
+        if by == By.XPATH and not _xpath_allowed():
+            raise ValueError(
+                "xpath locators are banned outside quarantined tests: AT-SPI trees "
+                "reshape constantly, so xpath is the KDE equivalent of a brittle "
+                "openQA needle. Prefer accessibility id, then name, then class "
+                "name. Set KDE_ALLOW_XPATH=1 only inside a quarantined scenario."
+            )
         description = f"({by}={value!r})"
 
         def condition(driver: WebDriver) -> list[WebElement]:

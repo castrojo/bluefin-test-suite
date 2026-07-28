@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import re
 from typing import Callable
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tests.shared import kde_webdriver
+from selenium.webdriver.common.by import By
 from selenium.common.exceptions import (
     InvalidArgumentException,
     InvalidSessionIdException,
@@ -368,3 +370,43 @@ def test_save_screenshot_propagates_failure(driver):
     driver.save_screenshot.return_value = False
 
     assert kde_webdriver.save_screenshot(driver, "/missing/x.png") is False
+
+
+class TestReviewFixes:
+    """Regression tests for issues found in code review of PR #643."""
+
+    def test_regex_lookup_reraises_session_fatal(self):
+        """A dead session must surface immediately, not decay into a timeout."""
+        driver = mock.Mock()
+        driver.page_source = '<root><node name="Dolphin"/></root>'
+        driver.find_elements.side_effect = InvalidSessionIdException("session gone")
+        with pytest.raises(InvalidSessionIdException):
+            kde_webdriver._find_by_regex(driver, re.compile("Dolphin"))
+
+    def test_regex_lookup_reraises_protocol_bug(self):
+        driver = mock.Mock()
+        driver.page_source = '<root><node name="Dolphin"/></root>'
+        driver.find_elements.side_effect = UnknownMethodException("not implemented")
+        with pytest.raises(UnknownMethodException):
+            kde_webdriver._find_by_regex(driver, re.compile("Dolphin"))
+
+    def test_regex_lookup_skips_stale_nodes(self):
+        """Stale/missing nodes are normal AT-SPI churn and must not abort the scan."""
+        driver = mock.Mock()
+        driver.page_source = '<root><node name="A"/><node name="B"/></root>'
+        sentinel = mock.Mock()
+        driver.find_elements.side_effect = [
+            StaleElementReferenceException("gone"),
+            [sentinel],
+        ]
+        assert kde_webdriver._find_by_regex(driver, re.compile("A|B")) == [sentinel]
+
+    def test_xpath_locator_rejected_by_default(self, monkeypatch):
+        monkeypatch.delenv("KDE_ALLOW_XPATH", raising=False)
+        with pytest.raises(ValueError, match="xpath locators are banned"):
+            kde_webdriver._build_condition((By.XPATH, "//node"))
+
+    def test_xpath_locator_allowed_under_quarantine_override(self, monkeypatch):
+        monkeypatch.setenv("KDE_ALLOW_XPATH", "1")
+        condition, description = kde_webdriver._build_condition((By.XPATH, "//node"))
+        assert "//node" in description
