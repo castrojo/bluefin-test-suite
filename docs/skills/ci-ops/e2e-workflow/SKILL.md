@@ -291,8 +291,8 @@ Key differences from GNOME suites:
 See [`references/kde-suites.md`](references/kde-suites.md) for the full workflow
 mapping and gating rules.
 
-**Important:** `testsuite-kde-runner` is published by PR #640. Until that PR lands,
-a KDE suite job will fail at the image-pull step.
+**Important:** `testsuite-kde-runner` is published by
+`.github/workflows/build-kde-runner.yml` (added in #640, merged).
 
 ---
 

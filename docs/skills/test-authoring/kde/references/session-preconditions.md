@@ -49,8 +49,9 @@ drop-in writes (those are next-boot-only).
 ## Capability model
 
 All helpers follow the Tast `SoftwareDeps` pattern: a missing KDE capability
-produces a **skip**, not a failure. The runtime entry point is
-`apply_kde_session_preconditions(context)`, which returns a `KDEResult`.
+produces a **skip**, not a failure. The preferred runtime entry point is
+`ensure_kde_session(context)`; `apply_kde_session_preconditions(context)` is the
+legacy orchestrator kept for backwards compatibility. Both return a `KDEResult`.
 
 | Probe | Meaning when false |
 |---|---|

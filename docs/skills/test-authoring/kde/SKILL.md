@@ -153,7 +153,7 @@ The kde-smoke suite imports shared helpers at **module scope with no try/except 
 | `wait_for_plasma_session` | `(context, timeout) -> KDEResult` | Poll until kwin_wayland, plasmashell, and AT-SPI are reachable |
 | `is_kde_image` | `(image_ref) -> bool` | Pure string check for a KDE/Plasma image family (no SSH) |
 | `ensure_kde_session` | `(context, username="bluefin-test") -> KDEResult` | Preferred runtime entry point: wait for Plasma, then suppress the wizard |
-| `apply_disk_prep` | `(context, username, ...) -> KDEResult` | Full pre-boot (disk-prep) pipeline |
+| `apply_disk_prep` | `(context, username="bluefin-test") -> KDEResult` | Full pre-boot (disk-prep) pipeline |
 | `configure_autologin` | `(context, username, session) -> KDEResult` | DM-aware autologin drop-in (SDDM or PLM) |
 | `detect_display_manager` | `(context) -> str` | Returns `"sddm"`, `"plm"`, or `"unknown"` |
 | `has_plm` | `(context) -> bool` | Probe whether Plasma Login Manager is the active display manager |
