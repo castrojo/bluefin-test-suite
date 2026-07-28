@@ -155,7 +155,7 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 
 - [ ] `.github/workflows/e2e.yml` parses with `yaml.safe_load`
 - [ ] Every external `uses:` line in `e2e.yml` is SHA-pinned with a version comment
-- [ ] Repo-required local check passes: `python3 -m ruff check tests/ --select E,F,W --ignore E501`
+- [ ] KDE setup steps use `startsWith(steps.shard.outputs.suite_dir, 'kde')` and do not fire for GNOME suites
 - [ ] Any new workflow-specific workaround or convention discovered in the session is captured here
 
 ---
@@ -267,6 +267,35 @@ echo "image=ghcr.io/${{ github.repository_owner }}/bluefin-lts-hwe@${DIGEST}" >>
 
 ---
 
+## KDE suites
+
+`e2e.yml` also supports KDE/Plasma suites (`kde-smoke`; `kde-apps`, `kde-settings`,
+`kde-session` reserved for future PRs). KDE wiring is strictly additive and gated
+with `startsWith(steps.shard.outputs.suite_dir, 'kde')` so it never runs for GNOME
+suites.
+
+Key differences from GNOME suites:
+
+- **Runner image split:** KDE uses `ghcr.io/projectbluefin/testsuite-kde-runner`
+  (host-side Appium/Selenium orchestration) instead of the GNOME/qecore runner that
+  is loaded into the VM.
+- **Per-DUT install:** `selenium-webdriver-at-spi` + `inputsynth` are installed on
+  the device-under-test by `scripts/install-kde-webdriver.sh`, keyed to the DUT's
+  distro and Plasma version. Distro packages are preferred; a pinned source build is
+  the fallback.
+- **Version-skew skip:** If the DUT's Plasma version or distro is unsupported, the
+  suite is skipped with a clear message instead of producing phantom failures.
+- **Session setup:** SDDM autologin and a KDE determinism environment drop-in are
+  written at disk-prep time.
+
+See [`references/kde-suites.md`](references/kde-suites.md) for the full workflow
+mapping and gating rules.
+
+**Important:** `testsuite-kde-runner` is published by PR #640. Until that PR lands,
+a KDE suite job will fail at the image-pull step.
+
+---
+
 ## Dashboard seeding — initial population
 
 
@@ -300,3 +329,4 @@ Load these when you hit the specific topic:
 - [Workflow inputs, outputs, artifacts, and screenshot handling.](references/inputs-outputs.md)
 - [Troubleshooting e2e workflow failures and flake signatures.](references/troubleshooting.md)
 - [Permission and runtime constraints when calling the reusable action.](references/permissions.md)
+- [KDE suite wiring, gating, and runner-image split.](references/kde-suites.md)
