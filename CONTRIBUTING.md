@@ -1,6 +1,6 @@
 # Contributing to testsuite
 
-This repo is the test framework and suite for GNOME-based bootc images. It runs headless GNOME automation with behave + qecore + dogtail, plus SSH-based system health checks.
+This repo is the test framework and suite for GNOME- and KDE-based bootc images. GNOME coverage uses headless automation with behave + qecore + dogtail; KDE Plasma coverage uses behave + KDE's `selenium-webdriver-at-spi` bridge. Both are backed by SSH-based system health checks.
 
 | Concern | Repo |
 |---|---|
@@ -22,6 +22,7 @@ This repo is the test framework and suite for GNOME-based bootc images. It runs 
 | `hardware` | SSH | udev rules, emulated peripherals |
 | `bazzite` | GUI | Bazzite-specific extensions |
 | `flatcar` | SSH | Flatcar OS boot and lifecycle |
+| `kde-smoke` | GUI (WebDriver/AT-SPI) | KDE Plasma harness proof-of-concept; Aurora-only, `@informational` |
 
 ## Local setup
 
@@ -30,6 +31,11 @@ pip install behave qecore dogtail
 ```
 
 > `qecore-headless` is the runner binary installed by `qecore` — do not install it separately.
+
+For the `kde-smoke` suite, install `selenium` instead of `qecore`/`dogtail`; unit tests import
+`tests/shared/kde_webdriver.py`, which requires it. The KDE bridge itself
+(`selenium-webdriver-at-spi`) runs on the device under test, not locally — it is not packaged in
+Fedora and is installed by `scripts/install-kde-webdriver.sh`.
 
 Full GUI runs require a live Wayland + AT-SPI session. For most changes, use the GitHub Action workflow.
 
