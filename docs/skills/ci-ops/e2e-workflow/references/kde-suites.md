@@ -48,13 +48,17 @@ GNOME suite behavior is unchanged.
 
 ## Runner-image split
 
-| Image | Purpose | Ships `inputsynth`? |
-|---|---|---|
-| `ghcr.io/projectbluefin/testsuite:runner` | GNOME/qecore orchestration inside the VM | yes (built in) |
-| `ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner` | KDE/Appium orchestration on the GHA runner | **no** |
+| Image | Purpose | Ships `inputsynth`? | Ships `ssh`/`git`? |
+|---|---|---|---|
+| `ghcr.io/projectbluefin/testsuite:runner` | GNOME/qecore orchestration inside the VM | yes (built in) | n/a (in-VM) |
+| `ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner` | KDE/Appium orchestration on the GHA runner | **no** | **yes** |
 
 The KDE runner image is **host-side only**. It contains pinned `behave`, `selenium`,
-`Appium-Python-Client`, `lxml`, and `odiff`. It does **not** contain `inputsynth`,
+`Appium-Python-Client`, `lxml`, and `odiff`. It ships `openssh-clients` and `git`
+because tests drive the DUT over SSH (`tests/shared/ssh_steps.py` shells out to the
+`ssh` binary) and CI needs `git` for checkout/version operations.
+
+It does **not** contain `inputsynth`,
 because `inputsynth` links `PlasmaWaylandProtocols`' `fake-input.xml` and the
 Plasma/Qt/KWin ABI differs across Fedora, Ubuntu/Neon, and Arch/KDE Linux.
 
