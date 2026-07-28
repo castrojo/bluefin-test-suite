@@ -5,4 +5,12 @@ selenium==4.46.0
 websocket-client==1.9.0
 lxml==6.1.1
 PyYAML==6.0.3
-odiff==0.1.8
+
+# NOTE: no perceptual image differ is installed.
+# The PyPI package named "odiff" is NOT the perceptual image diff tool
+# (dmtrKovalenko/odiff, which is OCaml and ships as a native binary/npm
+# package). PyPI "odiff" is an unrelated JSON/YAML "Object Diff" utility.
+# Installing it would add an unvetted dependency plus 5 transitive deps
+# for no benefit. Pixel diffing is not needed yet: the assertion strategy
+# starts with AT-SPI invariants, not image comparison. If perceptual
+# diffing is ever required, vendor the real odiff binary by digest.

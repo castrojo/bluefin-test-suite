@@ -28,6 +28,6 @@ RUN python3 -m pip install --no-cache-dir -r /runner/requirements.kde-runner.txt
 
 # Fail the build if any expected import is missing.
 RUN python3 - <<'PY'
-import behave, selenium, websocket, lxml, yaml, odiff
+import behave, selenium, websocket, lxml, yaml
 print("KDE runner Python stack OK")
 PY

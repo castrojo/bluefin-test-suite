@@ -3,7 +3,7 @@
 # Image: ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner
 #
 # This image carries host-side orchestration dependencies only (behave,
-# selenium, websocket-client, lxml, PyYAML, odiff).  The native input
+# selenium, websocket-client, lxml, PyYAML).  The native input
 # synthesizer for KWin is NOT included here; it must be installed on the
 # device-under-test to match the DUT's Plasma/Qt ABI.
 #

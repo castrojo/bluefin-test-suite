@@ -35,7 +35,6 @@ The `ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner` image carries **hos
 | WebDriver client | `selenium` | — |
 | Raw CDP / WebSocket | `websocket-client` | — |
 | Parsing helpers | `lxml`, `PyYAML` | — |
-| Perceptual diff (optional) | `odiff` | — |
 | AT-SPI input synthesizer | **NOT here** | `selenium-webdriver-at-spi-inputsynth` |
 | WebDriver server | **NOT here** | `selenium-webdriver-at-spi` |
 
@@ -136,7 +135,8 @@ Permitted uses: state inspection, layout dumps (`dumpCurrentLayoutJS()`), KWin s
 
 ## Verification
 
-- [ ] `testsuite-kde-runner` image contains only behave, selenium, websocket-client, lxml, PyYAML, and odiff.
+- [ ] `testsuite-kde-runner` image contains only behave, selenium, websocket-client, lxml, and PyYAML.
+- [ ] No perceptual image differ is installed. The PyPI package `odiff` is an unrelated JSON/YAML utility, **not** the image differ of the same name — never add it.
 - [ ] No `inputsynth`, `Appium-Python-Client`, or `chromedriver` in the runner image.
 - [ ] DUT environment sets `KWIN_WAYLAND_NO_PERMISSION_CHECKS=1`, `KWIN_SCREENSHOT_NO_PERMISSION_CHECKS=1`, `QT_ACCESSIBILITY=1`, `QT_LINUX_ACCESSIBILITY_ALWAYS_ON=1`, `QT_QPA_PLATFORM=wayland`, `LIBGL_ALWAYS_SOFTWARE=1`, `KWIN_NO_ANIMATIONS=1`.
 - [ ] `evaluateScript` is used only for diagnostics, layout dumps, or session reset.
