@@ -2,7 +2,7 @@
 
 [![Live Dashboard](https://img.shields.io/badge/Live--Dashboard-Active-brightgreen?style=flat-square)](https://projectbluefin.github.io/testsuite/)
 
-Automated behave + qecore-headless + dogtail testing for GNOME-based bootc images. Runs headless Wayland desktop sessions in QEMU on standard GitHub Actions runners — no self-hosted hardware required.
+Automated behave-driven end-to-end testing for GNOME- and KDE-based bootc images. GNOME suites run headless Wayland sessions via qecore-headless + dogtail; the KDE suite drives Plasma through KDE's `selenium-webdriver-at-spi` bridge. Runs in QEMU on standard GitHub Actions runners — no self-hosted hardware required.
 
 ## Live Desktop Test Coverage
 
@@ -29,6 +29,8 @@ For the canonical ownership boundary between this repo, [`projectbluefin/lab`](h
 | GUI automation | dogtail (AT-SPI) | Accessibility-tree interactions |
 | Wayland bridge | gnome-ponytail-daemon | Coordinate injection support |
 | Shell bridge | `org.gnome.Shell.Eval` | GNOME 50+ top-bar fallback |
+| KDE GUI automation | `selenium-webdriver-at-spi` (W3C WebDriver) | Plasma AT-SPI interactions |
+| KDE control plane | `org.kde.PlasmaShell` / KWin D-Bus | Diagnostics and session reset only — never the primary interaction path |
 | SSH bridge | shared SSH steps | Out-of-VM system health assertions |
 
 ## What is tested
@@ -46,8 +48,10 @@ For the canonical ownership boundary between this repo, [`projectbluefin/lab`](h
 | `hardware` | SSH | udev rules, emulated peripherals |
 | `bazzite` | GUI | Bazzite-specific extensions |
 | `flatcar` | SSH | Flatcar OS boot and lifecycle |
+| `kde-smoke` | GUI (WebDriver/AT-SPI) | KDE Plasma harness proof-of-concept; Aurora-only, all scenarios `@informational` |
 
-`smoke` and `common` are designed to work against any GNOME bootc image.
+`smoke` and `common` are designed to work against any GNOME bootc image. `kde-smoke` targets
+KDE Plasma images and is not yet part of any promotion gate.
 
 ## Using as a GitHub Action
 
