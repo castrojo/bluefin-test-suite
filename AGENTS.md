@@ -45,7 +45,7 @@ just list-stubs
 ## Hard boundaries
 
 - **Test content → this repo.** Infrastructure (VM specs, KubeVirt manifests, workflow orchestration) belongs in the separate [`projectbluefin/lab`](https://github.com/projectbluefin/lab) repo. Split PRs that touch both.
-- **Never create issues, PRs, comments, forks, or writes in read-only upstream namespaces.** Read-only API calls are allowed; see `docs/skills/meta/human-gates/SKILL.md` for the prohibition details.
+- **Never create issues, PRs, comments, forks, or writes in read-only upstream namespaces.** Read-only API calls are allowed; see `docs/skills/meta/human-gates/SKILL.md` for the prohibition details. **This explicitly includes all KDE properties (`invent.kde.org`, `bugs.kde.org`, KDE Matrix rooms, `KDE/*` mirrors) — read-only, no exceptions, for sub-agents and scheduled jobs too.**
 - **Workflow action references must be pinned.** External `uses:` must be a full commit SHA with a version comment. Never use floating tags.
 - **No WIP PRs.** Open PRs must be ready to merge.
 - Keep open PRs scoped and mergeable; there is no artificial cap on the number of open PRs.
