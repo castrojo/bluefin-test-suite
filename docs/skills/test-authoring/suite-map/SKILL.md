@@ -143,7 +143,14 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 ## Coverage snapshot
 
-440 scenarios across 53 feature files (last audit: 2026-07-28). 81 quarantined, 344 active, 15 future/hardware_blocked.
+479 scenarios across 61 feature files (mechanical recount 2026-07-28; kde-smoke adds 13 in 1 file).
+
+> **Count drift notice.** The previous snapshot claimed 427 scenarios across 52 files. A
+> mechanical recount of `tests/*/features/**/*.feature` on `main` found **466 across 60** —
+> the snapshot had drifted by ~39 scenarios before any KDE work began. The totals above are
+> now mechanically derived. The quarantined/active/future breakdown below has **not** been
+> re-audited and is still inherited from the 2026-06-30 audit; treat it as approximate until
+> a full audit runs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
