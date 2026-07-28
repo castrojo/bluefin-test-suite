@@ -50,13 +50,11 @@ class TestKdePreconditionsAPI:
         assert hasattr(self.mod, "wait_for_plasma_session")
         assert callable(self.mod.wait_for_plasma_session)
 
-    def test_no_is_kde_image_function(self):
-        """is_kde_image was a phantom name that never existed; ensure it stays gone."""
-        assert not hasattr(self.mod, "is_kde_image")
-
-    def test_no_ensure_kde_session_function(self):
-        """ensure_kde_session was a phantom name that never existed; ensure it stays gone."""
-        assert not hasattr(self.mod, "ensure_kde_session")
+    # NOTE: The D1 defect was that environment.py imported is_kde_image and
+    # ensure_kde_session when they didn't exist, then swallowed the ImportError.
+    # The fix is unguarded imports of the REAL names — not forbidding future
+    # additions to the shared module's API surface.  PR #654 legitimately adds
+    # both names as real functions.
 
 
 class TestKdeWebdriverAPI:
