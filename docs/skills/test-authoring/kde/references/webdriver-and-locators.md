@@ -68,6 +68,14 @@ The QEMU netdev line in `e2e.yml` forwards both SSH (2222→22) and WebDriver (4
 
 After a KDE suite run, CI asserts that the number of passing scenarios is > 0.  An all-skipped run fails the job.  This prevents the suite from silently self-disabling while CI stays green.
 
+The logic lives in `scripts/assert_kde_passed.py` (invoked by the `Assert KDE suite has passing scenarios` step in `e2e.yml`), not inline in YAML, so it is unit-tested by `tests/unit/test_assert_kde_passed.py`:
+
+```bash
+python3 scripts/assert_kde_passed.py results/results.json   # path defaults to results/results.json
+```
+
+It counts `status == 'passed'` positively and skips non-scenario elements (backgrounds). Do **not** rewrite it as `passed = total - failed - skipped` — that counts `undefined`/`untested` scenarios as passing, which is the false green the guard exists to catch. Missing or malformed `results.json` also exits 1 with an `::error::` line rather than a traceback.
+
 Create a session:
 
 ```python
