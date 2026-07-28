@@ -4,16 +4,10 @@ KDE smoke test environment — SSH-driven session checks plus optional AT-SPI ha
 This suite is intentionally small (≤15 scenarios, Aurora-only, all @informational).
 It exercises the KDE harness wiring end-to-end without chasing coverage.
 
-Sibling PRs own the shared KDE helpers:
-  - tests/shared/kde_preconditions.py  (#641)
-  - tests/shared/kde_shell_steps.py    (#642)
-  - tests/shared/kde_webdriver.py      (#643)
-  - tests/shared/kde_faillog.py        (#644)
-  - .github/workflows/e2e.yml KDE lane (#645)
-
-If any of those helpers are missing, the suite skips cleanly rather than crashing
-at import time.  Non-KDE images also skip every scenario in before_scenario so
-failure-artifact hooks still run.
+Shared KDE helpers (kde_preconditions, kde_shell_steps, kde_webdriver,
+kde_faillog) are imported WITHOUT try/except guards.  A missing or renamed
+helper must be a LOUD, IMMEDIATE ImportError — never a silent skip that makes
+CI green while zero scenarios actually run.
 """
 
 import os
@@ -22,37 +16,13 @@ import sys
 import traceback
 
 from tests.shared.ssh_steps import *  # noqa: F401,F403 — register shared SSH steps
-
-try:
-    from tests.shared.timing import record_end, record_start
-except Exception:  # noqa: BLE001
-    def record_start(context):
-        return None
-
-    def record_end(context, scenario):
-        return None
-
-try:
-    from tests.shared.kde_faillog import collect_on_failure
-except Exception as exc:  # noqa: BLE001
-    print(f"WARNING: kde_faillog unavailable ({exc}); failure artifacts disabled", flush=True)
-
-    def collect_on_failure(context, scenario):
-        return None
-
-try:
-    from tests.shared.kde_preconditions import is_kde_image, ensure_kde_session
-    from tests.shared.kde_shell_steps import wait_until
-    from tests.shared import kde_webdriver
-
-    _KDE_HELPERS_AVAILABLE = True
-except Exception as exc:  # noqa: BLE001
-    print(f"WARNING: KDE shared helpers unavailable ({exc}); suite will skip", flush=True)
-    is_kde_image = None  # type: ignore[assignment]
-    ensure_kde_session = None  # type: ignore[assignment]
-    wait_until = None  # type: ignore[assignment]
-    kde_webdriver = None  # type: ignore[assignment]
-    _KDE_HELPERS_AVAILABLE = False
+from tests.shared.timing import record_end, record_start
+from tests.shared.kde_faillog import collect_on_failure
+from tests.shared.kde_preconditions import (
+    apply_kde_session_preconditions,
+    is_kde_session,
+)
+from tests.shared import kde_webdriver
 
 
 SUITE_NAME = "kde-smoke"
@@ -128,12 +98,10 @@ def before_all(context) -> None:
         userdata.get("image", ""),
     )
 
-    # Image family detection is used for graceful skips; the canonical helper
-    # from kde_preconditions is preferred when present.
-    if is_kde_image is not None:
-        context.is_kde_image = is_kde_image(image_ref)
-    else:
-        context.is_kde_image = _is_kde_image(image_ref) if image_ref else False
+    # Image family detection — the local heuristic runs on the image reference
+    # string without SSH; the canonical is_kde_session probe runs after SSH
+    # is configured to confirm the DUT is actually running a Plasma session.
+    context.is_kde_image = _is_kde_image(image_ref) if image_ref else False
 
     context.vm_ip = _first_value(
         userdata.get("vm_ip", ""),
@@ -171,7 +139,6 @@ def before_all(context) -> None:
 
     # Shared mutable container so scenario-layer pops do not discard driver state.
     context.kde = {
-        "helpers": _KDE_HELPERS_AVAILABLE,
         "webdriver": None,
         "session": None,
         "failed_setup": None,
@@ -182,12 +149,19 @@ def before_all(context) -> None:
     context.last_ssh_result = None
     context.ssh_rc = 0
 
-    if not _KDE_HELPERS_AVAILABLE:
+    if not context.is_kde_image:
+        return
+
+    # Confirm the DUT is actually running a Plasma session over SSH.
+    # The image-name heuristic above can match non-KDE spins; this probe
+    # checks for a live kwin_wayland process.
+    if not is_kde_session(context):
+        context.is_kde_image = False
         return
 
     try:
-        ensure_kde_session(context)
-        context.kde["webdriver"] = kde_webdriver.start_driver()
+        apply_kde_session_preconditions(context)
+        context.kde["webdriver"] = kde_webdriver.new_session()
     except Exception as error:  # noqa: BLE001
         tb = traceback.format_exc()
         print(f"KDE setup error in before_all: {error}\n{tb}", flush=True)
@@ -211,14 +185,6 @@ def before_scenario(context, scenario) -> None:
             context,
             scenario,
             f"Non-KDE image (IMAGE={os.environ.get('IMAGE', 'unknown')})",
-        )
-        return
-
-    if not context.kde.get("helpers"):
-        _skip_scenario(
-            context,
-            scenario,
-            "KDE shared helpers are missing — waiting for sibling PRs #641-#645",
         )
         return
 

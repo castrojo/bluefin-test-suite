@@ -83,7 +83,11 @@ jobs:
             dbus-daemon \
             gtk3 \
             gsettings-desktop-schemas
-          pip3 install --quiet behave qecore dogtail
+          # selenium is required to import tests/shared/kde_webdriver.py, which
+          # tests/kde-smoke/features/environment.py now imports unguarded. Before
+          # that import was un-swallowed, a missing selenium silently disabled the
+          # whole kde-smoke suite here and this job validated nothing for it.
+          pip3 install --quiet behave qecore dogtail selenium
 
       - name: Behave dry-run (step definition coverage)
         # Exits 1 if any step is undefined — catches broken imports and
