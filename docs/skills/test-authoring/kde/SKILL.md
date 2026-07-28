@@ -159,11 +159,19 @@ The kde-smoke suite imports shared helpers at **module scope with no try/except 
 | `has_plm` | `(context) -> bool` | Probe whether Plasma Login Manager is the active display manager |
 
 `is_kde_image`, `ensure_kde_session`, `apply_disk_prep`, `configure_autologin`,
-`detect_display_manager`, and `has_plm` are added by the KDE session-lifecycle
-work (`fix/kde-session-lifecycle`); `configure_sddm_autologin` survives there as
-a deprecated compat wrapper around `configure_autologin`. See
+`detect_display_manager`, and `has_plm` were added by the KDE session-lifecycle
+work (merged in #654); `configure_sddm_autologin` survives as a deprecated
+compat wrapper around `configure_autologin`. See
 [references/session-preconditions.md](references/session-preconditions.md) for
 the phase model (disk-prep vs runtime).
+
+**`is_kde_image` is the canonical image-family predicate.** It is a pure string
+check — lowercase, take the last `/` segment, strip `:tag` and `@digest`, then
+match the family tokens `aurora`, `kinoite`, `bazzite`, `kde`, `plasma`. Empty
+or missing references return `False`. Suites must import it from
+`tests.shared.kde_preconditions` rather than rolling a private copy: two
+implementations of the same predicate drift, and the suite then gates
+differently depending on which path evaluates it.
 
 **Do not invent helper names.** This table plus the module source is the
 complete public surface. Verify a name against `tests/shared/kde_preconditions.py`
@@ -206,7 +214,11 @@ except Exception:
     _KDE_HELPERS_AVAILABLE = False
 
 # RIGHT — bare import at module scope; ImportError propagates and fails the run
-from tests.shared.kde_preconditions import is_kde_session, apply_kde_session_preconditions
+from tests.shared.kde_preconditions import (
+    apply_kde_session_preconditions,
+    is_kde_image,
+    is_kde_session,
+)
 from tests.shared import kde_webdriver
 ```
 
