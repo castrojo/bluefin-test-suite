@@ -58,3 +58,4 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 - `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
 - `security/selinux`: all scenarios active (cosign verification across image variants).
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
+- `kde-smoke`: 13 `@informational` scenarios in one feature file (repo totals: 479 scenarios / 61 feature files by mechanical recount; see the count-drift notice in `suite-map/SKILL.md`); Aurora-only Phase-2 harness proof. Depends on sibling PRs #641-#645 for shared KDE helpers and `e2e.yml` suite registration.

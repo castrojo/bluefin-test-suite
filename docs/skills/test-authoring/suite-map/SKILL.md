@@ -74,6 +74,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `dx` | — | ✅ | — | — | — | — | — | DX-only tools (VS Code, distrobox, Jupyter) |
 | `nvidia` | — | — | ✅ | — | — | — | — | GPU driver validation; NVIDIA variant only |
 | `flatcar` | — | — | — | — | — | — | ✅ | Flatcar OS boot and lifecycle |
+| `kde-smoke` | — | — | — | — | — | — | — | KDE Plasma harness proof-of-concept; Aurora-only, all scenarios `@informational` |
 
 **GitHub Action consumers**:
 ```yaml
@@ -137,10 +138,19 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 | `@future` | Not yet implemented or blocked on infra |
 | `@homed_migration` | systemd-homed migration scenarios; dakota lifecycle; SSH-mode; skip-safe when homed absent |
 | `@regression` | Anchors a known incident regression guard; must remain active indefinitely |
+| `@kde_smoke` | KDE Plasma smoke-suite identifier; used by `e2e.yml` suite registration (#645) |
+| `@informational` | Bake-period tier; scenario runs and reports results but does not gate promotion until promoted to `@critical` |
 
 ## Coverage snapshot
 
-427 scenarios across 52 feature files (last audit: 2026-06-30). 81 quarantined, 331 active, 15 future/hardware_blocked.
+479 scenarios across 61 feature files (mechanical recount 2026-07-28; kde-smoke adds 13 in 1 file).
+
+> **Count drift notice.** The previous snapshot claimed 427 scenarios across 52 files. A
+> mechanical recount of `tests/*/features/**/*.feature` on `main` found **466 across 60** —
+> the snapshot had drifted by ~39 scenarios before any KDE work began. The totals above are
+> now mechanically derived. The quarantined/active/future breakdown below has **not** been
+> re-audited and is still inherited from the 2026-06-30 audit; treat it as approximate until
+> a full audit runs.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
@@ -156,6 +166,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 | dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
 | nvidia | 12 | 0 | 0 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
 | flatcar | 13 | 10 | 0 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
+| kde-smoke | 13 | 13 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
 
 ## Known coverage gaps
 
