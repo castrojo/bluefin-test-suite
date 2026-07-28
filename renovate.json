@@ -10,6 +10,14 @@
       "automerge": true,
       "automergeType": "pr",
       "automergeStrategy": "squash"
+    },
+    {
+      "description": "KDE runner image and Python requirements",
+      "matchFileNames": [
+        "container/Containerfile.kde-runner",
+        "container/requirements.kde-runner.txt"
+      ],
+      "addLabels": ["kde", "runner"]
     }
   ]
 }

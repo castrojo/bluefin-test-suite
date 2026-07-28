@@ -1,0 +1,33 @@
+# KDE/Plasma e2e test runner image (host-side orchestration only).
+#
+# Published to: ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner
+#
+# Used by the KDE e2e workflow to run behave + selenium/websocket-client on
+# the orchestration host.  It deliberately does NOT ship
+# selenium-webdriver-at-spi-inputsynth; that binary is a Qt6 Wayland client that
+# must be built for each device-under-test to match its Plasma/Qt/KWin ABI.
+#
+# Triggered by: .github/workflows/build-kde-runner.yml
+
+FROM registry.fedoraproject.org/fedora-minimal:latest@sha256:845561bf31de02a314573119ca54e85c5950115636a9508021d0eb1287b6c963
+
+LABEL org.opencontainers.image.source="https://github.com/projectbluefin/testsuite"
+LABEL org.opencontainers.image.description="Host-side behave/selenium test runner for KDE/Plasma e2e tests"
+
+RUN microdnf install -y --setopt=install_weak_deps=0 \
+        python3 \
+        python3-pip \
+    && microdnf clean all
+
+WORKDIR /runner
+COPY container/requirements.kde-runner.txt /runner/requirements.kde-runner.txt
+
+# Install pinned Python stack.  No network fetch happens at test time.
+RUN python3 -m pip install --no-cache-dir -r /runner/requirements.kde-runner.txt \
+    && python3 -m pip cache purge
+
+# Fail the build if any expected import is missing.
+RUN python3 - <<'PY'
+import behave, selenium, websocket, lxml, yaml, odiff
+print("KDE runner Python stack OK")
+PY
