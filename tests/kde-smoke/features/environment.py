@@ -20,6 +20,7 @@ from tests.shared.timing import record_end, record_start
 from tests.shared.kde_faillog import collect_on_failure
 from tests.shared.kde_preconditions import (
     apply_kde_session_preconditions,
+    is_kde_image,
     is_kde_session,
 )
 from tests.shared import kde_webdriver
@@ -36,24 +37,6 @@ def _first_value(*values: str) -> str:
         if value:
             return value
     return ""
-
-
-def _image_name(image: str) -> str:
-    return image.lower().split("/")[-1].split(":")[0].split("@")[0]
-
-
-def _is_kde_image(image: str) -> bool:
-    """Return True when the image reference names a KDE Plasma variant.
-
-    Aurora is the Phase-2 target; Kinoite and Bazzite are recognized so the
-    gate degrades gracefully rather than phantom-skipping once those variants
-    are wired in.
-    """
-    name = _image_name(image)
-    return any(
-        token in name
-        for token in ("aurora", "kinoite", "bazzite", "kde", "plasma")
-    )
 
 
 def _skip_scenario(context, scenario, reason: str) -> None:
@@ -98,10 +81,11 @@ def before_all(context) -> None:
         userdata.get("image", ""),
     )
 
-    # Image family detection — the local heuristic runs on the image reference
-    # string without SSH; the canonical is_kde_session probe runs after SSH
-    # is configured to confirm the DUT is actually running a Plasma session.
-    context.is_kde_image = _is_kde_image(image_ref) if image_ref else False
+    # Image family detection — the shared is_kde_image predicate is a pure
+    # string check on the image reference (no SSH); the canonical
+    # is_kde_session probe runs after SSH is configured to confirm the DUT is
+    # actually running a Plasma session.
+    context.is_kde_image = is_kde_image(image_ref)
 
     context.vm_ip = _first_value(
         userdata.get("vm_ip", ""),

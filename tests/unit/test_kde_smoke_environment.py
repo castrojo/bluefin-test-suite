@@ -52,9 +52,10 @@ class TestKdePreconditionsAPI:
 
     # NOTE: The D1 defect was that environment.py imported is_kde_image and
     # ensure_kde_session when they didn't exist, then swallowed the ImportError.
-    # The fix is unguarded imports of the REAL names — not forbidding future
-    # additions to the shared module's API surface.  PR #654 legitimately adds
-    # both names as real functions.
+    # The invariant is therefore "no guarded/swallowed imports; every imported
+    # name must exist in the shared module" — NOT a ban on any particular name.
+    # PR #654 added is_kde_image as a real shared function, and kde-smoke now
+    # legitimately imports it instead of keeping a private duplicate.
 
 
 class TestKdeWebdriverAPI:
@@ -119,17 +120,20 @@ class TestKdeShellStepsAPI:
 
 
 def test_environment_uses_correct_precondition_names():
-    """environment.py must import is_kde_session (not is_kde_image)
-    and apply_kde_session_preconditions (not ensure_kde_session)."""
+    """environment.py must import the canonical shared helper names, and every
+    imported name must resolve to the real object in tests.shared.kde_preconditions
+    (no guarded imports, no invented names such as ensure_kde_session)."""
     mod = importlib.import_module("tests.kde-smoke.features.environment")
     # These are imported at module scope; verify they resolve to the real functions.
     from tests.shared.kde_preconditions import (
         apply_kde_session_preconditions,
+        is_kde_image,
         is_kde_session,
     )
 
     assert mod.is_kde_session is is_kde_session
     assert mod.apply_kde_session_preconditions is apply_kde_session_preconditions
+    assert mod.is_kde_image is is_kde_image
 
 
 def test_environment_uses_correct_webdriver_module():
