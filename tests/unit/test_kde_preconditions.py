@@ -351,13 +351,34 @@ class TestApplyKdeSessionPreconditions:
         assert result.ok is True
         assert result.skipped is False
 
-    def test_fails_when_a_step_fails(self):
+    def test_fails_when_a_fatal_step_fails(self):
+        """A fatal step (determinism drop-in) must abort the pipeline."""
         ctx = _make_context()
+        failure = kde_preconditions.KDEResult(ok=False, reason="disk full")
         with patch.object(kde_preconditions, "is_kde_session", return_value=True):
-            with patch.object(kde_preconditions, "seed_home", return_value=kde_preconditions.KDEResult(ok=False, reason="disk full")):
-                result = kde_preconditions.apply_kde_session_preconditions(ctx)
+            with patch.object(kde_preconditions, "seed_home", return_value=kde_preconditions.KDEResult(ok=True, reason="seeded")):
+                with patch.object(kde_preconditions, "emit_determinism_dropin", return_value=failure):
+                    result = kde_preconditions.apply_kde_session_preconditions(ctx)
         assert result.ok is False
         assert "determinism drop-in failed" in result.reason
+
+    def test_seed_home_failure_is_non_fatal(self):
+        """Seeding is a pre-session operation: refusal must not abort the run.
+
+        apply_kde_session_preconditions only runs once a session is live, where
+        wiping the home directory would destroy the running session's state.
+        """
+        ctx = _make_context()
+        refusal = kde_preconditions.KDEResult(ok=False, reason="session is running")
+        with patch.object(kde_preconditions, "is_kde_session", return_value=True):
+            with patch.object(kde_preconditions, "seed_home", return_value=refusal):
+                with patch.object(kde_preconditions, "emit_determinism_dropin", return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                    with patch.object(kde_preconditions, "configure_sddm_autologin", return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                        with patch.object(kde_preconditions, "suppress_welcome_wizard", return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                            with patch.object(kde_preconditions, "wait_for_plasma_session", return_value=kde_preconditions.KDEResult(ok=True, reason="ready")):
+                                result = kde_preconditions.apply_kde_session_preconditions(ctx)
+        assert result.ok is True
+        assert "seed home skipped" in result.reason
 
 
 class TestReviewFixes:
