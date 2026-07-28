@@ -177,7 +177,12 @@ def test_collect_journalctl_honors_line_cap(tmp_path, monkeypatch):
 
     assert info["capped_at"] == 5
     written = Path(bundle_dir, "journalctl.log").read_text(encoding="utf-8")
-    assert written == long_output
+    # Previously asserted `written == long_output`, i.e. it verified that a
+    # 5-line cap wrote all 100 lines unchanged — the test encoded the bug.
+    # The remote `journalctl -n` cap does not bound what we write locally.
+    assert written != long_output
+    assert len([ln for ln in written.splitlines() if ln.startswith("line ")]) == 5
+    assert "truncated 95 more line(s)" in written
 
 
 # ---------------------------------------------------------------------------
@@ -339,3 +344,39 @@ def test_ssh_collector_catches_unexpected_exception():
         stdout, rc = mod._run_ssh_collector(None, "cmd", 10)
     assert stdout == ""
     assert rc == -2
+
+
+# ---------------------------------------------------------------------------
+# Bounding and collision regressions (code review of PR #644)
+# ---------------------------------------------------------------------------
+
+def test_write_text_enforces_absolute_byte_cap(tmp_path):
+    mod = _import_faillog()
+    bundle_dir = str(tmp_path / "b")
+    os.makedirs(bundle_dir)
+    huge = "x" * (mod.MAX_ARTIFACT_BYTES + 10_000)
+
+    mod._write_text(bundle_dir, "huge.txt", huge)
+
+    written = Path(bundle_dir, "huge.txt").read_text(encoding="utf-8")
+    assert len(written.encode()) <= mod.MAX_ARTIFACT_BYTES + 200
+    assert "truncated" in written
+
+
+@pytest.mark.parametrize("raw", ["-1", "0", "not-a-number", None, "999999999"])
+def test_clamp_lines_rejects_unsafe_configuration(raw):
+    """A negative, zero, junk or absurd env value must not disable bounding."""
+    mod = _import_faillog()
+    value = mod._clamp_lines(raw, 2000)
+    assert 0 < value <= mod.MAX_CONFIGURABLE_LINES
+
+
+def test_bundle_dirs_do_not_collide_within_one_second():
+    mod = _import_faillog()
+    scenario = SimpleNamespace(
+        name="same scenario", status=SimpleNamespace(name="failed"),
+        feature=SimpleNamespace(name="f"),
+    )
+    first = mod._bundle_dir("/tmp/results", scenario)
+    second = mod._bundle_dir("/tmp/results", scenario)
+    assert first != second

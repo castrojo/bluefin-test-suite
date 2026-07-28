@@ -13,6 +13,7 @@ import subprocess
 import sys
 import tarfile
 import time
+import uuid
 from typing import Any
 
 from tests.shared import qemu_screendump
@@ -34,6 +35,9 @@ FAILURE_STATUSES = frozenset({"failed", "error", "hook_error"})
 
 # Default bounds for captured artifacts. These are intentionally conservative so the
 # bundle stays small enough to upload as a CI artifact.
+MAX_ARTIFACT_BYTES = 4 * 1024 * 1024   # hard per-artifact write cap
+MAX_CONFIGURABLE_LINES = 100_000       # ceiling for env-tunable line caps
+
 DEFAULT_JOURNAL_LINES = 2000
 DEFAULT_COREDUMP_LINES = 100
 
@@ -124,14 +128,51 @@ def _bundle_dir(results_dir: str, scenario) -> str:
     status_obj = getattr(scenario, "status", None)
     status = _safe_fragment(getattr(status_obj, "name", None), "unknown")
     timestamp = time.strftime("%Y%m%d_%H%M%S")
-    base = f"faillog_{feature}_{name}_{status}_{timestamp}"
+    # Second resolution alone collides when a scenario fails twice in the same
+    # second or shards fail concurrently, merging or overwriting artifacts.
+    unique = uuid.uuid4().hex[:8]
+    base = f"faillog_{feature}_{name}_{status}_{timestamp}_{unique}"
     return os.path.join(results_dir, base)
 
 
-def _write_text(bundle_dir: str, filename: str, content: str) -> None:
+def _clamp_lines(raw: str | None, default: int) -> int:
+    """Clamp an env-configured line cap to a sane range.
+
+    The value is operator-supplied, so a negative or absurd number must not
+    disable bounding.
+    """
+    try:
+        value = int(raw) if raw is not None else default
+    except (TypeError, ValueError):
+        return default
+    if value <= 0:
+        return default
+    return min(value, MAX_CONFIGURABLE_LINES)
+
+
+def _truncate(content: str, max_lines: int | None = None) -> str:
+    """Bound content by line count and by an absolute byte cap."""
+    if max_lines is not None:
+        lines = content.splitlines()
+        if len(lines) > max_lines:
+            dropped = len(lines) - max_lines
+            content = "\n".join(lines[:max_lines])
+            content += f"\n... [truncated {dropped} more line(s)]\n"
+
+    encoded = content.encode("utf-8", errors="replace")
+    if len(encoded) > MAX_ARTIFACT_BYTES:
+        clipped = encoded[:MAX_ARTIFACT_BYTES].decode("utf-8", errors="ignore")
+        dropped = len(encoded) - MAX_ARTIFACT_BYTES
+        return clipped + f"\n... [truncated {dropped} more byte(s)]\n"
+    return content
+
+
+def _write_text(
+    bundle_dir: str, filename: str, content: str, max_lines: int | None = None
+) -> None:
     path = os.path.join(bundle_dir, filename)
     with open(path, "w", encoding="utf-8", errors="replace") as file_obj:
-        file_obj.write(content)
+        file_obj.write(_truncate(content, max_lines))
 
 
 def _run_ssh_collector(context, cmd: str, timeout: int) -> tuple[str, int]:
@@ -176,11 +217,11 @@ def collect_at_spi_tree(context, bundle_dir: str, timeout: int = 30) -> dict[str
 
 def collect_journalctl(context, bundle_dir: str, timeout: int = 30) -> dict[str, Any]:
     """Capture the current boot journal with a bounded line count."""
-    lines = int(os.environ.get("KDE_FAILLOG_JOURNAL_LINES", str(DEFAULT_JOURNAL_LINES)))
+    lines = _clamp_lines(os.environ.get("KDE_FAILLOG_JOURNAL_LINES"), DEFAULT_JOURNAL_LINES)
     cmd = f"journalctl -b --no-pager --lines={lines}"
     stdout, rc = _run_ssh_collector(context, cmd, timeout)
     _check_ssh(stdout, rc, "journalctl")
-    _write_text(bundle_dir, "journalctl.log", stdout)
+    _write_text(bundle_dir, "journalctl.log", stdout, max_lines=lines)
     return {"rc": rc, "lines": len(stdout.splitlines()), "capped_at": lines}
 
 
@@ -212,12 +253,12 @@ def collect_plasma_layout(context, bundle_dir: str, timeout: int = 30) -> dict[s
 
 def collect_coredumpctl(context, bundle_dir: str, timeout: int = 30) -> dict[str, Any]:
     """List recent coredumps with a bounded line count."""
-    lines = int(os.environ.get("KDE_FAILLOG_COREDUMP_LINES", str(DEFAULT_COREDUMP_LINES)))
+    lines = _clamp_lines(os.environ.get("KDE_FAILLOG_COREDUMP_LINES"), DEFAULT_COREDUMP_LINES)
     cmd = f"coredumpctl list --no-pager --lines={lines}"
     stdout, rc = _run_ssh_collector(context, cmd, timeout)
     # coredumpctl returns 1 when there are no entries, which is still useful output.
     _check_ssh(stdout, rc, "coredumpctl", allowed_rcs=(0, 1))
-    _write_text(bundle_dir, "coredumpctl.txt", stdout)
+    _write_text(bundle_dir, "coredumpctl.txt", stdout, max_lines=lines)
     return {"rc": rc, "lines": len(stdout.splitlines()), "capped_at": lines}
 
 
