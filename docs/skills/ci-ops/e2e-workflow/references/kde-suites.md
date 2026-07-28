@@ -95,3 +95,32 @@ Current skip conditions:
 
 The skip is surfaced in the job log, the GitHub Step Summary, and the behave JSON
 output.
+
+
+## Supply-chain exception: per-DUT inputsynth
+
+The repo rule is that no executable code is fetched at test time. `install-kde-webdriver.sh`
+is a **documented exception**, because `inputsynth` is a Qt6 Wayland client linking
+`PlasmaWaylandProtocols`' `fake-input` protocol and its ABI is tied to the DUT's
+Plasma/Qt/KWin build. A centrally prebuilt binary is not portable across Fedora, Neon and
+Arch-based KDE Linux — upstream KDE builds it inside the SUT for the same reason.
+
+The exception is bounded by three requirements. Do not weaken any of them:
+
+1. A distro package is always preferred; source build is a fallback only.
+2. The source is pinned to an immutable commit SHA, never a branch or tag.
+3. The checkout is verified against that SHA and the script fails loudly on mismatch.
+
+## Shard resolution
+
+`kde-smoke` auto-shards into `kde-smoke-a` / `kde-smoke-b`. Both the **expansion** set and
+the **resolver** set must list `kde-smoke`. If only the expansion lists it, the shards resolve
+to `tests/kde-smoke-a/features/`, a directory that does not exist, and every KDE job fails.
+
+## Container networking
+
+The KDE runner is host-side and reaches the DUT over SSH at `127.0.0.1:2222`, the QEMU port
+forward on the Actions runner. The container therefore requires `--network=host`; in its own
+network namespace `127.0.0.1` is the container, not the host. It also needs `/tmp/vm_key`
+mounted read-only — setting `SSH_KEY=/tmp/vm_key` without the mount leaves the key invisible
+inside the container.

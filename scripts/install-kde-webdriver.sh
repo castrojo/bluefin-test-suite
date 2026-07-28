@@ -15,6 +15,20 @@ set -euo pipefail
 
 # Pinned source ref for selenium-webdriver-at-spi (KDE GitHub mirror).
 # Update only together with the runner image and after validating on all target distros.
+# Documented exception to the repo rule "no executable code fetched at test time".
+#
+# inputsynth is a Qt6 Wayland client linking PlasmaWaylandProtocols' fake-input
+# protocol. Its ABI is tied to the DUT's Plasma/Qt/KWin build, so a centrally
+# prebuilt binary is NOT portable across Fedora (Aurora/Kinoite/Bazzite),
+# Ubuntu-based Neon and Arch-based KDE Linux — upstream KDE builds it inside the
+# SUT for exactly this reason.
+#
+# Mitigations that keep this defensible:
+#   1. A distro package is always preferred; source build is a fallback only.
+#   2. The source is pinned to an immutable commit SHA, never a branch. The
+#      earlier prototype cloned --depth 1 from master, which was unpinned.
+#   3. The clone target is verified against that SHA after fetch.
+# Renovate should bump this pin; do not replace it with a tag or branch.
 readonly SELENIUM_AT_SPI_SHA="d45a21e8f1b3591dc921f0be85f1ecd834cbe413"
 readonly SELENIUM_AT_SPI_URL="https://github.com/KDE/selenium-webdriver-at-spi.git"
 
@@ -124,6 +138,12 @@ build_from_source() {
   cd "${build_dir}/src"
   git fetch --quiet --depth 1 origin "${SELENIUM_AT_SPI_SHA}"
   git checkout --quiet "${SELENIUM_AT_SPI_SHA}"
+
+  actual_sha="$(git rev-parse HEAD)"
+  if [[ "${actual_sha}" != "${SELENIUM_AT_SPI_SHA}" ]]; then
+    log "ERROR: checkout landed on ${actual_sha}, expected ${SELENIUM_AT_SPI_SHA}"
+    exit 1
+  fi
 
   # Strip heavy optional subdirectories and deps we do not need in CI.
   sed -i \

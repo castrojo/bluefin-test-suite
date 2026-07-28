@@ -144,7 +144,7 @@ jobs:
 
           if "-" in suite:
               base, label = suite.rsplit("-", 1)
-              if base in {"smoke", "common"} and label in {"a", "b"}:
+              if base in {"smoke", "common", "kde-smoke"} and label in {"a", "b"}:
                   files = sorted(glob.glob(f"tests/{base}/features/*.feature"))
                   if not files:
                       raise SystemExit(f"No feature files found for tests/{base}/features/*.feature")
@@ -1214,8 +1214,10 @@ jobs:
             fi
             mkdir -p results
             sudo podman run --rm \
+              --network=host \
               -v "$(pwd):/tmp/bluefin-tests:ro" \
               -v "$(pwd)/results:/tmp/results" \
+              -v /tmp/vm_key:/tmp/vm_key:ro \
               -e VM_IP=127.0.0.1 \
               -e VM_USER=bluefin-test \
               -e SSH_KEY=/tmp/vm_key \
