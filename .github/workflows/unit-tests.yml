@@ -29,7 +29,9 @@ jobs:
           python-version: "3.14"
 
       - name: Install test dependencies
-        run: pip install coverage pytest pytest-xdist behave
+        run: pip install coverage pytest pytest-xdist behave selenium
+        # selenium is required to import tests/shared/kde_webdriver.py,
+        # which wraps the W3C WebDriver client for KDE's AT-SPI bridge.
 
       - name: Run unit tests
         env:
