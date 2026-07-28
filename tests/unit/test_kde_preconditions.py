@@ -56,6 +56,16 @@ def _mock_ssh_fail(ctx, rc=1, stderr=""):
     return patch.object(kde_preconditions, "_ssh", side_effect=_fake_ssh)
 
 
+def _mock_ssh_capture(commands_list):
+    """Patch _ssh to record commands and report success."""
+    def _fake_ssh(context, cmd, timeout=60):
+        commands_list.append(cmd)
+        context.ssh_rc = 0
+        context.command_stdout = ""
+
+    return patch.object(kde_preconditions, "_ssh", side_effect=_fake_ssh)
+
+
 # ---------------------------------------------------------------------------
 # Capability probes
 # ---------------------------------------------------------------------------
@@ -72,6 +82,26 @@ class TestIsKdeSession:
             assert kde_preconditions.is_kde_session(ctx) is False
 
 
+class TestIsKdeImage:
+    @pytest.mark.parametrize("ref", [
+        "ghcr.io/ublue-os/aurora:latest",
+        "ghcr.io/ublue-os/kinoite:40",
+        "ghcr.io/ublue-os/bazzite:stable",
+        "registry.example.com/kde-desktop:v1",
+        "plasma-custom:test",
+    ])
+    def test_recognises_kde_variants(self, ref):
+        assert kde_preconditions.is_kde_image(ref) is True
+
+    @pytest.mark.parametrize("ref", [
+        "ghcr.io/ublue-os/bluefin:latest",
+        "ghcr.io/fedora/silverblue:40",
+        "",
+    ])
+    def test_rejects_non_kde_variants(self, ref):
+        assert kde_preconditions.is_kde_image(ref) is False
+
+
 class TestHasSddm:
     def test_true_when_display_manager_is_sddm(self):
         ctx = _make_context()
@@ -82,6 +112,56 @@ class TestHasSddm:
         ctx = _make_context()
         with _mock_ssh_fail(ctx, rc=1):
             assert kde_preconditions.has_sddm(ctx) is False
+
+
+class TestHasPlm:
+    def test_true_when_display_manager_is_plm(self):
+        ctx = _make_context()
+        with _mock_ssh_ok(ctx):
+            assert kde_preconditions.has_plm(ctx) is True
+
+    def test_false_when_display_manager_is_not_plm(self):
+        ctx = _make_context()
+        with _mock_ssh_fail(ctx, rc=1):
+            assert kde_preconditions.has_plm(ctx) is False
+
+
+class TestDetectDisplayManager:
+    def test_detects_sddm(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "has_sddm", return_value=True):
+            assert kde_preconditions.detect_display_manager(ctx) == "sddm"
+
+    def test_detects_plm(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "has_sddm", return_value=False):
+            with patch.object(kde_preconditions, "has_plm", return_value=True):
+                assert kde_preconditions.detect_display_manager(ctx) == "plm"
+
+    def test_returns_unknown_when_neither(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "has_sddm", return_value=False):
+            with patch.object(kde_preconditions, "has_plm", return_value=False):
+                assert kde_preconditions.detect_display_manager(ctx) == "unknown"
+
+    def test_sddm_takes_precedence_over_plm(self):
+        """If both somehow match, SDDM wins (checked first)."""
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "has_sddm", return_value=True):
+            with patch.object(kde_preconditions, "has_plm", return_value=True):
+                assert kde_preconditions.detect_display_manager(ctx) == "sddm"
+
+
+class TestDmConfDir:
+    def test_sddm_dir(self):
+        assert kde_preconditions._dm_conf_dir("sddm") == "/etc/sddm.conf.d"
+
+    def test_plm_dir(self):
+        assert kde_preconditions._dm_conf_dir("plm") == "/etc/plasmalogin.conf.d"
+
+    def test_unknown_raises(self):
+        with pytest.raises(ValueError, match="unknown display manager"):
+            kde_preconditions._dm_conf_dir("unknown")
 
 
 class TestHasKwriteconfig6:
@@ -109,54 +189,124 @@ class TestHasPlasmaWaylandSession:
 
 
 # ---------------------------------------------------------------------------
-# SDDM autologin
+# Autologin (DM-aware)
 # ---------------------------------------------------------------------------
 
-class TestConfigureSddmAutologin:
-    def test_skips_when_sddm_not_display_manager(self):
-        ctx = _make_context()
-        with patch.object(kde_preconditions, "has_sddm", return_value=False):
-            result = kde_preconditions.configure_sddm_autologin(ctx)
-        assert result.skipped is True
-        assert result.ok is True
-        assert "SDDM is not the display manager" in result.reason
-
-    def test_writes_dropin_for_plasma_wayland(self):
+class TestConfigureAutologin:
+    def test_sddm_writes_to_sddm_conf_d(self):
         ctx = _make_context()
         commands = []
 
-        def _fake_ssh(context, cmd, timeout=60):
-            commands.append(cmd)
-            context.ssh_rc = 0
-            context.command_stdout = ""
-
-        with patch.object(kde_preconditions, "has_sddm", return_value=True):
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="sddm"):
             with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=True):
-                with patch.object(kde_preconditions, "_ssh", side_effect=_fake_ssh):
-                    result = kde_preconditions.configure_sddm_autologin(ctx, username="kde-test")
+                with _mock_ssh_capture(commands):
+                    result = kde_preconditions.configure_autologin(ctx)
 
         assert result.ok is True
+        cmd = commands[0]
+        assert "/etc/sddm.conf.d/99-testsuite-autologin.conf" in cmd
+        assert f"Session={kde_preconditions.KDE_WAYLAND_SESSION}" in cmd
+
+    def test_plm_writes_to_plasmalogin_conf_d(self):
+        ctx = _make_context()
+        commands = []
+
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="plm"):
+            with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=True):
+                with _mock_ssh_capture(commands):
+                    result = kde_preconditions.configure_autologin(ctx)
+
+        assert result.ok is True
+        cmd = commands[0]
+        assert "/etc/plasmalogin.conf.d/99-testsuite-autologin.conf" in cmd
+        assert f"Session={kde_preconditions.KDE_WAYLAND_SESSION}" in cmd
+
+    def test_unknown_dm_fails_clearly(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="unknown"):
+            result = kde_preconditions.configure_autologin(ctx)
+
+        assert result.ok is False
         assert result.skipped is False
-        assert any("99-testsuite-autologin.conf" in c for c in commands)
+        assert "Neither SDDM nor PLM" in result.reason
+
+    def test_session_value_is_plasmawayland_desktop(self):
+        """The session must be plasmawayland.desktop (Wayland), NOT plasma.desktop (X11)."""
+        ctx = _make_context()
+        commands = []
+
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="sddm"):
+            with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=True):
+                with _mock_ssh_capture(commands):
+                    kde_preconditions.configure_autologin(ctx)
+
         assert any("Session=plasmawayland.desktop" in c for c in commands)
-        assert any("User=kde-test" in c for c in commands)
+        assert not any("Session=plasma.desktop" in c for c in commands)
+
+    def test_uses_sudo(self):
+        ctx = _make_context()
+        commands = []
+
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="sddm"):
+            with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=True):
+                with _mock_ssh_capture(commands):
+                    kde_preconditions.configure_autologin(ctx)
+
+        assert any("sudo -n" in c for c in commands)
+
+    def test_custom_username(self):
+        ctx = _make_context()
+        commands = []
+
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="plm"):
+            with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=True):
+                with _mock_ssh_capture(commands):
+                    kde_preconditions.configure_autologin(ctx, username="testuser")
+
+        assert any("User=testuser" in c for c in commands)
 
     def test_fails_when_plasma_wayland_session_missing(self):
         ctx = _make_context()
-        with patch.object(kde_preconditions, "has_sddm", return_value=True):
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="sddm"):
             with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=False):
-                result = kde_preconditions.configure_sddm_autologin(ctx)
+                result = kde_preconditions.configure_autologin(ctx)
         assert result.ok is False
         assert "Plasma Wayland session desktop file not found" in result.reason
 
     def test_fails_when_ssh_write_fails(self):
         ctx = _make_context()
-        with patch.object(kde_preconditions, "has_sddm", return_value=True):
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="sddm"):
             with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=True):
                 with _mock_ssh_fail(ctx, rc=1, stderr="permission denied"):
-                    result = kde_preconditions.configure_sddm_autologin(ctx)
+                    result = kde_preconditions.configure_autologin(ctx)
         assert result.ok is False
         assert "Failed to write" in result.reason
+
+
+class TestConfigureSddmAutologinCompat:
+    """Backwards-compatibility wrapper tests."""
+
+    def test_skips_when_no_dm_detected(self):
+        """Old callers expect a skip, not hard failure, when SDDM is absent."""
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="unknown"):
+            result = kde_preconditions.configure_sddm_autologin(ctx)
+        assert result.ok is True
+        assert result.skipped is True
+
+    def test_delegates_to_configure_autologin(self):
+        ctx = _make_context()
+        commands = []
+
+        with patch.object(kde_preconditions, "detect_display_manager", return_value="sddm"):
+            with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=True):
+                with _mock_ssh_capture(commands):
+                    result = kde_preconditions.configure_sddm_autologin(ctx, username="kde-test")
+
+        assert result.ok is True
+        assert any("99-testsuite-autologin.conf" in c for c in commands)
+        assert any("Session=plasmawayland.desktop" in c for c in commands)
+        assert any("User=kde-test" in c for c in commands)
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +370,17 @@ class TestEmitDeterminismDropin:
         assert "/etc/environment.d/99-testsuite-kde.conf" in cmd
         for key in kde_preconditions.DETERMINISM_ENV:
             assert f"{key}=" in cmd
+
+    def test_uses_sudo(self):
+        """Defect 1: /etc is not writable without sudo on immutable images."""
+        ctx = _make_context()
+        commands = []
+
+        with _mock_ssh_capture(commands):
+            kde_preconditions.emit_determinism_dropin(ctx)
+
+        cmd = commands[0]
+        assert "sudo -n" in cmd
 
     def test_fails_when_write_fails(self):
         ctx = _make_context()
@@ -323,7 +484,80 @@ class TestWaitForPlasmaSession:
 
 
 # ---------------------------------------------------------------------------
-# Orchestrator
+# Disk-prep orchestrator
+# ---------------------------------------------------------------------------
+
+class TestApplyDiskPrep:
+    def test_runs_autologin_and_determinism_and_seed(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "configure_autologin",
+                          return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+            with patch.object(kde_preconditions, "emit_determinism_dropin",
+                              return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                with patch.object(kde_preconditions, "seed_home",
+                                  return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                    with patch.object(kde_preconditions, "suppress_welcome_wizard",
+                                      return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                        result = kde_preconditions.apply_disk_prep(ctx)
+        assert result.ok is True
+
+    def test_fails_when_autologin_fails(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "configure_autologin",
+                          return_value=kde_preconditions.KDEResult(ok=False, reason="no DM")):
+            result = kde_preconditions.apply_disk_prep(ctx)
+        assert result.ok is False
+        assert "autologin failed" in result.reason
+
+    def test_reports_skipped_steps(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "configure_autologin",
+                          return_value=kde_preconditions.KDEResult(ok=True, skipped=True, reason="no DM")):
+            with patch.object(kde_preconditions, "emit_determinism_dropin",
+                              return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                with patch.object(kde_preconditions, "seed_home",
+                                  return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                    with patch.object(kde_preconditions, "suppress_welcome_wizard",
+                                      return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                        result = kde_preconditions.apply_disk_prep(ctx)
+        assert result.ok is True
+        assert "autologin skipped" in result.reason
+
+
+# ---------------------------------------------------------------------------
+# ensure_kde_session (runtime entry point for kde-smoke)
+# ---------------------------------------------------------------------------
+
+class TestEnsureKdeSession:
+    def test_waits_for_plasma_then_suppresses_wizard(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "wait_for_plasma_session",
+                          return_value=kde_preconditions.KDEResult(ok=True, reason="ready")):
+            with patch.object(kde_preconditions, "suppress_welcome_wizard",
+                              return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                result = kde_preconditions.ensure_kde_session(ctx)
+        assert result.ok is True
+
+    def test_fails_when_session_not_ready(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "wait_for_plasma_session",
+                          return_value=kde_preconditions.KDEResult(ok=False, reason="timeout")):
+            result = kde_preconditions.ensure_kde_session(ctx)
+        assert result.ok is False
+        assert "session readiness failed" in result.reason
+
+    def test_tolerates_wizard_skip(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "wait_for_plasma_session",
+                          return_value=kde_preconditions.KDEResult(ok=True, reason="ready")):
+            with patch.object(kde_preconditions, "suppress_welcome_wizard",
+                              return_value=kde_preconditions.KDEResult(ok=True, skipped=True, reason="no kwriteconfig6")):
+                result = kde_preconditions.ensure_kde_session(ctx)
+        assert result.ok is True
+
+
+# ---------------------------------------------------------------------------
+# Runtime orchestrator (apply_kde_session_preconditions)
 # ---------------------------------------------------------------------------
 
 class TestApplyKdeSessionPreconditions:
@@ -335,51 +569,70 @@ class TestApplyKdeSessionPreconditions:
         assert result.ok is True
         assert "not running a KDE/Plasma session" in result.reason
 
-    def test_runs_all_steps_and_waits(self):
+    def test_does_not_attempt_disk_prep_operations(self):
+        """Runtime must NOT attempt autologin or determinism drop-in writes."""
         ctx = _make_context()
 
-        def _fake_ssh(context, cmd, timeout=60):
-            context.ssh_rc = 0
-
         with patch.object(kde_preconditions, "is_kde_session", return_value=True):
-            with patch.object(kde_preconditions, "_ssh", side_effect=_fake_ssh):
-                with patch.object(kde_preconditions, "has_sddm", return_value=True):
-                    with patch.object(kde_preconditions, "has_plasma_wayland_session", return_value=True):
-                        with patch.object(kde_preconditions, "has_kwriteconfig6", return_value=True):
-                            result = kde_preconditions.apply_kde_session_preconditions(ctx)
+            with patch.object(kde_preconditions, "seed_home",
+                              return_value=kde_preconditions.KDEResult(ok=False, reason="session running")):
+                with patch.object(kde_preconditions, "suppress_welcome_wizard",
+                                  return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                    with patch.object(kde_preconditions, "wait_for_plasma_session",
+                                      return_value=kde_preconditions.KDEResult(ok=True, reason="ready")):
+                        with patch.object(kde_preconditions, "configure_autologin") as mock_autologin:
+                            with patch.object(kde_preconditions, "emit_determinism_dropin") as mock_dropin:
+                                result = kde_preconditions.apply_kde_session_preconditions(ctx)
 
         assert result.ok is True
-        assert result.skipped is False
-
-    def test_fails_when_a_fatal_step_fails(self):
-        """A fatal step (determinism drop-in) must abort the pipeline."""
-        ctx = _make_context()
-        failure = kde_preconditions.KDEResult(ok=False, reason="disk full")
-        with patch.object(kde_preconditions, "is_kde_session", return_value=True):
-            with patch.object(kde_preconditions, "seed_home", return_value=kde_preconditions.KDEResult(ok=True, reason="seeded")):
-                with patch.object(kde_preconditions, "emit_determinism_dropin", return_value=failure):
-                    result = kde_preconditions.apply_kde_session_preconditions(ctx)
-        assert result.ok is False
-        assert "determinism drop-in failed" in result.reason
+        mock_autologin.assert_not_called()
+        mock_dropin.assert_not_called()
 
     def test_seed_home_failure_is_non_fatal(self):
-        """Seeding is a pre-session operation: refusal must not abort the run.
-
-        apply_kde_session_preconditions only runs once a session is live, where
-        wiping the home directory would destroy the running session's state.
-        """
+        """Seeding is a pre-session operation: refusal must not abort the run."""
         ctx = _make_context()
         refusal = kde_preconditions.KDEResult(ok=False, reason="session is running")
         with patch.object(kde_preconditions, "is_kde_session", return_value=True):
             with patch.object(kde_preconditions, "seed_home", return_value=refusal):
-                with patch.object(kde_preconditions, "emit_determinism_dropin", return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
-                    with patch.object(kde_preconditions, "configure_sddm_autologin", return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
-                        with patch.object(kde_preconditions, "suppress_welcome_wizard", return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
-                            with patch.object(kde_preconditions, "wait_for_plasma_session", return_value=kde_preconditions.KDEResult(ok=True, reason="ready")):
-                                result = kde_preconditions.apply_kde_session_preconditions(ctx)
+                with patch.object(kde_preconditions, "suppress_welcome_wizard",
+                                  return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                    with patch.object(kde_preconditions, "wait_for_plasma_session",
+                                      return_value=kde_preconditions.KDEResult(ok=True, reason="ready")):
+                        result = kde_preconditions.apply_kde_session_preconditions(ctx)
         assert result.ok is True
         assert "seed home skipped" in result.reason
 
+    def test_fails_when_session_not_ready(self):
+        ctx = _make_context()
+        with patch.object(kde_preconditions, "is_kde_session", return_value=True):
+            with patch.object(kde_preconditions, "seed_home",
+                              return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                with patch.object(kde_preconditions, "suppress_welcome_wizard",
+                                  return_value=kde_preconditions.KDEResult(ok=True, reason="ok")):
+                    with patch.object(kde_preconditions, "wait_for_plasma_session",
+                                      return_value=kde_preconditions.KDEResult(ok=False, reason="timeout")):
+                        result = kde_preconditions.apply_kde_session_preconditions(ctx)
+        assert result.ok is False
+        assert "session readiness failed" in result.reason
+
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+class TestConstants:
+    def test_kde_wayland_session_is_wayland_not_x11(self):
+        """Guard against the plasmawayland.desktop vs plasma.desktop trap."""
+        assert kde_preconditions.KDE_WAYLAND_SESSION == "plasmawayland.desktop"
+        assert "plasma.desktop" != kde_preconditions.KDE_WAYLAND_SESSION
+
+    def test_autologin_dropin_filename_has_99_prefix(self):
+        assert kde_preconditions.AUTOLOGIN_DROPIN_FILENAME.startswith("99-")
+
+
+# ---------------------------------------------------------------------------
+# Regression tests from PR #641
+# ---------------------------------------------------------------------------
 
 class TestReviewFixes:
     """Regression tests for issues found in code review of PR #641."""
