@@ -12,6 +12,12 @@
       "automergeStrategy": "squash"
     },
     {
+      "description": "Hold astro at v5: @astrojs/tailwind 6.x peer range is ^3 || ^4 || ^5, so a major bump breaks `npm ci` in publish-to-pages.yml",
+      "matchFileNames": ["dashboard/package.json"],
+      "matchPackageNames": ["astro"],
+      "allowedVersions": "<6.0.0"
+    },
+    {
       "description": "KDE runner image and Python requirements",
       "matchFileNames": [
         "container/Containerfile.kde-runner",
