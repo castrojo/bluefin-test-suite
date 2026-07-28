@@ -45,26 +45,30 @@ Corollary: do not close or skip enqueuing a "dependency" PR just because its CI 
 
 > **The `ghost-lab` commit status is NOT currently posted on testsuite PRs. Do not wait for it — you will block forever.**
 > Tracking issue: [`projectbluefin/lab#471`](https://github.com/projectbluefin/lab/issues/471).
-> Fix in flight: [`projectbluefin/lab#474`](https://github.com/projectbluefin/lab/pull/474) — **open, not merged** as of 2026-07-28.
+> Two lab PRs have now landed against this bug ([#474](https://github.com/projectbluefin/lab/pull/474), then [#479](https://github.com/projectbluefin/lab/pull/479) to fix #474's broken reporter), but **no real `ghost-lab` status has been observed yet** — re-checked 2026-07-28, zero statuses on #656/#657/#658.
 
 ### ⚠️ This section expires — check before you trust it
 
-[`projectbluefin/lab#474`](https://github.com/projectbluefin/lab/pull/474) ("fix: report testsuite lab status directly", `Fixes #471`) adds `argo/workflow-templates/github-status-reporter.yaml` and modifies `argo/workflow-templates/pr-poller.yaml` so testsuite child workflows report a **direct `ghost-lab` commit status**, while the fully-enrolled repos (`bluefin`, `bluefin-lts`, `dakota`) keep their detailed Check Runs. When it lands, the lab gate becomes live again and everything below about the gate being unavailable becomes wrong.
+What has landed in the lab repo so far:
 
-**Before relying on this section, verify whether the gate is live:**
+- [`projectbluefin/lab#474`](https://github.com/projectbluefin/lab/pull/474) ("fix: report testsuite lab status directly", `Fixes #471`) **merged 2026-07-28T22:19:38Z** (`21e4447`). It added `argo/workflow-templates/github-status-reporter.yaml` and modified `argo/workflow-templates/pr-poller.yaml` so testsuite child workflows report a **direct `ghost-lab` commit status** instead of a Check Run. The routing and the `ghost-lab` context/head-SHA selection are correct.
+- **#474 shipped a non-functional reporter.** At `21e4447` the template defined `GITHUB_TOKEN` from a `secretKeyRef` but never interpolated it into the curl `Authorization` header — a literal placeholder was sent instead. Counted evidence (token-like strings are redacted in shell output, so compare occurrence counts, not the rendered text): the working `github-check-reporter.yaml` has `grep -c GITHUB_TOKEN` = 2 and `grep -c Bearer` = 1; the merged `github-status-reporter.yaml` had 1 and 0.
+- **Live impact:** Argo logs showed `GitHub commit status failed with HTTP 401` → `Error: exit status 1`. Because `report-start` is a DAG task in `pr-poller.yaml`, the failure propagated: the `testsuite-657-…` and `testsuite-658-…` child workflows both **Failed outright** — strictly worse than the original bug, which merely computed results and discarded them. `lab#471` was reopened at 2026-07-28T23:07:28Z.
+- [`projectbluefin/lab#479`](https://github.com/projectbluefin/lab/pull/479) ("fix(argo): send the bearer token from the ghost-lab status reporter") **merged 2026-07-28T23:12:56Z** (`da27999`), adding a regression test in the lab repo's `tests/unit/test_workflow_defaults.py` that fails against the pre-fix YAML. `lab#471` was closed again at 23:15:01Z. Lab `main` now matches the working reporter's counts (`GITHUB_TOKEN` = 2, `Bearer` = 1).
+
+**The gate is still a no-op until a real status is observed.** #479 merged minutes ago; the CronWorkflow must pick up the amended template and a testsuite child workflow must actually post. Verify before relying on either framing:
 
 ```bash
-# 1. Is the fix merged?
-gh pr view 474 --repo projectbluefin/lab --json state,mergedAt
-
-# 2. Is a ghost-lab status actually being posted on a testsuite PR?
+# Is a ghost-lab status actually being posted on a testsuite PR?
 gh api repos/<image-org>/testsuite/commits/$(gh pr view <N> --repo <image-org>/testsuite --json headRefOid --jq .headRefOid)/status \
   --jq '.statuses[].context'
 ```
 
-If step 2 prints `ghost-lab` for a recent PR, **the gate is live again**: revert to the lab-first gate documented under "Target state" below — wait for `ghost-lab: success` on the PR SHA before enqueuing — demote this "current gate" text to a historical note, and update `docs/skills/meta/human-gates/SKILL.md` in the same PR. Do not leave both framings in place.
+If that prints `ghost-lab` for a recent PR, **the gate is live again**: revert to the lab-first gate documented under "Target state" below — wait for `ghost-lab: success` on the PR SHA before enqueuing — demote this "current gate" text to a historical note, and update `docs/skills/meta/human-gates/SKILL.md` in the same PR. Do not leave both framings in place.
 
-If step 2 prints nothing, the gate is still dead and this section still applies.
+If it prints nothing, the gate is still dead and this section still applies.
+
+**Lesson (this file is agent ground truth — do not repeat it): a merged fix is not a working fix.** #474 was cited here as the fix while it was already merged *and* already broken. Confirm the gate end-to-end by observing a real `ghost-lab` status before trusting it. This is the same class of error as the KDE silent-skip defect — CI green with zero real coverage — that this workstream exists to fix.
 
 ### Current gate (what to actually do, while the lab gate is dead)
 
@@ -103,7 +107,7 @@ This is a known gap, not a licence to skip verification. While it persists:
 - For anything touching runtime step behaviour, environment hooks, or bootc flows, request a manual lab run and paste the result in the PR before asking for merge approval (see `docs/runbook.md` for manual run commands).
 - Say so explicitly in the PR description when a change has had no real-VM coverage.
 
-### Target state (currently broken — restore when lab#471/#474 land)
+### Target state (currently broken — restore when a real `ghost-lab` status appears)
 
 The intended workflow is: **submit to lab → wait for results → merge on pass, fix on fail.**
 
@@ -114,11 +118,11 @@ Why it does not work today (verified 2026-07-28):
 - `gh api repos/<image-org>/testsuite/commits/<sha>/status` returns **zero** statuses for every open testsuite PR (re-checked 2026-07-28 against #656, #653, #651, #652, #654, #648 — all empty). The only `ghost-lab` status anywhere in the repo is on PR #609, state `error`, dated 2026-07-20. PR #616 merged after that date with no lab status at all.
 - The poller itself is healthy and not suspended (schedule `*/5 * * * *`, recent runs `Succeeded`), and `testsuite` is in its `AUTO_REPOS` list — the QA workflows genuinely run. The results are computed and then discarded.
 - Root cause: in the lab repo's `argo/workflow-templates/pr-poller.yaml`, only `bluefin`, `bluefin-lts`, and `dakota` get the `report-start` / `onExit: report-final` (`github-check-reporter`) and `dispatch_lab_check` steps. `testsuite` falls through to a bare `kubectl create` branch with no reporter and no dispatch. The string `ghost` does not appear in that file at all: the old direct commit-status path was replaced by `testing-lab / <repo>` Check Runs and testsuite was never migrated.
-- `.github/workflows/lab-check.yml` does not exist in this repo, so testsuite is "half-enrolled" in the poller. [`lab#474`](https://github.com/projectbluefin/lab/pull/474) addresses this without requiring that workflow: it routes testsuite child workflows to a new `github-status-reporter.yaml` template that posts the `ghost-lab` commit status directly, leaving the Check Run path for the fully-enrolled repos.
+- `.github/workflows/lab-check.yml` does not exist in this repo, so testsuite is "half-enrolled" in the poller. [`lab#474`](https://github.com/projectbluefin/lab/pull/474) addressed this without requiring that workflow: it routes testsuite child workflows to a new `github-status-reporter.yaml` template that posts the `ghost-lab` commit status directly, leaving the Check Run path for the fully-enrolled repos. That routing merged on 2026-07-28, but its reporter could not authenticate (HTTP 401, see above), so it posted nothing and failed the child workflows instead; [`lab#479`](https://github.com/projectbluefin/lab/pull/479) merged the token fix later the same day.
 
-When [`projectbluefin/lab#474`](https://github.com/projectbluefin/lab/pull/474) merges (it closes [`lab#471`](https://github.com/projectbluefin/lab/issues/471)) **and** you have observed a `ghost-lab` status on a testsuite PR head SHA with the verification command above, re-enable this section as the gate: wait for `ghost-lab` on the PR SHA to be green before enqueuing, move the "current gate" text back under it as a historical note ("`ghost-lab` was not posted between 2026-07-20 and the day lab#474 landed"), and make the matching edit to `docs/skills/meta/human-gates/SKILL.md`.
+Once you have observed a `ghost-lab` status on a testsuite PR head SHA with the verification command above, re-enable this section as the gate: wait for `ghost-lab` on the PR SHA to be green before enqueuing, move the "current gate" text back under it as a historical note ("`ghost-lab` was not posted between 2026-07-20 and the day lab#479 took effect"), and make the matching edit to `docs/skills/meta/human-gates/SKILL.md`.
 
-Do not restore it on the strength of the merge alone — lab#474 changes the poller template, and a template change is only effective once the CronWorkflow picks it up. Confirm an actual status exists first.
+Do not restore it on the strength of a merge alone — that mistake has already been made once here. lab#474 and lab#479 change poller templates, and a template change is only effective once the CronWorkflow picks it up *and* the reporter authenticates successfully. Confirm an actual status exists first.
 
 ## Dependency updates (Renovate / mergeraptor)
 
