@@ -1698,20 +1698,46 @@ jobs:
             echo "::error::No results.json found after KDE suite run"
             exit 1
           fi
-          passed=$(python3 -c "
+          python3 - <<'PY'
           import json, sys
+
           data = json.load(open('results/results.json'))
-          total = sum(len(f.get('elements', [])) for f in data)
-          failed = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'failed')
-          skipped = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'skipped')
-          passed = total - failed - skipped
-          print(passed)
-          ")
-          echo "KDE suite passed=${passed}"
-          if [[ "${passed}" -le 0 ]]; then
-            echo "::error::KDE suite reported 0 passing scenarios — the suite silently self-disabled. Check webdriver connectivity and AT-SPI bus availability."
-            exit 1
-          fi
+
+          # Count each status positively — behave elements include backgrounds
+          # and scenarios can be passed/failed/skipped/undefined/untested.
+          passed = 0
+          failed = 0
+          skipped = 0
+          undefined = 0
+          untested = 0
+          other = 0
+          for feat in data:
+              for elem in feat.get('elements', []):
+                  if elem.get('type') != 'scenario':
+                      continue
+                  status = elem.get('status', '')
+                  if status == 'passed':
+                      passed += 1
+                  elif status == 'failed':
+                      failed += 1
+                  elif status == 'skipped':
+                      skipped += 1
+                  elif status == 'undefined':
+                      undefined += 1
+                  elif status == 'untested':
+                      untested += 1
+                  else:
+                      other += 1
+
+          print(f"KDE suite breakdown: passed={passed} failed={failed} "
+                f"skipped={skipped} undefined={undefined} untested={untested} other={other}")
+
+          if passed <= 0:
+              print("::error::KDE suite reported 0 passing scenarios — the suite "
+                    "silently self-disabled. Check webdriver connectivity and "
+                    "AT-SPI bus availability.")
+              sys.exit(1)
+          PY
 
       - name: Write e2e metadata
         if: always()
