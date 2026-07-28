@@ -28,6 +28,7 @@ metadata:
 |---|---|
 | Writing behave scenarios / steps | `test-authoring/behave/SKILL.md` |
 | GNOME Shell / AT-SPI / dogtail interactions | `test-authoring/gnome/SKILL.md` |
+| KDE/Plasma / selenium-webdriver-at-spi / Gamescope CDP | `test-authoring/kde/SKILL.md` |
 | bootc upgrade / rollback / migration tests | `test-authoring/bootc/SKILL.md` |
 | UEFI/OVMF reboot testing | `test-authoring/uefi-boot/SKILL.md` |
 | Variant matrix, coverage gaps, `@future` stubs | `test-authoring/suite-map/SKILL.md` |
