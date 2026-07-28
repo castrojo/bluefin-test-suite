@@ -24,12 +24,56 @@ KDE's `selenium-webdriver-at-spi` is a **standalone W3C WebDriver server** (Flas
 | `driver.implicitly_wait(10)` | `driver.implicitly_wait(0)` + explicit waits |
 | `get_full_page_screenshot_as_file()` | `driver.save_screenshot()` |
 
+### Server endpoint configuration
+
+The WebDriver endpoint URL follows a three-level precedence:
+
+1. **Explicit parameter** — pass `command_executor="http://..."` to `new_session()` or `launch_app()`.
+2. **`KDE_WEBDRIVER_URL` env var** — set in the environment (useful in CI).
+3. **Default** — `http://127.0.0.1:4723`.
+
+```python
+# Uses env var or default:
+driver = kde_webdriver.new_session()
+
+# Explicit override (ignores env var):
+driver = kde_webdriver.new_session(command_executor="http://127.0.0.1:9999")
+```
+
+### Server launch
+
+The server is started by the upstream **`selenium-webdriver-at-spi-run`** Ruby wrapper (installed as part of `selenium-webdriver-at-spi`).  **Ruby is a required runtime dependency.**
+
+`scripts/install-kde-webdriver.sh` installs a systemd `--user` unit (`kde-webdriver.service`) that starts the server inside the graphical session.  The server needs access to the Wayland compositor and AT-SPI session bus, so a bare `systemd --system` unit will NOT work.
+
+The upstream `FLASK_PORT` env var can override the default port 4723:
+
+```bash
+FLASK_PORT=5000 systemctl --user start kde-webdriver.service
+```
+
+### Security: loopback-only binding
+
+The server is an **unauthenticated input-injection service**.  It MUST bind `127.0.0.1` only — **NEVER `0.0.0.0`**.  Do NOT "fix" connection-refused errors by changing the bind address.  The CI runner reaches the server via QEMU port forwarding (`hostfwd=tcp::4723-:4723`), not by exposing the service on all interfaces.
+
+### CI port forwarding
+
+The QEMU netdev line in `e2e.yml` forwards both SSH (2222→22) and WebDriver (4723→4723):
+
+```
+-netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::4723-:4723
+```
+
+### CI passed > 0 backstop
+
+After a KDE suite run, CI asserts that the number of passing scenarios is > 0.  An all-skipped run fails the job.  This prevents the suite from silently self-disabling while CI stays green.
+
 Create a session:
 
 ```python
 from tests.shared import kde_webdriver
 
-driver = kde_webdriver.new_session("http://127.0.0.1:4723")
+driver = kde_webdriver.new_session()
 try:
     ...
 finally:
@@ -105,3 +149,4 @@ kde_webdriver.retry_atspi_action(lambda: elem.click(), attempts=3)
 - Using `xpath` in non-quarantine KDE scenarios.
 - Calling `get_full_page_screenshot_as_file()` against the AT-SPI server.
 - Blanket `except WebDriverException: continue` loops.
+- Binding the server to `0.0.0.0` (see loopback-only rule above).

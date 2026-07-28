@@ -465,7 +465,7 @@ jobs:
             # These files are harmless on GNOME images and required on KDE images.
             if [[ "${SUITE_DIR}" == kde* ]]; then
               sudo mkdir -p "${DEP}/etc/sddm.conf.d"
-              printf '[Autologin]\nUser=bluefin-test\nSession=plasma.desktop\nRelogin=false\n\n[X11]\nMinimumVT=1\n' | \
+              printf '[Autologin]\nUser=bluefin-test\nSession=plasmawayland.desktop\nRelogin=false\n\n[X11]\nMinimumVT=1\n' | \
                 sudo tee "${DEP}/etc/sddm.conf.d/00-ci-autologin.conf" >/dev/null
 
               # Determinism drop-in: disable animations, force software GL, enable a11y.
@@ -590,7 +590,7 @@ jobs:
             -object   iothread,id=ioth0 \
             -drive    if=none,id=disk,file=disk.raw,format=raw,cache=unsafe,aio=threads,discard=unmap \
             -device   virtio-blk-pci,drive=disk,iothread=ioth0 \
-            -netdev   user,id=net0,hostfwd=tcp::2222-:22 \
+            -netdev   user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::4723-:4723 \
             -device   virtio-net-pci,netdev=net0 \
             -device   virtio-gpu-pci \
             -display  none \
@@ -1687,6 +1687,31 @@ jobs:
       - name: Fail job if tests failed
         if: steps.run.outputs.behave_rc != '0'
         run: exit "${{ steps.run.outputs.behave_rc }}"
+
+      # Backstop: an all-skipped KDE run must NOT be reported as green.
+      # If the suite silently self-disables (e.g. webdriver not reachable),
+      # CI would stay green with zero real coverage. Assert passed > 0.
+      - name: Assert KDE suite has passing scenarios
+        if: startsWith(env.SUITE_DIR, 'kde') && steps.run.outputs.behave_rc == '0'
+        run: |
+          if [[ ! -f results/results.json ]]; then
+            echo "::error::No results.json found after KDE suite run"
+            exit 1
+          fi
+          passed=$(python3 -c "
+          import json, sys
+          data = json.load(open('results/results.json'))
+          total = sum(len(f.get('elements', [])) for f in data)
+          failed = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'failed')
+          skipped = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'skipped')
+          passed = total - failed - skipped
+          print(passed)
+          ")
+          echo "KDE suite passed=${passed}"
+          if [[ "${passed}" -le 0 ]]; then
+            echo "::error::KDE suite reported 0 passing scenarios — the suite silently self-disabled. Check webdriver connectivity and AT-SPI bus availability."
+            exit 1
+          fi
 
       - name: Write e2e metadata
         if: always()

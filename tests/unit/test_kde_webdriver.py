@@ -86,6 +86,66 @@ def test_launch_app_creates_session_with_app_capability():
     assert options.to_capabilities()["app"] == "org.kde.kate"
 
 
+# ---------------------------------------------------------------------------
+# Executor URL precedence (explicit arg > KDE_WEBDRIVER_URL > default)
+# ---------------------------------------------------------------------------
+
+
+def test_new_session_uses_default_executor(monkeypatch):
+    """No explicit arg, no env var → default http://127.0.0.1:4723."""
+    monkeypatch.delenv("KDE_WEBDRIVER_URL", raising=False)
+    mock_driver = MagicMock()
+
+    with patch.object(kde_webdriver.webdriver, "Remote", return_value=mock_driver) as remote_mock:
+        kde_webdriver.new_session()
+
+    assert remote_mock.call_args.kwargs["command_executor"] == "http://127.0.0.1:4723"
+
+
+def test_new_session_uses_env_var_executor(monkeypatch):
+    """No explicit arg, env var set → env var wins."""
+    monkeypatch.setenv("KDE_WEBDRIVER_URL", "http://10.0.0.5:9999")
+    mock_driver = MagicMock()
+
+    with patch.object(kde_webdriver.webdriver, "Remote", return_value=mock_driver) as remote_mock:
+        kde_webdriver.new_session()
+
+    assert remote_mock.call_args.kwargs["command_executor"] == "http://10.0.0.5:9999"
+
+
+def test_new_session_explicit_arg_overrides_env_var(monkeypatch):
+    """Explicit arg set + env var set → explicit arg wins."""
+    monkeypatch.setenv("KDE_WEBDRIVER_URL", "http://10.0.0.5:9999")
+    mock_driver = MagicMock()
+
+    with patch.object(kde_webdriver.webdriver, "Remote", return_value=mock_driver) as remote_mock:
+        kde_webdriver.new_session(command_executor="http://custom:1234")
+
+    assert remote_mock.call_args.kwargs["command_executor"] == "http://custom:1234"
+
+
+def test_launch_app_uses_env_var_executor(monkeypatch):
+    """launch_app() respects KDE_WEBDRIVER_URL when no explicit arg is passed."""
+    monkeypatch.setenv("KDE_WEBDRIVER_URL", "http://10.0.0.5:9999")
+    mock_driver = MagicMock()
+
+    with patch.object(kde_webdriver.webdriver, "Remote", return_value=mock_driver) as remote_mock:
+        kde_webdriver.launch_app("org.kde.dolphin")
+
+    assert remote_mock.call_args.kwargs["command_executor"] == "http://10.0.0.5:9999"
+
+
+def test_launch_app_explicit_arg_overrides_env_var(monkeypatch):
+    """launch_app() explicit arg > env var."""
+    monkeypatch.setenv("KDE_WEBDRIVER_URL", "http://10.0.0.5:9999")
+    mock_driver = MagicMock()
+
+    with patch.object(kde_webdriver.webdriver, "Remote", return_value=mock_driver) as remote_mock:
+        kde_webdriver.launch_app("org.kde.dolphin", command_executor="http://custom:5555")
+
+    assert remote_mock.call_args.kwargs["command_executor"] == "http://custom:5555"
+
+
 def test_quit_session_calls_driver_quit():
     mock_driver = MagicMock()
     kde_webdriver.quit_session(mock_driver)

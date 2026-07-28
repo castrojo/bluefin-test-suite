@@ -41,8 +41,22 @@ _STEP_FATAL = (TimeoutException,)
 _SESSION_FATAL = (InvalidSessionIdException,)
 _BUG = (InvalidArgumentException, UnknownMethodException)
 
+# Default endpoint for the KDE AT-SPI WebDriver server.
+# Override with ``KDE_WEBDRIVER_URL`` env var (e.g. for non-standard port).
+_DEFAULT_EXECUTOR = "http://127.0.0.1:4723"
+
 T = TypeVar("T")
 Locator = str | Pattern[str] | tuple[str, str]
+
+
+def _resolve_executor(explicit: str | None) -> str:
+    """Return the WebDriver endpoint URL.
+
+    Precedence: explicit parameter > ``KDE_WEBDRIVER_URL`` env var > default.
+    """
+    if explicit is not None:
+        return explicit
+    return os.environ.get("KDE_WEBDRIVER_URL", _DEFAULT_EXECUTOR)
 
 
 class AtSpiOptions(BaseOptions):
@@ -68,20 +82,25 @@ class AtSpiOptions(BaseOptions):
 
 
 def new_session(
-    command_executor: str = "http://127.0.0.1:4723",
+    command_executor: str | None = None,
     options: BaseOptions | None = None,
     app: str | None = None,
 ) -> WebDriver:
     """Create a Remote WebDriver session against the KDE AT-SPI server.
 
+    ``command_executor`` precedence: explicit arg > ``KDE_WEBDRIVER_URL``
+    env var > ``http://127.0.0.1:4723``.
+
     Implicit waits are forced to 0 so explicit waits remain bounded.
     """
+    url = _resolve_executor(command_executor)
+
     if options is None:
         options = AtSpiOptions(app=app)
     elif app is not None:
         options.set_capability("app", app)
 
-    driver = webdriver.Remote(command_executor=command_executor, options=options)
+    driver = webdriver.Remote(command_executor=url, options=options)
     driver.implicitly_wait(0)
     return driver
 
@@ -91,8 +110,12 @@ def quit_session(driver: WebDriver) -> None:
     driver.quit()
 
 
-def launch_app(app_id: str, command_executor: str = "http://127.0.0.1:4723") -> WebDriver:
-    """Start a session scoped to a single application using the ``app`` capability."""
+def launch_app(app_id: str, command_executor: str | None = None) -> WebDriver:
+    """Start a session scoped to a single application using the ``app`` capability.
+
+    ``command_executor`` precedence: explicit arg > ``KDE_WEBDRIVER_URL``
+    env var > ``http://127.0.0.1:4723``.
+    """
     return new_session(command_executor=command_executor, app=app_id)
 
 
