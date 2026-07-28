@@ -22,6 +22,7 @@ Do not expand this module to perform primary user-facing interactions.
 from __future__ import annotations
 
 import os
+import base64
 import shlex
 import subprocess
 import time
@@ -38,6 +39,9 @@ _IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/b
 # Substrings emitted when PlasmaShell scripting is disabled by policy or by
 # the desktop being system-immutable ("widgets locked"). Kept generic enough
 # to catch both the KAuthorized refusal and the immutability refusal.
+_JOURNAL_MAX_LINES = 2000
+_JOURNAL_MAX_BYTES = 262144
+
 _PLASMA_SCRIPTING_DISABLED_HINTS = (
     "widgets are locked",
     "widget are locked",
@@ -101,7 +105,12 @@ def _dbus_call(
         return stdout, rc
 
     result = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
-    return result.stdout, result.returncode
+    # Merge stderr into the returned payload: gdbus reports the KAuthorized /
+    # widgets-locked refusal on stderr, and dropping it made local runs
+    # misclassify a policy refusal as a generic D-Bus failure, so callers could
+    # not turn it into a clean skip.
+    combined = result.stdout if not result.stderr else f"{result.stdout}\n{result.stderr}"
+    return combined, result.returncode
 
 
 def _raise_if_disabled(service: str, stderr: str, stdout: str) -> None:
@@ -239,8 +248,14 @@ def kwin_support_info(context, timeout: int = 30) -> str:
 def _write_target_file(context, path: str, contents: str) -> None:
     """Write ``contents`` to ``path`` on the local machine or the SSH target."""
     if _IN_CONTAINER:
-        # Use a quoted heredoc so special characters in the JS source survive.
-        run_ssh(context, f"cat > {shlex.quote(path)} <<'EOF'\n{contents}\nEOF")
+        # Transfer base64-encoded rather than via a heredoc: a script containing
+        # a line equal to the heredoc delimiter would terminate it early and let
+        # the following lines execute as shell commands on the target.
+        payload = base64.b64encode(contents.encode("utf-8")).decode("ascii")
+        run_ssh(
+            context,
+            f"printf %s {shlex.quote(payload)} | base64 -d > {shlex.quote(path)}",
+        )
     else:
         Path(path).write_text(contents)
 
@@ -261,9 +276,11 @@ def _journal_output(context, name: str, timeout: int = 10) -> str:
     with ``js:``. This helper reads the last few seconds of journal output
     and filters for lines belonging to the named script.
     """
+    # Bounded: a diagnostic script can emit unlimited output, so cap both the
+    # number of journal lines read and the bytes returned.
     cmd = (
         "journalctl --user -u plasma-kwin_wayland.service --since '5 seconds ago' "
-        "-o cat | grep -F 'js:' || true"
+        f"-n {_JOURNAL_MAX_LINES} -o cat | grep -F 'js:' | head -c {_JOURNAL_MAX_BYTES} || true"
     )
     if _IN_CONTAINER:
         stdout, _rc = run_ssh(context, cmd, timeout=timeout)

@@ -1,4 +1,4 @@
-"""Unit tests for tests/shared/kde_shell_steps.py.
+"""Unit tests for tests/shared/self.mod.py.
 
 Mocks SSH and subprocess so no live KDE VM is required. Covers happy paths,
 capability failures, D-Bus errors, malformed output, and polling behavior.
@@ -7,6 +7,9 @@ capability failures, D-Bus errors, malformed output, and polling behavior.
 from unittest.mock import MagicMock, patch
 
 import pytest
+import base64
+import subprocess
+from unittest import mock
 
 
 # ---------------------------------------------------------------------------
@@ -404,3 +407,58 @@ class TestJournalOutput:
              patch("subprocess.run", return_value=_make_completed(stdout=journal)):
             result = self.mod._journal_output(self.context, "testsuite_xyz")
         assert result == "result"
+
+
+class TestReviewFixes:
+    """Regression tests for issues found in code review of PR #642."""
+
+    @pytest.fixture(autouse=True)
+    def _mod(self):
+        self.mod = _import_kde_shell_steps()
+        yield
+
+    def test_local_dbus_call_preserves_stderr(self):
+        """gdbus reports policy refusals on stderr; dropping it misclassified them."""
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=1, stdout="", stderr="Widgets are locked"
+        )
+        with mock.patch.object(self.mod, "_IN_CONTAINER", False):
+            with mock.patch.object(subprocess, "run", return_value=completed):
+                out, rc = self.mod._dbus_call(
+                    None, "org.kde.plasmashell", "/PlasmaShell",
+                    "org.kde.PlasmaShell", "evaluateScript", ["x"],
+                )
+        assert "Widgets are locked" in out
+        assert rc == 1
+
+    def test_script_containing_heredoc_delimiter_cannot_inject(self):
+        """A script line equal to the old heredoc delimiter must not escape."""
+        malicious = "print('a')\nEOF\nrm -rf /tmp/pwned\n"
+        sent = {}
+
+        def fake_run_ssh(context, cmd, **kwargs):
+            sent["cmd"] = cmd
+            return "", 0
+
+        with mock.patch.object(self.mod, "_IN_CONTAINER", True):
+            with mock.patch.object(self.mod, "run_ssh", fake_run_ssh):
+                self.mod._write_target_file(None, "/tmp/s.js", malicious)
+
+        cmd = sent["cmd"]
+        assert "rm -rf" not in cmd, "raw script text must not reach the shell"
+        assert "base64 -d" in cmd
+        assert base64.b64encode(malicious.encode()).decode() in cmd
+
+    def test_journal_read_is_bounded(self):
+        sent = {}
+
+        def fake_run_ssh(context, cmd, **kwargs):
+            sent["cmd"] = cmd
+            return "", 0
+
+        with mock.patch.object(self.mod, "_IN_CONTAINER", True):
+            with mock.patch.object(self.mod, "run_ssh", fake_run_ssh):
+                self.mod._journal_output(None, "probe", timeout=5)
+
+        assert f"-n {self.mod._JOURNAL_MAX_LINES}" in sent["cmd"]
+        assert f"head -c {self.mod._JOURNAL_MAX_BYTES}" in sent["cmd"]
