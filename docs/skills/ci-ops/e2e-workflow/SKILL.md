@@ -277,7 +277,7 @@ suites.
 Key differences from GNOME suites:
 
 - **Runner image split:** KDE uses `ghcr.io/projectbluefin/testsuite-kde-runner`
-  (host-side Appium/Selenium orchestration) instead of the GNOME/qecore runner that
+  (host-side W3C WebDriver/Selenium orchestration) instead of the GNOME/qecore runner that
   is loaded into the VM.
 - **Per-DUT install:** `selenium-webdriver-at-spi` + `inputsynth` are installed on
   the device-under-test by `scripts/install-kde-webdriver.sh`, keyed to the DUT's

@@ -51,12 +51,16 @@ GNOME suite behavior is unchanged.
 | Image | Purpose | Ships `inputsynth`? | Ships `ssh`/`git`? |
 |---|---|---|---|
 | `ghcr.io/projectbluefin/testsuite:runner` | GNOME/qecore orchestration inside the VM | yes (built in) | n/a (in-VM) |
-| `ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner` | KDE/Appium orchestration on the GHA runner | **no** | **yes** |
+| `ghcr.io/projectbluefin/testsuite-kde-runner:kde-runner` | KDE/W3C WebDriver orchestration on the GHA runner | **no** | **yes** |
 
 The KDE runner image is **host-side only**. It contains pinned `behave`, `selenium`,
-`Appium-Python-Client`, `lxml`, and `odiff`. It ships `openssh-clients` and `git`
-because tests drive the DUT over SSH (`tests/shared/ssh_steps.py` shells out to the
+`websocket-client`, `lxml`, and `PyYAML`, plus OS packages `openssh-clients` and
+`git`. Tests drive the DUT over SSH (`tests/shared/ssh_steps.py` shells out to the
 `ssh` binary) and CI needs `git` for checkout/version operations.
+
+The image deliberately excludes `Appium-Python-Client`, `chromedriver`, and `odiff`
+— see `docs/skills/test-authoring/kde/SKILL.md` §"Forbidden runner dependencies"
+for why each is wrong for this stack.
 
 It does **not** contain `inputsynth`,
 because `inputsynth` links `PlasmaWaylandProtocols`' `fake-input.xml` and the
