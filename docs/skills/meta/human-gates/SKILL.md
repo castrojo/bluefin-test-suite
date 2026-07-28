@@ -16,7 +16,7 @@ Four situations require stopping and requesting human input. Never guess past th
 | **Design** | Architecture change, new test infrastructure, user-visible CI behavior change, changing what suites an image runs |
 | **Security** | Secrets in CI, cosign/signing changes, any `<readonly-upstream>/*` interaction, any KDE property interaction beyond read-only, COPR sources in runner |
 | **Breakage** | Removing or renaming a reusable workflow input that consuming repos depend on (e2e.yml inputs, action inputs) |
-| **Merge** | PR is ready — always requires merge queue entry and CI green; merge queue still requires the required checks to pass |
+| **Merge** | PR is ready — requires CI green + human approval; the `ghost-lab` lab gate is currently unavailable (see below) |
 
 ---
 
@@ -68,20 +68,27 @@ gh search code "testsuite/.github/workflows/e2e.yml" --repo projectbluefin --jso
 
 ## Merge gate
 
-**The review workflow is: submit to lab → wait for results → merge on pass, fix on fail.**
+> **The `ghost-lab` commit status is NOT currently posted on testsuite PRs.** Do not wait for it — nothing will ever arrive. Tracking issue: [`projectbluefin/lab#471`](https://github.com/projectbluefin/lab/issues/471).
 
-The `pr-label-poller` in `<image-org>/testing-lab` auto-runs `smoke,common` on every open testsuite PR every 5 minutes and posts a `ghost-lab` commit status. Wait for `ghost-lab: success` before enqueueing. If `failure`, fix and let the poller re-run.
+**Effective gate today:**
 
-Once the lab passes, enqueue via:
+1. GitHub Actions CI green — `Lint & syntax` and `Behave dry-run` (`pr-validate.yml`), `pytest` (`unit-tests.yml`). These are the required status checks on the `main — merge queue` ruleset.
+2. Human approval to merge. Prepare the PR, then ask; do not merge on your own judgement.
+
+Once CI is green and a human has approved, enqueue via:
 ```bash
 gh pr merge <NUMBER> --repo <image-org>/testsuite --squash --auto
 ```
 
-The merge queue still runs required GHA checks (lint, behave dry-run, pytest) on the merge commit and lands automatically on green. Human `lgtm` is not required for normal test/docs/fix PRs — only for:
+The merge queue re-runs the required GHA checks on the merge commit and lands automatically on green. Human `lgtm` is not required for normal test/docs/fix PRs — only for:
 
 - PRs touching `.github/workflows/e2e.yml` (reusable workflow interface)
 - PRs touching `AGENTS.md` (behavioral directive changes)
 - PRs touching `CODEOWNERS`
+
+**Warning — reduced assurance.** GHA CI does **not** boot a real VM. Real-VM regressions (GNOME Shell/AT-SPI timing, GDM, bootc upgrade/rollback, oomd) are currently uncaught before merge. This is a known gap, not permission to skip verification: for changes to runtime step behaviour, environment hooks, or bootc flows, request a manual lab run and record the result in the PR before asking for merge approval.
+
+**Target state (currently broken).** The intended workflow is: submit to lab → wait for results → merge on pass, fix on fail. The `pr-label-poller` in `<image-org>/testing-lab` auto-runs `smoke,common` on every open testsuite PR every 5 minutes; in the target state its result is published on the PR SHA and reviewers wait for it to be green before enqueuing. The poller is healthy and testsuite is in its `AUTO_REPOS` list, but testsuite is only half-enrolled — it gets no check reporter, no dispatch, and has no `.github/workflows/lab-check.yml` — so results are computed and discarded. Restore this as the gate when lab#471 lands. Full evidence: `docs/skills/ci-ops/contributing/references/reviewing-and-merging.md`.
 
 ---
 
