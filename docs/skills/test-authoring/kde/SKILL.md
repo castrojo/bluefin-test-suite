@@ -133,6 +133,59 @@ Permitted uses: state inspection, layout dumps (`dumpCurrentLayoutJS()`), KWin s
 - Mixing implicit waits with explicit `WebDriverWait`.
 - `xpath` locators in AT-SPI tests without a documented quarantine reason.
 
+## Shared Helper API (real function names)
+
+The kde-smoke suite imports shared helpers at **module scope with no try/except guard**. A missing or renamed helper must cause an immediate `ImportError` — never a silent skip that makes CI green while zero scenarios run.
+
+### `tests/shared/kde_preconditions.py`
+
+| Function | Signature | Purpose |
+|---|---|---|
+| `is_kde_session` | `(context) -> bool` | Probe whether the DUT is running a KDE/Plasma session |
+| `apply_kde_session_preconditions` | `(context, username="bluefin-test") -> KDEResult` | Orchestrate the full KDE session precondition pipeline |
+| `has_sddm` | `(context) -> bool` | Probe whether SDDM is the active display manager |
+| `has_kwriteconfig6` | `(context) -> bool` | Probe whether kwriteconfig6 is available |
+| `has_plasma_wayland_session` | `(context) -> bool` | Probe whether the Plasma Wayland session desktop file exists |
+| `configure_sddm_autologin` | `(context, username, session) -> KDEResult` | Configure SDDM autologin |
+| `suppress_welcome_wizard` | `(context, username) -> KDEResult` | Suppress Plasma Welcome Center and distro wizards |
+| `emit_determinism_dropin` | `(context) -> KDEResult` | Write the systemd user-environment drop-in |
+| `seed_home` | `(context, username, force) -> KDEResult` | Reset the test user's home directory |
+| `wait_for_plasma_session` | `(context, timeout) -> KDEResult` | Poll until kwin_wayland, plasmashell, and AT-SPI are reachable |
+
+**Names that do NOT exist:** `is_kde_image`, `ensure_kde_session`. Using them will silently fail if swallowed by try/except.
+
+### `tests/shared/kde_webdriver.py`
+
+| Function | Signature | Purpose |
+|---|---|---|
+| `new_session` | `(command_executor, options, app) -> WebDriver` | Create a Remote WebDriver session against the KDE AT-SPI server |
+| `quit_session` | `(driver) -> None` | Tear down a WebDriver session |
+| `launch_app` | `(app_id, command_executor) -> WebDriver` | Start a session scoped to a single application |
+| `find` | `(driver, locator, timeout) -> WebElement` | Wait for and return a single element |
+| `find_all` | `(driver, locator, timeout) -> list[WebElement]` | Wait for and return all matching elements |
+| `wait_for` | `(driver, condition, timeout)` | Poll condition until truthy |
+| `retry_atspi_action` | `(fn, attempts) -> T` | Run fn with surgical retry for AT-SPI churn |
+| `save_screenshot` | `(driver, path) -> bool` | Save a W3C screenshot |
+
+**Names that do NOT exist:** `start_driver`, `press_key`. Using them will silently fail if guarded by hasattr.
+
+### No-silent-skip rule
+
+```python
+# WRONG — swallows ImportError, sets _KDE_HELPERS_AVAILABLE = False, skips all scenarios silently
+try:
+    from tests.shared.kde_preconditions import is_kde_image, ensure_kde_session
+    _KDE_HELPERS_AVAILABLE = True
+except Exception:
+    _KDE_HELPERS_AVAILABLE = False
+
+# RIGHT — bare import at module scope; ImportError propagates and fails the run
+from tests.shared.kde_preconditions import is_kde_session, apply_kde_session_preconditions
+from tests.shared import kde_webdriver
+```
+
+A unit test at `tests/unit/test_kde_smoke_environment.py` asserts the correct names exist and are callable. If a helper is renamed, the test fails before CI can report a phantom green.
+
 ## Verification
 
 - [ ] `testsuite-kde-runner` image contains only behave, selenium, websocket-client, lxml, and PyYAML.

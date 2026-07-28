@@ -13,22 +13,10 @@ import os
 import re
 import shlex
 import subprocess
-import time
-
 from behave import step
 from tests.shared.ssh_steps import run_ssh
 
-try:  # Shared KDE waiter lands in sibling PR #642; degrade cleanly without it.
-    from tests.shared.kde_shell_steps import wait_until as _shared_wait_until
-except Exception:  # noqa: BLE001
-    _shared_wait_until = None
-
-# Optional KDE helpers.  The environment already skips scenarios when these are
-# absent, but the steps guard anyway so dry-runs and partial imports stay safe.
-try:
-    from tests.shared import kde_webdriver
-except Exception:  # noqa: BLE001
-    kde_webdriver = None  # type: ignore[assignment]
+from tests.shared.kde_shell_steps import wait_until as _shared_wait_until
 
 # ---------------------------------------------------------------------------
 # Host-execution helpers (copied from smoke system_health_steps to avoid
@@ -117,26 +105,14 @@ def _wait_for(
     """Poll predicate until it returns a truthy value or timeout expires.
 
     Delegates to the shared ``wait_until`` primitive so the suite has a single
-    readiness implementation. The local fallback exists only for the case where
-    the shared KDE helpers are unavailable (sibling PR not yet merged), and is
-    still a bounded poll rather than a fixed readiness sleep.
+    readiness implementation.
     """
-    if _shared_wait_until is not None:
-        try:
-            return _shared_wait_until(predicate, timeout=timeout, interval=interval)
-        except TimeoutError as exc:
-            raise AssertionError(message) from exc
-        except AssertionError:
-            raise AssertionError(message) from None
-
-    deadline = time.monotonic() + timeout
-    while True:
-        result = predicate()
-        if result:
-            return result
-        if time.monotonic() >= deadline:
-            raise AssertionError(message)
-        time.sleep(interval)
+    try:
+        return _shared_wait_until(predicate, timeout=timeout, interval=interval)
+    except TimeoutError as exc:
+        raise AssertionError(message) from exc
+    except AssertionError:
+        raise AssertionError(message) from None
 
 
 def _require_webdriver(context):
@@ -183,7 +159,7 @@ def dbus_service_is_present(context, name: str) -> None:
 
 @step("No failed systemd units at boot")
 def no_failed_systemd_units_at_boot(context) -> None:
-    output, returncode, stderr = _run_host("systemctl list-units --failed --no-pager --plain")
+    output, returncode, stderr = _run_host("systemctl list-units --failed --no-pager --plain", context=context)
     assert returncode == 0, f"systemctl failed: {stderr or output}"
 
     failed_units = []
@@ -195,7 +171,7 @@ def no_failed_systemd_units_at_boot(context) -> None:
             continue
         if re.match(r"^\S+\s+loaded\s+failed\s+failed\s+", stripped):
             unit = stripped.split()[0]
-            if _running_in_vm() and unit in IGNORED_FAILED_UNITS_IN_VM:
+            if _running_in_vm(context=context) and unit in IGNORED_FAILED_UNITS_IN_VM:
                 continue
             failed_units.append(stripped)
 
@@ -207,7 +183,8 @@ def no_coredump_entries_for_any(context, names: str) -> None:
     failures = []
     for name in (n.strip() for n in names.split(",")):
         output, returncode, stderr = _run_host(
-            f"coredumpctl list {name} --no-pager --lines=10"
+            f"coredumpctl list {name} --no-pager --lines=10",
+            context=context,
         )
         if returncode not in (0, 1):
             failures.append(
@@ -381,12 +358,9 @@ def kickoff_window_is_present(context) -> None:
 
 @step("Close the Kickoff window")
 def close_kickoff_window(context) -> None:
-    driver = _require_webdriver(context)
-    if kde_webdriver is not None and hasattr(kde_webdriver, "press_key"):
-        kde_webdriver.press_key(driver, "Escape")
-    else:
-        # Fallback: send the Escape key through the W3C actions API.
-        from selenium.webdriver.common.action_chains import ActionChains
-        from selenium.webdriver.common.keys import Keys
+    _require_webdriver(context)
+    from selenium.webdriver.common.action_chains import ActionChains
+    from selenium.webdriver.common.keys import Keys
 
-        ActionChains(driver).send_keys(Keys.ESCAPE).perform()
+    driver = context.kde.get("webdriver")
+    ActionChains(driver).send_keys(Keys.ESCAPE).perform()
