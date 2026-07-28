@@ -18,6 +18,11 @@ import time
 from behave import step
 from tests.shared.ssh_steps import run_ssh
 
+try:  # Shared KDE waiter lands in sibling PR #642; degrade cleanly without it.
+    from tests.shared.kde_shell_steps import wait_until as _shared_wait_until
+except Exception:  # noqa: BLE001
+    _shared_wait_until = None
+
 # Optional KDE helpers.  The environment already skips scenarios when these are
 # absent, but the steps guard anyway so dry-runs and partial imports stay safe.
 try:
@@ -65,13 +70,17 @@ def _run(cmd: str, timeout: int = 30):
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
-def _run_host(cmd: str, timeout: int = 30):
+def _run_host(cmd: str, timeout: int = 30, context=None):
     """Run cmd on the host VM via SSH when inside the runner container."""
     if _IN_CONTAINER:
-        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
-        vm_user = os.environ.get("VM_USER", "bluefin-test")
-        ssh_port = os.environ.get("SSH_PORT", "22")
+        # Prefer the connection settings resolved in before_all (which honour
+        # behave -D userdata); fall back to the environment. Reading env only
+        # meant userdata-configured runs probed the wrong host.
+        conn = getattr(context, "kde", {}).get("ssh", {}) if context is not None else {}
+        ssh_key = conn.get("key") or os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+        vm_ip = conn.get("ip") or os.environ.get("VM_IP", "127.0.0.1")
+        vm_user = conn.get("user") or os.environ.get("VM_USER", "bluefin-test")
+        ssh_port = str(conn.get("port") or os.environ.get("SSH_PORT", "22"))
         result = subprocess.run(
             [
                 "ssh",
@@ -90,8 +99,8 @@ def _run_host(cmd: str, timeout: int = 30):
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
-def _running_in_vm() -> bool:
-    _, returncode, _ = _run_host("systemd-detect-virt --quiet")
+def _running_in_vm(context=None) -> bool:
+    _, returncode, _ = _run_host("systemd-detect-virt --quiet", context=context)
     return returncode == 0
 
 
@@ -105,14 +114,29 @@ def _wait_for(
     interval: float = 0.2,
     message: str = "condition not satisfied",
 ):
-    """Poll predicate until it returns a truthy value or timeout expires."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+    """Poll predicate until it returns a truthy value or timeout expires.
+
+    Delegates to the shared ``wait_until`` primitive so the suite has a single
+    readiness implementation. The local fallback exists only for the case where
+    the shared KDE helpers are unavailable (sibling PR not yet merged), and is
+    still a bounded poll rather than a fixed readiness sleep.
+    """
+    if _shared_wait_until is not None:
+        try:
+            return _shared_wait_until(predicate, timeout=timeout, interval=interval)
+        except TimeoutError as exc:
+            raise AssertionError(message) from exc
+        except AssertionError:
+            raise AssertionError(message) from None
+
+    deadline = time.monotonic() + timeout
+    while True:
         result = predicate()
         if result:
             return result
+        if time.monotonic() >= deadline:
+            raise AssertionError(message)
         time.sleep(interval)
-    raise AssertionError(message)
 
 
 def _require_webdriver(context):
@@ -208,10 +232,15 @@ def kwin_reports_at_least_n_outputs(context, count: str) -> None:
     assert context.ssh_rc == 0, (
         f"Could not query KWin outputs: {context.last_command_output}"
     )
-    # gdbus output looks like: (true, 'DP-1') or (false, '')
-    match = re.search(r",\s*'([^']*)'", context.command_stdout)
+    # activeOutputName returns a single string, so gdbus prints ('DP-1',) —
+    # NOT (true, 'DP-1'). The old regex required a comma *before* the quoted
+    # value and therefore never matched, failing the scenario even on a healthy
+    # KWin with a valid output.
+    match = re.search(r"'([^']*)'", context.command_stdout)
     value = match.group(1) if match else ""
-    assert value.strip(), "KWin reports no active output"
+    assert value.strip(), (
+        f"KWin reports no active output (raw gdbus reply: {context.command_stdout!r})"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -221,19 +250,38 @@ def kwin_reports_at_least_n_outputs(context, count: str) -> None:
 @step('Launch "{cmd}" and wait for its window')
 def launch_command_and_wait_for_window(context, cmd: str) -> None:
     driver = _require_webdriver(context)
-    # Run the command detached inside the user session so it survives the SSH
-    # return.  stderr/stdout go to the runtime dir rather than /tmp.
+
+    # Snapshot existing windows FIRST. Without this the scenario passes on a
+    # pre-existing Dolphin/Konsole/KCM window even when the launch command is
+    # missing or broken — a false positive that makes the test unable to fail.
+    before = set(driver.window_handles)
+    context.kde["windows_before_launch"] = before
+
+    # Verify the binary exists before claiming to launch it, so a typo or a
+    # missing app fails loudly instead of silently succeeding on a stale window.
+    binary = shlex.split(cmd)[0]
+    run_ssh(context, f"command -v {shlex.quote(binary)}")
+    assert context.ssh_rc == 0, (
+        f"{binary!r} is not installed on the DUT; cannot launch {cmd!r}"
+    )
+
+    # Run detached inside the user session so it survives the SSH return.
     log_file = "$XDG_RUNTIME_DIR/kde-smoke-app.log"
     run_ssh(
         context,
         f"nohup sh -c {shlex.quote(cmd)} >{log_file} 2>&1 &",
     )
-    # Give the app a moment to register before the driver polls.
-    _wait_for(
-        lambda: len(driver.window_handles) > 0,
-        timeout=10.0,
-        message=f"No window appeared after launching {cmd!r}",
+    assert context.ssh_rc == 0, f"Launch command failed for {cmd!r}"
+
+    new_handles = _wait_for(
+        lambda: set(driver.window_handles) - before or None,
+        timeout=15.0,
+        message=(
+            f"No NEW window appeared after launching {cmd!r} "
+            f"({len(before)} window(s) already present)"
+        ),
     )
+    context.kde["windows_after_launch"] = new_handles
 
 
 @step('Window whose name matches "{pattern}" is present')
@@ -241,10 +289,18 @@ def window_matching_pattern_is_present(context, pattern: str) -> None:
     driver = _require_webdriver(context)
     regex = re.compile(pattern)
 
+    # Restrict to windows that appeared from this scenario's launch, so a
+    # pre-existing window cannot satisfy the assertion.
+    candidates = context.kde.get("windows_after_launch")
+
     def _find():
-        for handle in driver.window_handles:
-            driver.switch_to.window(handle)
-            if regex.search(driver.title):
+        handles = candidates or driver.window_handles
+        for handle in handles:
+            try:
+                driver.switch_to.window(handle)
+            except Exception:  # noqa: BLE001 — window closed mid-scan
+                continue
+            if regex.search(driver.title or ""):
                 return True
         return False
 
