@@ -34,7 +34,7 @@ invokes `after_scenario` after a hook error.
 
 Each collector runs independently. A failure in one collector is recorded in
 `manifest.json["errors"]` and does not prevent other collectors from running or
-mask the original test failure. `after_scenario` never raises.
+mask the original test failure. `collect_on_failure` never raises.
 
 ## Configuration
 
@@ -50,8 +50,8 @@ mask the original test failure. `after_scenario` never raises.
 ## Usage in an environment hook
 
 ```python
-from tests.shared.kde_faillog import after_scenario as kde_after_scenario
+from tests.shared.kde_faillog import collect_on_failure
 
 def after_scenario(context, scenario):
-    kde_after_scenario(context, scenario)
+    collect_on_failure(context, scenario)
 ```

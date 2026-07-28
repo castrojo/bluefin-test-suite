@@ -1,6 +1,6 @@
 """Failure-artifact bundle for KDE/Plasma scenarios, modelled on ChromeOS Tast faillog.
 
-Triggered from after_scenario whenever a scenario ends with status failed, error, or
+Triggered from a suite's after_scenario hook whenever a scenario ends with status failed, error, or
 hook_error. Collectors run over SSH (or locally for QEMU screendump) and each collector
 is fault-isolated: a failure in one collector does not stop the others and is recorded
 in the bundle manifest.
@@ -20,6 +20,16 @@ from tests.shared.ssh_steps import run_ssh
 
 
 # Status values that trigger artifact collection.
+__all__ = [
+    "collect_on_failure",
+    "collect_at_spi_tree",
+    "collect_journalctl",
+    "collect_kwin_support_info",
+    "collect_plasma_layout",
+    "collect_coredumpctl",
+    "collect_qemu_screendump",
+]
+
 FAILURE_STATUSES = frozenset({"failed", "error", "hook_error"})
 
 # Default bounds for captured artifacts. These are intentionally conservative so the
@@ -255,8 +265,18 @@ COLLECTORS = [
 ]
 
 
-def after_scenario(context, scenario) -> str | None:
-    """Entry point for behave environment.py after_scenario hooks.
+def collect_on_failure(context, scenario) -> str | None:
+    """Collect failure artifacts. Call from a suite's ``after_scenario`` hook.
+
+    Deliberately NOT named ``after_scenario``: suites in this repo star-import
+    shared modules (``from tests.shared.ssh_steps import *``), and a module-level
+    ``after_scenario`` would silently overwrite the suite's own behave hook.
+    Import explicitly::
+
+        from tests.shared.kde_faillog import collect_on_failure
+
+        def after_scenario(context, scenario):
+            collect_on_failure(context, scenario)
 
     Returns the bundle directory path if artifacts were collected, otherwise None.
     """

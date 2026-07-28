@@ -57,7 +57,7 @@ def _make_scenario(name="Test scenario", status="failed", feature="KDE Smoke"):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("status", ["failed", "error", "hook_error"])
-def test_after_scenario_collects_on_failure_statuses(tmp_path, status):
+def test_collect_on_failure_collects_on_failure_statuses(tmp_path, status):
     mod = _import_faillog()
     context = _make_context(tmp_path)
     scenario = _make_scenario(status=status)
@@ -68,7 +68,7 @@ def test_after_scenario_collects_on_failure_statuses(tmp_path, status):
                 with patch.object(mod, "collect_plasma_layout", return_value={"rc": 0, "lines": 1}):
                     with patch.object(mod, "collect_coredumpctl", return_value={"rc": 0, "lines": 1}):
                         with patch.object(mod, "collect_qemu_screendump", return_value={"rc": 0}):
-                            bundle_dir = mod.after_scenario(context, scenario)
+                            bundle_dir = mod.collect_on_failure(context, scenario)
 
     assert bundle_dir is not None
     assert os.path.isdir(bundle_dir)
@@ -76,13 +76,13 @@ def test_after_scenario_collects_on_failure_statuses(tmp_path, status):
 
 
 @pytest.mark.parametrize("status", ["passed", "skipped", "untested"])
-def test_after_scenario_skips_non_failure_statuses(tmp_path, status):
+def test_collect_on_failure_skips_non_failure_statuses(tmp_path, status):
     mod = _import_faillog()
     context = _make_context(tmp_path)
     scenario = _make_scenario(status=status)
 
     with patch.object(mod, "collect_journalctl") as journal:
-        bundle_dir = mod.after_scenario(context, scenario)
+        bundle_dir = mod.collect_on_failure(context, scenario)
 
     assert bundle_dir is None
     journal.assert_not_called()
@@ -106,7 +106,7 @@ def test_one_collector_failing_others_still_run(tmp_path):
                 with patch.object(mod, "collect_plasma_layout", return_value={"rc": 0, "lines": 1}):
                     with patch.object(mod, "collect_coredumpctl", return_value={"rc": 0, "lines": 1}):
                         with patch.object(mod, "collect_qemu_screendump", return_value={"rc": 0}):
-                            bundle_dir = mod.after_scenario(context, scenario)
+                            bundle_dir = mod.collect_on_failure(context, scenario)
 
     assert bundle_dir is not None
     journal.assert_called_once()
@@ -130,7 +130,7 @@ def test_all_collectors_failing_still_produces_bundle_with_manifest(tmp_path):
                 with patch.object(mod, "collect_plasma_layout", side_effect=_always_fail):
                     with patch.object(mod, "collect_coredumpctl", side_effect=_always_fail):
                         with patch.object(mod, "collect_qemu_screendump", side_effect=_always_fail):
-                            bundle_dir = mod.after_scenario(context, scenario)
+                            bundle_dir = mod.collect_on_failure(context, scenario)
 
     assert bundle_dir is not None
     manifest_path = os.path.join(bundle_dir, "manifest.json")
@@ -152,7 +152,7 @@ def test_ssh_timeout_is_recorded_as_collector_error(tmp_path):
         return ("ok", 0)
 
     with patch.object(mod, "run_ssh", side_effect=_timeout_on_journal):
-        bundle_dir = mod.after_scenario(context, scenario)
+        bundle_dir = mod.collect_on_failure(context, scenario)
 
     assert bundle_dir is not None
     manifest = json.loads(Path(bundle_dir, "manifest.json").read_text(encoding="utf-8"))
@@ -184,7 +184,7 @@ def test_collect_journalctl_honors_line_cap(tmp_path, monkeypatch):
 # Results directory handling
 # ---------------------------------------------------------------------------
 
-def test_after_scenario_creates_missing_results_dir(tmp_path):
+def test_collect_on_failure_creates_missing_results_dir(tmp_path):
     mod = _import_faillog()
     results_dir = tmp_path / "missing" / "nested"
     context = _make_context(results_dir)
@@ -196,13 +196,13 @@ def test_after_scenario_creates_missing_results_dir(tmp_path):
                 with patch.object(mod, "collect_plasma_layout", return_value={"rc": 0}):
                     with patch.object(mod, "collect_coredumpctl", return_value={"rc": 0}):
                         with patch.object(mod, "collect_qemu_screendump", return_value={"rc": 0}):
-                            bundle_dir = mod.after_scenario(context, scenario)
+                            bundle_dir = mod.collect_on_failure(context, scenario)
 
     assert bundle_dir is not None
     assert os.path.isdir(results_dir)
 
 
-def test_after_scenario_returns_none_when_results_dir_not_writable(tmp_path):
+def test_collect_on_failure_returns_none_when_results_dir_not_writable(tmp_path):
     mod = _import_faillog()
     results_dir = tmp_path / "readonly"
     results_dir.mkdir()
@@ -212,7 +212,7 @@ def test_after_scenario_returns_none_when_results_dir_not_writable(tmp_path):
 
     try:
         with patch.object(mod, "collect_journalctl") as journal:
-            bundle_dir = mod.after_scenario(context, scenario)
+            bundle_dir = mod.collect_on_failure(context, scenario)
         assert bundle_dir is None
         journal.assert_not_called()
     finally:
@@ -266,7 +266,7 @@ def test_manifest_records_collector_results_and_errors(tmp_path):
                 with patch.object(mod, "collect_plasma_layout", return_value={"rc": 0, "lines": 1}):
                     with patch.object(mod, "collect_coredumpctl", return_value={"rc": 0, "lines": 1}):
                         with patch.object(mod, "collect_qemu_screendump", return_value={"rc": 0}):
-                            bundle_dir = mod.after_scenario(context, scenario)
+                            bundle_dir = mod.collect_on_failure(context, scenario)
 
     manifest = json.loads(Path(bundle_dir, "manifest.json").read_text(encoding="utf-8"))
     assert manifest["scenario"] == "Manifest test"
@@ -290,7 +290,7 @@ def test_tarball_created_next_to_bundle(tmp_path):
                 with patch.object(mod, "collect_plasma_layout", return_value={"rc": 0}):
                     with patch.object(mod, "collect_coredumpctl", return_value={"rc": 0}):
                         with patch.object(mod, "collect_qemu_screendump", return_value={"rc": 0}):
-                            bundle_dir = mod.after_scenario(context, scenario)
+                            bundle_dir = mod.collect_on_failure(context, scenario)
 
     tar_path = bundle_dir + ".tar.gz"
     assert os.path.exists(tar_path)
