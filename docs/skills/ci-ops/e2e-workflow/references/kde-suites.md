@@ -59,7 +59,7 @@ The KDE runner image is **host-side only**. It contains pinned `behave`, `seleni
 `ssh` binary) and CI needs `git` for checkout/version operations.
 
 The image deliberately excludes `Appium-Python-Client`, `chromedriver`, and `odiff`
-— see `docs/skills/test-authoring/kde/SKILL.md` §"Forbidden runner dependencies"
+— see `docs/skills/test-authoring/kde/SKILL.md` §"Red Flags" and §"Verification"
 for why each is wrong for this stack.
 
 It does **not** contain `inputsynth`,
@@ -69,9 +69,8 @@ Plasma/Qt/KWin ABI differs across Fedora, Ubuntu/Neon, and Arch/KDE Linux.
 `inputsynth` and the matching `selenium-webdriver-at-spi` server are installed on
 the device-under-test at test time by `scripts/install-kde-webdriver.sh`.
 
-This workflow depends on PR #640 for the `testsuite-kde-runner` image to exist.
-Until that PR lands, a KDE suite job will fail at the image-pull step; this is
-expected and documented in the PR description.
+The `testsuite-kde-runner` image is built and published by
+`.github/workflows/build-kde-runner.yml` (added in #640, merged).
 
 
 ## Per-DUT webdriver install

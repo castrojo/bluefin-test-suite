@@ -147,17 +147,18 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 > **Count drift notice.** The previous snapshot claimed 427 scenarios across 52 files. A
 > mechanical recount of `tests/*/features/**/*.feature` on `main` found **466 across 60** —
-> the snapshot had drifted by ~39 scenarios before any KDE work began. The totals above are
-> now mechanically derived. The quarantined/active/future breakdown below has **not** been
-> re-audited and is still inherited from the 2026-06-30 audit; treat it as approximate until
-> a full audit runs.
+> the snapshot had drifted by ~39 scenarios before any KDE work began. The totals above and
+> the Scenarios/Active/Quarantined columns below are now mechanically derived from
+> `behave --dry-run` (bare, and with `--tags=quarantine`) per suite. The *Remaining
+> quarantine breakdown* table further down is a non-exhaustive list of known blockers,
+> inherited from the 2026-06-30 audit; it does not enumerate every quarantined scenario.
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 151 | 114 | 37 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature |
+| smoke | 180 | 135 | 45 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
 | software | 23 | 15 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios quarantined |
-| common | 106 | 89 | 17 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
+| common | 116 | 98 | 18 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
 | vanilla-gnome | 13 | 13 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
 | hardware | 13 | 13 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
