@@ -399,6 +399,13 @@ def before_scenario(context, scenario) -> None:
 def after_scenario(context, scenario) -> None:
     if getattr(context, 'failed_setup', None):
         return
+    # Ensure display scaling tests leave the session at 1.0 scale and restore
+    # any gsettings changes, even when the scenario itself failed.
+    try:
+        from steps.display_scaling_steps import _restore_display_scale
+        _restore_display_scale(context)
+    except Exception as e:  # noqa: BLE001
+        print(f"WARNING: display scaling cleanup failed: {e}", flush=True)
     record_end(context, scenario)
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)

@@ -58,6 +58,20 @@ cmd = "source /tmp/session.env 2>/dev/null; gdbus call --session --dest org.gnom
 _run_host(cmd)
 ```
 
+## Remote session commands from the runner container
+
+Commands that access the GNOME user session, including `gsettings`, `gdbus
+--session`, and Mutter `DisplayConfig` helpers, must source the session
+environment on the VM before running:
+
+```bash
+source /tmp/session.env 2>/dev/null; gsettings get org.gnome.mutter experimental-features
+```
+
+The SSH connection itself does not inherit `DBUS_SESSION_BUS_ADDRESS` or
+`WAYLAND_DISPLAY`; without this prefix, remote session calls can target no bus
+or the wrong user session and produce misleading test failures.
+
 ## Overview search entry
 
 
