@@ -34,22 +34,6 @@ metadata:
 4. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
 5. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
 
-## Quote embedded Python in SSH commands safely
-
-`Run SSH command` sends the command through a remote Bash shell. For
-`python3 -c` programs that contain dictionary literals or parentheses, use
-Bash ANSI-C quoting (`$'...'`) around the Python program and double quotes
-inside the Python code:
-
-```gherkin
-* Run SSH command: "bootc status --json | python3 -c $'import sys,json; d=json.load(sys.stdin); print(d.get(\"status\", {}))'"
-```
-
-The ANSI-C quote is intentional: Bash removes the quoting and backslash
-escapes before Python receives the program. Do not wrap the whole Python
-program in escaped double quotes; those escapes can reach the remote shell
-literally and expose Python punctuation to shell parsing.
-
 ## `grep -q` vs `grep -c` for existence checks
 
 
@@ -69,17 +53,22 @@ The same applies to `wc -l`, `grep -c`, or any count-based check used as an exis
 
 ## Quote embedded Python in SSH commands safely
 
-`Run SSH command` passes the command to a remote shell. Put the Python
-expression in single quotes and use double quotes inside the Python code so
-shell word-splitting cannot break expressions containing parentheses or
+`Run SSH command` already wraps the remote command in a quoted Gherkin string
+and sends it through a remote Bash shell. Put the Python expression in Bash
+ANSI-C single quotes (`$'...'`) and use double quotes inside the Python code
+so shell word-splitting cannot break expressions containing parentheses or
 dictionary literals.
 
 ```gherkin
-* Run SSH command: "bootc status --json | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get(\"status\", {}))'"
+* Run SSH command: "bootc status --json | python3 -c $'import sys,json; d=json.load(sys.stdin); print(d.get(\"status\",{}))'"
 ```
 
+The `$'...'` ANSI-C quote is intentional: the shared SSH step wraps commands
+with `bash -c`, which consumes the escaped quotes before Python receives them.
 Audit every `python3 -c` added to an SSH command for this pattern. Avoid
-nested escaped double quotes around the entire Python expression.
+nested escaped double quotes around the entire Python expression; those
+escapes can survive into the remote shell and expose Python punctuation to
+shell parsing.
 
 ## Common suite `ujust` recipe coverage
 
