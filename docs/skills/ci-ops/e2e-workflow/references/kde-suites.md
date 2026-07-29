@@ -127,7 +127,10 @@ to `tests/kde-smoke-a/features/`, a directory that does not exist, and every KDE
 ## Container networking
 
 The KDE runner is host-side and reaches the DUT over SSH at `127.0.0.1:2222`, the QEMU port
-forward on the Actions runner. The container therefore requires `--network=host`; in its own
-network namespace `127.0.0.1` is the container, not the host. It also needs `/tmp/vm_key`
-mounted read-only — setting `SSH_KEY=/tmp/vm_key` without the mount leaves the key invisible
-inside the container.
+forward on the Actions runner. The WebDriver server is loopback-only in the guest and is
+reached through the explicit host-loopback forward at `127.0.0.1:4723`. The container
+therefore requires `--network=host`; in its own network namespace `127.0.0.1` is the
+container, not the host. The workflow sets `KDE_WEBDRIVER_URL` to that endpoint and both
+`NO_PROXY` and `no_proxy` for `127.0.0.1,localhost`, preventing inherited CI proxies from
+intercepting Selenium traffic. It also needs `/tmp/vm_key` mounted read-only — setting
+`SSH_KEY=/tmp/vm_key` without the mount leaves the key invisible inside the container.

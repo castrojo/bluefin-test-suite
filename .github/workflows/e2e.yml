@@ -123,6 +123,7 @@ jobs:
           sparse-checkout: |
             flatpak-app-list.txt
             tests
+            scripts/assert_kde_passed.py
             scripts/check_quarantine_age.py
             scripts/install-kde-webdriver.sh
           sparse-checkout-cone-mode: false
@@ -465,7 +466,7 @@ jobs:
             # These files are harmless on GNOME images and required on KDE images.
             if [[ "${SUITE_DIR}" == kde* ]]; then
               sudo mkdir -p "${DEP}/etc/sddm.conf.d"
-              printf '[Autologin]\nUser=bluefin-test\nSession=plasma.desktop\nRelogin=false\n\n[X11]\nMinimumVT=1\n' | \
+              printf '[Autologin]\nUser=bluefin-test\nSession=plasmawayland.desktop\nRelogin=false\n\n[X11]\nMinimumVT=1\n' | \
                 sudo tee "${DEP}/etc/sddm.conf.d/00-ci-autologin.conf" >/dev/null
 
               # Determinism drop-in: disable animations, force software GL, enable a11y.
@@ -590,7 +591,7 @@ jobs:
             -object   iothread,id=ioth0 \
             -drive    if=none,id=disk,file=disk.raw,format=raw,cache=unsafe,aio=threads,discard=unmap \
             -device   virtio-blk-pci,drive=disk,iothread=ioth0 \
-            -netdev   user,id=net0,hostfwd=tcp::2222-:22 \
+            -netdev   user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp:127.0.0.1:4723-:4723 \
             -device   virtio-net-pci,netdev=net0 \
             -device   virtio-gpu-pci \
             -display  none \
@@ -1222,6 +1223,9 @@ jobs:
               -e VM_USER=bluefin-test \
               -e SSH_KEY=/tmp/vm_key \
               -e SSH_PORT=2222 \
+              -e KDE_WEBDRIVER_URL=http://127.0.0.1:4723 \
+              -e NO_PROXY=127.0.0.1,localhost \
+              -e no_proxy=127.0.0.1,localhost \
               -e PYTHONPATH=/tmp/bluefin-tests \
               -e BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \
               -e TARGET_IMAGE="${TARGET_IMAGE}" \
@@ -1687,6 +1691,13 @@ jobs:
       - name: Fail job if tests failed
         if: steps.run.outputs.behave_rc != '0'
         run: exit "${{ steps.run.outputs.behave_rc }}"
+
+      # Backstop: an all-skipped KDE run must NOT be reported as green.
+      # If the suite silently self-disables (e.g. webdriver not reachable),
+      # CI would stay green with zero real coverage. Assert passed > 0.
+      - name: Assert KDE suite has passing scenarios
+        if: startsWith(env.SUITE_DIR, 'kde') && steps.run.outputs.behave_rc == '0'
+        run: python3 scripts/assert_kde_passed.py results/results.json
 
       - name: Write e2e metadata
         if: always()

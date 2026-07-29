@@ -328,6 +328,17 @@ Key differences from GNOME suites:
   suite is skipped with a clear message instead of producing phantom failures.
 - **Session setup:** SDDM autologin and a KDE determinism environment drop-in are
   written at disk-prep time.
+- **`passed > 0` backstop:** the step `Assert KDE suite has passing scenarios`
+  (`if: startsWith(env.SUITE_DIR, 'kde') && steps.run.outputs.behave_rc == '0'`)
+  runs `python3 scripts/assert_kde_passed.py results/results.json`. The script
+  counts `status == 'passed'` scenarios **positively** (backgrounds and other
+  non-scenario elements are ignored) and exits 1 with an `::error::` annotation
+  when `passed <= 0`, when `results.json` is missing, or when it cannot be
+  parsed. Never re-derive `passed` as `total - failed - skipped`: that scores
+  `undefined`/`untested` as passing and reproduces the exact false green the
+  guard exists to prevent. Behaviour is locked in by
+  `tests/unit/test_assert_kde_passed.py`. The script must stay listed in the
+  `Checkout testsuite` sparse-checkout block or it will not exist at runtime.
 
 See [`references/kde-suites.md`](references/kde-suites.md) for the full workflow
 mapping and gating rules.
