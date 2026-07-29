@@ -11,6 +11,20 @@ Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/S
 
 What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan VM lifecycle → `testing-lab`.
 
+## uupd conditional suppression coverage
+
+Issue #503 is blocked on a cross-repo contract. uupd checks battery state via
+UPower (`OnBattery`, DisplayDevice `Percentage`, and the active power profile)
+and metered networking via NetworkManager's `Metered` property. testsuite
+cannot safely fake or restore those system-bus properties in the current VM
+contract; writing `/sys/class/power_supply` or changing GNOME proxy settings
+would test the wrong interfaces and could leak state between scenarios.
+
+Keep the existing uupd binary/timer health check active. The proposed next step
+is for the image or lab owner to provide an isolated simulation hook, after
+which testsuite can add behavior coverage against `/etc/uupd/config.json` and
+the upstream uupd check semantics.
+
 ## Highest-risk test correctness areas
 
 1. GNOME Shell 50+ top-bar AT-SPI gaps (must use `Shell.Eval` fallback where needed)

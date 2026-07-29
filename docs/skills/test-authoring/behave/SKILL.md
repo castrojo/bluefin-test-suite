@@ -78,6 +78,21 @@ land the coverage as `@pending @wip` until a non-interactive harness exists.
 Current example: `ujust toggle-updates` is interactive and flips `uupd.timer`
 or `rpm-ostreed-automatic.timer` (not `ublue-update.timer`).
 
+### uupd conditional suppression coverage
+
+Do not simulate uupd's battery or metered-network suppression in testsuite
+scenarios. uupd reads `org.freedesktop.UPower` and
+`org.freedesktop.NetworkManager` system-bus properties, and the current image
+and lab contracts do not provide a safe, isolated way to override those
+properties and restore the host state. The `/sys/class/power_supply` files
+and GNOME proxy settings are not the interfaces uupd checks.
+
+Until the image or lab supplies a supported simulation hook, keep the existing
+uupd presence/timer health check and document this as a coverage gap. A future
+implementation must use the upstream uupd config path (`/etc/uupd/config.json`)
+and keys documented by ublue-os/uupd, and must define how the UPower and
+NetworkManager state is injected without changing the host's persistent state.
+
 ## MIME type handler verification (smoke suite)
 
 
