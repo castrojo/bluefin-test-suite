@@ -1,6 +1,6 @@
 ---
 name: human-gates
-description: "When to stop and ask a human for input. Load before making design, security, breakage, or merge decisions."
+description: "When to stop and ask a human for input. Use when a PR is ready to merge, when changing CI interfaces or secrets, when a change may break consumers, or before any upstream write."
 metadata:
   type: pattern
   audience: agents
@@ -16,7 +16,7 @@ Four situations require stopping and requesting human input. Never guess past th
 | **Design** | Architecture change, new test infrastructure, user-visible CI behavior change, changing what suites an image runs |
 | **Security** | Secrets in CI, cosign/signing changes, any `<readonly-upstream>/*` interaction, any KDE property interaction beyond read-only, COPR sources in runner |
 | **Breakage** | Removing or renaming a reusable workflow input that consuming repos depend on (e2e.yml inputs, action inputs) |
-| **Merge** | PR is ready — requires CI green + human approval; the `ghost-lab` lab gate is still a no-op despite [lab#474](https://github.com/projectbluefin/lab/pull/474) and [lab#479](https://github.com/projectbluefin/lab/pull/479) having merged (see below) |
+| **Merge** | PR is ready — requires GHA CI green + human approval; the `ghost-lab` lab gate is a no-op, do not wait for it (see below) |
 
 ---
 
@@ -68,22 +68,13 @@ gh search code "testsuite/.github/workflows/e2e.yml" --repo projectbluefin --jso
 
 ## Merge gate
 
-> **The `ghost-lab` commit status is NOT currently posted on testsuite PRs.** Do not wait for it — nothing will ever arrive. Tracking issue: [`projectbluefin/lab#471`](https://github.com/projectbluefin/lab/issues/471). [`lab#474`](https://github.com/projectbluefin/lab/pull/474) merged 2026-07-28T22:19:38Z with the correct routing but a reporter that could not authenticate (HTTP 401 — it never sent the token, so it posted nothing and failed testsuite child workflows instead); #471 was reopened, and [`lab#479`](https://github.com/projectbluefin/lab/pull/479) merged the token fix at 23:12:56Z. **No real `ghost-lab` status has been observed yet** (zero statuses on #656/#657/#658 as of 2026-07-28).
+> **The `ghost-lab` lab status is not posted on testsuite PRs. Do not wait for it — nothing will arrive.**
+> All live state (current status and the PRs attempting a fix) lives in the tracking issue:
+> [`projectbluefin/lab#471`](https://github.com/projectbluefin/lab/issues/471). Keep it there, not here.
 
-> **⚠️ This instruction expires.** The remaining trigger is observation, not a merge: once a real `ghost-lab` status appears on a testsuite PR, the gate is back. Before trusting the "effective gate today" below, check:
->
-> ```bash
-> gh api repos/<image-org>/testsuite/commits/$(gh pr view <N> --repo <image-org>/testsuite --json headRefOid --jq .headRefOid)/status \
->   --jq '.statuses[].context'
-> ```
->
-> If that prints `ghost-lab` on a recent PR, the lab gate is **live again**: go back to "wait for `ghost-lab: success` before enqueuing", and update this file and `docs/skills/ci-ops/contributing/references/reviewing-and-merging.md` together in the same PR.
->
-> **A merged fix is not a working fix.** lab#474 was documented here as the fix while it was already merged *and* already broken — same class of error as the KDE silent-skip defect (CI green, zero real coverage). Verify the gate end-to-end by observing a real status before trusting it; never restore a gate on the strength of a merge alone.
+**The gate to apply:**
 
-**Effective gate today:**
-
-1. GitHub Actions CI green — `Lint & syntax` and `Behave dry-run` (`pr-validate.yml`), `pytest` (`unit-tests.yml`). These are the required status checks on the `main — merge queue` ruleset.
+1. GitHub Actions CI green — `Lint & syntax` and `Behave dry-run` (`pr-validate.yml`), `pytest` (`unit-tests.yml`). These are the required status checks on the `main — merge queue` **ruleset**, which also enables the merge queue, squash method, and `ALLGREEN` grouping. `gh api repos/<image-org>/testsuite/branches/main/protection` returning `404 Branch not protected` is expected — the configuration is a ruleset, not legacy branch protection.
 2. Human approval to merge. Prepare the PR, then ask; do not merge on your own judgement.
 
 Once CI is green and a human has approved, enqueue via:
@@ -99,7 +90,16 @@ The merge queue re-runs the required GHA checks on the merge commit and lands au
 
 **Warning — reduced assurance.** GHA CI does **not** boot a real VM. Real-VM regressions (GNOME Shell/AT-SPI timing, GDM, bootc upgrade/rollback, oomd) are currently uncaught before merge. This is a known gap, not permission to skip verification: for changes to runtime step behaviour, environment hooks, or bootc flows, request a manual lab run and record the result in the PR before asking for merge approval.
 
-**Target state (currently broken).** The intended workflow is: submit to lab → wait for results → merge on pass, fix on fail. The `pr-label-poller` in `<image-org>/testing-lab` auto-runs `smoke,common` on every open testsuite PR every 5 minutes; in the target state its result is published on the PR SHA and reviewers wait for it to be green before enqueuing. The poller is healthy and testsuite is in its `AUTO_REPOS` list, but testsuite has never had a working reporter — first no reporter at all (results computed and discarded), then lab#474's unauthenticated one. Restore this as the gate only once a real `ghost-lab` status is observed on a testsuite PR. Full evidence and the restore procedure: `docs/skills/ci-ops/contributing/references/reviewing-and-merging.md`.
+**How to tell whether the lab gate is live.** The trigger for restoring it is an observed status, never a merged fix:
+
+```bash
+gh api repos/<image-org>/testsuite/commits/$(gh pr view <N> --repo <image-org>/testsuite --json headRefOid --jq .headRefOid)/status \
+  --jq '.statuses[].context'
+```
+
+If `ghost-lab` appears, the lab gate is live: go back to "wait for `ghost-lab: success` before enqueuing" and update this file and `docs/skills/ci-ops/contributing/references/reviewing-and-merging.md` together in the same PR. If nothing prints, the gate is still dead and the GHA-only gate above applies.
+
+**A merged fix is not a working fix.** Three consecutive fixes to the lab status reporter each merged green, and each left the gate posting nothing. Verify a gate by observing a real signal end to end — the same failure class as a test suite that reports green while silently skipping every scenario. Restore procedure and the counted-evidence debugging rule: `docs/skills/ci-ops/contributing/references/reviewing-and-merging.md`.
 
 ---
 
@@ -136,3 +136,31 @@ authorized.
 
 Rationale: KDE is an upstream community this project actively wants to collaborate with. A
 single unauthorized automated write would cost more trust than any test contribution could earn.
+
+---
+
+## Red Flags
+
+Stop if you catch yourself doing any of these:
+
+- **Waiting for a `ghost-lab` status that will never arrive.** Blocking a ready PR on the dead lab gate.
+- **Restoring a gate because its fix merged.** A merged fix is not a working fix; restore only on an observed signal.
+- Merging your own PR without an explicit human approval, or reaching for `--admin` to bypass the queue.
+- Concluding `main` is unprotected because `branches/main/protection` returns 404 — the rules live in a ruleset.
+- Copying live state (PR numbers, dates, current status) into a skill file instead of the tracking issue.
+- Opening an issue, PR, comment, or fork in `<readonly-upstream>/*` or any KDE property "just as a draft".
+- Removing an `e2e.yml` input without searching for callers first.
+
+## Verification
+
+Before asking for merge approval, confirm each of these:
+
+```bash
+gh pr checks <N> --repo <image-org>/testsuite          # Lint & syntax, Behave dry-run, pytest all pass
+gh pr diff  <N> --repo <image-org>/testsuite           # no secrets, no permissions widening, no e2e.yml input removal
+gh api repos/<image-org>/testsuite/commits/$(gh pr view <N> --repo <image-org>/testsuite --json headRefOid --jq .headRefOid)/status \
+  --jq '.statuses[].context'                            # empty = lab gate still dead; `ghost-lab` = restore the lab-first gate
+```
+
+- Real-VM-affecting change? A manual lab run result is pasted in the PR, or the PR says explicitly that it has no real-VM coverage.
+- Touches `e2e.yml`, `AGENTS.md`, or `CODEOWNERS`? A human `lgtm` is recorded on the PR.
