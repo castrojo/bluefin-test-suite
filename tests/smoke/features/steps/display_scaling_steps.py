@@ -71,7 +71,11 @@ def _with_session_env(cmd: str) -> str:
 
 def _gnome_shell_major_version() -> int | None:
     """Return the GNOME Shell major version, or None if it cannot be parsed."""
-    stdout, rc, _ = _run_host("gnome-shell --version 2>/dev/null || mutter --version 2>/dev/null")
+    stdout, rc, _ = _run_host(
+        _with_session_env(
+            "gnome-shell --version 2>/dev/null || mutter --version 2>/dev/null"
+        )
+    )
     if rc != 0 or not stdout:
         return None
     match = re.search(r"(\d+)\.\d+", stdout)
@@ -325,7 +329,7 @@ def _get_display_scales() -> list[float]:
 def _gsettings_get_features() -> tuple[list[str], str]:
     """Return (parsed features list, raw gsettings output)."""
     stdout, rc, stderr = _run_host(
-        "gsettings get org.gnome.mutter experimental-features"
+        _with_session_env("gsettings get org.gnome.mutter experimental-features")
     )
     if rc != 0:
         raise AssertionError(
@@ -347,7 +351,10 @@ def _gsettings_get_features() -> tuple[list[str], str]:
 
 def _gsettings_set_features(value: str) -> None:
     _, rc, stderr = _run_host(
-        f"gsettings set org.gnome.mutter experimental-features {shlex.quote(value)}"
+        _with_session_env(
+            "gsettings set org.gnome.mutter experimental-features "
+            f"{shlex.quote(value)}"
+        )
     )
     if rc != 0:
         raise AssertionError(

@@ -143,7 +143,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 ## Coverage snapshot
 
-479 scenarios across 61 feature files (mechanical recount 2026-07-28; kde-smoke adds 13 in 1 file).
+481 scenarios across 62 feature files (mechanical recount 2026-07-28; fractional scaling adds 2 in 1 file).
 
 > **Count drift notice.** The previous snapshot claimed 427 scenarios across 52 files. A
 > mechanical recount of `tests/*/features/**/*.feature` on `main` found **466 across 60** —
@@ -155,7 +155,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 | Suite | Scenarios | Active | Quarantined | Notes |
 |---|---|---|---|---|
-| smoke | 180 | 135 | 45 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature |
+| smoke | 182 | 137 | 45 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature |
 | developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
 | software | 23 | 15 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios quarantined |
 | common | 116 | 98 | 18 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
