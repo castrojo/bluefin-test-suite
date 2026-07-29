@@ -6,6 +6,7 @@ All tests are fully mocked: no live AT-SPI server, no network calls.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Callable
 from unittest import mock
 from unittest.mock import MagicMock, patch
@@ -63,6 +64,16 @@ def test_new_session_forces_implicit_wait_zero():
 
     assert driver is mock_driver
     mock_driver.implicitly_wait.assert_called_once_with(0)
+
+
+def test_new_session_bypasses_host_proxy_for_loopback_endpoint():
+    mock_driver = MagicMock()
+
+    with patch.object(kde_webdriver.webdriver, "Remote", return_value=mock_driver) as remote_mock:
+        kde_webdriver.new_session()
+
+    options = remote_mock.call_args.kwargs["options"]
+    assert options._ignore_local_proxy is True
 
 
 def test_new_session_with_app_uses_app_capability():
@@ -144,6 +155,17 @@ def test_launch_app_explicit_arg_overrides_env_var(monkeypatch):
         kde_webdriver.launch_app("org.kde.dolphin", command_executor="http://custom:5555")
 
     assert remote_mock.call_args.kwargs["command_executor"] == "http://custom:5555"
+
+
+def test_e2e_forwards_loopback_webdriver_without_proxy():
+    workflow = (
+        Path(__file__).parents[2] / ".github" / "workflows" / "e2e.yml"
+    ).read_text()
+
+    assert "hostfwd=tcp:127.0.0.1:4723-:4723" in workflow
+    assert "-e KDE_WEBDRIVER_URL=http://127.0.0.1:4723" in workflow
+    assert "-e NO_PROXY=127.0.0.1,localhost" in workflow
+    assert "-e no_proxy=127.0.0.1,localhost" in workflow
 
 
 def test_quit_session_calls_driver_quit():

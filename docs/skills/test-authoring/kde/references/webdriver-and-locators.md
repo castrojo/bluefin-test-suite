@@ -54,14 +54,14 @@ FLASK_PORT=5000 systemctl --user start kde-webdriver.service
 
 ### Security: loopback-only binding
 
-The server is an **unauthenticated input-injection service**.  It MUST bind `127.0.0.1` only — **NEVER `0.0.0.0`**.  Do NOT "fix" connection-refused errors by changing the bind address.  The CI runner reaches the server via QEMU port forwarding (`hostfwd=tcp::4723-:4723`), not by exposing the service on all interfaces.
+The server is an **unauthenticated input-injection service**.  It MUST bind `127.0.0.1` only — **NEVER `0.0.0.0`**.  Do NOT "fix" connection-refused errors by changing the bind address.  The CI runner reaches the server via a loopback-only QEMU forward (`hostfwd=tcp:127.0.0.1:4723-:4723`), not by exposing the service on all interfaces.  The KDE runner container sets both `NO_PROXY` and `no_proxy` for `127.0.0.1,localhost`; keep both spellings because Selenium's system-proxy lookup checks the lowercase variable first.
 
 ### CI port forwarding
 
-The QEMU netdev line in `e2e.yml` forwards both SSH (2222→22) and WebDriver (4723→4723):
+The QEMU netdev line in `e2e.yml` forwards both SSH (2222→22) and WebDriver (4723→4723). The WebDriver forward is explicitly bound to host loopback:
 
 ```
--netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::4723-:4723
+-netdev user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp:127.0.0.1:4723-:4723
 ```
 
 ### CI passed > 0 backstop

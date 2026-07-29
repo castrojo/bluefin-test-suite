@@ -67,6 +67,9 @@ class AtSpiOptions(BaseOptions):
 
     def __init__(self, app: str | None = None) -> None:
         super().__init__()
+        # The endpoint is the loopback-only QEMU forward. Do not let a CI-wide
+        # HTTP(S)_PROXY divert requests away from the local VM.
+        self.ignore_local_proxy_environment_variables()
         if app is not None:
             self.set_capability("app", app)
 

@@ -591,7 +591,7 @@ jobs:
             -object   iothread,id=ioth0 \
             -drive    if=none,id=disk,file=disk.raw,format=raw,cache=unsafe,aio=threads,discard=unmap \
             -device   virtio-blk-pci,drive=disk,iothread=ioth0 \
-            -netdev   user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp::4723-:4723 \
+            -netdev   user,id=net0,hostfwd=tcp::2222-:22,hostfwd=tcp:127.0.0.1:4723-:4723 \
             -device   virtio-net-pci,netdev=net0 \
             -device   virtio-gpu-pci \
             -display  none \
@@ -1223,6 +1223,9 @@ jobs:
               -e VM_USER=bluefin-test \
               -e SSH_KEY=/tmp/vm_key \
               -e SSH_PORT=2222 \
+              -e KDE_WEBDRIVER_URL=http://127.0.0.1:4723 \
+              -e NO_PROXY=127.0.0.1,localhost \
+              -e no_proxy=127.0.0.1,localhost \
               -e PYTHONPATH=/tmp/bluefin-tests \
               -e BEHAVE_RETRIES=${BEHAVE_RETRIES:-2} \
               -e TARGET_IMAGE="${TARGET_IMAGE}" \
