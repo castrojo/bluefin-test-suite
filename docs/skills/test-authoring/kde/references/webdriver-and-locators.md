@@ -5,6 +5,8 @@ metadata:
   type: reference
   audience: agents
   maturity: draft
+  context7-sources:
+    - /seleniumhq/selenium
 ---
 
 # KDE WebDriver Client and Locators
