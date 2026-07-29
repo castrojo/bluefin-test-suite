@@ -110,6 +110,41 @@ class TestRunSsh:
         assert "export VAR=1" in last_arg
         assert "echo wrapped" in last_arg
 
+    def test_embedded_python_command_passed_verbatim(self):
+        """Regression for issue #531's immutable-suite shell quoting."""
+        ctx = _make_context()
+        proc = _make_proc(stdout="0\n", returncode=0)
+        command = (
+            "rpm-ostree status --json | python3 -c $'"
+            'import sys,json; d=json.load(sys.stdin); '
+            'print(len([p for dep in d.get(\\"deployments\\",[]) '
+            'for p in dep.get(\\"requested-packages\\",[])]))'
+            "'"
+        )
+        with patch("subprocess.run", return_value=proc) as mock_run:
+            stdout, rc = self.mod.run_ssh(ctx, command)
+        assert mock_run.call_args.args[0][-1] == command
+        assert "python3 -c $'" in mock_run.call_args.args[0][-1]
+        assert '\\"' in mock_run.call_args.args[0][-1]
+        assert stdout == "0"
+        assert rc == 0
+
+    def test_ansi_c_python_command_survives_prefix_wrapping(self):
+        """The immutable quoting fix must survive optional command prefixes."""
+        ctx = _make_context(ssh_command_prefix="export TEST_MODE=1")
+        proc = _make_proc(stdout="0\n", returncode=0)
+        command = (
+            "bootc status --json | python3 -c $'"
+            'import sys,json; d=json.load(sys.stdin); '
+            'print(d.get(\\"status\\", {}).get(\\"booted\\", {}))'
+            "'"
+        )
+        with patch("subprocess.run", return_value=proc) as mock_run:
+            self.mod.run_ssh(ctx, command)
+        final_arg = mock_run.call_args.args[0][-1]
+        assert "export TEST_MODE=1; " in final_arg
+        assert command.replace("'", "'\"'\"'") in final_arg
+
     def test_ssh_port_included_when_set(self):
         ctx = _make_context(ssh_port=2222)
         proc = _make_proc(stdout="ok\n")
