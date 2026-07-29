@@ -5,6 +5,8 @@ metadata:
   type: pattern
   audience: agents
   maturity: stable
+  context7-sources:
+    - /actions/checkout
 ---
 
 # Reusable E2E Workflow — GNOME in QEMU
@@ -59,11 +61,47 @@ Rollouts should start with `--grace-days` in CI (currently `--grace-days 30`) so
 `e2e.yml` reuses the same script for job-summary reporting via `python3 scripts/check_quarantine_age.py --json`.
 That summary path is informational only, but it still needs the same prerequisites: the workflow checkout must include `scripts/check_quarantine_age.py`, the `tests/` tree, and full git history (`fetch-depth: 0`) or the age calculations will be incomplete.
 
+## Sparse checkout is non-cone — every script must be listed explicitly
+
+
+The testsuite checkout in `e2e.yml` sets `sparse-checkout-cone-mode: false`. Per the
+`actions/checkout` docs, cone mode (the default) forwards patterns straight to
+`git sparse-checkout set`, which only understands **directory** patterns; file-level
+granularity requires turning cone mode off, and in that non-cone mode **every path
+must be enumerated explicitly**. A file that is not listed does not exist on the runner.
+
+The list on `main` today:
+
+```yaml
+sparse-checkout: |
+  flatpak-app-list.txt
+  tests
+  scripts/check_quarantine_age.py
+  scripts/install-kde-webdriver.sh
+sparse-checkout-cone-mode: false
+```
+
+Note that `scripts/` as a whole is **not** checked out — only the two named files are.
+
+**Rule: any script a job step invokes must be added to that job's `sparse-checkout`
+list in the same change.** This applies to extracting an inline heredoc into a
+standalone script, adding a new guard step, or reusing an existing repo script in a
+new place. Verify by reading the job's `sparse-checkout` block and confirming the
+exact path is listed — never assume `scripts/` is present because another script runs.
+
+The silent-failure mode is what makes this dangerous: a missing script makes the step
+fail with a confusing "no such file" error, or, when the step is a guard that is
+allowed to soft-fail, the guard simply never runs and the problem it existed to catch
+ships undetected.
+
+The same rule applies to every other non-cone checkout in this repo, including the
+`projectbluefin/iso` harness checkout in `.github/workflows/iso-validation.yml`.
+
 ## Pipeline stages
 
 
 1. **Resolve matrix** — splits `suites` CSV into a JSON array for the strategy matrix; `smoke` becomes `smoke-a,smoke-b` and `common` becomes `common-a,common-b`
-2. **Checkout testsuite** — sparse checkout of `flatpak-app-list.txt`, `tests/`, and `scripts/check_quarantine_age.py` from `<image-org>/testsuite` at `inputs.test_ref`; always `fetch-depth: 0`
+2. **Checkout testsuite** — non-cone sparse checkout of the explicitly listed paths (`flatpak-app-list.txt`, `tests`, `scripts/check_quarantine_age.py`, `scripts/install-kde-webdriver.sh`) from `<image-org>/testsuite` at `inputs.test_ref`; always `fetch-depth: 0`
 3. **Resolve suite shard** — Python step computes `SUITE_DIR` (physical directory), `FEATURE_ARGS` (specific `.feature` files for shards), and `SCREENSHOT_SUITE` (normalized suite name for GHCR tags)
 4. **Restore/prime Flatpak download cache** — Bluefin GUI suites only; caches a runner-side user Flatpak repo keyed on `flatpak-app-list.txt` hash
 5. **Free disk space** — runs `<readonly-upstream>/remove-unwanted-software@v9`; keeps the 30 GB `disk.raw` allocation viable on GitHub-hosted runners
@@ -147,6 +185,8 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 - A cache step targets `~/.local/share/containers` or another non-root path even though pulls use `sudo podman`
 - `workflow_call` checkout logic starts using `github.ref_name` inside `e2e.yml`
 - External actions are added with floating tags instead of full SHAs
+- A workflow step invokes a repo script that is not listed in that job's `sparse-checkout` block (cone mode is off — unlisted paths do not exist at runtime)
+- A `sparse-checkout` entry names a bare directory while `sparse-checkout-cone-mode: false` is set and file-level paths are expected
 - A workflow change lands without updating this skill file with the discovered rule or workaround
 - `continue-on-error` set on a job that uses `uses:` — this is a parse-time error (see below)
 
@@ -156,6 +196,7 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 - [ ] `.github/workflows/e2e.yml` parses with `yaml.safe_load`
 - [ ] Every external `uses:` line in `e2e.yml` is SHA-pinned with a version comment
 - [ ] KDE setup steps use `startsWith(steps.shard.outputs.suite_dir, 'kde')` and do not fire for GNOME suites
+- [ ] Every script referenced by a job step appears in that job's `sparse-checkout` list
 - [ ] Any new workflow-specific workaround or convention discovered in the session is captured here
 
 ---

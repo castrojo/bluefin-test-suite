@@ -30,6 +30,7 @@ metadata:
 - SSH assertion failures from unexpected output
 - common-suite service health scenarios fail with unexpected `ActiveState` values
 - Polkit rules presence check returns zero results
+- A scheduled or push-only workflow is red and you need to find which merge broke it
 
 ## When NOT to Use
 
@@ -50,6 +51,8 @@ metadata:
 - Using `hasattr(context, 'failed_setup')` instead of `getattr(..., None)` (always True)
 - Calling `sudo podman load` instead of rootless load (image goes to root storage)
 - Using `oras pull` with a file path instead of a directory
+- A workflow that builds or validates an artifact has no `pull_request` trigger and no equivalent job in `pr-validate.yml` (its first red run will be on `main`)
+- Triaging a long-red scheduled workflow by blaming the most recent merge instead of locating the first failing run
 
 ## Verification
 
@@ -59,6 +62,8 @@ metadata:
 - [ ] `before_scenario` guard uses `getattr(context, 'failed_setup', None)`, not `hasattr()`
 - [ ] SSH step timeout is 60s or higher for hardware/bootc commands
 - [ ] `oras pull` targets a directory, not a file path
+- [ ] Every workflow that builds a PR-breakable artifact is reachable from a `pull_request` trigger or a `pr-validate.yml` job
+- [ ] Scheduled-workflow triage identified the first failing run and diffed it against the last green one
 - [ ] Runner container changes followed by `build-runner.yml` dispatch before test runs
 
 ---
@@ -106,3 +111,4 @@ Load these when you hit the specific topic:
 - [common suite execution model — runner container, not inside VM](references/common-suite-execution-model-runner-container-not-inside-vm.md)
 - [smoke suite — pre-existing lab failures (GNOME 50 AT-SPI)](references/smoke-suite-pre-existing-lab-failures-gnome-50-at-spi.md)
 - [testing-lab ArgoCD template resolution timing](references/argo-mutex.md)
+- [Workflows without a pull_request trigger break main silently](references/workflows-without-a-pull-request-trigger-break-main-silently.md)
