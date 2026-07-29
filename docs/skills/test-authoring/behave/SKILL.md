@@ -64,6 +64,14 @@ land the coverage as `@pending @wip` until a non-interactive harness exists.
 Current example: `ujust toggle-updates` is interactive and flips `uupd.timer`
 or `rpm-ostreed-automatic.timer` (not `ublue-update.timer`).
 
+For cross-repository requests, do not infer a new CLI flag, menu input
+sequence, or workflow lane. Issues #499 and #500 require a supported
+non-interactive contract in `projectbluefin/common` first; issue #501 requires
+the OCI image cache and cleanup contract in `projectbluefin/testing-lab`; and
+issue #487 requires human approval for a dedicated `e2e.yml` job that enables
+Homebrew. Keep the scenario pending or quarantined until those dependencies
+are shipped and verified.
+
 ## MIME type handler verification (smoke suite)
 
 

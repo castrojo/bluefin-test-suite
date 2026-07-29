@@ -165,6 +165,18 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 | Flatpak permission management | Low | Flatseal / per-app permissions not exercised |
 | OOBE / first-boot | Low | Initial user setup flow not covered |
 
+### Cross-repository test gates
+
+These requested tests are intentionally not active until their owning
+repository and lab contracts exist:
+
+| Issue | Testsuite-local boundary | Required dependency |
+|---|---|---|
+| #499 | Keep `ujust toggle-updates` as `@pending`; do not drive `gum` or silently replace the recipe assertion with a timer-only test. | `projectbluefin/common` must define and ship a supported non-interactive `toggle-updates` contract (including the `bctl` path), or explicitly approve timer-state coverage. |
+| #500 | Add no devmode side-effect test or guessed menu automation. | `projectbluefin/common` must define a stable non-interactive devmode/preset or read-only status contract, including expected marker, groups, and package side effects. |
+| #501 | The existing distrobox creation scenario remains quarantined; no install/export flow is activated. | `projectbluefin/testing-lab` must provide a reliable cached OCI image preload and cleanup policy for the DX VM before registry-dependent coverage is enabled. |
+| #487 | A bctl feature may be added only after the workflow lane is approved; no reusable-workflow input or job is invented here. | Human approval is required for a dedicated `e2e.yml` lane; it must unmask `brew-setup.service`, wait for Homebrew/bctl readiness, and verify downstream consumers and lab execution. |
+
 ### Remaining quarantine breakdown
 
 | Scenario | Suite | Blocked by |

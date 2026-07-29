@@ -11,6 +11,26 @@ Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/S
 
 What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan VM lifecycle → `testing-lab`.
 
+## Cross-repository gates
+
+The following requested coverage is blocked rather than implemented in this
+repository:
+
+- **#499 (`toggle-updates`)** — requires a supported non-interactive contract
+  from `projectbluefin/common`, including the `bctl` path; timer-only coverage
+  needs explicit acceptance.
+- **#500 (`devmode`)** — requires a stable common-owned preset/mode or
+  read-only status contract with defined marker, group, and package effects.
+- **#501 (distrobox export)** — requires `projectbluefin/testing-lab` to
+  preload and clean up the OCI image used by the DX VM.
+- **#487 (bctl)** — requires human approval for a dedicated reusable-workflow
+  lane that unmasks `brew-setup.service`, waits for bctl readiness, and
+  confirms downstream consumer and lab compatibility.
+
+Testsuite must not invent these interfaces or CI inputs. Once the owning
+contracts are approved and available, add the scenario, matching step tests,
+and update both coverage documents in the same PR.
+
 ## Highest-risk test correctness areas
 
 1. GNOME Shell 50+ top-bar AT-SPI gaps (must use `Shell.Eval` fallback where needed)
