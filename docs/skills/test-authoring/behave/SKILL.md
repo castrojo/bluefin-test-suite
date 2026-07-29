@@ -136,6 +136,11 @@ steps and encode the allow-set in the shell command itself:
 This avoids adding a one-off step definition just to express "one of these two
 values is acceptable".
 
+For smoke steps that must run several host commands, reuse the suite's canonical
+`_run_host` helper with `from steps.steps import _run_host`. It handles local
+qecore-headless execution and the runner-container SSH fallback. Do not duplicate
+SSH argument construction or container detection in a new smoke step module.
+
 ## Feature scaffolding with @future
 
 
