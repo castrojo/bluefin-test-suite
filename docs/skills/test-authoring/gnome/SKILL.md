@@ -32,6 +32,8 @@ metadata:
 4. Poll for visible widgets or windows; avoid unconditional sleeps when a retry loop can prove readiness.
 5. Validate locally with `python3 -m py_compile tests/<suite>/features/steps/*.py`, duplicate-step detection, `ruff`, and `behave --dry-run`.
 
+`tests.shared.wait_for_shell.wait_for_shell()` is the GNOME Shell startup gate. Its contract is: retry Shell.Eval failures, retry when AT-SPI exposes no panel yet, retry on transient exceptions, then fail hard after the attempt budget is exhausted.
+
 ## Stack
 
 
