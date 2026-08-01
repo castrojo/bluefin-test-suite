@@ -7,6 +7,7 @@ metadata:
   maturity: stable
   context7-sources:
     - /actions/checkout
+    - /websites/github_en_actions
 ---
 
 # Reusable E2E Workflow — GNOME in QEMU
