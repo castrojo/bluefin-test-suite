@@ -41,7 +41,6 @@ metadata:
 | When to stop and ask a human | `meta/human-gates/SKILL.md` |
 | Triage issues and label hygiene | `meta/triage/SKILL.md` |
 | Skill update mandate | `meta/skill-improvement/SKILL.md` |
-| Skill-drift CI check | `meta/skill-drift/SKILL.md` |
 | How to write or maintain a skill | `meta/writing-skills/SKILL.md` |
 
 ## Project agents
