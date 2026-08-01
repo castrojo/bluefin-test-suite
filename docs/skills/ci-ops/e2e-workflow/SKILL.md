@@ -187,10 +187,18 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 - No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests require SSH-mode suites not yet in the GHA action (epics #43/#44).
 - Partition layout assumes `p3` is the root partition. Tested against standard Anaconda/bootc partition tables. Non-standard layouts may break the disk-configure step.
 
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "Bash requires the delimiter at column zero in the YAML file." | YAML strips the literal block's minimum indentation before Bash sees it. Column zero in YAML ends the block and makes the workflow invalid. |
+| "A YAML parser passing is enough." | Also parse the rendered affected `run` blocks with `bash -n`; YAML indentation can change the shell script. |
+
 ## Red Flags
 
 
 - A cache step targets `~/.local/share/containers` or another non-root path even though pulls use `sudo podman`
+- A heredoc delimiter appears at column zero in YAML source
 - `workflow_call` checkout logic starts using `github.ref_name` inside `e2e.yml`
 - External actions are added with floating tags instead of full SHAs
 - A workflow step invokes a repo script that is not listed in that job's `sparse-checkout` block (cone mode is off — unlisted paths do not exist at runtime)
