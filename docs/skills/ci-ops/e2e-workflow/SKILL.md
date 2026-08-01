@@ -37,6 +37,14 @@ Load when: integrating the testsuite into another repo's CI (e.g. `<image-org>/d
 4. Validate the workflow file parses, then run the repo's required local checks before committing.
 5. Write back any non-obvious workflow pattern discovered during the change in this skill file.
 
+## Heredocs in YAML `run` blocks
+
+Keep heredoc delimiters at the YAML literal block's minimum indentation.
+YAML removes that common indentation before Bash runs, so the delimiter reaches
+column zero in the rendered script. Moving a delimiter to column zero in the
+YAML source terminates the block early and prevents GitHub Actions from
+scheduling any jobs.
+
 ## ISO validation boundary
 
 ISO validation is intentionally separate from this OCI/GNOME workflow. Use `.github/workflows/iso-validation.yml` for a published ISO URL; it checks out `projectbluefin/iso` at the caller-provided immutable `iso_ref`, installs QEMU/xorriso tooling, runs the ISO repository's `tests/iso` harness, and uploads its smoke/E2E evidence. The matching `.github/workflows/iso-manual.yml` exposes the same contract in the Actions UI.
