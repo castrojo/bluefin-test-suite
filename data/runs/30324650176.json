@@ -1,12 +1,12 @@
 {
   "id": "30324650176",
-  "timestamp": "2026-08-01T14:30:39Z",
+  "timestamp": "2026-08-01T16:20:37Z",
   "stream": "testing",
   "flavor": "bluefin",
   "suite": "vanilla-gnome",
   "version": "40.latest",
   "git_commit": {
-    "sha": "afadae05c6018cacf6afbc1a4a033c16c894d5b2",
+    "sha": "4f2ca6666d46aea4c77de1520e455b25600ce48f",
     "message": "E2E test run compiled via projectbluefin/bluefin",
     "author": "KubeVirt Lab",
     "repo_url": "https://github.com/projectbluefin/bluefin"
