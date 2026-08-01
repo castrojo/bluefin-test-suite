@@ -211,6 +211,7 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 
 
 - [ ] `.github/workflows/e2e.yml` parses with `yaml.safe_load`
+- [ ] Each rendered `run` block with a heredoc passes `bash -n`
 - [ ] Every external `uses:` line in `e2e.yml` is SHA-pinned with a version comment
 - [ ] KDE setup steps use `startsWith(steps.shard.outputs.suite_dir, 'kde')` and do not fire for GNOME suites
 - [ ] Every script referenced by a job step appears in that job's `sparse-checkout` list

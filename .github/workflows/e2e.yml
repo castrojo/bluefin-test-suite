@@ -163,7 +163,7 @@ jobs:
               print(f"suite_dir={suite_dir}", file=fh)
               print(f"feature_args={feature_args}", file=fh)
               print(f"screenshot_suite={screenshot_suite}", file=fh)
-              PY
+          PY
 
       - name: Export suite shard environment
         run: |
