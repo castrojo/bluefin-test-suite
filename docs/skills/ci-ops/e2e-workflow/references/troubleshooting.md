@@ -72,9 +72,12 @@ The testsuite is checked out sparse (`tests/<suite>` + `tests/shared` only). If 
 ### Timeout (120 min job limit)
 
 The install + configure step is the heaviest (~10–15 min depending on image size). OCI layer caching should remove most repeat pull time; if jobs still hit the 120-minute limit, reduce suite scope or check for unusually large uncached images.
-## dconf local.d overrides and test interference (2026-06-21)
+## dconf local.d overrides and test interference
 
-**Pattern**: The e2e.yml VM setup writes `enabled-extensions=['unsafe-mode@bluefin-test']` to `/etc/dconf/db/local.d/00-ci-testing`. The dconf profile shipped by bluefin images is:
+**Pattern**: The E2E VM setup writes `allow-extension-installation=true` to
+`/etc/dconf/db/local.d/00-ci-testing` so its `unsafe-mode@bluefin-test`
+extension can be enabled after the GNOME session starts. The dconf profile
+shipped by bluefin images is:
 ```
 user-db:user
 system-db:local
@@ -82,7 +85,12 @@ system-db:site
 system-db:distro
 ```
 
-`local` has higher priority than `distro`. Any `gsettings get` call on a key set in `local.d/00-ci-testing` will return the CI value, NOT the distribution default. This means tests that check `gsettings get org.gnome.shell enabled-extensions` will see only `['unsafe-mode@bluefin-test']`, not what the distro configured.
+`local` has higher priority than `distro`. Never write
+`org.gnome.shell enabled-extensions` into `local.d/00-ci-testing`: it would
+replace the image's default extensions, leaving Bluefin extension tests in
+`INITIALIZED` or uninstalled states. Enable `unsafe-mode@bluefin-test` with
+`gnome-extensions enable` after the session starts so it is added in the user
+database without replacing the image default.
 
 **Fix for tests checking distribution defaults**: Use `Gio.Settings.get_default_value()` which reads the compiled gschema default, bypassing ALL dconf databases:
 ```gherkin
@@ -95,9 +103,8 @@ system-db:distro
 - `get_default_value`: tests whether the DISTRIBUTION ships a default. Immune to CI overrides.
 - Use `gsettings get` for tests of locked keys (in `distro.d/locks/`) — locked keys aren't overridable by `local.d`.
 
-**Keys written by local.d/00-ci-testing**:
+**Key written by local.d/00-ci-testing**:
 - `org.gnome.shell allow-extension-installation` = `true`
-- `org.gnome.shell enabled-extensions` = `['unsafe-mode@bluefin-test']`
 
 ---
 ## Dashboard Static-Site Compilation and Path Robustness

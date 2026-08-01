@@ -475,11 +475,11 @@ jobs:
                 sudo tee "${DEP}/etc/environment.d/99-kde-ci.conf" >/dev/null
             fi
 
-            # dconf system override: ensure allow-extension-installation=true so
-            # gnome-shell scans ~/.local/share/gnome-shell/extensions/ at startup,
-            # and pre-add our UUID to enabled-extensions so it activates automatically.
+            # Allow the unsafe-mode test extension without replacing the image's
+            # enabled-extensions default. It is enabled in the user database
+            # after the GNOME session starts.
             sudo mkdir -p "${DEP}/etc/dconf/db/local.d"
-            printf '[org/gnome/shell]\nallow-extension-installation=true\nenabled-extensions=['\''unsafe-mode@bluefin-test'\'']\n' | \
+            printf '[org/gnome/shell]\nallow-extension-installation=true\n' | \
               sudo tee "${DEP}/etc/dconf/db/local.d/00-ci-testing" > /dev/null
             # Best-effort compile: works if host glibc matches the deployment binary.
             # If this fails (glibc mismatch), dconf-service will auto-compile on first start.
