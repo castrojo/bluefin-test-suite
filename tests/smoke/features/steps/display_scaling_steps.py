@@ -174,9 +174,12 @@ def _choose_supported_scale(target):
 
 def _build_logical_monitor(lm, monitors_by_id, new_scale=None):
     """Build an ApplyMonitorsConfig logical monitor from a GetCurrentState one."""
-    x = int(lm[0])
-    y = int(lm[1])
+    previous_scale = float(lm[2])
     scale = float(new_scale) if new_scale is not None else float(lm[2])
+    # Mutter positions monitors in logical pixels.  When a scale changes, retain
+    # the physical layout by converting the existing logical coordinates.
+    x = round(int(lm[0]) * previous_scale / scale)
+    y = round(int(lm[1]) * previous_scale / scale)
     transform = int(lm[3])
     primary = bool(lm[4])
     monitors = []
