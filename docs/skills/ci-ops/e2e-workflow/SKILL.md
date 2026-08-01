@@ -7,6 +7,7 @@ metadata:
   maturity: stable
   context7-sources:
     - /actions/checkout
+    - /websites/github_en_actions
 ---
 
 # Reusable E2E Workflow — GNOME in QEMU
@@ -36,6 +37,14 @@ Load when: integrating the testsuite into another repo's CI (e.g. `<image-org>/d
 3. For OCI pull performance work, cache the root podman store (`/var/lib/containers/storage`) because `e2e.yml` pulls with `sudo podman`.
 4. Validate the workflow file parses, then run the repo's required local checks before committing.
 5. Write back any non-obvious workflow pattern discovered during the change in this skill file.
+
+## Heredocs in YAML `run` blocks
+
+Keep heredoc delimiters at the YAML literal block's minimum indentation.
+YAML removes that common indentation before Bash runs, so the delimiter reaches
+column zero in the rendered script. Moving a delimiter to column zero in the
+YAML source terminates the block early and prevents GitHub Actions from
+scheduling any jobs.
 
 ## ISO validation boundary
 
@@ -179,10 +188,18 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 - No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests require SSH-mode suites not yet in the GHA action (epics #43/#44).
 - Partition layout assumes `p3` is the root partition. Tested against standard Anaconda/bootc partition tables. Non-standard layouts may break the disk-configure step.
 
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "Bash requires the delimiter at column zero in the YAML file." | YAML strips the literal block's minimum indentation before Bash sees it. Column zero in YAML ends the block and makes the workflow invalid. |
+| "A YAML parser passing is enough." | Also parse the rendered affected `run` blocks with `bash -n`; YAML indentation can change the shell script. |
+
 ## Red Flags
 
 
 - A cache step targets `~/.local/share/containers` or another non-root path even though pulls use `sudo podman`
+- A heredoc delimiter appears at column zero in YAML source
 - `workflow_call` checkout logic starts using `github.ref_name` inside `e2e.yml`
 - External actions are added with floating tags instead of full SHAs
 - A workflow step invokes a repo script that is not listed in that job's `sparse-checkout` block (cone mode is off — unlisted paths do not exist at runtime)

@@ -163,7 +163,7 @@ jobs:
               print(f"suite_dir={suite_dir}", file=fh)
               print(f"feature_args={feature_args}", file=fh)
               print(f"screenshot_suite={screenshot_suite}", file=fh)
-PY
+              PY
 
       - name: Export suite shard environment
         run: |
@@ -541,7 +541,7 @@ PY
                     }
                 }
             }
-EXTEOF
+          EXTEOF
           fi
 
           sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
@@ -733,7 +733,7 @@ EXTEOF
               sudo flatpak install --system --assumeyes --noninteractive flathub "$app"
             fi
           done
-EOF
+          EOF
 
           rm -f "${CACHE_TAR}"
 
@@ -1184,7 +1184,7 @@ EOF
           with open('results/results.json', 'w') as f:
               json.dump(data, f, indent=2)
           print(f"Wrote skip results: {reason}")
-PY
+          PY
             echo "behave_rc=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -1632,7 +1632,7 @@ PY
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
             f.write('\n'.join(lines) + '\n')
-PY
+          PY
           else
             echo "## ⚠️ No results.json — test run did not complete" >> "$GITHUB_STEP_SUMMARY"
             echo "<details><summary>VM serial console output</summary>" >> "$GITHUB_STEP_SUMMARY"
@@ -1668,7 +1668,7 @@ PY
           )
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output_file:
               output_file.write(f"artifact_suffix={artifact_suffix}\n")
-PY
+          PY
 
       - name: Upload results artifact
         if: always()
