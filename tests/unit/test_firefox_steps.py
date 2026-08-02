@@ -27,6 +27,8 @@ def _import_firefox_steps(tree_available: bool = True):
 
     app_support_stub = types.ModuleType("app_support")
     app_support_stub.launch_background = MagicMock()
+    app_support_stub.launch_url = MagicMock()
+    app_support_stub.unlock_screen = MagicMock()
     sys.modules["app_support"] = app_support_stub
 
     for key in list(sys.modules):
@@ -134,3 +136,20 @@ class TestFirefoxApp:
         import pytest  # noqa: PLC0415
         with pytest.raises(AssertionError, match="not found via AT-SPI"):
             m._firefox_app(context)
+
+
+class TestShowFirefoxUrl:
+    def test_launches_requested_url(self):
+        m = _import_firefox_steps()
+        context = MagicMock()
+        m.unlock_screen = MagicMock()
+        m.launch_url = MagicMock(return_value="command:firefox")
+
+        m.show_firefox_url(context, "https://projectbluefin.io")
+
+        m.unlock_screen.assert_called_once_with()
+        m.launch_url.assert_called_once_with(
+            m.FIREFOX_LAUNCH_TARGETS,
+            "https://projectbluefin.io",
+        )
+        assert context.firefox_launch_target == "command:firefox"

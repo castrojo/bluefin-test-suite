@@ -429,11 +429,18 @@ def after_step(context, step) -> None:
 
 
 def after_all(context) -> None:
-    """Take a fastfetch desktop screenshot, then dump gnome-shell AT-SPI tree."""
+    """Capture the installed desktop with Firefox at the project website."""
     if getattr(context, 'failed_setup', None):
         return
     configure_screenshot_context(context, SUITE_NAME, "end_of_run")
-    take_fastfetch_screenshot()
+    from steps.firefox_steps import show_firefox_url
+
+    show_firefox_url(context, "https://projectbluefin.io")
+    import time
+
+    time.sleep(5)
+    screenshot_path = take_screenshot("successful_installation")
+    assert screenshot_path is not None, "Final Firefox installation screenshot failed"
 
     try:
         import os

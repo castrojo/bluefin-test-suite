@@ -1,7 +1,7 @@
 """Unit tests for tests/smoke/features/steps/app_support.py.
 
-Tests _desktop_path, _flatpak_available, launch_target_available, and
-launch_background using mocks — no real filesystem or subprocesses required.
+Tests _desktop_path, _flatpak_available, launch_target_available, and launch
+helpers using mocks — no real filesystem or subprocesses required.
 
 All tests force _IN_CONTAINER=False so the non-SSH local-filesystem code paths
 are exercised (the SSH paths are for behave runs inside the runner container).
@@ -214,3 +214,68 @@ class TestLaunchBackground:
         with patch.object(app_support.shutil, "which", return_value=None):
             with pytest.raises(AssertionError, match="No launch candidate"):
                 app_support.launch_background(targets)
+
+
+class TestLaunchUrl:
+    def setup_method(self):
+        _no_container.start()
+
+    def teardown_method(self):
+        _no_container.stop()
+
+    def test_launches_command_at_url(self):
+        with patch.object(app_support.shutil, "which", return_value="/usr/bin/firefox"):
+            with patch("tests.smoke.features.steps.app_support.subprocess.Popen") as mock_popen:
+                result = app_support.launch_url(
+                    (("command", "firefox"),),
+                    "https://projectbluefin.io",
+                )
+
+        assert result == "command:firefox"
+        assert mock_popen.call_args.args[0] == [
+            "firefox",
+            "--new-window",
+            "https://projectbluefin.io",
+        ]
+
+    def test_launches_flatpak_at_url_when_command_missing(self):
+        with patch.object(app_support.shutil, "which", return_value=None):
+            with patch.object(app_support, "_flatpak_available", return_value=True):
+                with patch("tests.smoke.features.steps.app_support.subprocess.Popen") as mock_popen:
+                    result = app_support.launch_url(
+                        (("command", "firefox"), ("flatpak", "org.mozilla.firefox")),
+                        "https://projectbluefin.io",
+                    )
+
+        assert result == "flatpak:org.mozilla.firefox"
+        assert mock_popen.call_args.args[0] == [
+            "flatpak",
+            "run",
+            "org.mozilla.firefox",
+            "--new-window",
+            "https://projectbluefin.io",
+        ]
+
+
+class TestUnlockScreen:
+    def setup_method(self):
+        _no_container.start()
+
+    def teardown_method(self):
+        _no_container.stop()
+
+    def test_uses_gnome_screensaver_dbus_api(self):
+        with patch("tests.smoke.features.steps.app_support.subprocess.run",
+                   return_value=SimpleNamespace(returncode=0, stderr="")) as mock_run:
+            app_support.unlock_screen()
+
+        assert mock_run.call_args.args[0][-2:] == [
+            "org.gnome.ScreenSaver.SetActive",
+            "false",
+        ]
+
+    def test_raises_when_dbus_unlock_fails(self):
+        with patch("tests.smoke.features.steps.app_support.subprocess.run",
+                   return_value=SimpleNamespace(returncode=1, stderr="denied")):
+            with pytest.raises(RuntimeError, match="Unable to unlock"):
+                app_support.unlock_screen()

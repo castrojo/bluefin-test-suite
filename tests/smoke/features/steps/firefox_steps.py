@@ -9,7 +9,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
-from app_support import launch_background
+from app_support import launch_background, launch_url, unlock_screen
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -112,6 +112,12 @@ def navigate_firefox_to(context, url) -> None:
 * Press key: "Return" with uinput''')
     sleep(0.3)
     assert url in (_address_bar(context).text or ""), f"Firefox did not navigate to {url!r}"
+
+
+def show_firefox_url(context, url: str) -> None:
+    """Launch Firefox directly at ``url`` for an end-of-run screenshot."""
+    unlock_screen()
+    context.firefox_launch_target = launch_url(FIREFOX_LAUNCH_TARGETS, url)
 
 
 @step('Firefox has "{number}" tabs')

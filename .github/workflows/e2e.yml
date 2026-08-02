@@ -1286,10 +1286,19 @@ jobs:
         id: desktop-screenshot
         continue-on-error: true
         run: |
-          # GUI suites produce a fastfetch screenshot in after_all; the lifecycle
-          # suite produces a post-upgrade screenshot or a post-migration screenshot.
-          # Find whichever is present (prefer migration > upgrade > fastfetch).
-          SHOT=$(find results/ \( -name "screenshot-post-migration.png" -o -name "screenshot_*upgrade*.png" -o -name "screenshot_*fastfetch*.png" \) 2>/dev/null | head -1)
+          # GUI suites produce a fastfetch screenshot in after_all; smoke leaves
+          # Firefox open at projectbluefin.io, and lifecycle captures post-upgrade
+          # or post-migration screenshots. Check in priority order instead of
+          # relying on find's unspecified traversal order.
+          SHOT=""
+          for pattern in \
+            "screenshot-post-migration.png" \
+            "screenshot_*upgrade*.png" \
+            "screenshot_*successful_installation*.png" \
+            "screenshot_*fastfetch*.png"; do
+            SHOT=$(find results/ -name "$pattern" -type f -print 2>/dev/null | sort | head -1)
+            [[ -n "$SHOT" ]] && break
+          done
           if [[ -n "$SHOT" ]]; then
             cp "$SHOT" desktop-screenshot.png
             echo "found=true" >> "$GITHUB_OUTPUT"

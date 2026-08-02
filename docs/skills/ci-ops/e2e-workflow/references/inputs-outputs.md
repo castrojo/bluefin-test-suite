@@ -24,7 +24,7 @@ Every e2e run produces a desktop screenshot at end-of-run as visual proof of a w
 
 ### Desktop screenshot — two capture paths
 
-**Primary path (in-VM):** `take_fastfetch_screenshot()` is called in `after_all` for every GUI suite. It uses `gnome-screenshot` or `grim` inside the VM and writes to `results/desktop_screenshot.png`.
+**Primary path (in-VM):** GUI suites use `take_fastfetch_screenshot()` in `after_all`. The smoke suite instead opens Firefox to `https://projectbluefin.io` and requires a screenshot of that final installed-desktop state.
 
 **Fallback path (QEMU monitor screendump):** If no in-VM screenshot lands (behave crashed, container never started, AT-SPI unavailable), `e2e.yml` captures the QEMU VGA framebuffer directly via the monitor socket at `/tmp/qemu-monitor.sock`. QEMU maintains this framebuffer internally even with `-display none` because mutter uses bochs-drm (card1) as the KMS device, which maps to the VGA framebuffer. The screendump is converted PPM→PNG via Python stdlib (`tests/shared/qemu_screendump.py`).
 
@@ -32,7 +32,7 @@ If **both** paths fail (QEMU monitor socket missing or empty framebuffer), the "
 
 ### Desktop screenshot distribution
 
-After the behave suite finishes, `take_fastfetch_screenshot()` is called in `after_all` for every GUI suite. The screenshot is taken in-VM via AT-SPI/Wayland. If `after_all` was not reached (e.g. the runner container failed to start), the GHA runner falls back to a QEMU monitor screendump: `sudo python3 tests/shared/qemu_screendump.py` sends a `screendump` command to `/tmp/qemu-monitor.sock` (opened at QEMU boot) and converts the PPM output to PNG using the Python stdlib. The "Promote desktop screenshot" step fails loud with `::error::` if neither source produces a file — that failure is intentional and means the container never loaded or behave exited before `after_all`.
+After the behave suite finishes, GUI suites call `take_fastfetch_screenshot()` in `after_all`; the smoke suite replaces that terminal with Firefox at `https://projectbluefin.io` before capturing its final state. The screenshot is taken in-VM via AT-SPI/Wayland. If `after_all` was not reached (e.g. the runner container failed to start), the GHA runner falls back to a QEMU monitor screendump: `sudo python3 tests/shared/qemu_screendump.py` sends a `screendump` command to `/tmp/qemu-monitor.sock` (opened at QEMU boot) and converts the PPM output to PNG using the Python stdlib. The "Promote desktop screenshot" step fails loud with `::error::` if neither source produces a file — that failure is intentional and means the container never loaded or behave exited before `after_all`.
 
 The screenshot is:
 

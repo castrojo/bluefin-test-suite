@@ -3,8 +3,8 @@
 
 Counts scenarios by parsing .feature files under tests/*/features/ at publish
 time. A scenario is quarantined when tagged @quarantine at feature or scenario
-level; @future scenarios are counted separately as stubs. No counts are
-hardcoded, so the badges always reflect the current test content.
+level; @future and @pending scenarios are counted separately as stubs. No
+counts are hardcoded, so the badges always reflect the current test content.
 """
 
 from __future__ import annotations
@@ -102,7 +102,7 @@ def count_scenarios(repo_root: Path) -> dict[str, SuiteCounts]:
                     name=suite, active=0, quarantined=0, future=0
                 )
 
-            if "future" in tags:
+            if "future" in tags or "pending" in tags:
                 suites[suite].future += 1
             elif "quarantine" in tags:
                 suites[suite].quarantined += 1

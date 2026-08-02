@@ -1,4 +1,5 @@
 import os
+import shlex
 import shutil
 import subprocess
 
@@ -120,6 +121,67 @@ def launch_background(targets: tuple[tuple[str, str], ...]) -> str:
                 )
             return f"flatpak:{value}"
     raise AssertionError(f"No launch candidate available from {targets!r}")
+
+
+def launch_url(targets: tuple[tuple[str, str], ...], url: str) -> str:
+    """Launch a browser target directly at ``url`` without AT-SPI interaction."""
+    for kind, value in targets:
+        if kind == "command":
+            if _IN_CONTAINER:
+                if _ssh_run(f"command -v {shlex.quote(value)}").returncode == 0:
+                    _ssh_launch(
+                        f"{shlex.quote(value)} --new-window {shlex.quote(url)}"
+                    )
+                    return f"command:{value}"
+            elif shutil.which(value):
+                subprocess.Popen(
+                    [value, "--new-window", url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                return f"command:{value}"
+        if kind == "flatpak" and _flatpak_available(value):
+            if _IN_CONTAINER:
+                _ssh_launch(
+                    f"flatpak run {shlex.quote(value)} --new-window {shlex.quote(url)}"
+                )
+            else:
+                subprocess.Popen(
+                    ["flatpak", "run", value, "--new-window", url],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            return f"flatpak:{value}"
+    raise AssertionError(f"No browser launch candidate available from {targets!r}")
+
+
+def unlock_screen() -> None:
+    """Unlock GNOME's current session before a final browser capture."""
+    command = (
+        "source /tmp/session.env 2>/dev/null; "
+        "gdbus call --session "
+        "--dest org.gnome.ScreenSaver "
+        "--object-path /org/gnome/ScreenSaver "
+        "--method org.gnome.ScreenSaver.SetActive false"
+    )
+    if _IN_CONTAINER:
+        result = _ssh_run(command)
+    else:
+        result = subprocess.run(
+            [
+                "gdbus", "call", "--session",
+                "--dest", "org.gnome.ScreenSaver",
+                "--object-path", "/org/gnome/ScreenSaver",
+                "--method", "org.gnome.ScreenSaver.SetActive", "false",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Unable to unlock GNOME session: {result.stderr.strip()}"
+        )
 
 
 # AT-SPI action names that represent a primary click in order of preference.
