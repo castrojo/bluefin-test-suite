@@ -110,7 +110,7 @@ The same rule applies to every other non-cone checkout in this repo, including t
 
 
 1. **Resolve matrix** — splits `suites` CSV into a JSON array for the strategy matrix; `smoke` becomes `smoke-a,smoke-b` and `common` becomes `common-a,common-b`
-2. **Checkout testsuite** — non-cone sparse checkout of the explicitly listed paths (`flatpak-app-list.txt`, `tests`, `scripts/check_quarantine_age.py`, `scripts/install-kde-webdriver.sh`) from `<image-org>/testsuite` at `inputs.test_ref`; always `fetch-depth: 0`
+2. **Checkout testsuite** — non-cone sparse checkout of the explicitly listed paths (`flatpak-app-list.txt`, `tests`, `scripts/check_quarantine_age.py`, `scripts/install-kde-webdriver.sh`) from `inputs.test_repository` at `inputs.test_ref`; `test_repository` defaults to `<image-org>/testsuite`, while `manual.yml` passes `github.repository` so fork branches can validate themselves; always `fetch-depth: 0`
 3. **Resolve suite shard** — Python step computes `SUITE_DIR` (physical directory), `FEATURE_ARGS` (specific `.feature` files for shards), and `SCREENSHOT_SUITE` (normalized suite name for GHCR tags)
 4. **Restore/prime Flatpak download cache** — Bluefin GUI suites only; caches a runner-side user Flatpak repo keyed on `flatpak-app-list.txt` hash
 5. **Free disk space** — runs `<readonly-upstream>/remove-unwanted-software@v9`; keeps the 40 GiB `disk.raw` allocation viable on GitHub-hosted runners
@@ -201,6 +201,7 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 - A cache step targets `~/.local/share/containers` or another non-root path even though pulls use `sudo podman`
 - A heredoc delimiter appears at column zero in YAML source
 - `workflow_call` checkout logic starts using `github.ref_name` inside `e2e.yml`
+- A fork-only manual run passes `test_ref` without also selecting the fork through `test_repository`
 - External actions are added with floating tags instead of full SHAs
 - A workflow step invokes a repo script that is not listed in that job's `sparse-checkout` block (cone mode is off — unlisted paths do not exist at runtime)
 - A `sparse-checkout` entry names a bare directory while `sparse-checkout-cone-mode: false` is set and file-level paths are expected
