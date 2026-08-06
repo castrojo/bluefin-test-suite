@@ -21,5 +21,8 @@ def test_e2e_keeps_tailscale_running_with_sufficient_storage():
         Path(__file__).parents[2] / ".github" / "workflows" / "e2e.yml"
     ).read_text()
 
-    assert "fallocate -l 32G disk.raw" in workflow
+    assert "fallocate -l 40G disk.raw" in workflow
     assert "systemd.mask=tailscaled.service" not in workflow
+    assert "idle-delay 0" in workflow
+    assert "lock-enabled false" in workflow
+    assert "pkill -x gnome-initial-setup" not in workflow

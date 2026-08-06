@@ -5,6 +5,10 @@ metadata:
   type: pattern
   audience: agents
   maturity: stable
+  context7-sources:
+    - /GNOME/mutter
+    - /GNOME/gnome-shell
+    - /micheleg/dash-to-dock
 ---
 
 # GNOME Desktop Testing Reference
@@ -71,6 +75,26 @@ source /tmp/session.env 2>/dev/null; gsettings get org.gnome.mutter experimental
 The SSH connection itself does not inherit `DBUS_SESSION_BUS_ADDRESS` or
 `WAYLAND_DISPLAY`; without this prefix, remote session calls can target no bus
 or the wrong user session and produce misleading test failures.
+
+## GNOME Shell extensions and AT-SPI health in smoke
+
+Use the public `org.gnome.Shell.Extensions.GetExtensionInfo` D-Bus method to
+assert an extension is enabled (`state` `1`). If the scenario promises visible
+product behavior, enabled state is only the first diagnostic and must not
+replace a rendering assertion. For Dash-to-Dock v106, recursively traverse the
+public Clutter actor tree for its source-defined `dashtodockContainer` name and
+require the actor to be mapped, visible, allocated, opaque, and slid open. Do
+not inspect the extension's private `stateObj` or `dockManager` object graph.
+
+Bluefin's welcome modal is not GNOME Initial Setup. Poll for its visible `Skip`
+button through AT-SPI after the sandbox is ready and click it. Do not create a
+system-wide `gnome-initial-setup-done` marker or kill GNOME first-run processes;
+those do not target the Bluefin-specific dialog.
+
+For AT-SPI health, ask `org.a11y.Bus.GetAddress` through the smoke suite's
+`_run_host()` helper after sourcing `/tmp/session.env`. A bare subprocess (or
+`pgrep`) can inspect the Fedora runner container rather than the VM GNOME
+session and therefore does not prove the accessibility bus is usable.
 
 ## Overview search entry
 

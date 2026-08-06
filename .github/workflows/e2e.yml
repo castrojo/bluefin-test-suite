@@ -243,7 +243,10 @@ jobs:
         env:
           SUITE_DIR: ${{ steps.shard.outputs.suite_dir }}
         run: |
-          fallocate -l 32G disk.raw
+          # The NVIDIA release candidate used 92% of a 32 GiB disk in run
+          # 30926761425.  A 40 GiB disk leaves roughly 26% free at that same
+          # payload size, preserving the smoke suite's 15% safety floor.
+          fallocate -l 40G disk.raw
 
           # --bootloader was added in bootc ≥0.1.13. Older images (e.g. nvidia:latest
           # built Oct 2025) ship an earlier bootc that rejects the flag. Probe
@@ -955,6 +958,16 @@ jobs:
             gsettings set org.gnome.desktop.interface toolkit-accessibility true \
               && echo 'AT-SPI toolkit-accessibility enabled' \
               || echo 'WARNING: toolkit-accessibility not set (gsettings failed)'
+          "
+
+          # Smoke shards can run long enough for the default idle timer to
+          # lock the session. Disable the lock only in this disposable test
+          # user. The smoke suite dismisses Bluefin's welcome dialog through
+          # its visible Skip control after AT-SPI is ready.
+          $SSH "
+            source /tmp/session.env
+            gsettings set org.gnome.desktop.session idle-delay 0
+            gsettings set org.gnome.desktop.screensaver lock-enabled false
           "
 
           # Re-query AT-SPI bus address after enabling toolkit-accessibility.

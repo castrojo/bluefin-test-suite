@@ -73,6 +73,27 @@ class TestRunningInVm:
             assert system_health_steps._running_in_vm() is False
 
 
+class TestAtSpiBus:
+    def test_queries_the_vm_session_bus(self):
+        with patch.object(
+            system_health_steps,
+            "_run_host",
+            return_value=("('unix:path=/run/user/1000/at-spi/bus_0',)", 0, ""),
+        ) as run_host:
+            system_health_steps.at_spi_accessibility_bus_is_reachable_from_the_gnome_session(None)
+
+        command = run_host.call_args.args[0]
+        assert "source /tmp/session.env" in command
+        assert "org.a11y.Bus.GetAddress" in command
+
+    def test_rejects_an_empty_bus_address(self):
+        import pytest
+
+        with patch.object(system_health_steps, "_run_host", return_value=("('',)", 0, "")), \
+             pytest.raises(AssertionError, match="no Unix address"):
+            system_health_steps.at_spi_accessibility_bus_is_reachable_from_the_gnome_session(None)
+
+
 # ---------------------------------------------------------------------------
 # IGNORED_FAILED_UNITS_IN_VM — set membership
 # ---------------------------------------------------------------------------
