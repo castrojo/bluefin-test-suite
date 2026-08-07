@@ -30,6 +30,19 @@ attempts 15–30: Could not connect: No such file or directory
 4. Require **stable** readiness (two consecutive good checks) so you do not latch onto the outgoing session microseconds before GDM tears it down.
 5. Budget a wall-clock deadline that covers a whole restart cycle (300s), polled — not a bare `sleep` and not a short fixed attempt count.
 
+## Distinguishing "helper is wrong" from "the session never came back"
+
+`gdbus`'s error text tells you which side is at fault:
+
+| gdbus error | What it means |
+|---|---|
+| `Could not connect: No such file or directory` | address IS set, socket absent — GDM restart in progress (or the session never returned) |
+| `Error spawning command line "dbus-launch --autolaunch=..."` | address is **unset/empty** — GIO fell back to autolaunch. This can never work in the test container (no X11, `--close-stderr` hides the reason). A readiness helper that produces this has a bug in its env handling. |
+
+`wait_for_shell()` therefore (a) always sets a non-empty `DBUS_SESSION_BUS_ADDRESS`, (b) short-circuits before spawning `gdbus` when the socket file is absent, and (c) prints a `collect_session_diagnostics()` snapshot — socket presence, `ls -la` of the runtime dir, `loginctl list-sessions`, `systemctl status gdm` — on the first failure, every 15th failure, and once at timeout.
+
+**Read the snapshot before touching this repo:** if the socket never appears and `loginctl` shows no user session for uid 1000 for the whole budget, the replacement autologin session never came back. That is a lane/GDM provisioning problem in `<image-org>/lab` (`run-container-tests.yaml`), not a testsuite bug — no amount of polling in `wait_for_shell.py` can fix it.
+
 **Ruled out, do not re-investigate:** Argo semaphore/concurrency (a solo run failed identically) and "just wait for the session to settle" (the settle probe passed the check and then the socket died immediately after).
 
 ---
