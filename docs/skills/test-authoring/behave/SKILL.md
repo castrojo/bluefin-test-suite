@@ -253,26 +253,17 @@ Two properties make these scenarios survivable in CI, where
 ```ini
 [Context]
 sockets=!wayland;
-devices=all;
-
-[Environment]
-BLUEFIN_TESTSUITE=1
 ```
 
 Parse it (`parse_flatpak_context` in
-`tests/software/features/steps/flatpak_permissions_steps.py`) instead of matching raw
-lines. Comparing whole stripped lines against bare key names (`"filesystems"`) never
-matches `filesystems=home;` and passes falsely — the same class of bug as
-`grep -c ... || echo 0`. Split on the first `=` and compare the key.
+`tests/software/features/steps/flatpak_permissions_steps.py`): split on the first
+`=` and compare the key — matching bare key names against `filesystems=home;`
+never matches and passes falsely.
 
-## Software suite is not wired for shared SSH steps
+## Software suite SSH context
 
-`tests/software/features/environment.py` never sets `context.ssh_key`,
-`context.ssh_user`, or `context.vm_ip`, so `Run SSH command` from
-`tests/shared/ssh_steps.py` raises `AttributeError` there even though the module is
-star-imported. New software-suite steps must go through the suite's own `_flatpak`
-helper (or another helper that builds its own SSH invocation from `SSH_KEY`/`VM_IP`/
-`VM_USER`/`SSH_PORT` env vars), not the shared SSH steps.
+`tests/software/features/environment.py` calls `populate_ssh_context(context)` in
+`before_all` (#718), so the shared `tests/shared/ssh_steps.py` steps work there.
 
 ## `@flatpak_cli` marks image-agnostic software scenarios
 
