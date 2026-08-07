@@ -41,6 +41,7 @@ just list-stubs
 | Knowing when to stop and ask a human | `docs/skills/meta/human-gates/SKILL.md` |
 | Operational commands (manual runs, merge queue, diagnostics) | `docs/runbook.md` |
 | Release-trust / audit posture | `docs/qa-review.md` |
+| Update cadence / promotion-gate design (research #431) | `docs/update-cadence-research.md` |
 
 ## Hard boundaries
 
@@ -49,6 +50,7 @@ just list-stubs
 - **Workflow action references must be pinned.** External `uses:` must be a full commit SHA with a version comment. Never use floating tags.
 - **No WIP PRs.** Open PRs must be ready to merge.
 - Keep open PRs scoped and mergeable; there is no artificial cap on the number of open PRs.
+- **All isolated work happens in `.worktrees/<short-desc>` at the repo root**, branched from `origin/main` — never in `/tmp`, `/var/tmp`, or sibling directories. Every agent that commits gets its own worktree, and must not touch another worktree's branch or working tree. Remove the worktree and prune after the PR merges. See [`docs/skills/ci-ops/contributing/references/branch-and-worktree.md`](docs/skills/ci-ops/contributing/references/branch-and-worktree.md).
 
 ## Mandatory gates before enqueuing any PR
 

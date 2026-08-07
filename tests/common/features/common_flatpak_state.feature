@@ -7,7 +7,9 @@ Feature: Flatpak first-boot state
   Background:
     * Bluefin VM is booted and reachable over SSH
 
-  @quarantine
+  # Pending: /var is not preserved from the OCI build, so /var/lib/flatpak state
+  # (including remotes) is empty on a fresh CI install.
+  @pending
   Scenario: Flathub remote is configured
     * Run SSH command: "flatpak remote-list --columns=name 2>/dev/null | grep -w flathub"
     * SSH command return code is "0"
