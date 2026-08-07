@@ -359,7 +359,9 @@ canonical readiness helper and encodes the resulting contract:
   are **both retryable**, never terminal.
 - The session bus address is **re-resolved on every attempt**
   (`resolve_session_bus_env()`); an address or connection cached before the
-  restart points at a destroyed socket and can never recover.
+  restart points at a destroyed socket and can never recover. The address is
+  never *unset* — an empty `DBUS_SESSION_BUS_ADDRESS` sends `gdbus` down the
+  `dbus-launch --autolaunch` path instead of the real session socket.
 - Readiness must hold for two consecutive checks so a check does not latch onto
   the outgoing session moments before GDM tears it down.
 - The loop is bounded by a 300s wall-clock deadline, and the timeout message

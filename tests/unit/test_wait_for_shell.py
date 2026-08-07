@@ -27,6 +27,11 @@ SERVICE_UNKNOWN = (
     "The name org.gnome.Shell was not provided by any .service files"
 )
 SOCKET_GONE = "Error: Could not connect: No such file or directory"
+AUTOLAUNCH_FAILED = (
+    "Error connecting: Error spawning command line "
+    "\u201cdbus-launch --autolaunch=8041862c --binary-syntax --close-stderr\u201d: "
+    "Child process exited with code 1"
+)
 
 
 def _import_wait_for_shell():
@@ -157,6 +162,10 @@ class TestClassifyError:
     def test_enoent_is_bus_unavailable(self, mod):
         assert mod.classify_error("[Errno 2] ENOENT") == mod.ERR_BUS_UNAVAILABLE
 
+    def test_autolaunch_failure_is_bus_unavailable(self, mod):
+        """Observed in lab run testsuite-727 when no session bus socket exists."""
+        assert mod.classify_error(AUTOLAUNCH_FAILED) == mod.ERR_BUS_UNAVAILABLE
+
     def test_unrelated_error_is_other(self, mod):
         assert mod.classify_error("kaboom") == mod.ERR_OTHER
 
@@ -183,13 +192,24 @@ class TestResolveSessionBusEnv:
             resolved = mod.resolve_session_bus_env(env)
         assert resolved["DBUS_SESSION_BUS_ADDRESS"] == "unix:path=/run/user/1000/bus"
 
-    def test_drops_address_when_no_socket_at_all(self, mod):
-        env = {"DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/stale-bus"}
+    def test_keeps_canonical_path_when_no_socket_exists_yet(self, mod):
+        """Never unset the address mid-restart.
+
+        An unset ``DBUS_SESSION_BUS_ADDRESS`` makes gdbus fall back to
+        ``dbus-launch --autolaunch``, which spawns/attempts a private bus the
+        real session never joins (observed in lab run testsuite-727). Keeping
+        the canonical socket path means the next attempt connects the moment the
+        replacement session creates it.
+        """
+        env = {
+            "XDG_RUNTIME_DIR": "/run/user/1000",
+            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/stale-bus",
+        }
         with patch("os.path.exists", return_value=False), \
              patch("os.path.isdir", return_value=True), \
              patch("os.getuid", return_value=1000):
             resolved = mod.resolve_session_bus_env(env)
-        assert "DBUS_SESSION_BUS_ADDRESS" not in resolved
+        assert resolved["DBUS_SESSION_BUS_ADDRESS"] == "unix:path=/run/user/1000/bus"
 
     def test_defaults_runtime_dir_to_run_user_uid(self, mod):
         with patch("os.path.exists", return_value=False), \

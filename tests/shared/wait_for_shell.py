@@ -55,6 +55,9 @@ _BUS_UNAVAILABLE_MARKERS = (
     "the connection is closed",
     "connection reset by peer",
     "unable to autolaunch",
+    "autolaunch",
+    "dbus-launch",
+    "error connecting",
 )
 
 
@@ -86,6 +89,12 @@ def resolve_session_bus_env(base_env=None) -> dict:
     is unrecoverable. Falls back to ``$XDG_RUNTIME_DIR/bus`` and then to
     ``/run/user/<uid>/bus`` when the inherited address points at a socket that
     no longer exists.
+
+    The address is *always* set, even while no socket exists. Unsetting it makes
+    ``gdbus`` fall back to ``dbus-launch --autolaunch``, which either fails
+    opaquely or spawns a private bus that the real session never joins; keeping
+    the canonical path means the very next attempt connects as soon as the
+    replacement session creates it.
     """
     env = dict(os.environ if base_env is None else base_env)
 
@@ -101,12 +110,13 @@ def resolve_session_bus_env(base_env=None) -> dict:
     address_usable = bool(address) and (socket_path is None or os.path.exists(socket_path))
 
     if not address_usable:
-        for candidate in (os.path.join(runtime_dir, "bus"), os.path.join(default_runtime_dir, "bus")):
+        candidates = [os.path.join(runtime_dir, "bus"), os.path.join(default_runtime_dir, "bus")]
+        for candidate in candidates:
             if os.path.exists(candidate):
                 env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={candidate}"
                 break
         else:
-            env.pop("DBUS_SESSION_BUS_ADDRESS", None)
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={candidates[0]}"
     return env
 
 

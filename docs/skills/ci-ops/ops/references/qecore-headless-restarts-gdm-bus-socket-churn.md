@@ -26,8 +26,9 @@ attempts 15–30: Could not connect: No such file or directory
 
 1. Treat `ServiceUnknown` *and* connection/socket errors (`No such file or directory`, `ENOENT`, connection refused) as retryable. Neither is terminal.
 2. **Re-resolve the session bus address on every attempt.** A connection or `DBUS_SESSION_BUS_ADDRESS` cached before the restart points at a destroyed socket and can never recover. Re-read `DBUS_SESSION_BUS_ADDRESS` / `XDG_RUNTIME_DIR` and fall back to `/run/user/<uid>/bus` each time.
-3. Require **stable** readiness (two consecutive good checks) so you do not latch onto the outgoing session microseconds before GDM tears it down.
-4. Budget a wall-clock deadline that covers a whole restart cycle (300s), polled — not a bare `sleep` and not a short fixed attempt count.
+3. **Never *unset* `DBUS_SESSION_BUS_ADDRESS` while the socket is missing.** With no address, `gdbus` falls back to `dbus-launch --autolaunch`, which fails with `Error connecting: Error spawning command line "dbus-launch --autolaunch=..."` (or worse, spawns a private bus the real session never joins). Observed in lab run `testsuite-727-...-bmlwm`. Keep the canonical `unix:path=$XDG_RUNTIME_DIR/bus` so the next poll connects the instant the replacement session creates it.
+4. Require **stable** readiness (two consecutive good checks) so you do not latch onto the outgoing session microseconds before GDM tears it down.
+5. Budget a wall-clock deadline that covers a whole restart cycle (300s), polled — not a bare `sleep` and not a short fixed attempt count.
 
 **Ruled out, do not re-investigate:** Argo semaphore/concurrency (a solo run failed identically) and "just wait for the session to settle" (the settle probe passed the check and then the socket died immediately after).
 
