@@ -26,7 +26,7 @@ on:
         default: ""
         required: false
       suites:
-        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common,lifecycle,kde-smoke"
+        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common,lifecycle,installer,kde-smoke"
         type: string
         default: "smoke"
       skip_native_apps:
@@ -1190,7 +1190,7 @@ jobs:
             exit 0
           fi
 
-          if [[ "${SUITE_DIR}" == "common" || "${SUITE_DIR}" == "lifecycle" ]]; then
+          if [[ "${SUITE_DIR}" == "common" || "${SUITE_DIR}" == "lifecycle" || "${SUITE_DIR}" == "installer" ]]; then
             python3 -m pip install -q --user behave
             if [[ -n "${FEATURE_ARGS}" ]]; then
               LOCAL_FEATURE_ARGS="${FEATURE_ARGS}"
