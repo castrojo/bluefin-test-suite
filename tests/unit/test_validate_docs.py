@@ -181,6 +181,41 @@ class TestValidateLinks:
         assert vd.ERRORS == []
 
 
+# ── catalog frontmatter helpers ───────────────────────────────────────────────
+
+
+def _catalog_frontmatter(name: str, entry_point: str, desc: str = "A skill") -> str:
+    """Frontmatter satisfying validate_catalog_frontmatter().
+
+    Every field in vd.CATALOG_FIELDS is required, `id` must equal `name`, and
+    `entry_point` must be the file's own path relative to ROOT.
+    """
+    return (
+        "---\n"
+        f"name: {name}\n"
+        f"description: {desc}\n"
+        f"id: {name}\n"
+        "version: 1.0.0\n"
+        "last_updated: 2026-01-01\n"
+        f"one_line_purpose: {desc}\n"
+        f"entry_point: {entry_point}\n"
+        "category: meta\n"
+        "status: active\n"
+        "tags: [testing]\n"
+        "---\n"
+    )
+
+
+def _write_router(tmp_path, name: str = "testsuite-docs") -> None:
+    """Create the docs/SKILL.md router that validate_router() requires."""
+    docs = tmp_path / "docs"
+    docs.mkdir(parents=True, exist_ok=True)
+    (docs / "SKILL.md").write_text(
+        _catalog_frontmatter(name, "docs/SKILL.md", "Doc router") + "# Docs\n",
+        encoding="utf-8",
+    )
+
+
 # ── validate_skill ────────────────────────────────────────────────────────────
 
 
@@ -189,7 +224,9 @@ class TestValidateSkill:
         skill_dir = tmp_path / "docs" / "skills" / name
         skill_dir.mkdir(parents=True)
         p = skill_dir / "SKILL.md"
-        p.write_text(f"---\nname: {name}\ndescription: {desc}\n---\n{body}")
+        p.write_text(
+            _catalog_frontmatter(name, f"docs/skills/{name}/SKILL.md", desc) + body
+        )
         return p
 
     def test_valid_skill_passes(self, tmp_path, monkeypatch):
@@ -258,6 +295,7 @@ class TestMain:
         doc.write_text("# Title\n\nContent.\n")
         monkeypatch.setattr(vd, "collect_md_files", lambda: [doc])
         monkeypatch.setattr(vd, "ROOT", tmp_path)
+        _write_router(tmp_path)
         assert vd.main() == 0
 
     def test_returns_1_on_missing_h1(self, tmp_path, monkeypatch):
@@ -265,6 +303,7 @@ class TestMain:
         doc.write_text("## No H1 here\n")
         monkeypatch.setattr(vd, "collect_md_files", lambda: [doc])
         monkeypatch.setattr(vd, "ROOT", tmp_path)
+        _write_router(tmp_path)
         assert vd.main() == 1
 
     def test_returns_1_on_broken_link(self, tmp_path, monkeypatch):
@@ -272,6 +311,7 @@ class TestMain:
         doc.write_text("# Title\n\n[missing](./nope.md)\n")
         monkeypatch.setattr(vd, "collect_md_files", lambda: [doc])
         monkeypatch.setattr(vd, "ROOT", tmp_path)
+        _write_router(tmp_path)
         assert vd.main() == 1
 
     def test_non_skill_docs_validated_as_general(self, tmp_path, monkeypatch):
@@ -280,6 +320,7 @@ class TestMain:
         doc.write_text("# Contributing\n\nContent.\n")
         monkeypatch.setattr(vd, "collect_md_files", lambda: [doc])
         monkeypatch.setattr(vd, "ROOT", tmp_path)
+        _write_router(tmp_path)
         assert vd.main() == 0
 
     def test_skill_docs_require_frontmatter(self, tmp_path, monkeypatch):
@@ -289,9 +330,29 @@ class TestMain:
         p.write_text("# Title\nNo frontmatter")
         monkeypatch.setattr(vd, "collect_md_files", lambda: [p])
         monkeypatch.setattr(vd, "ROOT", tmp_path)
+        _write_router(tmp_path)
         assert vd.main() == 1
 
     def test_empty_file_list_returns_0(self, tmp_path, monkeypatch):
         monkeypatch.setattr(vd, "collect_md_files", lambda: [])
         monkeypatch.setattr(vd, "ROOT", tmp_path)
+        _write_router(tmp_path)
         assert vd.main() == 0
+
+    def test_missing_docs_skill_router_is_an_error(self, tmp_path, monkeypatch):
+        """docs/SKILL.md is the factory onboarding entry point; absence must fail."""
+        monkeypatch.setattr(vd, "collect_md_files", lambda: [])
+        monkeypatch.setattr(vd, "ROOT", tmp_path)
+        assert vd.main() == 1
+        assert any("docs/SKILL.md is missing" in e for e in vd.ERRORS)
+
+    def test_router_with_incomplete_catalog_frontmatter_is_an_error(
+        self, tmp_path, monkeypatch
+    ):
+        monkeypatch.setattr(vd, "collect_md_files", lambda: [])
+        monkeypatch.setattr(vd, "ROOT", tmp_path)
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        (docs / "SKILL.md").write_text("---\nname: docs\ndescription: d\n---\n# Docs\n")
+        assert vd.main() == 1
+        assert any("frontmatter missing 'entry_point'" in e for e in vd.ERRORS)
