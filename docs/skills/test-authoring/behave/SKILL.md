@@ -121,6 +121,11 @@ run. Surface the failure instead of swallowing it.
 
 ## Common suite `ujust` recipe coverage
 
+Dakota's interactive recipes (`ujust --choose`, `ujust report`) are covered by
+shadowing `fzf`/`gum`/`gh` on `PATH`. Mocks must answer each prompt distinctly and
+assert on the invocation — see
+[references/mocking-interactive-cli.md](references/mocking-interactive-cli.md).
+
 
 Keep SSH-based `ujust` recipe checks in `tests/common/features/common_ujust.feature`.
 Prefer assertions against the wrapper's own output, not the underlying tool's raw
@@ -451,6 +456,7 @@ Load these when you hit the specific topic:
 - [When to use local subprocess instead of SSH in the smoke suite.](references/smoke-vs-ssh.md)
 - [Avoiding duplicate step phrases and AmbiguousStep errors.](references/ambiguous-steps.md)
 - [Flatpak per-app permission coverage via the CLI.](references/flatpak-permissions.md)
+- [Mocking interactive CLI tools (gum, fzf, gh) in ujust coverage.](references/mocking-interactive-cli.md)
 
 ## Sources
 

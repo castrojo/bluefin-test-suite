@@ -41,17 +41,24 @@ def last_command_exits_with_non_zero_status(context) -> None:
 def ujust_choose_mocked_fzf(context, recipe: str) -> None:
     """Run ``ujust --choose`` with a non-interactive fzf mock selecting recipe.
 
-    Creates a fake fzf binary that ignores stdin and arguments, prints the
-    chosen recipe name, and invokes ``ujust --choose`` with it on PATH.
+    Creates a fake fzf binary that ignores stdin and arguments, records that it
+    was consulted, prints the chosen recipe name, and invokes ``ujust --choose``
+    with it on PATH. ``FZF_INVOKED`` and ``CHOOSE_RC`` are echoed so callers can
+    prove the chooser actually went through the mock instead of falling back to
+    a plain recipe listing.
     """
     mock_dir = "/tmp/fake-fzf-bin"
     recipe_quoted = shlex.quote(recipe)
     script = (
         f"mkdir -p {mock_dir} && "
-        f"printf '#!/bin/sh\ncat >/dev/null\necho %s\n' {recipe_quoted} "
-        f"> {mock_dir}/fzf && "
+        f"rm -f {mock_dir}/invoked && "
+        f"printf '#!/bin/sh\ncat >/dev/null\ntouch {mock_dir}/invoked\necho %s\n' "
+        f"{recipe_quoted} > {mock_dir}/fzf && "
         f"chmod +x {mock_dir}/fzf && "
-        f"PATH={mock_dir}:$PATH ujust --choose"
+        f"rc=0; PATH={mock_dir}:$PATH ujust --choose || rc=$?; "
+        f"if [ -e {mock_dir}/invoked ]; then echo FZF_INVOKED=1; "
+        f"else echo FZF_INVOKED=0; fi; "
+        f"echo CHOOSE_RC=$rc; exit $rc"
     )
     run_ssh(context, script)
 
@@ -220,7 +227,18 @@ case "$1" in
     exec "$@"
     ;;
   choose)
-    echo "Skip"
+    shift
+    # Drive the real bonedigger-report prompts instead of answering "Skip" to
+    # every chooser, which silently short-circuits main() and exercises nothing.
+    if printf '%s\n' "$*" | grep -q -- "--no-limit"; then
+      echo "Update / boot"
+    elif printf '%s\n' "$*" | grep -q "Bug report"; then
+      echo "Bug report"
+    elif printf '%s\n' "$*" | grep -q "queue preference"; then
+      echo "No queue preference"
+    else
+      exit 1
+    fi
     exit 0
     ;;
   *) exit 0 ;;
@@ -232,10 +250,42 @@ chmod +x "$mock_dir/gum"
 cat > "$mock_dir/gh" <<'GH_EOF'
 #!/bin/sh
 set -e
+log="$MOCK_GH_LOG"
+printf '%s\n' "$*" >> "$log"
 case "$1" in
   auth) exit 0 ;;
   gist)
+    # Assert on the actual invocation: bonedigger-report calls
+    # `gh gist create --public --desc <text> <file>...`. Accepting every
+    # `gh gist` call proves nothing about what would be uploaded.
+    [ "$2" = "create" ] || { echo "unexpected gist subcommand: $2" >&2; exit 1; }
+    saw_desc=0
+    files=0
+    shift 2
+    while [ "$#" -gt 0 ]; do
+      case "$1" in
+        --public|--public=*) ;;
+        --desc) saw_desc=1; shift ;;
+        --desc=*) saw_desc=1 ;;
+        -*) echo "unexpected gist flag: $1" >&2; exit 1 ;;
+        *)
+          [ -f "$1" ] || { echo "gist file missing: $1" >&2; exit 1; }
+          files=$((files + 1))
+          ;;
+      esac
+      shift
+    done
+    [ "$saw_desc" = "1" ] || { echo "gist create without --desc" >&2; exit 1; }
+    [ "$files" -gt 0 ] || { echo "gist create without files" >&2; exit 1; }
+    echo "MOCK_GH_GIST_OK=1" >> "$log"
     echo "https://gist.github.com/ujust-test/dakota-report-913-940"
+    exit 0
+    ;;
+  issue)
+    # Never reach the network: assert the shape and return a fake URL.
+    [ "$2" = "create" ] || { echo "unexpected issue subcommand: $2" >&2; exit 1; }
+    echo "MOCK_GH_ISSUE_OK=1" >> "$log"
+    echo "https://github.com/projectbluefin/dakota/issues/999999"
     exit 0
     ;;
   *) exit 1 ;;
@@ -258,6 +308,9 @@ GLOW_EOF
 chmod +x "$mock_dir/glow"
 
 export PATH="$mock_dir:$PATH"
+MOCK_GH_LOG="$mock_dir/gh.log"
+export MOCK_GH_LOG
+: > "$MOCK_GH_LOG"
 LOCAL_REPORT_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/ujust-report/last"
 rm -rf "$LOCAL_REPORT_DIR"
 
@@ -275,6 +328,18 @@ else
     echo 'MOCK_REPORT_JOURNAL_OK=0'
 fi
 rm -rf "$LOCAL_REPORT_DIR"
+if grep -qx 'MOCK_GH_GIST_OK=1' "$MOCK_GH_LOG"; then
+    echo 'MOCK_GH_GIST_OK=1'
+else
+    echo 'MOCK_GH_GIST_OK=0'
+fi
+if grep -qx 'MOCK_GH_ISSUE_OK=1' "$MOCK_GH_LOG"; then
+    echo 'MOCK_GH_ISSUE_OK=1'
+else
+    echo 'MOCK_GH_ISSUE_OK=0'
+fi
+echo '--- mocked gh invocations ---'
+cat "$MOCK_GH_LOG"
 exit "$rc"
 """
     run_ssh(context, script)

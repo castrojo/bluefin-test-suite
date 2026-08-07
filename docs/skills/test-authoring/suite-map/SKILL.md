@@ -152,7 +152,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 ## Coverage snapshot
 
-500 scenarios across 67 feature files: 390 active, 0 quarantined, 110 `@future`/`@pending`/`@hardware_blocked`
+500 scenarios across 67 feature files: 389 active, 0 quarantined, 111 `@future`/`@pending`/`@hardware_blocked`
 
 (mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679; +4 `@pending` `bctl.feature`
 scenarios added ahead of the design-gated CI infra in #487).
@@ -175,7 +175,7 @@ scenarios added ahead of the design-gated CI infra in #487).
 | smoke | 187 | 143 | 0 | 44 | 39 `@pending` flatpak-permission audits blocked on CI never seeding system Flatpaks; MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks |
 | developer | 23 | 7 | 0 | 16 | 6 brew + 6 ptyxis + 4 bctl now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368) |
 | software | 28 | 20 | 0 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; Flatpak per-app permission management (Flatseal's CLI substrate: `flatpak override` round-trips, install-set permission sweep, portal permission store) active on all images; upstream GNOME Software scenarios are `@future` (#176) |
-| common | 118 | 99 | 0 | 19 | Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions; Dakota `ujust --choose` + `ujust report` regression guards (`@dakota_only`) |
+| common | 118 | 98 | 0 | 20 | Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions; Dakota `ujust --choose` regression guard active (`@dakota_only`); `ujust report` is `@pending` on #706 until a Dakota lab run validates the mocked submit flow |
 
 | vanilla-gnome | 13 | 13 | 0 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 27 | 25 | 0 | 2 | bootc upgrade / rollback / migration; pin + switch are `@future` (pin races the staged-deployment writer; switch needs a valid alternate image ref) |
