@@ -19,6 +19,10 @@ Feature: Bluefin common ujust recipes
     * SSH command return code is "0"
     * SSH command output contains "Manufacturer"
 
+  # Blocked on projectbluefin/common: the recipe declares a `ACTION="prompt"`
+  # parameter but never reads it, so the `gum choose` prompt always runs and
+  # there is no non-interactive entry point to drive from a test.
+  # See docs/skills/test-authoring/behave/SKILL.md and projectbluefin/testsuite#499.
   @pending @wip
   Scenario: ujust toggle-updates flips the automatic update timer
     * Run SSH command: "if systemctl cat -- uupd.timer >/dev/null 2>&1; then TIMER=uupd.timer; else TIMER=rpm-ostreed-automatic.timer; fi; before=$(systemctl is-enabled \"$TIMER\" || true); ujust toggle-updates; after=$(systemctl is-enabled \"$TIMER\" || true); test \"$before\" != \"$after\""
