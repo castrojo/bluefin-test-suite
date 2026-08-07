@@ -99,7 +99,7 @@ class TestRunInVmChecked:
 class TestRestoreInputSources:
     def test_no_op_when_nothing_was_saved(self, ims):
         context = MagicMock(spec=[])
-        with patch.object(ims, "_run_in_vm") as run_in_vm:
+        with patch.object(ims, "_run_in_vm_checked") as run_in_vm:
             ims._restore_input_sources(context)
 
         run_in_vm.assert_not_called()
@@ -111,7 +111,7 @@ class TestRestoreInputSources:
             "current": "uint32 0",
             "_restored": True,
         }
-        with patch.object(ims, "_run_in_vm") as run_in_vm:
+        with patch.object(ims, "_run_in_vm_checked") as run_in_vm:
             ims._restore_input_sources(context)
 
         run_in_vm.assert_not_called()
@@ -123,7 +123,7 @@ class TestRestoreInputSources:
             "current": "uint32 0",
             "_restored": False,
         }
-        with patch.object(ims, "_run_in_vm") as run_in_vm:
+        with patch.object(ims, "_run_in_vm_checked", return_value=("", 0)) as run_in_vm:
             ims._restore_input_sources(context)
 
         commands = [call.args[0] for call in run_in_vm.call_args_list]
@@ -141,7 +141,7 @@ class TestRestoreInputSources:
         context = MagicMock()
         state = {"sources": "s", "current": "c", "_restored": False}
         context._input_methods_original_state = state
-        with patch.object(ims, "_run_in_vm") as run_in_vm:
+        with patch.object(ims, "_run_in_vm_checked", return_value=("", 0)) as run_in_vm:
             ims._restore_input_sources(context)
             ims._restore_input_sources(context)
 
@@ -155,11 +155,51 @@ class TestRestoreInputSources:
             "current": "uint32 1",
             "_restored": False,
         }
-        with patch.object(ims, "_run_in_vm") as run_in_vm:
+        with patch.object(ims, "_run_in_vm_checked", return_value=("", 0)) as run_in_vm:
             ims._restore_input_sources(context)
 
         assert run_in_vm.call_count == 1
         assert "current" in run_in_vm.call_args[0][0]
+
+    def test_failed_restore_raises_and_leaves_state_unrestored(self, ims):
+        """A failed `gsettings set` must not mark the state restored.
+
+        Otherwise the behave cleanup hook becomes a no-op and the mutated
+        input sources leak into every later scenario.
+        """
+        context = MagicMock()
+        state = {"sources": "[('xkb', 'us')]", "current": "uint32 0", "_restored": False}
+        context._input_methods_original_state = state
+        with patch.object(ims, "_run_in_vm_checked", return_value=("boom", 1)):
+            with pytest.raises(AssertionError, match="Failed to restore original input sources"):
+                ims._restore_input_sources(context)
+
+        assert state["_restored"] is False
+
+    def test_cleanup_can_retry_after_a_failed_restore(self, ims):
+        context = MagicMock()
+        state = {"sources": "[('xkb', 'us')]", "current": "uint32 0", "_restored": False}
+        context._input_methods_original_state = state
+        with patch.object(ims, "_run_in_vm_checked", return_value=("boom", 1)):
+            with pytest.raises(AssertionError):
+                ims._restore_input_sources(context)
+
+        with patch.object(ims, "_run_in_vm_checked", return_value=("", 0)) as run_in_vm:
+            ims._restore_input_sources(context)
+
+        assert run_in_vm.call_count == 2
+        assert state["_restored"] is True
+
+    def test_partial_failure_is_reported_and_not_marked_restored(self, ims):
+        context = MagicMock()
+        state = {"sources": "[('xkb', 'us')]", "current": "uint32 0", "_restored": False}
+        context._input_methods_original_state = state
+        results = [("", 0), ("nope", 1)]
+        with patch.object(ims, "_run_in_vm_checked", side_effect=results):
+            with pytest.raises(AssertionError, match="current="):
+                ims._restore_input_sources(context)
+
+        assert state["_restored"] is False
 
 
 class TestPresenceSteps:
@@ -222,6 +262,31 @@ class TestInputSourceAssertions:
         with patch.object(ims, "_run_in_vm_checked", return_value=("uint32 0", 0)):
             with pytest.raises(AssertionError, match="Current input source is not 1"):
                 ims.current_input_source_index_is_1(MagicMock())
+
+    @pytest.mark.parametrize("value", ["uint32 10", "uint32 11", "uint32 21", "uint32 100"])
+    def test_current_index_rejects_indexes_merely_containing_one(self, ims, value):
+        """`uint32 10` must not satisfy an assertion for index 1.
+
+        A substring test for "1" passed for every index whose decimal
+        representation happens to contain the digit, so a failed layout switch
+        looked like a success.
+        """
+        with patch.object(ims, "_run_in_vm_checked", return_value=(value, 0)):
+            with pytest.raises(AssertionError, match="Current input source is not 1"):
+                ims.current_input_source_index_is_1(MagicMock())
+
+    def test_current_index_rejects_unparseable_value(self, ims):
+        with patch.object(ims, "_run_in_vm_checked", return_value=("nothing here", 0)):
+            with pytest.raises(AssertionError, match="Current input source is not 1"):
+                ims.current_input_source_index_is_1(MagicMock())
+
+    @pytest.mark.parametrize("value", ["uint32 1", "1", " uint32 1 "])
+    def test_parse_index_reads_gvariant_payload(self, ims, value):
+        assert ims._parse_index(value) == 1
+
+    @pytest.mark.parametrize("value", ["", "uint32", "uint32 1 2", "abc"])
+    def test_parse_index_returns_none_for_garbage(self, ims, value):
+        assert ims._parse_index(value) is None
 
 
 class TestSaveAndMutateSteps:

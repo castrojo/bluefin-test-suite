@@ -70,6 +70,45 @@ nested escaped double quotes around the entire Python expression; those
 escapes can survive into the remote shell and expose Python punctuation to
 shell parsing.
 
+## Assert parsed values, not substrings
+
+`gsettings get` returns GVariant text such as `uint32 1`. `assert "1" in output`
+also matches `uint32 10`, `uint32 11`, and `uint32 100`, so a failed state change
+reads as a pass. Parse the payload and compare it exactly:
+
+```python
+_UINT32_RE = re.compile(r"^(?:uint32\s+)?(\d+)$")
+
+def _parse_index(output: str) -> int | None:
+    match = _UINT32_RE.match(output.strip())
+    return int(match.group(1)) if match else None
+
+assert _parse_index(output) == 1, f"Current input source is not 1: {output}"
+```
+
+An unparseable value must fail, never pass by default.
+
+## Restore hooks must only latch on success
+
+A cleanup helper that saves state and restores it later is normally guarded by a
+`_restored` flag so the explicit step and the `context.add_cleanup` hook do not
+run twice. Set that flag **only after every restore command actually returned 0**:
+
+```python
+failures = []
+for key in ("sources", "current"):
+    output, rc = _run_in_vm_checked(f"gsettings set {schema} {key} {shlex.quote(value)}")
+    if rc != 0:
+        failures.append(f"{key} (rc={rc}): {output}")
+if failures:
+    raise AssertionError("Failed to restore ...: " + "; ".join(failures))
+state["_restored"] = True
+```
+
+Latching the flag on a *failed* command turns the cleanup hook into a no-op: the
+retry never happens and the mutated state leaks into every later scenario in the
+run. Surface the failure instead of swallowing it.
+
 ## Common suite `ujust` recipe coverage
 
 
