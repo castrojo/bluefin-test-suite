@@ -1,5 +1,15 @@
 ---
 name: e2e-workflow
+version: "1.0"
+last_updated: "2026-08-01"
+id: e2e-workflow
+one_line_purpose: Call and debug the reusable testsuite e2e workflow.
+entry_point: docs/skills/ci-ops/e2e-workflow/SKILL.md
+category: ci-ops
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [e2e, workflow, ci, qemu]
 description: "How to call and debug the reusable testsuite e2e workflow. Load when changing e2e.yml, action inputs, or consumer-repo wiring."
 metadata:
   type: pattern
@@ -9,10 +19,9 @@ metadata:
     - /actions/checkout
     - /websites/github_en_actions
 ---
-
 # Reusable E2E Workflow — GNOME in QEMU
 
-Load when: integrating the testsuite into another repo's CI (e.g. `<image-org>/dakota`), debugging e2e workflow failures, or understanding how the QEMU boot pipeline works.
+Load when: integrating the testsuite into another repo's CI (e.g. `projectbluefin/dakota`), debugging e2e workflow failures, or understanding how the QEMU boot pipeline works.
 
 
 ## When to Use
@@ -26,8 +35,8 @@ Load when: integrating the testsuite into another repo's CI (e.g. `<image-org>/d
 
 
 - Writing or debugging behave steps inside `tests/**` — use `behave.md`, `gnome.md`, or `bootc.md`
-- Changing Argo/KubeVirt lab infrastructure — that belongs in `<image-org>/testing-lab`
-- Updating repo-wide contribution policy — use `contributing.md`, `human-gates.md`, or `skill-drift.md`
+- Changing Argo/KubeVirt lab infrastructure — that belongs in `projectbluefin/lab`
+- Updating repo-wide contribution policy — use `contributing.md`, `human-gates.md`, or `skill-improvement.md`
 
 ## Core Process
 
@@ -54,7 +63,7 @@ The ISO workflow requires `iso_url` and `iso_ref`; `variant` is metadata and `ru
 
 ## What it is
 
-`<image-org>/testsuite/.github/workflows/e2e.yml` is a reusable `workflow_call` workflow.  
+`projectbluefin/testsuite/.github/workflows/e2e.yml` is a reusable `workflow_call` workflow.  
 It boots a bootc OCI image in a KVM-accelerated QEMU VM on `ubuntu-latest`, starts a GNOME session (via GDM autologin), and runs behave suites via qecore-headless.
 
 **No self-hosted runners. Pure GitHub Actions.**
@@ -181,12 +190,12 @@ The same rule applies to every other non-cone checkout in this repo, including t
 
 
 1. **Resolve matrix** — splits `suites` CSV into a JSON array for the strategy matrix; `smoke` becomes `smoke-a,smoke-b` and `common` becomes `common-a,common-b`
-2. **Checkout testsuite** — non-cone sparse checkout of the explicitly listed paths (`flatpak-app-list.txt`, `tests`, `scripts/check_quarantine_age.py`, `scripts/install-kde-webdriver.sh`) from `<image-org>/testsuite` at `inputs.test_ref`; always `fetch-depth: 0`
+2. **Checkout testsuite** — non-cone sparse checkout of the explicitly listed paths (`flatpak-app-list.txt`, `tests`, `scripts/check_quarantine_age.py`, `scripts/install-kde-webdriver.sh`) from `projectbluefin/testsuite` at `inputs.test_ref`; always `fetch-depth: 0`
 3. **Resolve suite shard** — Python step computes `SUITE_DIR` (physical directory), `FEATURE_ARGS` (specific `.feature` files for shards), and `SCREENSHOT_SUITE` (normalized suite name for GHCR tags)
 4. **Restore/prime Flatpak download cache** — Bluefin GUI suites only; caches a runner-side user Flatpak repo keyed on `flatpak-app-list.txt` hash
-5. **Free disk space** — runs `<readonly-upstream>/remove-unwanted-software@v9`; keeps the 32 GB `disk.raw` allocation viable on GitHub-hosted runners
+5. **Free disk space** — runs `ublue-os/remove-unwanted-software@v9`; keeps the 32 GB `disk.raw` allocation viable on GitHub-hosted runners
 6. **Enable KVM** — udev rule for `/dev/kvm` access
-7. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `sudo podman pull <image>` and `sudo podman pull ghcr.io/<image-org>/testsuite:runner` run concurrently in background
+7. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `sudo podman pull <image>` and `sudo podman pull ghcr.io/projectbluefin/testsuite:runner` run concurrently in background
 8. **Generate SSH keypair** — creates `ed25519` keypair at `/tmp/vm_key`; public key stored in `VM_PUBKEY` env var
 9. **Install OCI image and configure disk** — combined step that:
    - `fallocate -l 32G disk.raw`
@@ -206,10 +215,10 @@ The same rule applies to every other non-cone checkout in this repo, including t
 15. **Capture boot time** — SSHes in, runs `systemd-analyze time`, appends result to `$GITHUB_STEP_SUMMARY`
 16. **Install cached Flatpaks in VM** — Bluefin GUI suites (non-common/non-lifecycle) only; SCPs a tarred runner-side Flatpak repo into the VM and deploys missing apps with `sudo flatpak install --system --sideload-repo=...`, falling back to Flathub if cache is incomplete
 17. **Install shell tools for common suite** — common suite only; installs `zsh`, `fish`, and brew CLI tools (`fzf`, `bat`, `eza`, `fd`, `ripgrep`, `starship`) via brew (if available) or `rpm-ostree --apply-live` / `dnf` fallback; `brew-setup.service` is masked in CI so these are installed manually
-18. **Load runner container into VM** — non-common suites; ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid`, runs `podman system migrate`, pipes `ghcr.io/<image-org>/testsuite:runner` via `podman save | ssh podman load`; patches `openssh-clients` into the runner image if missing
+18. **Load runner container into VM** — non-common suites; ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid`, runs `podman system migrate`, pipes `ghcr.io/projectbluefin/testsuite:runner` via `podman save | ssh podman load`; patches `openssh-clients` into the runner image if missing
 19. **Install Python test stack** — non-common suites; loads `uinput` kernel module, sets device permissions, copies SSH private key into VM for `@plain_ssh` scenarios, queries GNOME session environment into `/tmp/session.env`, enables `unsafe-mode@bluefin-test` extension, sets `toolkit-accessibility true`, re-queries AT-SPI bus address after enabling accessibility, terminates any pre-started `gnome-control-center`
 20. **Install gnome-ponytail-daemon** — non-common suites; builds `gnome-ponytail-daemon` (tag `0.0.11`) and `grim` from source inside a `debian:bookworm` container on the runner (without libei, uses Mutter D-Bus fallback for input events; wayland-protocols 1.37 built from source for grim); SCPs binaries into `~/.local/libexec/` and `~/.local/bin/`; registers D-Bus service file and pre-starts the daemon
-21. **Run behave suite** — `common`/`lifecycle`: runner-side `python3 tests/shared/behave_retry.py` with `VM_IP/VM_USER/SSH_KEY/SSH_PORT` env vars; GUI suites: SCP `tests/<suite>` + `tests/shared` + `tests/__init__.py` to VM, then `podman run ... ghcr.io/<image-org>/testsuite:runner "python3 .../behave_retry.py ... --format json.pretty"` inside VM; always `--tags ~quarantine`; retries controlled by `BEHAVE_RETRIES=2`
+21. **Run behave suite** — `common`/`lifecycle`: runner-side `python3 tests/shared/behave_retry.py` with `VM_IP/VM_USER/SSH_KEY/SSH_PORT` env vars; GUI suites: SCP `tests/<suite>` + `tests/shared` + `tests/__init__.py` to VM, then `podman run ... ghcr.io/projectbluefin/testsuite:runner "python3 .../behave_retry.py ... --format json.pretty"` inside VM; always `--tags ~quarantine`; retries controlled by `BEHAVE_RETRIES=2`
 22. **Capture post-upgrade desktop screenshot** — lifecycle suite only; SSHes with `ControlMaster=no`, waits up to 60 s for Wayland socket, captures via `gdbus org.gnome.Shell.Eval`
 23. **Capture post-migration screenshot and status** — lifecycle suite only; QEMU framebuffer capture via `qemu_screendump.py` + SSH for `bootc status`, `fastfetch`, `os-release` into `results/migration-status.txt`
 24. **Capture Flatpak screenshots** — when `inputs.screenshot_flatpaks != ''`; runs `screenshot_cli.py` inside the runner container
@@ -247,7 +256,7 @@ The workflow injects the test user, SSH keys, autologin config, and the unsafe-m
 | `vm-serial-log-<artifact-suffix>-<suite>` | QEMU serial console output | 3 days |
 | `e2e-metadata-<suite>` | `e2e-metadata.json` — `{"image":…,"suite":…,"conclusion":…}` for downstream promotion jobs | 1 day |
 
-`<artifact-suffix>` is derived by sanitizing the full image reference (e.g. `ghcr.io/<image-org>/bluefin:testing` → `ghcr.io-projectbluefin-bluefin-testing`), not just the image name.
+`<artifact-suffix>` is derived by sanitizing the full image reference (e.g. `ghcr.io/projectbluefin/bluefin:testing` → `ghcr.io-projectbluefin-bluefin-testing`), not just the image name.
 
 The serial log is always uploaded (even on failure) — it's the primary debug tool when the VM doesn't boot or SSH never comes up.
 
@@ -300,9 +309,9 @@ The `@zstd_chunked` tag gates the final-state migration scenario. It is **skippe
 | `chunked_enabled: false` (default) | `@zstd_chunked` scenarios skip |
 | `chunked_enabled: true` | `@zstd_chunked` scenarios run |
 
-Enable once `ghcr.io/<image-org>/bluefin:latest` ships `tar+zstd` OCI layers. Verify:
+Enable once `ghcr.io/projectbluefin/bluefin:latest` ships `tar+zstd` OCI layers. Verify:
 ```bash
-skopeo inspect --raw docker://ghcr.io/<image-org>/bluefin:latest \
+skopeo inspect --raw docker://ghcr.io/projectbluefin/bluefin:latest \
   | jq '.layers[0].mediaType'
 ```
 
@@ -311,27 +320,27 @@ skopeo inspect --raw docker://ghcr.io/<image-org>/bluefin:latest \
 ## Running migration tests manually
 
 
-Use `migration-test.yml` in `<image-org>/actions` to run only the `@migration` scenario group.
+Use `migration-test.yml` in `projectbluefin/actions` to run only the `@migration` scenario group.
 
-**Go to:** [<image-org>/actions → Actions → bootc Migration Test → Run workflow](https://github.com/<image-org>/actions/actions/workflows/migration-test.yml)
+**Go to:** [projectbluefin/actions → Actions → bootc Migration Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/migration-test.yml)
 
 | Field | Non-LTS | LTS |
 |---|---|---|
-| `source_image` | `ghcr.io/<readonly-upstream>/bluefin:latest` | `ghcr.io/<readonly-upstream>/bluefin-lts:lts` |
-| `migration_target` | _(leave blank)_ | `ghcr.io/<image-org>/bluefin-lts:stable` |
+| `source_image` | `ghcr.io/ublue-os/bluefin:latest` | `ghcr.io/ublue-os/bluefin-lts:lts` |
+| `migration_target` | _(leave blank)_ | `ghcr.io/projectbluefin/bluefin-lts:stable` |
 | `chunked_enabled` | `false` (default) | `false` (default) |
 
 Wire as a consumer post-build gate:
 ```yaml
 migration-test:
   needs: build
-  uses: <image-org>/actions/.github/workflows/migration-test.yml@<ref>
+  uses: projectbluefin/actions/.github/workflows/migration-test.yml@<ref>
   with:
-    source_image: ghcr.io/<readonly-upstream>/bluefin-lts:lts
-    migration_target: ghcr.io/<image-org>/bluefin-lts@${{ needs.build.outputs.digest }}
+    source_image: ghcr.io/ublue-os/bluefin-lts:lts
+    migration_target: ghcr.io/projectbluefin/bluefin-lts@${{ needs.build.outputs.digest }}
 ```
 
-For non-migration lifecycle runs: dispatch `upgrade-test.yml` in `<image-org>/actions`.
+For non-migration lifecycle runs: dispatch `upgrade-test.yml` in `projectbluefin/actions`.
 
 ---
 
@@ -355,11 +364,11 @@ Saved to `results/screenshot_lifecycle_upgrade_final.png` and promoted to the `d
 ## Gating :testing behind a post-build smoke check
 
 
-Every consuming repo has a local `run-testsuite.yml` wrapper that pins the testsuite SHA. **Always call the wrapper — never call `<image-org>/testsuite/.github/workflows/e2e.yml` directly.** Renovate manages the SHA in one place; all callers inherit it automatically.
+Every consuming repo has a local `run-testsuite.yml` wrapper that pins the testsuite SHA. **Always call the wrapper — never call `projectbluefin/testsuite/.github/workflows/e2e.yml` directly.** Renovate manages the SHA in one place; all callers inherit it automatically.
 
 ### `publish_stream_tag: "false"` — the gate input
 
-`<image-org>/actions/.github/workflows/reusable-build.yml` has a `publish_stream_tag` input (default `"true"`). When set to `"false"`, the build pushes only the SHA-tagged image (`:$sha`) and withholds the stream tag (`:testing`, `:stable`). The post-build smoke workflow promotes the stream tag only after smoke passes.
+`projectbluefin/actions/.github/workflows/reusable-build.yml` has a `publish_stream_tag` input (default `"true"`). When set to `"false"`, the build pushes only the SHA-tagged image (`:$sha`) and withholds the stream tag (`:testing`, `:stable`). The post-build smoke workflow promotes the stream tag only after smoke passes.
 
 Set it conditionally in the consuming repo's build workflow:
 ```yaml
@@ -449,17 +458,17 @@ If the `https://projectbluefin.github.io/testsuite/` dashboard shows "No JSONL r
 
 ```bash
 # Trigger smoke runs for each image (each takes ~2h)
-gh workflow run "Manual Test Run" --repo <image-org>/testsuite --ref main \
-  -f image=ghcr.io/<image-org>/bluefin:testing -f suites=smoke
+gh workflow run "Manual Test Run" --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing -f suites=smoke
 
-gh workflow run "Manual Test Run" --repo <image-org>/testsuite --ref main \
-  -f image=ghcr.io/<image-org>/bluefin-lts:testing -f suites=smoke
+gh workflow run "Manual Test Run" --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin-lts:testing -f suites=smoke
 
-gh workflow run "Manual Test Run" --repo <image-org>/testsuite --ref main \
-  -f image=ghcr.io/<image-org>/dakota:testing -f suites=smoke
+gh workflow run "Manual Test Run" --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/dakota:testing -f suites=smoke
 
 # After runs complete, trigger publish immediately (instead of waiting 2h schedule):
-gh workflow run publish-to-pages.yml --repo <image-org>/testsuite
+gh workflow run publish-to-pages.yml --repo projectbluefin/testsuite
 ```
 
 Prerequisites: GHCR cross-repo package write access must be granted first (see above).

@@ -1,0 +1,283 @@
+{
+  "generated_at": "2026-08-07",
+  "schema_version": "1.0",
+  "skills": [
+    {
+      "id": "behave",
+      "name": "behave",
+      "one_line_purpose": "Write behave scenarios and step definitions for testsuite suites.",
+      "entry_point": "docs/skills/test-authoring/behave/SKILL.md",
+      "category": "test-authoring",
+      "status": "active",
+      "tags": [
+        "behave",
+        "bdd",
+        "steps"
+      ],
+      "description": "How to write behave scenarios and step definitions for the testsuite repo. Load when editing .feature files or steps.py.",
+      "version": "1.0",
+      "last_updated": "2026-07-29",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "bootc",
+      "name": "bootc",
+      "one_line_purpose": "Write bootc upgrade, rollback, and migration tests.",
+      "entry_point": "docs/skills/test-authoring/bootc/SKILL.md",
+      "category": "test-authoring",
+      "status": "active",
+      "tags": [
+        "bootc",
+        "lifecycle",
+        "rollback"
+      ],
+      "description": "How to write bootc upgrade, rollback, and migration tests for the testsuite repo. Load when editing bootc-related .feature files or steps.",
+      "version": "1.0",
+      "last_updated": "2026-07-20",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "contributing",
+      "name": "contributing",
+      "one_line_purpose": "Prepare, validate, and land a testsuite pull request.",
+      "entry_point": "docs/skills/ci-ops/contributing/SKILL.md",
+      "category": "ci-ops",
+      "status": "active",
+      "tags": [
+        "contributing",
+        "pr",
+        "merge-queue",
+        "review"
+      ],
+      "description": "How to contribute changes to the testsuite repo. Load when preparing a PR or reviewing contribution mechanics.",
+      "version": "1.0",
+      "last_updated": "2026-07-20",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "dashboard-metrics",
+      "name": "dashboard-metrics",
+      "one_line_purpose": "Read and extend the live testsuite dashboard metrics.",
+      "entry_point": "docs/skills/ci-ops/dashboard-metrics/SKILL.md",
+      "category": "ci-ops",
+      "status": "active",
+      "tags": [
+        "dashboard",
+        "metrics",
+        "astro",
+        "telemetry"
+      ],
+      "description": "How to read and contribute to the live test dashboard metrics. Load when updating metrics collection or interpreting dashboard data.",
+      "version": "1.0",
+      "last_updated": "2026-07-28",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "e2e-workflow",
+      "name": "e2e-workflow",
+      "one_line_purpose": "Call and debug the reusable testsuite e2e workflow.",
+      "entry_point": "docs/skills/ci-ops/e2e-workflow/SKILL.md",
+      "category": "ci-ops",
+      "status": "active",
+      "tags": [
+        "e2e",
+        "workflow",
+        "ci",
+        "qemu"
+      ],
+      "description": "How to call and debug the reusable testsuite e2e workflow. Load when changing e2e.yml, action inputs, or consumer-repo wiring.",
+      "version": "1.0",
+      "last_updated": "2026-08-01",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "flatpak-screenshots",
+      "name": "flatpak-screenshots",
+      "one_line_purpose": "Request and retrieve Flatpak app screenshots from the e2e workflow.",
+      "entry_point": "docs/skills/flatpak-screenshots/SKILL.md",
+      "category": "test-authoring",
+      "status": "active",
+      "tags": [
+        "flatpak",
+        "screenshots",
+        "oras"
+      ],
+      "description": "How to request and retrieve Flatpak app screenshots from the e2e workflow. Load when configuring screenshot_flatpaks or writing release workflows that consume screenshots.",
+      "version": "1.0",
+      "last_updated": "2026-07-20",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "gnome",
+      "name": "gnome",
+      "one_line_purpose": "Write GNOME Shell, AT-SPI, and dogtail interaction tests.",
+      "entry_point": "docs/skills/test-authoring/gnome/SKILL.md",
+      "category": "test-authoring",
+      "status": "active",
+      "tags": [
+        "gnome",
+        "atspi",
+        "dogtail"
+      ],
+      "description": "How to write GNOME Shell / AT-SPI / dogtail tests for the testsuite repo. Load when editing GNOME interaction steps.",
+      "version": "1.0",
+      "last_updated": "2026-07-29",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "human-gates",
+      "name": "human-gates",
+      "one_line_purpose": "Decide when to stop for Design, Security, Breakage, or Merge review.",
+      "entry_point": "docs/skills/meta/human-gates/SKILL.md",
+      "category": "meta",
+      "status": "active",
+      "tags": [
+        "gates",
+        "governance",
+        "escalation"
+      ],
+      "description": "When to stop and ask a human for input. Use when a PR is ready to merge, when changing CI interfaces or secrets, when a change may break consumers, or before any upstream write.",
+      "version": "1.0",
+      "last_updated": "2026-07-29",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "kde",
+      "name": "kde",
+      "one_line_purpose": "Write KDE Plasma e2e tests with selenium-webdriver-at-spi and CDP.",
+      "entry_point": "docs/skills/test-authoring/kde/SKILL.md",
+      "category": "test-authoring",
+      "status": "active",
+      "tags": [
+        "kde",
+        "plasma",
+        "webdriver"
+      ],
+      "description": "How to write KDE/Plasma e2e tests with selenium-webdriver-at-spi and raw CDP for Steam Gamescope. Use when authoring KDE tests, setting up the KDE runner image, or deciding where inputsynth must live.",
+      "version": "1.0",
+      "last_updated": "2026-07-28",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "ops",
+      "name": "ops",
+      "one_line_purpose": "Diagnose lab and CI failure signatures for testsuite runs.",
+      "entry_point": "docs/skills/ci-ops/ops/SKILL.md",
+      "category": "ci-ops",
+      "status": "active",
+      "tags": [
+        "ops",
+        "lab",
+        "debugging",
+        "gdm",
+        "argo"
+      ],
+      "description": "Operational gotchas and failure signatures for the testsuite lab/CI setup. Load when debugging e2e failures, GDM, oomd, Argo, or runner issues.",
+      "version": "1.0",
+      "last_updated": "2026-07-29",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "quarantine-age",
+      "name": "quarantine-age",
+      "one_line_purpose": "Apply quarantine expiry policy to stale scenarios.",
+      "entry_point": "docs/skills/test-authoring/quarantine-age/SKILL.md",
+      "category": "test-authoring",
+      "status": "active",
+      "tags": [
+        "quarantine",
+        "policy",
+        "flaky"
+      ],
+      "description": "Quarantine policy and age limits for stale tests. Load when deciding whether to quarantine, unquarantine, or remove a scenario.",
+      "version": "1.0",
+      "last_updated": "2026-07-20",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "skill-improvement",
+      "name": "skill-improvement",
+      "one_line_purpose": "Capture durable agent learnings in maintained skill docs.",
+      "entry_point": "docs/skills/meta/skill-improvement/SKILL.md",
+      "category": "meta",
+      "status": "active",
+      "tags": [
+        "skills",
+        "learning",
+        "factory"
+      ],
+      "description": "The self-improvement loop: when and how to write a skill update for a code change. Load when you changed tests, workflows, actions, or scripts.",
+      "version": "1.0",
+      "last_updated": "2026-07-20",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "suite-map",
+      "name": "suite-map",
+      "one_line_purpose": "Read the authoritative coverage matrix and @future gap list.",
+      "entry_point": "docs/skills/test-authoring/suite-map/SKILL.md",
+      "category": "test-authoring",
+      "status": "active",
+      "tags": [
+        "coverage",
+        "suites",
+        "matrix"
+      ],
+      "description": "Authoritative coverage matrix and @future gap list. Load during planning, coverage reviews, or when adding a new suite.",
+      "version": "1.0",
+      "last_updated": "2026-07-29",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "triage",
+      "name": "triage",
+      "one_line_purpose": "Triage testsuite issues and pull requests with the canonical label workflow.",
+      "entry_point": "docs/skills/meta/triage/SKILL.md",
+      "category": "meta",
+      "status": "active",
+      "tags": [
+        "triage",
+        "labels",
+        "issues"
+      ],
+      "description": "Issue triage rules and lifecycle labels for this repo. Load when triaging open issues or backlog PRs.",
+      "version": "1.0",
+      "last_updated": "2026-07-20",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "uefi-boot",
+      "name": "uefi-boot",
+      "one_line_purpose": "Add or debug UEFI/OVMF reboot test paths.",
+      "entry_point": "docs/skills/test-authoring/uefi-boot/SKILL.md",
+      "category": "test-authoring",
+      "status": "active",
+      "tags": [
+        "uefi",
+        "ovmf",
+        "boot"
+      ],
+      "description": "UEFI/OVMF reboot testing guidance. Load when adding or debugging UEFI boot paths in the e2e workflows.",
+      "version": "1.0",
+      "last_updated": "2026-07-20",
+      "doc_type": "pattern"
+    },
+    {
+      "id": "writing-skills",
+      "name": "writing-skills",
+      "one_line_purpose": "Author or maintain a testsuite skill doc within the size and format rules.",
+      "entry_point": "docs/skills/meta/writing-skills/SKILL.md",
+      "category": "meta",
+      "status": "active",
+      "tags": [
+        "skills",
+        "authoring",
+        "docs"
+      ],
+      "description": "How to write, split, and review docs/skills/ files in testsuite. Load when creating, editing, or deleting a skill.",
+      "version": "1.0",
+      "last_updated": "2026-07-20",
+      "doc_type": "meta"
+    }
+  ]
+}

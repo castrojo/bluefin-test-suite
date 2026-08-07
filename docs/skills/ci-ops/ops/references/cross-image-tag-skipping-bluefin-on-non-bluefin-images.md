@@ -16,7 +16,7 @@ non-bluefin image (e.g. dakota). This is implemented via `_is_bluefin_image()` i
 
 **Pitfall**: match the image *name*, not the full URL. The org name `projectbluefin`
 contains `"bluefin"`, so naively checking `"bluefin" in image_url.lower()` returns
-`True` for `ghcr.io/<image-org>/dakota:testing`.
+`True` for `ghcr.io/projectbluefin/dakota:testing`.
 
 Correct pattern:
 
