@@ -75,7 +75,7 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_xwayland_steps.py` | `_xwayland_display_env` `pgrep` parsing, xprop/glxgears step branches |
 | `test_install_kde_webdriver.py` | `scripts/install-kde-webdriver.sh` executed in a sandbox: pinned-SHA checkout ref, loopback-only unit bind posture, skip branches short-circuit |
 | `test_validate_docs.py` | `scripts/validate_docs.py` frontmatter parsing, heading levels, and link/skill validation |
-| `test_wait_for_shell.py` | `tests/shared/wait_for_shell.py` retry contract (Shell.Eval failures, missing panel, attempt budget) |
+| `test_wait_for_shell.py` | `tests/shared/wait_for_shell.py` retry contract (Shell.Eval failures, missing panel, GDM-restart bus-socket churn, bus address re-resolution, stable checks, bounded deadline) |
 
 ## Current stub posture
 

@@ -45,7 +45,7 @@ metadata:
 4. Poll for visible widgets or windows; avoid unconditional sleeps when a retry loop can prove readiness.
 5. Validate locally with `python3 -m py_compile tests/<suite>/features/steps/*.py`, duplicate-step detection, `ruff`, and `behave --dry-run`.
 
-`tests.shared.wait_for_shell.wait_for_shell()` is the GNOME Shell startup gate. Its contract is: retry Shell.Eval failures, retry when AT-SPI exposes no panel yet, retry on transient exceptions, then fail hard after the attempt budget is exhausted.
+`tests.shared.wait_for_shell.wait_for_shell()` is the GNOME Shell startup gate. Its contract is: retry Shell.Eval failures, retry when AT-SPI exposes no panel yet, retry on transient exceptions, retry when the session bus socket disappears during a GDM restart (re-resolving the bus address each attempt), require consecutive stable checks, then fail with a per-error-class breakdown once the wall-clock budget is exhausted.
 
 ## Stack
 
@@ -376,6 +376,7 @@ The pattern `for _ in range(N): ... sleep(X)` that returns early already IS exit
 - `_<app>_app()` helper does a single-pass lookup with no retry loop — will flake on GNOME 50 QEMU
 - A `_<app>_window()` helper accepts `roleName "filler"` without checking that the node has descendants (false pass)
 - A GUI app that renders its own chrome is launched without `GNOME_ACCESSIBILITY=1`
+- A session-readiness loop caches the D-Bus session address or treats a missing bus socket as fatal (breaks across the qecore-headless GDM restart)
 
 ## Verification
 
@@ -413,6 +414,29 @@ The pattern `for _ in range(N): ... sleep(X)` that returns early already IS exit
 - [ ] `grep -h "^@step" tests/<suite>/features/steps/*.py | sort | uniq -d` returns no duplicates
 - [ ] `ruff check tests/ --select E,F,W --ignore E501` passes
 - [ ] `behave --dry-run tests/<suite>/features/` passes for the touched suite
+
+## Session readiness across a GDM restart
+
+
+`qecore-headless` restarts GDM, which destroys the session D-Bus socket and
+brings up a fresh autologin session. `tests/shared/wait_for_shell.py` is the
+canonical readiness helper and encodes the resulting contract:
+
+- `ServiceUnknown` (bus up, `org.gnome.Shell` unowned) and
+  `Could not connect: No such file or directory` (socket gone, GDM restarting)
+  are **both retryable**, never terminal.
+- The session bus address is **re-resolved on every attempt**
+  (`resolve_session_bus_env()`); an address or connection cached before the
+  restart points at a destroyed socket and can never recover. The address is
+  never *unset* — an empty `DBUS_SESSION_BUS_ADDRESS` sends `gdbus` down the
+  `dbus-launch --autolaunch` path instead of the real session socket.
+- Readiness must hold for two consecutive checks so a check does not latch onto
+  the outgoing session moments before GDM tears it down.
+- The loop is bounded by a 300s wall-clock deadline, and the timeout message
+  reports a per-error-class attempt breakdown plus the last error.
+
+Reuse this helper rather than writing a new `gdbus`-poll loop. See
+`docs/skills/ci-ops/ops/references/qecore-headless-restarts-gdm-bus-socket-churn.md`.
 
 ## On-demand references
 
