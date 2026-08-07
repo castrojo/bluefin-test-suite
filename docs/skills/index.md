@@ -21,6 +21,7 @@ metadata:
 8. **Fedora 41 for test container** — qecore/dogtail/GObject stack runs in `registry.fedoraproject.org/fedora:41`.
 9. **Dry-run before push** — run `behave --dry-run tests/<suite>/features` after touching `.feature` files.
 10. **Update skills in the same PR** — any code change that surfaces a convention must update the matching skill file.
+11. **Isolated work lives in `.worktrees/<short-desc>`** — branch from `origin/main` at the repo root; never `/tmp`, `/var/tmp`, or sibling directories, and never touch another worktree's branch or working tree. See `ci-ops/contributing/references/branch-and-worktree.md`.
 
 ## Load on demand
 
