@@ -20,9 +20,15 @@ def _import_module():
     sys.modules["qecore"] = qecore_stub
     sys.modules["qecore.common_steps"] = qecore_common_stub
 
+    # An earlier test module may have registered "tests.shared" as a plain
+    # module; steps.py imports tests.shared.ssh_config, which needs the real
+    # package, so drop any stand-in before importing.
+    if not hasattr(sys.modules.get("tests.shared"), "__path__"):
+        sys.modules.pop("tests.shared", None)
+    import tests.shared  # noqa: F401,PLC0415 - real package for submodule imports
+
     ssh_steps_stub = types.ModuleType("tests.shared.ssh_steps")
     ssh_steps_stub.__all__ = []
-    sys.modules.setdefault("tests.shared", types.ModuleType("tests.shared"))
     sys.modules["tests.shared.ssh_steps"] = ssh_steps_stub
 
     # steps.py imports smoke app_support (dogtail-dependent); stub it out.
@@ -250,3 +256,75 @@ class TestPermissionStore:
             except AssertionError:
                 return
         raise AssertionError("expected AssertionError when permission store is unavailable")
+
+
+class TestFlatpakCallSignature:
+    """`_flatpak` is `_flatpak(context, args, timeout=...)`.
+
+    Calling it with only the argument list raised TypeError at runtime for
+    every step in this module; the mocks accepted any signature and hid it.
+    """
+
+    def test_override_show_passes_context_first(self):
+        m = _import_module()
+        ctx = MagicMock()
+        with patch.object(m, "_flatpak", return_value=_completed(OVERRIDE_OUTPUT)) as flatpak:
+            m.flatpak_user_override_grants(ctx, "app", "devices", "all")
+
+        assert flatpak.call_args.args[0] is ctx
+        assert flatpak.call_args.args[1] == ["override", "--user", "--show", "app"]
+
+    def test_installed_sweep_passes_context_first(self):
+        m = _import_module()
+        ctx = MagicMock()
+        with patch.object(m, "_flatpak", return_value=_completed("")) as flatpak:
+            m.every_installed_app_exposes_permissions(ctx)
+
+        assert flatpak.call_args.args[0] is ctx
+
+    def test_permission_store_passes_context_first(self):
+        m = _import_module()
+        ctx = MagicMock()
+        with patch.object(m, "_flatpak", return_value=_completed("")) as flatpak:
+            m.flatpak_portal_permission_store_is_queryable(ctx)
+
+        assert flatpak.call_args.args[0] is ctx
+
+    def test_steps_are_callable_against_the_real_flatpak_signature(self):
+        """Bind the real `_flatpak` signature so an arity error cannot hide."""
+        import inspect  # noqa: PLC0415
+
+        m = _import_module()
+        signature = inspect.signature(m._flatpak)
+        recorded = []
+
+        def fake(*args, **kwargs):
+            signature.bind(*args, **kwargs)
+            recorded.append(args)
+            return _completed(OVERRIDE_OUTPUT)
+
+        with patch.object(m, "_flatpak", side_effect=fake):
+            m.flatpak_user_override_grants(MagicMock(), "app", "devices", "all")
+            m.flatpak_portal_permission_store_is_queryable(MagicMock())
+
+        assert len(recorded) == 2
+
+
+class TestResetProbeOverrides:
+    def test_resets_the_synthetic_probe_id(self):
+        m = _import_module()
+        ctx = MagicMock()
+        with patch.object(m, "_flatpak", return_value=_completed("")) as flatpak:
+            m.reset_probe_overrides(ctx)
+
+        assert flatpak.call_args.args[0] is ctx
+        assert flatpak.call_args.args[1] == [
+            "override", "--user", "--reset", m.PROBE_APP_ID,
+        ]
+
+    def test_probe_id_matches_the_feature_file(self):
+        import pathlib  # noqa: PLC0415
+
+        m = _import_module()
+        feature = pathlib.Path("tests/software/features/flatpak_permissions_mgmt.feature").read_text()
+        assert m.PROBE_APP_ID in feature

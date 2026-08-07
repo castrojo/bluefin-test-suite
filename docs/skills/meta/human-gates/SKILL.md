@@ -1,12 +1,21 @@
 ---
 name: human-gates
+version: "1.0"
+last_updated: "2026-07-29"
+id: human-gates
+one_line_purpose: Decide when to stop for Design, Security, Breakage, or Merge review.
+entry_point: docs/skills/meta/human-gates/SKILL.md
+category: meta
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [gates, governance, escalation]
 description: "When to stop and ask a human for input. Use when a PR is ready to merge, when changing CI interfaces or secrets, when a change may break consumers, or before any upstream write."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Human Decision Gates
 
 Four situations require stopping and requesting human input. Never guess past them.
@@ -14,7 +23,7 @@ Four situations require stopping and requesting human input. Never guess past th
 | Gate | Stop when |
 |---|---|
 | **Design** | Architecture change, new test infrastructure, user-visible CI behavior change, changing what suites an image runs |
-| **Security** | Secrets in CI, cosign/signing changes, any `<readonly-upstream>/*` interaction, any KDE property interaction beyond read-only, COPR sources in runner |
+| **Security** | Secrets in CI, cosign/signing changes, any `ublue-os/*` interaction, any KDE property interaction beyond read-only, COPR sources in runner |
 | **Breakage** | Removing or renaming a reusable workflow input that consuming repos depend on (e2e.yml inputs, action inputs) |
 | **Merge** | PR is ready — requires GHA CI green + human approval; the `ghost-lab` lab gate is a no-op, do not wait for it (see below) |
 
@@ -52,7 +61,7 @@ Stop before acting on any of these:
 
 Stop before acting on any of these:
 
-- Removing an input from `e2e.yml` that `<image-org>/bluefin`, `<image-org>/actions`, or other repos pass in their workflows
+- Removing an input from `e2e.yml` that `projectbluefin/bluefin`, `projectbluefin/actions`, or other repos pass in their workflows
 - Renaming the `suites` input or changing its format
 - Changing the artifact schema output by `e2e.yml` (artifact names, JSON structure)
 - Modifying the `gnome-e2e` composite action interface
@@ -74,12 +83,12 @@ gh search code "testsuite/.github/workflows/e2e.yml" --repo projectbluefin --jso
 
 **The gate to apply:**
 
-1. GitHub Actions CI green — `Lint & syntax` and `Behave dry-run` (`pr-validate.yml`), `pytest` (`unit-tests.yml`). These are the required status checks on the `main — merge queue` **ruleset**, which also enables the merge queue, squash method, and `ALLGREEN` grouping. `gh api repos/<image-org>/testsuite/branches/main/protection` returning `404 Branch not protected` is expected — the configuration is a ruleset, not legacy branch protection.
+1. GitHub Actions CI green — `Lint & syntax` and `Behave dry-run` (`pr-validate.yml`), `pytest` (`unit-tests.yml`). These are the required status checks on the `main — merge queue` **ruleset**, which also enables the merge queue, squash method, and `ALLGREEN` grouping. `gh api repos/projectbluefin/testsuite/branches/main/protection` returning `404 Branch not protected` is expected — the configuration is a ruleset, not legacy branch protection.
 2. Human approval to merge. Prepare the PR, then ask; do not merge on your own judgement.
 
 Once CI is green and a human has approved, enqueue via:
 ```bash
-gh pr merge <NUMBER> --repo <image-org>/testsuite --squash --auto
+gh pr merge <NUMBER> --repo projectbluefin/testsuite --squash --auto
 ```
 
 The merge queue re-runs the required GHA checks on the merge commit and lands automatically on green. Human `lgtm` is not required for normal test/docs/fix PRs — only for:
@@ -93,7 +102,7 @@ The merge queue re-runs the required GHA checks on the merge commit and lands au
 **How to tell whether the lab gate is live.** The trigger for restoring it is an observed status, never a merged fix:
 
 ```bash
-gh api repos/<image-org>/testsuite/commits/$(gh pr view <N> --repo <image-org>/testsuite --json headRefOid --jq .headRefOid)/status \
+gh api repos/projectbluefin/testsuite/commits/$(gh pr view <N> --repo projectbluefin/testsuite --json headRefOid --jq .headRefOid)/status \
   --jq '.statuses[].context'
 ```
 
@@ -106,7 +115,7 @@ If `ghost-lab` appears, the lab gate is live: go back to "wait for `ghost-lab: s
 ## Upstream namespace prohibition (read-only)
 
 **NEVER** create issues, PRs, comments, forks, or any other programmatic write to any
-`<readonly-upstream>/*` repository. Read-only `gh api` calls are permitted. If a task requires
+`ublue-os/*` repository. Read-only `gh api` calls are permitted. If a task requires
 writing to `ublue-os`, stop and tell the human to report it manually.
 
 ### KDE properties — strictly read-only, no exceptions
@@ -148,7 +157,7 @@ Stop if you catch yourself doing any of these:
 - Merging your own PR without an explicit human approval, or reaching for `--admin` to bypass the queue.
 - Concluding `main` is unprotected because `branches/main/protection` returns 404 — the rules live in a ruleset.
 - Copying live state (PR numbers, dates, current status) into a skill file instead of the tracking issue.
-- Opening an issue, PR, comment, or fork in `<readonly-upstream>/*` or any KDE property "just as a draft".
+- Opening an issue, PR, comment, or fork in `ublue-os/*` or any KDE property "just as a draft".
 - Removing an `e2e.yml` input without searching for callers first.
 
 ## Verification
@@ -156,9 +165,9 @@ Stop if you catch yourself doing any of these:
 Before asking for merge approval, confirm each of these:
 
 ```bash
-gh pr checks <N> --repo <image-org>/testsuite          # Lint & syntax, Behave dry-run, pytest all pass
-gh pr diff  <N> --repo <image-org>/testsuite           # no secrets, no permissions widening, no e2e.yml input removal
-gh api repos/<image-org>/testsuite/commits/$(gh pr view <N> --repo <image-org>/testsuite --json headRefOid --jq .headRefOid)/status \
+gh pr checks <N> --repo projectbluefin/testsuite          # Lint & syntax, Behave dry-run, pytest all pass
+gh pr diff  <N> --repo projectbluefin/testsuite           # no secrets, no permissions widening, no e2e.yml input removal
+gh api repos/projectbluefin/testsuite/commits/$(gh pr view <N> --repo projectbluefin/testsuite --json headRefOid --jq .headRefOid)/status \
   --jq '.statuses[].context'                            # empty = lab gate still dead; `ghost-lab` = restore the lab-first gate
 ```
 

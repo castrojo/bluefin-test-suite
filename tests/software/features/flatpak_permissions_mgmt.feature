@@ -42,12 +42,19 @@ Feature: Flatpak per-app permission management
     * Reset flatpak user overrides for "org.projectbluefin.TestsuitePermissionProbe"
     * Flatpak user override for "org.projectbluefin.TestsuitePermissionProbe" records no permission keys
 
-  @software @flatpak_cli @flatpak_permissions_mgmt
+  @pending @software @flatpak_cli @flatpak_permissions_mgmt
   Scenario: Every installed application exposes a parsable permission set
-    # Passes trivially when no Flatpaks are installed, which is the CI case.
+    # BLOCKED (#706): CI masks flatpak-preinstall.service via KERNEL_ARGS and does not
+    # seed /var/lib/flatpak from the OCI build, so the install set is always empty and
+    # this sweep passes without checking a single application. There is no Flatpak that
+    # is guaranteed present on every image under test, so the scenario is @pending
+    # rather than shipping as an always-green check.
+    # Unblock: seed a known Flatpak into the CI VM, assert on it explicitly, then drop
+    # @pending.
     * Every installed flatpak app exposes a parsable permission set
 
   @software @flatpak_cli @flatpak_permissions_mgmt
   Scenario: Portal permission store backing Flatseal is queryable
     * Flatpak portal permission store is queryable
     * Flatpak permissions table "documents" is queryable
+    * Flatpak documents portal reports a mount point

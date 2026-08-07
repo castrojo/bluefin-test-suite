@@ -15,6 +15,22 @@ except ImportError:  # pytest / direct module import
     from tests.software.features.steps.steps import _flatpak
 
 
+# Synthetic application ID used by every override round-trip in
+# flatpak_permissions_mgmt.feature. It is never installed, so setting and
+# resetting overrides on it cannot clobber real user state.
+PROBE_APP_ID = "org.projectbluefin.TestsuitePermissionProbe"
+
+
+def reset_probe_overrides(context) -> None:
+    """Drop any override the permission-management scenarios installed.
+
+    Called from ``after_scenario`` so a scenario that fails before its trailing
+    reset step cannot leave the synthetic override installed and contaminate
+    retries or later scenarios.
+    """
+    return _flatpak(context, ["override", "--user", "--reset", PROBE_APP_ID], timeout=30)
+
+
 def parse_flatpak_context(text: str) -> dict[str, dict[str, str]]:
     """Parse the keyfile emitted by ``flatpak override --show``.
 
@@ -53,8 +69,8 @@ def override_keys(text: str) -> set[str]:
     }
 
 
-def _user_override_output(app_id: str) -> str:
-    result = _flatpak(["override", "--user", "--show", app_id])
+def _user_override_output(context, app_id: str) -> str:
+    result = _flatpak(context, ["override", "--user", "--show", app_id])
     assert result.returncode == 0, (
         f"flatpak override --user --show {app_id} failed: rc={result.returncode}\n"
         f"stdout={result.stdout}\nstderr={result.stderr}"
@@ -64,7 +80,7 @@ def _user_override_output(app_id: str) -> str:
 
 @step('Flatpak user override for "{app_id}" grants "{key}" value "{value}"')
 def flatpak_user_override_grants(context, app_id: str, key: str, value: str) -> None:
-    output = _user_override_output(app_id)
+    output = _user_override_output(context, app_id)
     values = context_values(output, key)
     assert value in values, (
         f"Expected [Context] {key} to include {value!r} for {app_id}, got {values}\n{output}"
@@ -75,7 +91,7 @@ def flatpak_user_override_grants(context, app_id: str, key: str, value: str) -> 
 def flatpak_user_override_section_sets(
     context, app_id: str, section: str, key: str, value: str
 ) -> None:
-    output = _user_override_output(app_id)
+    output = _user_override_output(context, app_id)
     entries = parse_flatpak_context(output).get(section, {})
     assert entries.get(key) == value, (
         f"Expected [{section}] {key}={value} for {app_id}, "
@@ -85,7 +101,7 @@ def flatpak_user_override_section_sets(
 
 @step('Flatpak user override for "{app_id}" records at least "{count}" permission keys')
 def flatpak_user_override_records_at_least(context, app_id: str, count: str) -> None:
-    output = _user_override_output(app_id)
+    output = _user_override_output(context, app_id)
     keys = override_keys(output)
     assert len(keys) >= int(count), (
         f"Expected at least {count} permission keys for {app_id}, got {sorted(keys)}\n{output}"
@@ -94,7 +110,7 @@ def flatpak_user_override_records_at_least(context, app_id: str, count: str) -> 
 
 @step('Flatpak user override for "{app_id}" records no permission keys')
 def flatpak_user_override_records_none(context, app_id: str) -> None:
-    output = _user_override_output(app_id)
+    output = _user_override_output(context, app_id)
     keys = override_keys(output)
     assert not keys, (
         f"Expected no permission keys for {app_id} after reset, got {sorted(keys)}\n{output}"
@@ -108,7 +124,7 @@ def every_installed_app_exposes_permissions(context) -> None:
     CI masks ``flatpak-preinstall.service`` and does not seed ``/var/lib/flatpak``,
     so an empty install set is an expected, valid outcome here.
     """
-    listing = _flatpak(["list", "--app", "--columns=application"], timeout=30)
+    listing = _flatpak(context, ["list", "--app", "--columns=application"], timeout=30)
     assert listing.returncode == 0, (
         f"flatpak list failed: rc={listing.returncode}\n"
         f"stdout={listing.stdout}\nstderr={listing.stderr}"
@@ -116,7 +132,7 @@ def every_installed_app_exposes_permissions(context) -> None:
     app_ids = [line.strip() for line in listing.stdout.splitlines() if line.strip()]
     failures: list[str] = []
     for app_id in app_ids:
-        result = _flatpak(["info", "--show-permissions", app_id], timeout=30)
+        result = _flatpak(context, ["info", "--show-permissions", app_id], timeout=30)
         if result.returncode != 0:
             failures.append(f"{app_id}: rc={result.returncode} stderr={result.stderr.strip()}")
             continue
@@ -128,7 +144,7 @@ def every_installed_app_exposes_permissions(context) -> None:
 
 @step("Flatpak portal permission store is queryable")
 def flatpak_portal_permission_store_is_queryable(context) -> None:
-    result = _flatpak(["permissions"], timeout=30)
+    result = _flatpak(context, ["permissions"], timeout=30)
     assert result.returncode == 0, (
         f"flatpak permissions failed: rc={result.returncode}\n"
         f"stdout={result.stdout}\nstderr={result.stderr}"

@@ -66,6 +66,27 @@ def _flatpak(context, args: list[str], timeout: int = 10) -> subprocess.Complete
     )
 
 
+def _run_in_session(context, cmd: str, timeout: int = 15) -> subprocess.CompletedProcess:
+    """Run a shell command inside the VM's GNOME session.
+
+    Session-bus calls (portals, gdbus) need `DBUS_SESSION_BUS_ADDRESS`, which
+    the runner container does not have, so the command is forwarded over SSH
+    with `/tmp/session.env` sourced first.
+    """
+    full = f"source /tmp/session.env 2>/dev/null; {cmd}"
+    if _IN_CONTAINER:
+        ssh = resolve_ssh_details(context)
+        return subprocess.run(
+            ["ssh", "-i", ssh["ssh_key"], "-o", "StrictHostKeyChecking=no",
+             "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10",
+             "-p", ssh["ssh_port"], f"{ssh['ssh_user']}@{ssh['vm_ip']}", full],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    return subprocess.run(
+        full, shell=True, capture_output=True, text=True, timeout=timeout,
+    )
+
+
 def _bazaar_app(context=None):
     instance = getattr(getattr(context, "software", None), "instance", None)
     if instance is not None:
@@ -291,12 +312,56 @@ def bazaar_is_no_longer_running(context) -> None:
 
 @step('Flatpak permissions table "{table}" is queryable')
 def flatpak_permissions_table_is_queryable(context, table: str) -> None:
+    """Assert the permission store really serves ``table``.
+
+    `flatpak permissions <table>` exits 0 with *empty* output for a table that
+    does not exist, so the return code proves nothing on its own. Validate the
+    output instead: every emitted row is tab-separated and its first column is
+    the table name, so rows leaking in from another table (or a usage/error
+    banner) are rejected.
+    """
     result = _flatpak(context, ["permissions", table])
-    # rc=0 means success (table exists, possibly empty);
-    # rc=1 with "No permissions" is also a valid empty-table response.
     assert result.returncode == 0 or "No permissions" in result.stdout or "No permissions" in result.stderr, (
         f"flatpak permissions {table!r} failed unexpectedly: "
         f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    rows = [
+        line for line in result.stdout.splitlines()
+        if line.strip() and not line.strip().startswith("No permissions")
+    ]
+    foreign = [
+        row for row in rows
+        if row.split("\t")[0].strip().lower() not in {table.lower(), "table"}
+    ]
+    assert not foreign, (
+        f"flatpak permissions {table!r} emitted rows that do not belong to the "
+        f"{table!r} table: {foreign}\n{result.stdout}"
+    )
+
+
+@step("Flatpak documents portal reports a mount point")
+def flatpak_documents_portal_reports_mount_point(context) -> None:
+    """Prove the documents permission table has a live backing portal.
+
+    An empty `flatpak permissions documents` listing is indistinguishable from
+    a nonexistent table, and a fresh CI VM legitimately has no document grants.
+    `org.freedesktop.portal.Documents.GetMountPoint` is the assertion that
+    actually fails when the portal is absent: it returns the fuse mount path
+    (`/run/user/<uid>/doc`) only when the documents backend is running.
+    """
+    result = _run_in_session(
+        context,
+        "gdbus call --session --dest org.freedesktop.portal.Documents "
+        "--object-path /org/freedesktop/portal/documents "
+        "--method org.freedesktop.portal.Documents.GetMountPoint",
+    )
+    assert result.returncode == 0, (
+        "Could not reach the documents portal: "
+        f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
+    assert "Error:" not in result.stdout and "/doc" in result.stdout, (
+        "org.freedesktop.portal.Documents.GetMountPoint did not return a "
+        f"document portal mount point:\n{result.stdout}\n{result.stderr}"
     )
 
 
@@ -341,13 +406,26 @@ def no_flatpak_user_overrides_exist(context, app_id: str) -> None:
     # No override-specific keys should be present (filesystems, devices, etc.).
     # Override output is a keyfile ("filesystems=home;"), so compare the key part
     # before "=" — comparing whole lines never matches and passes falsely.
-    override_keys = {"filesystems", "devices", "features", "sockets", "shared", "persistent"}
-    present_keys = {
-        line.split("=", 1)[0].strip().lower()
-        for line in result.stdout.splitlines()
-        if "=" in line
-    }
-    found = override_keys & present_keys
+    # `--env=` overrides are recorded under [Environment] with arbitrary key
+    # names, so an allow-list of [Context] keys alone reports "no overrides"
+    # while environment overrides are still live. Any [Environment] entry counts.
+    context_keys = {"filesystems", "devices", "features", "sockets", "shared", "persistent"}
+    section = None
+    found = set()
+    for raw_line in result.stdout.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith(("#", ";")):
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip()
+            continue
+        if "=" not in line:
+            continue
+        key = line.split("=", 1)[0].strip()
+        if section == "Environment":
+            found.add(f"Environment.{key}")
+        elif key.lower() in context_keys:
+            found.add(key.lower())
     assert not found, (
         f"Expected no user overrides for {app_id} after reset, "
         f"but found active override keys: {found}\n{result.stdout}"

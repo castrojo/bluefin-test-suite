@@ -1,12 +1,21 @@
 ---
 name: uefi-boot
+version: "1.0"
+last_updated: "2026-07-20"
+id: uefi-boot
+one_line_purpose: Add or debug UEFI/OVMF reboot test paths.
+entry_point: docs/skills/test-authoring/uefi-boot/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [uefi, ovmf, boot]
 description: "UEFI/OVMF reboot testing guidance. Load when adding or debugging UEFI boot paths in the e2e workflows."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # UEFI Boot via OVMF + systemd-boot
 
 Load when: working on migration tests that require VM reboots, modifying the QEMU boot pipeline, or debugging UEFI/systemd-boot issues in CI.
@@ -110,8 +119,8 @@ Modern bootc/ostree images write Boot Loader Specification (BLS) entries (`/boot
 ## Spike workflow
 
 The spike is implemented in `.github/workflows/spike-uefi-boot.yml`. Run it via Actions → "Spike: UEFI Boot" → Run workflow. It:
-1. Installs `<readonly-upstream>/bluefin:stable` to disk with `--bootloader systemd`
+1. Installs `ublue-os/bluefin:stable` to disk with `--bootloader systemd`
 2. Inspects the ESP and BLS entries (answers spike questions #1-2)
 3. Boots via OVMF pflash (answers questions #3-4)
-4. SSHs in, runs `bootc switch` to `<image-org>/bluefin:stable`
+4. SSHs in, runs `bootc switch` to `projectbluefin/bluefin:stable`
 5. Reboots and confirms the new deployment is active (answers question #5)
