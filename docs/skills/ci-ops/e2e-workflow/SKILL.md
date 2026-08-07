@@ -70,6 +70,22 @@ Rollouts should start with `--grace-days` in CI (currently `--grace-days 30`) so
 `e2e.yml` reuses the same script for job-summary reporting via `python3 scripts/check_quarantine_age.py --json`.
 That summary path is informational only, but it still needs the same prerequisites: the workflow checkout must include `scripts/check_quarantine_age.py`, the `tests/` tree, and full git history (`fetch-depth: 0`) or the age calculations will be incomplete.
 
+## Job-summary scenario counts come from `scripts/e2e_summary.py`
+
+Never derive `passed` by subtraction. `passed = total - failed - skipped` is wrong
+on two counts:
+
+- `results.json` `elements` include **`background`** entries alongside `scenario`
+  entries, so `len(elements)` overstates the scenario total.
+- behave also emits `undefined` and `untested` statuses. Subtraction silently
+  folds both into `passed`, reporting unimplemented steps as successes.
+
+`count_scenarios()` filters to `element["type"] == "scenario"` and counts each of
+`passed`, `failed`, `skipped`, `undefined`, `untested` explicitly; `total` is the
+sum of those five. Because it is consumed by the inline `python3` heredoc in the
+job-summary step, `scripts/e2e_summary.py` must be listed in the non-cone
+`sparse-checkout` block or the import fails at runtime.
+
 ## Sparse checkout is non-cone — every script must be listed explicitly
 
 
@@ -145,7 +161,7 @@ The same rule applies to every other non-cone checkout in this repo, including t
 25. **Capture desktop screenshot (QEMU screendump fallback)** — non-common suites; if no `screenshot_*fastfetch*.png` found in `results/`, captures QEMU VGA framebuffer via `/tmp/qemu-monitor.sock`
 26. **Promote desktop screenshot** — finds best screenshot (`screenshot-post-migration.png` > upgrade > fastfetch); for non-common/non-lifecycle suites, fails loud if no screenshot found
 27. **Push desktop screenshot to GHCR** — pushes `:<short-sha>`, `:<SCREENSHOT_SUITE>-latest`, and `:<image-slug>-<SCREENSHOT_SUITE>-latest` tags; also pushes per-Flatpak gallery tags
-28. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenarios; includes quarantine age summary from `scripts/check_quarantine_age.py --json`; includes screenshot pull commands and gh-pages URL
+28. **Write job summary** — parses `results.json` via `count_scenarios()` from `scripts/e2e_summary.py`, writes pass/fail table + failed scenarios; includes quarantine age summary from `scripts/check_quarantine_age.py --json`; includes screenshot pull commands and gh-pages URL
 29. **Prepare artifact metadata** — writes `results/artifact-metadata.json`; computes `artifact_suffix` by sanitizing the full image reference (not just image name — the full `ghcr.io/org/image:tag` string is sanitized)
 30. **Upload results artifact** — `e2e-results-<artifact-suffix>-<suite>` (30 days); includes `results.json`, `results.txt`, `artifact-metadata.json`, and any screenshots
 31. **Upload serial log artifact** — `vm-serial-log-<artifact-suffix>-<suite>` (3 days)
