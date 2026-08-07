@@ -1,13 +1,13 @@
 # testsuite runbook
 
-Operational commands for `<image-org>/testsuite`. Authoring patterns and skill docs live in `docs/skills/` — load from there.
+Operational commands for `projectbluefin/testsuite`. Authoring patterns and skill docs live in `docs/skills/` — load from there.
 
 ## Ownership boundary
 
 | Area | Owner |
 |---|---|
 | Test suites (`tests/**`), step definitions, shared helpers | testsuite |
-| Workflow templates, manifests, persistent VMs, CronWorkflows, host operations | testing-lab |
+| Workflow templates, manifests, persistent VMs, CronWorkflows, host operations | [`projectbluefin/lab`](https://github.com/projectbluefin/lab) |
 
 If a change touches both repos, split into two PRs.
 
@@ -33,18 +33,18 @@ Use `.github/workflows/manual.yml` for ad hoc image and suite runs on GitHub Act
 
 ```bash
 # Smoke suite (auto-shards into smoke-a + smoke-b)
-gh workflow run manual.yml --repo <image-org>/testsuite --ref main \
-  -f image=ghcr.io/<image-org>/bluefin:testing \
+gh workflow run manual.yml --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing \
   -f suites=smoke
 
 # Common suite (auto-shards into common-a + common-b)
-gh workflow run manual.yml --repo <image-org>/testsuite --ref main \
-  -f image=ghcr.io/<image-org>/bluefin:testing \
+gh workflow run manual.yml --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing \
   -f suites=common
 
 # Multiple suites
-gh workflow run manual.yml --repo <image-org>/testsuite --ref main \
-  -f image=ghcr.io/<image-org>/bluefin:testing \
+gh workflow run manual.yml --repo projectbluefin/testsuite --ref main \
+  -f image=ghcr.io/projectbluefin/bluefin:testing \
   -f suites=smoke,common,vanilla-gnome
 
 # Installer post-boot assertions (SSH-mode, like common/lifecycle)
@@ -59,13 +59,13 @@ gh workflow run iso-manual.yml --repo projectbluefin/testsuite --ref main \
   -f variant=stable
 
 # Check recent runs
-gh run list --repo <image-org>/testsuite --workflow manual.yml --limit 5
+gh run list --repo projectbluefin/testsuite --workflow manual.yml --limit 5
 
 # View a run
-gh run view <RUN_ID> --repo <image-org>/testsuite
+gh run view <RUN_ID> --repo projectbluefin/testsuite
 
 # Tail failing job logs
-gh run view --job=<JOB_ID> --log-failed --repo <image-org>/testsuite
+gh run view --job=<JOB_ID> --log-failed --repo projectbluefin/testsuite
 ```
 
 **Diagnosing failures** — load `docs/skills/ci-ops/ops/SKILL.md` first; the on-demand references cover the most common signatures.
@@ -75,7 +75,7 @@ gh run view --job=<JOB_ID> --log-failed --repo <image-org>/testsuite
 This repo uses a merge queue (ruleset `main — merge queue`). Enqueue with:
 
 ```bash
-gh pr merge <NUMBER> --repo <image-org>/testsuite --squash --auto
+gh pr merge <NUMBER> --repo projectbluefin/testsuite --squash --auto
 ```
 
 Required checks: `Lint & syntax`, `Behave dry-run`, `pytest` — all must be green before enqueueing.
@@ -90,7 +90,7 @@ The `vanilla-gnome` suite runs against an unmodified GNOME OS disk to establish 
 Procedure:
 
 1. Dispatch two manual runs and wait for completion:
-   - Downstream baseline: `image=ghcr.io/<image-org>/bluefin:testing`, `suites=smoke`
+   - Downstream baseline: `image=ghcr.io/projectbluefin/bluefin:testing`, `suites=smoke`
    - GNOME OS baseline: `image=quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest`, `suites=vanilla-gnome`
 2. Compare overlapping scenarios between `smoke` and `vanilla-gnome`.
 3. Flag regressions that fail on the downstream image but pass on vanilla.

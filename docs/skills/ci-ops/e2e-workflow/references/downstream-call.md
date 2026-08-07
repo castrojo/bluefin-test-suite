@@ -16,9 +16,9 @@ metadata:
 # .github/workflows/run-testsuite.yml  (in the consumer repo)
 jobs:
   e2e:
-    uses: <image-org>/testsuite/.github/workflows/e2e.yml@v1
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
     with:
-      image: ghcr.io/<image-org>/bluefin:testing
+      image: ghcr.io/projectbluefin/bluefin:testing
       suites: smoke,common,vanilla-gnome
 ```
 
@@ -28,19 +28,19 @@ Do **not** use a full SHA pin (creates Renovate churn) or `@main` (floating, sec
 
 | Input | Type | Default | Description |
 |-------|------|---------|-------------|
-| `image` | string | `ghcr.io/<image-org>/dakota:latest` | OCI image to test (must be a bootc/ostree image) |
+| `image` | string | `ghcr.io/projectbluefin/dakota:latest` | OCI image to test (must be a bootc/ostree image) |
 | `target-image` | string | `""` | Full OCI ref to upgrade TO (optional). When set and the `lifecycle` suite is running, stages this image via `bootc switch` before the test suite. Used for migration testing. |
-| `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common`. Note: `lifecycle` is also accepted but is not listed in the input description — use `manual.yml` or `<image-org>/actions` wrapper workflows for lifecycle runs. |
+| `suites` | string | `smoke` | Comma-separated suite names: `smoke`, `developer`, `dx`, `software`, `vanilla-gnome`, `bazzite`, `common`. Note: `lifecycle` is also accepted but is not listed in the input description — use `manual.yml` or `projectbluefin/actions` wrapper workflows for lifecycle runs. |
 | `skip_native_apps` | boolean | `false` | When `true`, skips `@native_app` scenarios (Flatpak apps that may not be installed in all variants) |
 | `screenshot_flatpaks` | string | `""` | Comma-separated Flatpak app IDs to launch-and-screenshot after the test run. See [Flatpak screenshot gallery](../../../flatpak-screenshots/SKILL.md) for full details. |
 | `chunked_enabled` | boolean | `false` | When `true`, sets `ZSTD_CHUNKED=true` so `@zstd_chunked` lifecycle scenarios run. Enable once the image ships `tar+zstd` OCI layers. |
-| `test_ref` | string | `main` | `<image-org>/testsuite` ref to check out for test content. Wrapper workflows that start from `workflow_dispatch` should resolve this on the caller side with `${{ github.event.inputs.test_ref || github.ref_name }}`. |
+| `test_ref` | string | `main` | `projectbluefin/testsuite` ref to check out for test content. Wrapper workflows that start from `workflow_dispatch` should resolve this on the caller side with `${{ github.event.inputs.test_ref || github.ref_name }}`. |
 
 Multiple suites run as a matrix (parallel jobs):
 
 ```yaml
 with:
-  image: ghcr.io/<image-org>/myimage:pr-123
+  image: ghcr.io/projectbluefin/myimage:pr-123
   suites: smoke,developer
 ```
 
@@ -78,7 +78,7 @@ if [[ "${SUITE_DIR}" == "common" || "${SUITE_DIR}" == "lifecycle" ]]
   → python3 tests/shared/behave_retry.py ...   (runner-side, SSH via VM_IP/VM_USER env vars)
 else
   → scp tests/ to VM, then
-    podman run --rm ghcr.io/<image-org>/testsuite:runner \
+    podman run --rm ghcr.io/projectbluefin/testsuite:runner \
       "python3 /tmp/bluefin-tests/tests/shared/behave_retry.py ..."  (inside VM)
 ```
 
@@ -88,7 +88,7 @@ After the lifecycle suite finishes, a separate **"Capture post-upgrade desktop s
 
 A **"Capture post-migration screenshot and status"** step also runs (`always()`, `continue-on-error: true`) for the lifecycle suite. It captures the QEMU framebuffer via `tests/shared/qemu_screendump.py` and SSHes in to write `results/migration-status.txt` containing `bootc status`, `fastfetch`, and `os-release` output — useful for confirming the active image ref and OS version after a migration reboot. Both files are included in the `e2e-results-*` artifact.
 
-**Preferred manual trigger:** dispatch `upgrade-test.yml` in `<image-org>/actions` — it calls `e2e.yml` cross-repo (which works). Do NOT dispatch `manual.yml` in this repo for lifecycle runs (see ops.md "manual.yml startup_failure").
+**Preferred manual trigger:** dispatch `upgrade-test.yml` in `projectbluefin/actions` — it calls `e2e.yml` cross-repo (which works). Do NOT dispatch `manual.yml` in this repo for lifecycle runs (see ops.md "manual.yml startup_failure").
 ## test_ref and github.ref_name
 
 **Symptom:** Tests always run from `main` even when dispatching `manual.yml` from a feature branch.
@@ -121,8 +121,8 @@ uses: ./.github/workflows/e2e.yml    # correct
 # uses: ./.github/workflows/e2e.yml@main   # causes startup_failure
 ```
 
-Cross-repo calls (`<image-org>/testsuite/.github/workflows/e2e.yml@<sha>`) work correctly.
+Cross-repo calls (`projectbluefin/testsuite/.github/workflows/e2e.yml@<sha>`) work correctly.
 
-For lifecycle manual runs, dispatch `upgrade-test.yml` in `<image-org>/actions` — it calls `e2e.yml` cross-repo with full lifecycle inputs.
+For lifecycle manual runs, dispatch `upgrade-test.yml` in `projectbluefin/actions` — it calls `e2e.yml` cross-repo with full lifecycle inputs.
 
 ---

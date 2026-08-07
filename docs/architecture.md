@@ -21,6 +21,8 @@ Single source of truth for ownership boundaries, repo relationships, and where d
 | Reusable e2e workflow | `.github/workflows/e2e.yml` |
 | Composite action | `.github/actions/gnome-e2e/` |
 | Agent skill tree | `docs/skills/` |
+| Task → skill router | `docs/SKILL.md` |
+| Generated skill catalog | `docs/skills/index.json` (+ `index.md` mirror) |
 
 ## What belongs elsewhere
 
@@ -30,6 +32,7 @@ Single source of truth for ownership boundaries, repo relationships, and where d
 | Argo WorkflowTemplates / CronWorkflows | [`projectbluefin/lab`](https://github.com/projectbluefin/lab) |
 | Image build definitions | downstream image repos |
 | Promotion / cosign / packaging logic | downstream image repos or shared actions repo |
+| Factory-wide policy (labels, governance, onboarding contract) | [`projectbluefin/common`](https://github.com/projectbluefin/common) — read-only from here |
 
 ## Pull-request split rule
 
@@ -40,4 +43,8 @@ A change that touches both testsuite test content and projectbluefin/lab infrast
 - **Read-only upstream namespace** — never write (issues, PRs, comments, forks) to any read-only upstream. Read-only API calls are allowed.
 - **Workflow pins** — external `uses:` references must be SHA-pinned with a version comment. Floating tags are forbidden.
 - **No WIP PRs** — every open PR must be ready for merge queue.
-- Keep open PRs scoped and mergeable; batch related work without an artificial per-agent cap.
+- **Disjoint file ownership across concurrent PRs** — there is no cap on the
+  number of open PRs. Two open PRs must not modify the same file. Overlap is
+  what causes merge-queue churn and duplicate review; a headcount does not
+  measure it. See `AGENTS.md` for the check.
+- **Merge queue only** — landing requires green CI through the queue.

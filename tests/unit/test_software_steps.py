@@ -4,6 +4,8 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 
 # ---------------------------------------------------------------------------
 # Import helper
@@ -144,6 +146,42 @@ class TestFlatpakRouting:
         assert "/tmp/context-key" in call_args
         assert "2222" in call_args
         assert "ctxuser@10.0.0.9" in call_args
+
+
+class TestFlatpakContextForwarding:
+    @pytest.mark.parametrize(
+        ("step_name", "args", "stdout"),
+        [
+            ("set_flatpak_user_override", ("--filesystem=home", "myapp"), ""),
+            ("reset_flatpak_user_overrides", ("myapp",), ""),
+            ("no_flatpak_user_overrides_exist", ("myapp",), "[Context]\n"),
+            ("flatpak_remote_is_configured", ("flathub",), "flathub\n"),
+            ("flatpak_app_is_installed", ("myapp",), "myapp\n"),
+            ("flatpak_app_is_not_installed", ("myapp",), ""),
+        ],
+    )
+    def test_step_forwards_context_to_flatpak(self, step_name, args, stdout):
+        m = _import_software_steps()
+        ctx = MagicMock()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=stdout)) as flatpak:
+            getattr(m, step_name)(ctx, *args)
+        assert flatpak.call_args.args[0] is ctx
+
+    def test_bazaar_process_probe_forwards_context(self):
+        m = _import_software_steps()
+        ctx = MagicMock()
+        output = "Application\nio.github.kolunmi.Bazaar\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output)) as flatpak:
+            assert m._bazaar_flatpak_is_running(ctx)
+        assert flatpak.call_args.args[0] is ctx
+
+    def test_bazaar_close_wait_forwards_context(self):
+        m = _import_software_steps()
+        ctx = MagicMock()
+        with patch.object(m, "_bazaar_window", side_effect=RuntimeError), \
+             patch.object(m, "_bazaar_flatpak_is_running", return_value=False) as running:
+            m._wait_for_bazaar_to_close(ctx)
+        running.assert_called_once_with(ctx)
 
 
 # ---------------------------------------------------------------------------

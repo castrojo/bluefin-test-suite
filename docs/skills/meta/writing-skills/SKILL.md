@@ -1,12 +1,21 @@
 ---
 name: writing-skills
+version: "1.0"
+last_updated: "2026-07-20"
+id: writing-skills
+one_line_purpose: Author or maintain a testsuite skill doc within the size and format rules.
+entry_point: docs/skills/meta/writing-skills/SKILL.md
+category: meta
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [skills, authoring, docs]
 description: "How to write, split, and review docs/skills/ files in testsuite. Load when creating, editing, or deleting a skill."
 metadata:
   type: meta
   audience: agents
   maturity: stable
 ---
-
 # Writing skills for testsuite
 
 ## When to Use
@@ -23,20 +32,38 @@ metadata:
 
 ## Directory and file naming
 
-- Path: `docs/skills/<name>/SKILL.md`.
-- Directory name must equal the frontmatter `name`.
+- Path: `docs/skills/<category>/<name>/SKILL.md`, where `<category>` is one of
+  `ci-ops`, `test-authoring`, or `meta`.
+- Directory name must equal the frontmatter `name` and `id`.
 - `name`: 1–64 chars, lowercase alphanumerics and hyphens only, no leading/trailing hyphen, no consecutive hyphens.
 - Optional: `references/`, `scripts/`, `assets/` inside the skill directory.
 
-### Manifest exception
+### Router and catalog exceptions
 
-`docs/skills/index.md` is the lazy-load manifest. Its frontmatter `name` may be `testsuite-skills` (or `index`) even though the parent directory is `skills`, because the manifest is loaded by convention, not by directory name. All *task* skills must follow the directory-name rule.
+- `docs/SKILL.md` is the task router required by the factory onboarding
+  contract. It carries the same front-matter schema but lives outside
+  `docs/skills/`.
+- `docs/skills/index.md` and `docs/skills/index.json` are **generated** by
+  `scripts/generate_skill_index.py`. Never hand-edit them.
 
 ## Frontmatter schema
+
+The schema matches `projectbluefin/common`'s catalog contract so factory tooling
+can read either repo. Canonical definition: [`docs/skills/index.schema.json`](../../index.schema.json).
 
 ```yaml
 ---
 name: example
+version: "1.0"
+last_updated: "2026-08-07"
+id: example
+one_line_purpose: Do the one thing this skill exists for.
+entry_point: docs/skills/<category>/example/SKILL.md
+category: ci-ops | test-authoring | meta
+mcp_compliance_level: partial
+status: active | deprecated | reserved
+dependencies: []
+tags: [one, two]
 description: "When to load this skill: trigger, audience, scope."
 metadata:
   type: pattern | reference | meta | manifest
@@ -45,22 +72,38 @@ metadata:
 ---
 ```
 
-Required fields:
-- `name` — matches the parent directory (except the manifest, see above).
-- `description` — ≤1024 chars and must tell the agent *when* to load the file.
+Required fields (enforced by `scripts/validate_docs.py`):
 
-Optional fields (aligned with the Agent Skills open spec):
-- `compatibility` — environment constraints, ≤500 chars.
-- `license` — license name or reference.
-- `metadata` — arbitrary key/value map for repo-local taxonomy (`type`, `audience`, `maturity`).
+| Field | Rule |
+|---|---|
+| `name` | Matches the parent directory. |
+| `id` | Kebab-case; must equal `name`. |
+| `version` | Quoted string, e.g. `"1.0"`. |
+| `last_updated` | `YYYY-MM-DD`. |
+| `one_line_purpose` | ≤120 chars; imperative; distinct from `description`. |
+| `entry_point` | Repo-relative path to this file. |
+| `category` | `ci-ops`, `test-authoring`, or `meta`. |
+| `status` | `active`, `deprecated`, or `reserved`. |
+| `tags` | Non-empty list. |
+| `description` | Tells the agent *when* to load the file. |
 
-Reference files may also include frontmatter with a short `name` and `description`.
+Optional: `mcp_compliance_level`, `dependencies`, `compatibility`, `license`,
+and `metadata` (repo-local taxonomy: `type`, `audience`, `maturity`).
+
+Reference files under `references/` are not catalog entries. They may carry a
+short `name` and `description` only.
+
+After changing any front matter, regenerate the catalog:
+
+```bash
+python3 scripts/generate_skill_index.py
+```
 
 ## Progressive disclosure budgets
 
 | Layer | Max size | What it holds |
 |---|---|---|
-| Manifest (`docs/skills/index.md`) | 2,000 tokens | Hard rules + routing table |
+| Router (`docs/SKILL.md`) | 2,000 tokens | Hard rules + routing table |
 | `SKILL.md` | 5,000 tokens | When to Use / When NOT / Core process / quick examples |
 | `references/<topic>.md` | 2,000 tokens | Deep dive: API quirks, manifests, full examples |
 | Scripts/assets | as needed | Loaded only when the skill instructs it |
@@ -89,15 +132,19 @@ These are hard limits enforced by `scripts/validate_docs.py` in CI.
 
 ## How to delete or merge a skill
 
-- Do not delete without a redirect note in the successor skill or `index.md`.
+- Do not delete without a redirect note in the successor skill or `docs/SKILL.md`.
 - Merge only when two skills share the same trigger and audience.
-- Update `docs/skills/index.md` routing table.
+- Update the `docs/SKILL.md` routing table, then run
+  `python3 scripts/generate_skill_index.py` to refresh the catalog.
 
 ## Review checklist
 
-- [ ] `name` matches the parent directory.
+- [ ] `name` matches the parent directory, and `id` matches `name`.
+- [ ] All catalog fields present; `entry_point` matches the real path.
 - [ ] `description` states *when to load*.
+- [ ] `python3 scripts/generate_skill_index.py --check` passes.
+- [ ] `docs/SKILL.md` routing table lists the skill.
 - [ ] No duplicate H1; no H5+.
 - [ ] Size budgets met.
-- [ ] Project/org strings replaced with `<image-org>` / `<readonly-upstream>` placeholders where appropriate.
+- [ ] Project/org strings replaced with `projectbluefin` / `ublue-os` placeholders where appropriate.
 - [ ] Cross-links use relative paths.
