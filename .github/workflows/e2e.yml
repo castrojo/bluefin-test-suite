@@ -1537,7 +1537,7 @@ jobs:
             python3 - << 'PY'
           import json, os
           import subprocess, json as _json
-          from scripts.e2e_summary import count_scenarios
+          from scripts.e2e_summary import count_scenarios, summary_icon
           data    = json.load(open('results/results.json'))
           counts  = count_scenarios(data)
           passed  = counts['passed']
@@ -1545,9 +1545,12 @@ jobs:
           skipped = counts['skipped']
           undefined = counts['undefined']
           untested = counts['untested']
+          other   = counts['other']
           total   = sum(counts.values())
           suite   = os.environ.get('SUITE', 'smoke')
-          icon    = '✅' if failed == 0 else '❌'
+          # ✅ only when every scenario passed or was intentionally skipped;
+          # ❌ on any failure; ⚠️ for undefined/untested/errored runs.
+          icon    = summary_icon(counts)
 
           lines = [
             f'## {icon} E2E Results — GNOME 50 ({suite})', '',
@@ -1557,6 +1560,7 @@ jobs:
             f'| ⏭️ Skipped | {skipped} |',
             f'| ⚠️ Undefined | {undefined} |',
             f'| ⚪ Untested | {untested} |',
+            f'| 🛑 Error/other | {other} |',
             f'| **Total** | **{total}** |',
           ]
           if failed:

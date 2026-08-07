@@ -81,10 +81,44 @@ on two counts:
   folds both into `passed`, reporting unimplemented steps as successes.
 
 `count_scenarios()` filters to `element["type"] == "scenario"` and counts each of
-`passed`, `failed`, `skipped`, `undefined`, `untested` explicitly; `total` is the
-sum of those five. Because it is consumed by the inline `python3` heredoc in the
-job-summary step, `scripts/e2e_summary.py` must be listed in the non-cone
-`sparse-checkout` block or the import fails at runtime.
+`passed`, `failed`, `skipped`, `undefined`, `untested` explicitly. Because it is
+consumed by the inline `python3` heredoc in the job-summary step,
+`scripts/e2e_summary.py` must be listed in the non-cone `sparse-checkout` block
+or the import fails at runtime.
+
+### Unknown statuses land in `other` — never drop a scenario
+
+behave 1.3.3's `Scenario.compute_status()` can also return **`error`** (any
+errored step) and **`hook_error`** (a failed `before_scenario`/`after_scenario`
+hook). Filtering to a hardcoded status allowlist made those scenarios vanish
+from both the breakdown *and* the total, so a report of five scenarios could
+report `Total: 3`.
+
+`count_scenarios()` therefore counts **every** scenario element exactly once:
+known statuses under their own key, and anything else — `error`, `hook_error`,
+a missing `status` key, or any future behave status — under `other`. The
+invariant is `sum(counts.values()) == number of scenario elements`. Do not
+"fix" a new status by adding it to `SCENARIO_STATUSES` unless you also want it
+as its own summary column; the `other` bucket already guarantees nothing is
+lost. `scripts/assert_kde_passed.py` uses the same bucketing pattern — keep the
+two consistent.
+
+## Headline icon semantics: ✅ means "actually passed"
+
+`failed == 0` is **not** success. An undefined-only, untested-only, or errored
+run has zero failures but proved nothing. `summary_icon()` in
+`scripts/e2e_summary.py` is the single source of truth for the headline:
+
+| Condition | Icon |
+|---|---|
+| any `failed` scenario | ❌ |
+| every counted scenario is `passed` or `skipped` | ✅ |
+| anything else (`undefined`, `untested`, `other`) | ⚠️ |
+
+`skipped` counts as success because `@quarantine`/`@pending`/`@future` scenarios
+are intentionally not run. The job-summary step in `e2e.yml` calls
+`summary_icon(counts)` rather than inlining the comparison, so the rule is unit
+tested in `tests/unit/test_e2e_summary.py` instead of living only in YAML.
 
 ## Sparse checkout is non-cone — every script must be listed explicitly
 
