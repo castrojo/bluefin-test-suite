@@ -393,7 +393,10 @@ def _set_dnd_enabled(expected: bool) -> None:
             )
 
 
-@step('No coredump entries exist for "{name}"')
+# Distinct phrase from tests/shared/ssh_steps.py's local-coredump step — this
+# one checks the host VM over SSH (via _run_host). Sharing the phrase raises
+# AmbiguousStep because ssh_steps is star-imported by offline_boot_steps.
+@step('No coredump entries exist on the host for "{name}"')
 def no_coredump_entries_exist(context, name: str) -> None:
     stdout, returncode, stderr = _run_host(
         f"coredumpctl list {name} --no-pager --lines=10 2>&1 || true"

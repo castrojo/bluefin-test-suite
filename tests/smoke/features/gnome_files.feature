@@ -45,4 +45,4 @@ Feature: GNOME Files smoke tests
 
   @regression @bluefin
   Scenario: No Nautilus coredump after session start
-    * No coredump entries exist for "nautilus"
+    * No coredump entries exist on the host for "nautilus"

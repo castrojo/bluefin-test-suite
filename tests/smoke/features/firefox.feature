@@ -43,4 +43,4 @@ Feature: Firefox smoke tests
 
   @firefox @regression @bluefin
   Scenario: No Firefox coredump after session start
-    * No coredump entries exist for "firefox"
+    * No coredump entries exist on the host for "firefox"

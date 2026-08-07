@@ -28,4 +28,4 @@ Feature: XWayland smoke tests
     * XWayland process appears within 10 seconds
     * Terminate glxgears
     * Wait 2 seconds
-    * No coredump entries exist for "Xwayland"
+    * No coredump entries exist on the host for "Xwayland"

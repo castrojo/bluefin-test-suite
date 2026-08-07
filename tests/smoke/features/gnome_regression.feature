@@ -5,4 +5,4 @@ Feature: GNOME regression checks
 
   @regression @bluefin
   Scenario: No gnome-control-center coredump after session start
-    * No coredump entries exist for "gnome-control-center"
+    * No coredump entries exist on the host for "gnome-control-center"
