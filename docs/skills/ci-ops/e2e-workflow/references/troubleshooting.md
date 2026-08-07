@@ -30,7 +30,7 @@ metadata:
 
 **Root cause:** `gobject-introspection` is not installed in the runner container. Fedora 44 + `--setopt=install_weak_deps=0` skips it even though `python3-gobject` depends on it weakly.
 
-**Fix:** Rebuild the runner container after adding `gobject-introspection` to `container/Containerfile.runner`. Dispatch `build-runner.yml` to push a new `ghcr.io/<image-org>/testsuite:runner`.
+**Fix:** Rebuild the runner container after adding `gobject-introspection` to `container/Containerfile.runner`. Dispatch `build-runner.yml` to push a new `ghcr.io/projectbluefin/testsuite:runner`.
 
 ### qecore-headless exits with "pgrep: command not found"
 

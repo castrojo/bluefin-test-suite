@@ -23,7 +23,7 @@ require qecore-headless or a display.
 The common suite's `environment.py` reads `VM_IP` from env. If behave runs inside
 the VM via qecore-headless (old bug), `VM_IP` is empty and every SSH step fails.
 
-**Fix (applied in testing-lab `a70e1c4`):** `run-gnome-tests.yaml` now has a dedicated
+**Fix (applied in `projectbluefin/lab` `a70e1c4`):** `run-gnome-tests.yaml` now has a dedicated
 `elif [[ "${SUITE}" == "common" ]]` branch that:
 1. Installs behave in the runner container if absent
 2. Exports `VM_IP`, `VM_USER`, `SSH_KEY`

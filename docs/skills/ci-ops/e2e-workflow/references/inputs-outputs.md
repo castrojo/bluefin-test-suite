@@ -42,15 +42,15 @@ The screenshot is:
 
 | Tag | Meaning |
 |-----|---------|
-| `ghcr.io/<image-org>/testsuite/desktop-screenshot:<suite>-latest` | Most recent run for that suite, e.g. `:smoke-latest` |
-| `ghcr.io/<image-org>/testsuite/desktop-screenshot:<slug>-<suite>-latest` | Per-image slug tag, e.g. `bluefin-testing-smoke-latest` — used by publish-to-pages |
-| `ghcr.io/<image-org>/testsuite/desktop-screenshot:<short-sha>` | Immutable per-commit tag |
+| `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<suite>-latest` | Most recent run for that suite, e.g. `:smoke-latest` |
+| `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<slug>-<suite>-latest` | Per-image slug tag, e.g. `bluefin-testing-smoke-latest` — used by publish-to-pages |
+| `ghcr.io/projectbluefin/testsuite/desktop-screenshot:<short-sha>` | Immutable per-commit tag |
 
 **No `:latest` tag is pushed.** `latest` is not a tag used in this repo — do not add it.
 
 Pull the latest screenshot locally:
 ```bash
-oras pull ghcr.io/<image-org>/testsuite/desktop-screenshot:smoke-latest
+oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:smoke-latest
 ```
 
 ### gh-pages screenshot publishing
@@ -63,10 +63,10 @@ The working approach:
 
 1. **`e2e.yml` pushes a slug-specific GHCR tag per run** alongside the existing suite tag:
    ```
-   ghcr.io/<image-org>/testsuite/desktop-screenshot:<slug>-<suite>-latest
+   ghcr.io/projectbluefin/testsuite/desktop-screenshot:<slug>-<suite>-latest
    ```
    Slug derivation: strip `ghcr.io/<org>/` from `inputs.image`, replace `:` with `-`.
-   Example: `ghcr.io/<image-org>/bluefin:testing` → `bluefin-testing-smoke-latest`
+   Example: `ghcr.io/projectbluefin/bluefin:testing` → `bluefin-testing-smoke-latest`
 
    **SCREENSHOT_SUITE normalization:** smoke sharding pushes `SCREENSHOT_SUITE=smoke` for both
    `smoke-a` and `smoke-b`. The GHCR tag is always `{slug}-smoke-latest`, never `{slug}-smoke-a-latest`.
@@ -100,14 +100,14 @@ The historical runs are compiled and indexed natively at `qa.projectbluefin.io` 
 Set `screenshot_flatpaks` to capture per-app screenshots useful for app authors:
 
 ```yaml
-uses: <image-org>/testsuite/.github/workflows/e2e.yml@main
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
 with:
-  image: ghcr.io/<image-org>/bluefin:testing
+  image: ghcr.io/projectbluefin/bluefin:testing
   suites: smoke
   screenshot_flatpaks: "org.gnome.Calculator,io.github.kolunmi.Bazaar"
 ```
 
 Each app is launched, held for 3 seconds, then captured. Results pushed to:
-`ghcr.io/<image-org>/testsuite/desktop-screenshot:flatpak-<slug>-latest`
+`ghcr.io/projectbluefin/testsuite/desktop-screenshot:flatpak-<slug>-latest`
 
 See [`docs/flatpak-screenshots.md`](../../../flatpak-screenshots/SKILL.md) for full documentation.

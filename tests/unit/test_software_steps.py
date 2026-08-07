@@ -25,6 +25,7 @@ def _import_software_steps(in_container: bool = False):
     sys.modules["tests.shared"] = sys.modules.get("tests.shared", types.ModuleType("tests.shared"))
     sys.modules["tests.shared.ssh_steps"] = ssh_steps_stub
 
+
     for key in list(sys.modules):
         if "software.features.steps.steps" in key:
             del sys.modules[key]
@@ -245,6 +246,37 @@ class TestFlatpakUserOverrideIsActive:
 
 
 # ---------------------------------------------------------------------------
+# no_flatpak_user_overrides_exist — keyfile key detection
+# ---------------------------------------------------------------------------
+
+class TestNoFlatpakUserOverridesExist:
+    def test_passes_on_empty_output(self):
+        m = _import_software_steps()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="", rc=0)):
+            m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_raises_when_keyfile_entry_remains(self):
+        m = _import_software_steps()
+        import pytest
+        output = "[Context]\nfilesystems=home;\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            with pytest.raises(AssertionError, match="found active override keys"):
+                m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_bare_section_header_is_not_an_override(self):
+        m = _import_software_steps()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="[Context]\n", rc=0)):
+            m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_raises_on_nonzero_rc(self):
+        m = _import_software_steps()
+        import pytest
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="", rc=1)):
+            with pytest.raises(AssertionError, match="failed"):
+                m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+
+# ---------------------------------------------------------------------------
 # flatpak_app_info_is_queryable — new step
 # ---------------------------------------------------------------------------
 
@@ -309,3 +341,108 @@ class TestFlatpakAppIsFromRemote:
             ctx = MagicMock()
             with pytest.raises(AssertionError, match="failed"):
                 m.flatpak_app_is_from_remote(ctx, "io.github.kolunmi.Bazaar", "flathub")
+
+
+# ---------------------------------------------------------------------------
+# no_flatpak_user_overrides_exist — [Environment] overrides
+# ---------------------------------------------------------------------------
+
+class TestNoFlatpakUserOverridesExistEnvironment:
+    """`flatpak override --env=` is recorded under [Environment].
+
+    An allow-list of [Context] keys alone reported "no overrides exist" while
+    environment overrides were still live on the app.
+    """
+
+    def test_environment_override_is_detected(self):
+        m = _import_software_steps()
+        output = "[Environment]\nBLUEFIN_TESTSUITE=1\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            with pytest.raises(AssertionError, match="Environment.BLUEFIN_TESTSUITE"):
+                m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_environment_override_after_context_section_is_detected(self):
+        m = _import_software_steps()
+        output = "[Context]\n\n[Environment]\nFOO=a=b\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            with pytest.raises(AssertionError, match="Environment.FOO"):
+                m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_bare_environment_header_is_not_an_override(self):
+        m = _import_software_steps()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="[Environment]\n", rc=0)):
+            m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_unknown_context_key_is_ignored(self):
+        m = _import_software_steps()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="[Context]\nunknown=x;\n", rc=0)):
+            m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+
+# ---------------------------------------------------------------------------
+# flatpak_permissions_table_is_queryable — output content, not just rc
+# ---------------------------------------------------------------------------
+
+class TestFlatpakPermissionsTableIsQueryable:
+    def test_accepts_rows_belonging_to_the_table(self):
+        m = _import_software_steps()
+        output = "documents\tcfa284ff\torg.mozilla.firefox\tread,write\t()\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            m.flatpak_permissions_table_is_queryable(MagicMock(), "documents")
+
+    def test_rejects_rows_from_another_table(self):
+        m = _import_software_steps()
+        output = "background\tbackground\torg.mozilla.firefox\tyes\t0x00\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            with pytest.raises(AssertionError, match="do not belong to"):
+                m.flatpak_permissions_table_is_queryable(MagicMock(), "documents")
+
+    def test_rejects_non_row_banner_output(self):
+        m = _import_software_steps()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="error: unknown table\n", rc=0)):
+            with pytest.raises(AssertionError, match="do not belong to"):
+                m.flatpak_permissions_table_is_queryable(MagicMock(), "documents")
+
+    def test_raises_on_unexpected_failure(self):
+        m = _import_software_steps()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="", rc=1, stderr="boom")):
+            with pytest.raises(AssertionError, match="failed unexpectedly"):
+                m.flatpak_permissions_table_is_queryable(MagicMock(), "documents")
+
+
+# ---------------------------------------------------------------------------
+# flatpak_documents_portal_reports_mount_point
+# ---------------------------------------------------------------------------
+
+class TestFlatpakDocumentsPortalReportsMountPoint:
+    """The non-vacuous existence proof for the `documents` table.
+
+    `flatpak permissions <table>` exits 0 with empty output for a nonexistent
+    table, so only the portal's own GetMountPoint call can fail when the
+    documents backend is absent.
+    """
+
+    def test_passes_when_mount_point_is_returned(self):
+        m = _import_software_steps()
+        with patch.object(m, "_run_in_session",
+                          return_value=_completed(stdout="(b'/run/user/1000/doc',)\n", rc=0)):
+            m.flatpak_documents_portal_reports_mount_point(MagicMock())
+
+    def test_raises_when_portal_is_absent(self):
+        m = _import_software_steps()
+        stdout = "Error: GDBus.Error:org.freedesktop.DBus.Error.ServiceUnknown\n"
+        with patch.object(m, "_run_in_session", return_value=_completed(stdout=stdout, rc=0)):
+            with pytest.raises(AssertionError, match="did not return a"):
+                m.flatpak_documents_portal_reports_mount_point(MagicMock())
+
+    def test_raises_on_empty_output(self):
+        m = _import_software_steps()
+        with patch.object(m, "_run_in_session", return_value=_completed(stdout="", rc=0)):
+            with pytest.raises(AssertionError, match="did not return a"):
+                m.flatpak_documents_portal_reports_mount_point(MagicMock())
+
+    def test_raises_when_command_fails(self):
+        m = _import_software_steps()
+        with patch.object(m, "_run_in_session", return_value=_completed(stdout="", rc=1, stderr="x")):
+            with pytest.raises(AssertionError, match="Could not reach the documents portal"):
+                m.flatpak_documents_portal_reports_mount_point(MagicMock())

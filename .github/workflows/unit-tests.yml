@@ -29,9 +29,11 @@ jobs:
           python-version: "3.14"
 
       - name: Install test dependencies
-        run: pip install coverage pytest pytest-xdist behave selenium
+        run: pip install coverage pytest pytest-xdist behave selenium pyyaml
         # selenium is required to import tests/shared/kde_webdriver.py,
         # which wraps the W3C WebDriver client for KDE's AT-SPI bridge.
+        # pyyaml is required to import scripts/validate_docs.py (frontmatter
+        # parsing), which tests/unit/test_validate_docs.py imports directly.
 
       - name: Run unit tests
         env:

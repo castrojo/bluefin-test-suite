@@ -45,17 +45,33 @@ Full GUI runs require a live Wayland + AT-SPI session. For most changes, use the
 ruff check tests/ --select E,F,W --ignore E501   # lint
 behave --dry-run tests/<suite>/features           # if you touched .feature files
 python3 -m pytest tests/unit/ -q                  # unit tests
-just list-stubs                                    # unimplemented @future scenarios
+python3 scripts/validate_docs.py                  # markdown + skill front matter
+python3 scripts/generate_skill_index.py --check   # skill catalog is in sync
+just list-stubs                                   # unimplemented @future scenarios
 ```
 
 ## Agent rules and patterns
 
-For the agent entry point, mandatory gates, and skill loading rules, see `AGENTS.md` and `docs/skills/index.md`.
+For the agent entry point, mandatory gates, and skill loading rules, see
+[`AGENTS.md`](AGENTS.md) and the task router at [`docs/SKILL.md`](docs/SKILL.md).
+Factory-wide policy (label workflow, governance, onboarding contract) is owned by
+[`projectbluefin/common`](https://github.com/projectbluefin/common/blob/main/docs/skills/factory-onboarding.md)
+and is linked, not copied, from this repo.
 
 ## PRs target `main`
 
-Open a PR with a [Conventional Commits](https://www.conventionalcommits.org/) title. CI must be green before enqueueing. This repo uses a merge queue; enqueue with:
+Open a PR with a [Conventional Commits](https://www.conventionalcommits.org/) title. CI must be green before enqueueing.
+
+There is no cap on how many PRs may be open at once, but **two open PRs must not
+modify the same file**. Check for overlap before opening one:
 
 ```bash
-gh pr merge <NUMBER> --repo <image-org>/testsuite --squash --auto
+gh pr list --repo projectbluefin/testsuite --state open --json number,files \
+  --jq '.[] | {number, files: [.files[].path]}'
+```
+
+This repo uses a merge queue; enqueue with:
+
+```bash
+gh pr merge <NUMBER> --repo projectbluefin/testsuite --squash --auto
 ```

@@ -295,6 +295,11 @@ def before_all(context) -> None:
         context.sandbox.set_keyring = False  # GDM restart flushes PATH; GNOME 50 doesn't need keyring
         context.shell = context.sandbox.shell
         configure_screenshot_context(context, SUITE_NAME)
+        # Bluefin's first-run welcome modal can cover the desktop even after
+        # the GNOME session is otherwise ready. Dismiss it through its visible
+        # accessibility control instead of killing unrelated GNOME processes.
+        from steps.steps import _dismiss_welcome_dialog
+        _dismiss_welcome_dialog()
     except Exception as error:
         print(f"Environment error: before_all: {error}", flush=True)
         context.failed_setup = traceback.format_exc()

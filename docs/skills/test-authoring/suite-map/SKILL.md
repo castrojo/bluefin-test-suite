@@ -1,12 +1,21 @@
 ---
 name: suite-map
+version: "1.0"
+last_updated: "2026-07-29"
+id: suite-map
+one_line_purpose: Read the authoritative coverage matrix and @future gap list.
+entry_point: docs/skills/test-authoring/suite-map/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [coverage, suites, matrix]
 description: "Authoritative coverage matrix and @future gap list. Load during planning, coverage reviews, or when adding a new suite."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Suite Map and Coverage
 
 Load when: deciding which suite to add a test to, checking existing coverage, or reviewing @future gaps.
@@ -66,7 +75,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
-| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, config YAML validation, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios are `@future` (#176) |
+| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, config YAML validation, Flathub remote, permissions DB, Bazaar CLI presence/info/remote, and Flatpak per-app permission management active; upstream GNOME Software navigation scenarios are `@future` (#176) |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | Flatpak model/state, XDG portals, container runtime, polkit, shell env/sourcing, system scripts, ujust recipes, GSettings/dconf, immutable OS integrity |
 | `lifecycle` | ✅ | — | ✅ | ✅ `@homed_migration` | — | — | — | bootc upgrade/rollback; SSH-mode; dakota: homed migration only |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
@@ -78,7 +87,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 
 **GitHub Action consumers**:
 ```yaml
-uses: <image-org>/testsuite/.github/workflows/e2e.yml@v1
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
 with:
   image: <your-bootc-image>
   suites: smoke,common   # smoke and common each auto-shard into two parallel jobs
@@ -86,7 +95,7 @@ with:
 Passing `suites: smoke` expands to `smoke-a` + `smoke-b`, and `suites: common` expands to `common-a` + `common-b`. Both cut wall time by ~50%. New `.feature` files in these suites are picked up automatically.
 
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
-`security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
+`security` and `hardware` (SSH-mode) are not yet in the GHA action. The original migration epics (#43, #44) are closed; the remaining gap is untracked — file a fresh issue before claiming this work.
 
 Any bootc/ostree GNOME image can plug in `smoke` and `common` as a portable health gate — no Bluefin-specific knowledge required. See `README.md` → "For other bootc image maintainers" for minimum image requirements.
 
@@ -99,11 +108,11 @@ Any bootc/ostree GNOME image can plug in `smoke` and `common` as a portable heal
 
 
 **Trigger a lifecycle run manually**:
-Go to **[<image-org>/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/<image-org>/actions/actions/workflows/upgrade-test.yml)**.
-Set `image` (e.g. `ghcr.io/<readonly-upstream>/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
-Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd:chunked layers.
+Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml)**.
+Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
+Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
 
-> **For lifecycle runs, use `upgrade-test.yml` in `<image-org>/actions`** — it
+> **For lifecycle runs, use `upgrade-test.yml` in `projectbluefin/actions`** — it
 > calls `e2e.yml` cross-repo and exposes the lifecycle-specific inputs (`chunked_enabled`,
 > `test_ref`). `manual.yml` in this repo works for non-lifecycle suites (startup_failure
 > was fixed in PR #245 by removing the `@main` ref suffix from the `uses:` line — the
@@ -129,7 +138,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 |---|---|
 | `@smoke_suite` | Runs as part of the standard smoke suite |
 | `@bluefin` | Smoke scenario runs only when the image name contains `bluefin`; smoke `environment.py` skips it elsewhere |
-| `@dakota_only` | Smoke scenario runs only when the image name contains `dakota`; smoke `environment.py` skips it elsewhere |
+| `@dakota_only` | Scenario runs only when the image name contains `dakota`; the `smoke` and `common` `environment.py` files skip it elsewhere. Only the image **name** is matched, so the `projectbluefin` org name cannot false-positive |
 | `@dx_only` / `@developer_suite` | DX variant only |
 | `@nvidia_only` | NVIDIA variant only |
 | `@flatcar_suite` | Flatcar OS only |
@@ -143,38 +152,44 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 ## Coverage snapshot
 
-493 scenarios across 64 feature files: 384 active, 0 quarantined, 109 `@future`/`@pending`/`@hardware_blocked`
-(mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679; +4 `@pending` `bctl.feature`
-scenarios added ahead of the design-gated CI infra in #487).
+> The numbers in this block are **generated** by `scripts/update_coverage_snapshot.py`
+> from the `.feature` files. **Do not hand-edit the counts** — run the script.
+> Only the per-suite Notes prose is hand-maintained (in the script's `SUITE_NOTES`).
+> CI (`Coverage snapshot fresh` check) fails if this block is stale.
+
+<!-- coverage-snapshot:start -->
+
+503 scenarios across 68 feature files: 393 active, 0 quarantined, 110 `@future`/`@pending`/`@hardware_blocked`
+
+| Suite | Scenarios | Active | Quarantined | Pending/Future | Notes |
+|---|---|---|---|---|---|
+| bazzite | 20 | 20 | 0 | 0 | Extension presence + shell behaviour |
+| common | 118 | 99 | 0 | 19 | Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity; desktop entries; signing assertions; Dakota `ujust --choose` + `ujust report` regression guards (`@dakota_only`) |
+| developer | 23 | 7 | 0 | 16 | 6 brew + 6 ptyxis + 4 bctl now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368) |
+| dx | 18 | 10 | 0 | 8 | distrobox enter/create/install/export, JupyterLab, brew, mise — infra gaps, all `@pending` |
+| flatcar | 13 | 12 | 0 | 1 | boot (7 active) + lifecycle (5 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`) |
+| hardware | 13 | 13 | 0 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
+| installer | 3 | 3 | 0 | 0 | post-boot assertions for installer-driven installs (UEFI, Flatpak exclusion, LUKS cmdline) |
+| kde-smoke | 13 | 13 | 0 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
+| lifecycle | 27 | 25 | 0 | 2 | bootc upgrade / rollback / migration; pin + switch are `@future` (pin races the staged-deployment writer; switch needs a valid alternate image ref) |
+| nvidia | 12 | 0 | 0 | 12 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
+| security | 15 | 15 | 0 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
+| smoke | 187 | 143 | 0 | 44 | 39 `@pending` flatpak-permission audits blocked on CI never seeding system Flatpaks; MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks |
+| software | 28 | 20 | 0 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; Flatpak per-app permission management active on all images; upstream GNOME Software scenarios are `@future` (#176) |
+| vanilla-gnome | 13 | 13 | 0 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
+
+<!-- coverage-snapshot:end -->
+
+### How the snapshot is derived
+
+A mechanical recount of `tests/*/features/**/*.feature`. A scenario counts once, in
+tag precedence order: `@quarantine` > `@hardware_blocked` > `@future` > `@pending` > active.
 
 > **Quarantine backlog is now zero.** Every scenario that was quarantined for an
 > infrastructure or unshipped-feature blocker was reclassified to `@pending`/`@future` with a
 > named blocker, and the one regression guard whose upstream bug is fixed was re-activated.
 > `@quarantine` is reserved for genuinely flaky regression coverage under active repair —
 > if you reach for it, you are committing to fixing the scenario inside 30 days.
-
-> **Count drift notice.** The previous snapshot claimed 427 scenarios across 52 files. A
-> mechanical recount of `tests/*/features/**/*.feature` on `main` found **479 across 61** —
-> the snapshot had drifted by ~39 scenarios before any KDE work began. The totals above and
-> the Scenarios/Active/Quarantined/Pending columns below are now mechanically derived by
-> parsing scenario tags across `tests/*/features/**/*.feature`. A scenario counts once, in
-> tag precedence order: `@quarantine` > `@hardware_blocked` > `@future` > `@pending` > active.
-
-| Suite | Scenarios | Active | Quarantined | Pending/Future | Notes |
-|---|---|---|---|---|---|
-| smoke | 187 | 143 | 0 | 44 | 39 `@pending` flatpak-permission audits blocked on CI never seeding system Flatpaks; MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks |
-| developer | 23 | 7 | 0 | 16 | 6 brew + 6 ptyxis + 4 bctl now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368) |
-| software | 23 | 16 | 0 | 7 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios are `@future` (#176) |
-| common | 116 | 97 | 0 | 19 | Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
-| vanilla-gnome | 13 | 13 | 0 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 27 | 25 | 0 | 2 | bootc upgrade / rollback / migration; pin + switch are `@future` (pin races the staged-deployment writer; switch needs a valid alternate image ref) |
-| hardware | 13 | 13 | 0 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
-| security | 15 | 15 | 0 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
-| bazzite | 20 | 20 | 0 | 0 | Extension presence + shell behaviour |
-| dx | 18 | 10 | 0 | 8 | distrobox enter/create/install/export, JupyterLab, brew, mise×2 — infra gaps, all `@pending` |
-| nvidia | 12 | 0 | 0 | 12 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
-| flatcar | 13 | 12 | 0 | 1 | boot (7 active) + lifecycle (5 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`) |
-| kde-smoke | 13 | 13 | 0 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
 
 ## Known coverage gaps
 

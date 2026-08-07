@@ -1,12 +1,21 @@
 ---
 name: flatpak-screenshots
+version: "1.0"
+last_updated: "2026-07-20"
+id: flatpak-screenshots
+one_line_purpose: Request and retrieve Flatpak app screenshots from the e2e workflow.
+entry_point: docs/skills/flatpak-screenshots/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [flatpak, screenshots, oras]
 description: "How to request and retrieve Flatpak app screenshots from the e2e workflow. Load when configuring screenshot_flatpaks or writing release workflows that consume screenshots."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Flatpak Screenshot Gallery
 
 The `e2e.yml` reusable workflow can launch-and-screenshot any Flatpak app that is
@@ -27,9 +36,9 @@ ready-made desktop screenshot for release notes or changelogs.
 ## Workflow input
 
 ```yaml
-uses: <image-org>/testsuite/.github/workflows/e2e.yml@main
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@main
 with:
-  image: ghcr.io/<readonly-upstream>/bluefin:latest
+  image: ghcr.io/ublue-os/bluefin:latest
   suites: smoke
   screenshot_flatpaks: "org.gnome.Calculator,io.github.kolunmi.Bazaar,org.mozilla.firefox"
 ```
@@ -43,7 +52,7 @@ After a successful run, pull any app's screenshot with `oras`:
 
 ```sh
 # Stable tag — updated on every passing run for this image
-oras pull ghcr.io/<image-org>/testsuite/desktop-screenshot:flatpak-org-gnome-calculator-latest
+oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:flatpak-org-gnome-calculator-latest
 
 # Or check the job summary for the immutable per-run ref
 ```
@@ -62,7 +71,7 @@ where `<app-id-slug>` is the app ID lowercased with dots/underscores replaced by
 ```yaml
 - name: Pull desktop screenshot
   run: |
-    oras pull ghcr.io/<image-org>/testsuite/desktop-screenshot:flatpak-io-github-kolunmi-bazaar-latest
+    oras pull ghcr.io/projectbluefin/testsuite/desktop-screenshot:flatpak-io-github-kolunmi-bazaar-latest
     mv desktop-screenshot.png bazaar-on-bluefin.png
 ```
 
