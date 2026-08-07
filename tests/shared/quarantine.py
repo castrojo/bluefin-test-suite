@@ -10,7 +10,9 @@ _SKIP_REASONS = {
 }
 
 # Order matters only for the reported reason when several tags coexist.
-_SKIP_TAGS = ("quarantine", "pending", "future")
+# Must match the precedence documented in
+# docs/skills/test-authoring/suite-map/SKILL.md.
+_SKIP_TAGS = ("quarantine", "future", "pending")
 
 
 def skip_quarantine(scenario) -> bool:

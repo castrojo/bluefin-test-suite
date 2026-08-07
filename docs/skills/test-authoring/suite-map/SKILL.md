@@ -143,7 +143,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 ## Coverage snapshot
 
-486 scenarios across 63 feature files: 381 active, 0 quarantined, 105 `@future`/`@pending`/`@hardware_blocked`
+486 scenarios across 63 feature files: 382 active, 0 quarantined, 104 `@future`/`@pending`/`@hardware_blocked`
 (mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679).
 
 > **Quarantine backlog is now zero.** Every scenario that was quarantined for an
@@ -163,7 +163,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 |---|---|---|---|---|---|
 | smoke | 187 | 143 | 0 | 44 | 39 `@pending` flatpak-permission audits blocked on CI never seeding system Flatpaks; MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks |
 | developer | 19 | 7 | 0 | 12 | 6 brew + 6 ptyxis now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368) |
-| software | 23 | 15 | 0 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios are `@future` (#176) |
+| software | 23 | 16 | 0 | 7 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios are `@future` (#176) |
 | common | 116 | 97 | 0 | 19 | Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
 | vanilla-gnome | 13 | 13 | 0 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
 | lifecycle | 27 | 25 | 0 | 2 | bootc upgrade / rollback / migration; pin + switch are `@future` (pin races the staged-deployment writer; switch needs a valid alternate image ref) |
@@ -222,7 +222,6 @@ skipped-coverage table above.
 | ujust report confirm validation (×1) | smoke | `@pending` | `just` template change not in the booted image; awaiting rebuild |
 | GNOME Software navigation/regression/close (×6) | software | `@future` | Bluefin ships Bazaar, not GNOME Software (#176) |
 | flatpak install/uninstall round-trip (×1) | software | `@future` | gnomeos/GNOME 50 startup path unverified (#176); also slow network I/O |
-| flatpak user override round-trip (×1) | software | `@pending` | no system flatpaks in CI (preinstall service masked) |
 | common signing (×2) | common | `@future` | signing policy not yet enforced upstream; mid-migration ublue-os → projectbluefin |
 | bootc pin (×1) | lifecycle | `@future` | `bootc pin` races the staged-deployment writer in a fresh QEMU install |
 | bootc switch (×1) | lifecycle | `@future` | mutates VM image variant; needs cross-variant golden-disk testing |

@@ -101,6 +101,13 @@ def test_quarantine_reason_wins_over_future():
     assert scenario.skip_message == "@quarantine — known flaky, skipping"
 
 
+def test_future_reason_wins_over_pending():
+    """@future outranks @pending, matching the documented precedence order."""
+    scenario = _FakeScenario(tags=["pending", "future"])
+    assert skip_quarantine(scenario) is True
+    assert scenario.skip_message == "@future — planned coverage not yet runnable, skipping"
+
+
 def test_quarantine_tag_mixed_with_others():
     """@quarantine alongside other tags still triggers skip."""
     scenario = _FakeScenario(tags=["smoke", "quarantine", "sla_10s"])

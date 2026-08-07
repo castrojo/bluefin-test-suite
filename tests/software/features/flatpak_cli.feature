@@ -11,9 +11,7 @@ Feature: Flatpak CLI smoke tests
   Scenario: Flatpak permissions database is queryable
     * Flatpak permissions table "notifications" is queryable
 
-  # Pending: CI images ship no system flatpaks (flatpak-preinstall.service is
-  # masked in e2e.yml), so the override round-trip has no stable app to target.
-  @pending @software @flatpak_cli @flatpak_permissions
+  @software @flatpak_cli @flatpak_permissions
   Scenario: flatpak user override round-trip succeeds
     # Calculator is always present; override doesn't require the app to be installed.
     * Set flatpak user override "--filesystem=home" for "org.gnome.Calculator"
