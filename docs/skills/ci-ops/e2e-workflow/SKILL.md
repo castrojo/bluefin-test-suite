@@ -1,5 +1,15 @@
 ---
 name: e2e-workflow
+version: "1.0"
+last_updated: "2026-08-07"
+id: e2e-workflow
+one_line_purpose: Call and debug the reusable testsuite e2e workflow.
+entry_point: docs/skills/ci-ops/e2e-workflow/SKILL.md
+category: ci-ops
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [e2e, workflow, ci, qemu]
 description: "How to call and debug the reusable testsuite e2e workflow. Load when changing e2e.yml, action inputs, or consumer-repo wiring."
 metadata:
   type: pattern
