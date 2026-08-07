@@ -2,8 +2,8 @@
 
 Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/SKILL.md`. Read that file for the current per-suite matrix and `@future` stub list rather than duplicating counts here.
 
-The current branch's mechanical recount is 495 scenarios across 66 feature files:
-386 active, 0 `@quarantine`, 109 `@future`/`@pending`/`@hardware_blocked`. The five active
+The current branch's mechanical recount is 500 scenarios across 67 feature files:
+390 active, 0 `@quarantine`, 110 `@future`/`@pending`/`@hardware_blocked`. The five active
 sudo-rs scenarios are included in the smoke total there.
 
 ## What this repo is responsible for
@@ -74,6 +74,7 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_input_methods_steps.py` | `_run_in_vm` dispatch, exact `uint32` index parsing, success-latched input-source restore |
 | `test_xwayland_steps.py` | `_xwayland_display_env` `pgrep` parsing, xprop/glxgears step branches |
 | `test_install_kde_webdriver.py` | `scripts/install-kde-webdriver.sh` contract invariants (pinned SHA, loopback-only bind, skip paths) |
+| `test_validate_docs.py` | `scripts/validate_docs.py` frontmatter parsing, heading levels, and link/skill validation |
 | `test_wait_for_shell.py` | `tests/shared/wait_for_shell.py` retry contract (Shell.Eval failures, missing panel, attempt budget) |
 
 ## Current stub posture
@@ -81,4 +82,4 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 - `flatcar/lifecycle`: 6 scenarios, 5 active — knuckle install, Ignition first-boot verification, update channel, automatic-update disable via `update.conf`, and afterburn implemented. Only the boot-order swap remains `@future`: booting the installed target disk requires KubeVirt boot-device ordering owned by `projectbluefin/lab`, and without it a reboot silently returns to the live disk. The suite is not yet reachable from `e2e.yml` (tracked in #704).
 - `security/selinux`: all scenarios active (cosign verification across image variants).
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
-- `kde-smoke`: 13 `@informational` scenarios in one feature file (repo totals: 479 scenarios / 61 feature files by mechanical recount; see the count-drift notice in `suite-map/SKILL.md`); Aurora-only Phase-2 harness proof. The shared KDE helpers and `e2e.yml` suite registration it depends on landed in #641-#645.
+- `kde-smoke`: 13 `@informational` scenarios in one feature file (repo totals: 491 scenarios / 64 feature files by mechanical recount; see the count-drift notice in `suite-map/SKILL.md`); Aurora-only Phase-2 harness proof. The shared KDE helpers and `e2e.yml` suite registration it depends on landed in #641-#645.

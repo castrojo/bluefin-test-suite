@@ -134,7 +134,30 @@ def before_scenario(context, scenario) -> None:
         scenario.skip(reason="before_scenario setup failed (environment not ready)")
 
 
+def _reset_flatpak_permission_probe(context, scenario) -> None:
+    """Undo the synthetic flatpak override used by the permission scenarios.
+
+    The scenarios end with an explicit reset step, but a failure before that
+    step would leave the override installed and contaminate retries, so the
+    reset is repeated here unconditionally for the tagged scenarios.
+    """
+    tags = set(scenario.tags) | set(scenario.feature.tags)
+    if "flatpak_permissions_mgmt" not in tags:
+        return
+    try:
+        try:
+            from steps.flatpak_permissions_steps import reset_probe_overrides
+        except ImportError:
+            from tests.software.features.steps.flatpak_permissions_steps import (
+                reset_probe_overrides,
+            )
+        reset_probe_overrides(context)
+    except Exception as exc:  # noqa: BLE001 - cleanup must not mask the real failure
+        print(f"WARNING: flatpak override cleanup failed: {exc}", flush=True)
+
+
 def after_scenario(context, scenario) -> None:
+    _reset_flatpak_permission_probe(context, scenario)
     if getattr(context, 'failed_setup', None):
         return
     record_end(context, scenario)

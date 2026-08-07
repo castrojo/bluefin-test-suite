@@ -79,6 +79,27 @@ Rollouts should start with `--grace-days` in CI (currently `--grace-days 30`) so
 `e2e.yml` reuses the same script for job-summary reporting via `python3 scripts/check_quarantine_age.py --json`.
 That summary path is informational only, but it still needs the same prerequisites: the workflow checkout must include `scripts/check_quarantine_age.py`, the `tests/` tree, and full git history (`fetch-depth: 0`) or the age calculations will be incomplete.
 
+## `unit-tests.yml` must install every `scripts/` runtime dependency
+
+Anything under `tests/unit/` that imports a module from `scripts/` or
+`tests/shared/` inherits that module's dependencies at **collection** time, not
+at assertion time. Under `pytest -n auto` a missing import does not produce a
+skip — the xdist worker dies with `INTERNALERROR` and the entire run is lost.
+
+Known collection-time dependencies of the unit-test job:
+
+| Import | Needed by | Installed as |
+|---|---|---|
+| `yaml` | `scripts/validate_docs.py`, `scripts/generate_skill_index.py` | `pyyaml` |
+| `selenium` | `tests/shared/kde_webdriver.py` | `selenium` |
+| `behave` | step-definition modules | `behave` |
+
+When you add a unit test that imports a new script, extend the
+`Install test dependencies` step in `.github/workflows/unit-tests.yml` in the
+same PR. Never wrap the import in `try: ... except ImportError: pytest.skip(...)`
+— that converts a real dependency gap into a silent pass and the test stops
+protecting anything.
+
 ## Job-summary scenario counts come from `scripts/e2e_summary.py`
 
 Never derive `passed` by subtraction. `passed = total - failed - skipped` is wrong
