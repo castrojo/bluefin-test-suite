@@ -1,12 +1,21 @@
 ---
 name: suite-map
+version: "1.0"
+last_updated: "2026-07-29"
+id: suite-map
+one_line_purpose: Read the authoritative coverage matrix and @future gap list.
+entry_point: docs/skills/test-authoring/suite-map/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [coverage, suites, matrix]
 description: "Authoritative coverage matrix and @future gap list. Load during planning, coverage reviews, or when adding a new suite."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Suite Map and Coverage
 
 Load when: deciding which suite to add a test to, checking existing coverage, or reviewing @future gaps.
@@ -78,7 +87,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 
 **GitHub Action consumers**:
 ```yaml
-uses: <image-org>/testsuite/.github/workflows/e2e.yml@v1
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
 with:
   image: <your-bootc-image>
   suites: smoke,common   # smoke and common each auto-shard into two parallel jobs
@@ -86,7 +95,7 @@ with:
 Passing `suites: smoke` expands to `smoke-a` + `smoke-b`, and `suites: common` expands to `common-a` + `common-b`. Both cut wall time by ~50%. New `.feature` files in these suites are picked up automatically.
 
 GitHub Action suites (`smoke`, `vanilla-gnome`, `bazzite`, `developer`, `dx`, `software`, `common`, `lifecycle`) run on `ubuntu-latest`.
-`security` and `hardware` (SSH-mode) are not yet in the GHA action (epics #43/#44).
+`security` and `hardware` (SSH-mode) are not yet in the GHA action. The original migration epics (#43, #44) are closed; the remaining gap is untracked — file a fresh issue before claiming this work.
 
 Any bootc/ostree GNOME image can plug in `smoke` and `common` as a portable health gate — no Bluefin-specific knowledge required. See `README.md` → "For other bootc image maintainers" for minimum image requirements.
 
@@ -99,11 +108,11 @@ Any bootc/ostree GNOME image can plug in `smoke` and `common` as a portable heal
 
 
 **Trigger a lifecycle run manually**:
-Go to **[<image-org>/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/<image-org>/actions/actions/workflows/upgrade-test.yml)**.
-Set `image` (e.g. `ghcr.io/<readonly-upstream>/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
-Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd:chunked layers.
+Go to **[projectbluefin/actions → Actions → bootc Upgrade and Rollback Test → Run workflow](https://github.com/projectbluefin/actions/actions/workflows/upgrade-test.yml)**.
+Set `image` (e.g. `ghcr.io/ublue-os/bluefin:latest`), `suites: lifecycle`, `chunked_enabled: false`.
+Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships zstd:chunked layers.
 
-> **For lifecycle runs, use `upgrade-test.yml` in `<image-org>/actions`** — it
+> **For lifecycle runs, use `upgrade-test.yml` in `projectbluefin/actions`** — it
 > calls `e2e.yml` cross-repo and exposes the lifecycle-specific inputs (`chunked_enabled`,
 > `test_ref`). `manual.yml` in this repo works for non-lifecycle suites (startup_failure
 > was fixed in PR #245 by removing the `@main` ref suffix from the `uses:` line — the

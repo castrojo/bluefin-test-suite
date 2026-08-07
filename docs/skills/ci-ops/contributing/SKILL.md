@@ -1,12 +1,21 @@
 ---
 name: contributing
+version: "1.0"
+last_updated: "2026-07-20"
+id: contributing
+one_line_purpose: Prepare, validate, and land a testsuite pull request.
+entry_point: docs/skills/ci-ops/contributing/SKILL.md
+category: ci-ops
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [contributing, pr, merge-queue, review]
 description: "How to contribute changes to the testsuite repo. Load when preparing a PR or reviewing contribution mechanics."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Agent Contribution Guide
 
 Load when: you found a bug, gap, or improvement while working in this repo.
@@ -19,8 +28,8 @@ Nightly CI is gone. PR gates are the only CI signal, and `smoke` is the standard
 
 | Found in | Fix goes in |
 |---|---|
-| Feature files, step defs, qecore/dogtail patterns, shared SSH helpers | `<image-org>/testsuite` (this repo) |
-| VM specs, CronWorkflows, cluster manifests, infra | `<image-org>/testing-lab` |
+| Feature files, step defs, qecore/dogtail patterns, shared SSH helpers | `projectbluefin/testsuite` (this repo) |
+| VM specs, CronWorkflows, cluster manifests, infra | `projectbluefin/lab` |
 
 If a fix touches both repos, split into two PRs — one per repo.
 
@@ -47,7 +56,7 @@ Don't defer. File the PR as part of your current working session.
 | New dogtail / GNOME anti-pattern | `docs/skills/test-authoring/gnome/SKILL.md` |
 | New bootc JSON path or gotcha | `docs/skills/test-authoring/bootc/SKILL.md` |
 | Infra gotcha (GDM, VM) | `docs/skills/ci-ops/ops/SKILL.md` |
-| New hard rule for all agents | `docs/skills/index.md` (rules section) |
+| New hard rule for all agents | `docs/SKILL.md` (rules section) |
 | e2e workflow changes (inputs, stages, image requirements) | `docs/skills/ci-ops/e2e-workflow/SKILL.md` |
 | Quarantine expiry enforcement or stale `@quarantine` policy | `docs/skills/test-authoring/quarantine-age/SKILL.md` |
 | Behavior or command change | `README.md` and/or `docs/runbook.md` if agent-facing docs describe the old behavior |
@@ -64,14 +73,14 @@ If a skill doc (`docs/skills/*.md`) is wrong or incomplete:
 3. In the PR description, quote the old incorrect text and explain what you found
 4. No need for the scenario count section if it's docs-only
 
-**Do not add hard rules to individual skill docs** — rules go in `docs/skills/index.md` (single source). Skill docs hold patterns and examples only.
+**Do not add hard rules to individual skill docs** — rules go in `docs/SKILL.md` (single source). Skill docs hold patterns and examples only.
 
-**The skill-improvement mandate:** every PR that changes `tests/**`, `.github/workflows/**`, or `scripts/**` should include a matching skill file update. See [`docs/skills/meta/skill-improvement/SKILL.md`](../../meta/skill-improvement/SKILL.md) for what counts as a learning, which skill to update, and how to commit it together. The skill-drift CI check will warn if this is skipped.
+**The skill-improvement mandate:** every PR that changes `tests/**`, `.github/workflows/**`, or `scripts/**` should include a matching skill file update. See [`docs/skills/meta/skill-improvement/SKILL.md`](../../meta/skill-improvement/SKILL.md) for what counts as a learning, which skill to update, and how to commit it together. This is a review expectation, not an automated check — no CI job enforces it.
 
 ## On-demand references
 
 - [Branch naming](references/branch-and-worktree.md)
-- [Working in <image-org>/actions](references/actions-repo.md)
+- [Working in projectbluefin/actions](references/actions-repo.md)
 - [PR description format](references/pr-format.md)
 - [Testing your changes with the GitHub Action](references/testing-changes.md)
 - [Reviewing PRs before merging](references/reviewing-and-merging.md)

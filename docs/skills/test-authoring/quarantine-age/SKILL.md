@@ -1,12 +1,21 @@
 ---
 name: quarantine-age
+version: "1.0"
+last_updated: "2026-07-20"
+id: quarantine-age
+one_line_purpose: Apply quarantine expiry policy to stale scenarios.
+entry_point: docs/skills/test-authoring/quarantine-age/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [quarantine, policy, flaky]
 description: "Quarantine policy and age limits for stale tests. Load when deciding whether to quarantine, unquarantine, or remove a scenario."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Quarantine age enforcement
 
 ## When to Use

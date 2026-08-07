@@ -28,7 +28,7 @@ updated:
 smoke runs for unrelated PRs and for the post-merge smoke workflow. Tag scenarios
 exposing these as `@quarantine` when the failure is a lab constraint, not a product bug.
 
-**Flatpak scenarios:** Quarantine until testing-lab runs OOBE before test execution.
+**Flatpak scenarios:** Quarantine until lab runs OOBE before test execution.
 The `@quarantine` tag is correct — when the lab is fixed, remove the tag and re-test.
 
 ---

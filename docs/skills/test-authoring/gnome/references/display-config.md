@@ -26,7 +26,7 @@ Flatpak apps (Firefox, Papers, Loupe, Showtime) register MIME handlers under
 must match what `flatpak_permissions.feature` says the image actually ships.
 Bluefin ships `org.gnome.Showtime` as its OOTB video player — a stale
 allowlist (e.g. Celluloid-only) blocks the matching mimeapps.list default in
-<image-org>/common from ever passing.
+projectbluefin/common from ever passing.
 
 Always set `XDG_DATA_DIRS` explicitly in the SSH call:
 

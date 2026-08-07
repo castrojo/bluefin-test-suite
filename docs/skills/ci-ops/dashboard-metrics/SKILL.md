@@ -1,12 +1,21 @@
 ---
 name: dashboard-metrics
+version: "1.0"
+last_updated: "2026-07-28"
+id: dashboard-metrics
+one_line_purpose: Read and extend the live testsuite dashboard metrics.
+entry_point: docs/skills/ci-ops/dashboard-metrics/SKILL.md
+category: ci-ops
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [dashboard, metrics, astro, telemetry]
 description: "How to read and contribute to the live test dashboard metrics. Load when updating metrics collection or interpreting dashboard data."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # QA Dashboard & Metrics compilation
 
 ## Overview
@@ -20,7 +29,7 @@ This skill guides agents through modifying, compiling, and deploying the QA dash
 
 ## When NOT to Use
 - Writing or debugging GDM/AT-SPI behave test scenarios inside `tests/**` — use `gnome.md` or `behave.md`
-- Modifying Argo/KubeVirt cluster infrastructure manifests — use `testing-lab` repo
+- Modifying Argo/KubeVirt cluster infrastructure manifests — use `projectbluefin/lab` repo
 - Adjusting core reusable workflow configurations (`e2e.yml`) — use `e2e-workflow.md`
 
 ## Core Process
@@ -53,7 +62,7 @@ This skill guides agents through modifying, compiling, and deploying the QA dash
 
 4. **Client-Side Telemetry Fetching**: To integrate live, dynamic infrastructure status (like KubeVirt node states and active semaphore VM slots) that change rapidly, fetch the latest compiled JSON from raw GitHub Pages endpoints, and implement an offline-safe local fallback `SEED` dataset:
    ```javascript
-   const TELEMETRY_URL = "https://raw.githubusercontent.com/<image-org>/testing-lab/main/docs/data/factory-stats.json";
+   const TELEMETRY_URL = "https://raw.githubusercontent.com/projectbluefin/lab/main/docs/data/factory-stats.json";
    async function getLiveTelemetry() {
      try {
        const res = await fetch(TELEMETRY_URL);
@@ -68,7 +77,7 @@ This skill guides agents through modifying, compiling, and deploying the QA dash
 5. **Build-Time SSG Data Fetching (Astro Frontmatter)**: For high-performance landing page rendering with zero dynamic scraping lag, fetch external JSON datasets (like `factory-stats.json` or individual suite JSON files) during build time inside Astro's frontmatter blocks. This converts raw runtime REST fetching into statically pre-rendered HTML cards, tables, and charts:
    ```typescript
    // src/pages/index.astro
-   const statsRes = await fetch('https://projectbluefin.github.io/testing-lab/data/factory-stats.json');
+   const statsRes = await fetch('https://projectbluefin.github.io/lab/data/factory-stats.json');
    const stats = statsRes.ok ? await statsRes.json() : {};
    ```
 
