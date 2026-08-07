@@ -134,3 +134,108 @@ class TestFirefoxApp:
         import pytest  # noqa: PLC0415
         with pytest.raises(AssertionError, match="not found via AT-SPI"):
             m._firefox_app(context)
+
+
+# ---------------------------------------------------------------------------
+# Accessibility launch environment
+# ---------------------------------------------------------------------------
+
+class _FakeNode:
+    """Minimal dogtail node stand-in supporting findChildren over descendants."""
+
+    def __init__(self, role_name, showing=True, children=()):
+        self.roleName = role_name
+        self.showing = showing
+        self.children = list(children)
+
+    def findChildren(self, predicate):  # noqa: N802 — dogtail API name
+        found = []
+        for child in self.children:
+            if predicate(child):
+                found.append(child)
+            found.extend(child.findChildren(predicate))
+        return found
+
+
+class TestFirefoxA11yEnv:
+    def test_sets_gnome_accessibility(self):
+        m = _import_firefox_steps()
+        assert m.FIREFOX_A11Y_ENV["GNOME_ACCESSIBILITY"] == "1"
+
+    def test_sets_accessibility_enabled(self):
+        m = _import_firefox_steps()
+        assert m.FIREFOX_A11Y_ENV["ACCESSIBILITY_ENABLED"] == "1"
+
+    def test_launch_passes_a11y_env(self):
+        m = _import_firefox_steps()
+        context = MagicMock()
+        m.launch_firefox_via_command(context)
+        _, kwargs = m.launch_background.call_args
+        assert kwargs["env"] == m.FIREFOX_A11Y_ENV
+
+
+# ---------------------------------------------------------------------------
+# _firefox_window — false-pass guard
+# ---------------------------------------------------------------------------
+
+class TestFirefoxWindow:
+    @staticmethod
+    def _context_with(m, window):
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        return context
+
+    def test_returns_frame_with_populated_tree(self):
+        m = _import_firefox_steps()
+        window = _FakeNode("frame", children=[_FakeNode("entry")])
+        assert m._firefox_window(self._context_with(m, window)) is window
+
+    def test_accepts_filler_when_tree_is_populated(self):
+        m = _import_firefox_steps()
+        window = _FakeNode("filler", children=[_FakeNode("page tab list")])
+        assert m._firefox_window(self._context_with(m, window)) is window
+
+    def test_rejects_empty_filler(self):
+        import pytest  # noqa: PLC0415
+        m = _import_firefox_steps()
+        window = _FakeNode("filler")
+        with pytest.raises(AssertionError, match="GNOME_ACCESSIBILITY"):
+            m._firefox_window(self._context_with(m, window))
+
+    def test_rejects_empty_frame(self):
+        import pytest  # noqa: PLC0415
+        m = _import_firefox_steps()
+        window = _FakeNode("frame")
+        with pytest.raises(AssertionError, match="AT-SPI subtree is empty"):
+            m._firefox_window(self._context_with(m, window))
+
+    def test_prefers_frame_over_filler(self):
+        m = _import_firefox_steps()
+        filler = _FakeNode("filler", children=[_FakeNode("entry")])
+        frame = _FakeNode("frame", children=[_FakeNode("entry")])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[filler, frame])
+        assert m._firefox_window(context) is frame
+
+    def test_liveness_check_accepts_empty_window(self):
+        m = _import_firefox_steps()
+        window = _FakeNode("filler")
+        result = m._firefox_window(self._context_with(m, window), require_a11y_tree=False)
+        assert result is window
+
+    def test_no_window_reports_not_found(self):
+        import pytest  # noqa: PLC0415
+        m = _import_firefox_steps()
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application")
+        with pytest.raises(AssertionError, match="main window not found"):
+            m._firefox_window(context)
+
+    def test_ignores_hidden_windows(self):
+        import pytest  # noqa: PLC0415
+        m = _import_firefox_steps()
+        hidden = _FakeNode("frame", showing=False, children=[_FakeNode("entry")])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[hidden])
+        with pytest.raises(AssertionError, match="main window not found"):
+            m._firefox_window(context)

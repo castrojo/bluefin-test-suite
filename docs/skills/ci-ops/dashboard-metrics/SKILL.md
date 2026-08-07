@@ -91,7 +91,7 @@ This skill guides agents through modifying, compiling, and deploying the QA dash
        git push origin gh-pages
    ```
 
-10. **Astro major upgrades are gated by `@astrojs/tailwind`**: `publish-to-pages.yml` runs `npm ci`, which enforces peer ranges strictly. `@astrojs/tailwind@6.x` declares `peer astro@"^3.0.0 || ^4.0.0 || ^5.0.0"` and has no release supporting astro 6+. Bumping `dashboard/package.json` past astro 5 makes every scheduled Pages run fail with `npm error code ERESOLVE`. `renovate.json` pins `astro` to `<6.0.0` for `dashboard/package.json` for this reason. Before lifting that pin, first migrate off `@astrojs/tailwind` to `@tailwindcss/vite`, and verify locally with `cd dashboard && rm -rf node_modules && npm ci && npm run build` — `npm install` alone is not sufficient, because it resolves differently than `npm ci`.
+10. **Tailwind v4 via `@tailwindcss/vite` (no Astro integration)**: The dashboard uses Tailwind CSS v4 through the official Vite plugin (`@tailwindcss/vite`), declared in `astro.config.mjs` under `vite.plugins`, plus `@import "tailwindcss";` in `src/styles/global.css` (loaded via a `<style is:global>` block in `src/layouts/Layout.astro`). Custom design tokens live in the CSS `@theme` block in that file, not in a `tailwind.config.*` file — v4 is CSS-first, so config-file content globbing is gone. The deprecated `@astrojs/tailwind` integration (which capped `astro` at v5 via `peer astro@"^3.0.0 || ^4.0.0 || ^5.0.0"` and froze the `vite`/`esbuild`/`sharp` patch stream) must not be re-added. With the cap gone, `renovate.json` no longer constrains the astro major; validate any astro major bump locally with `cd dashboard && rm -rf node_modules && npm ci && npm run build` — `npm install` alone is not sufficient, because it resolves differently than `npm ci`.
 
 11. **`publish-to-pages.yml` is not exercised by PR checks**: the workflow only triggers on `schedule`, `workflow_dispatch`, and pushes to `main` under `dashboard/**`. A dependency PR can therefore merge fully green and only break the dashboard hours later on the next 2-hourly cron. Any PR touching `dashboard/package.json`, `dashboard/package-lock.json`, or `dashboard/scripts/**` must be validated locally with `npm ci && npm run build` before merge.
 
@@ -103,6 +103,27 @@ This skill guides agents through modifying, compiling, and deploying the QA dash
 | "Astro should fetch all logs from a remote database in the browser." | Fetching hundreds of logs in client-side JS introduces major latency. Compiling them statically at build-time using `import.meta.glob` is faster and completely serverless. |
 | "GitHub handles the custom domain automatically, no need to push CNAME." | Cleaning the pages branch during deploy deletes the CNAME file, which instantly breaks the custom domain. Always write CNAME back during the build. |
 | "A dependency bump PR is green, so the dashboard still builds." | `publish-to-pages.yml` never runs on pull requests. Green PR checks say nothing about `npm ci`; run it locally before merging any `dashboard/` dependency change. |
+
+## Coverage badges: `scripts/generate_badges.py`
+
+The shields.io coverage badges are generated at publish time by parsing
+`.feature` files under `tests/*/features/`. No counts are hardcoded, so the
+badges always track current test content.
+
+Every scenario lands in exactly one of three buckets, evaluated in this order:
+
+1. **stub** — tagged `@future` *or* `@pending`
+2. **quarantined** — tagged `@quarantine` (at feature or scenario level)
+3. **active** — everything else
+
+`@pending` counts as a stub, not as active. Both tags mean "written but not
+running", and the badge already renders this bucket as `N pending`, so
+excluding `@pending` inflated the active count and under-reported stubs.
+
+Order matters: the stub check runs first, so a scenario tagged both `@future`
+and `@quarantine` is reported as a stub. Adding a new "not running yet" tag
+means updating `count_scenarios()` — otherwise those scenarios are silently
+counted as active.
 
 ## Red Flags
 - Setting `base: '/testsuite/'` in `astro.config.mjs` while deploying to the custom domain `qa.projectbluefin.io` (breaks CSS andPagefind assets).

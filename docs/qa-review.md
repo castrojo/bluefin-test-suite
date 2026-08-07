@@ -2,8 +2,9 @@
 
 Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/SKILL.md`. Read that file for the current per-suite matrix and `@future` stub list rather than duplicating counts here.
 
-The current branch's mechanical recount is 471 scenarios across 61 feature files;
-the five active sudo-rs scenarios are included in the smoke total there.
+The current branch's mechanical recount is 489 scenarios across 63 feature files:
+382 active, 0 `@quarantine`, 107 `@future`/`@pending`/`@hardware_blocked`. The five active
+sudo-rs scenarios are included in the smoke total there.
 
 ## What this repo is responsible for
 
@@ -60,7 +61,7 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_shared.py` | Shared step utilities |
 | `test_screenshot_cli.py` | `screenshot_cli.main()` argument parsing and dispatch |
 | `test_security_steps.py` | `_cosign_entries()` JSON validation and `_collect_values()` recursive extraction |
-| `test_quarantine.py` | `@quarantine` / `@pending` skip logic |
+| `test_quarantine.py` | `@quarantine` / `@pending` / `@future` skip logic |
 | `test_qemu_screendump.py` | `_ppm_to_png` conversion and `main()` entry point |
 | `test_app_support.py` | `_desktop_path`, `_flatpak_available`, launch helpers |
 | `test_system_health_steps.py` | `_has_image_reference`, `_running_in_vm`, ignored failed units |
@@ -69,10 +70,11 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_retry.py` | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | `scripts/parse_results.py` parsing integration |
 | `test_quarantine_age.py` | `scripts/check_quarantine_age.py` parsing and reporting |
+| `test_install_kde_webdriver.py` | `scripts/install-kde-webdriver.sh` contract invariants (pinned SHA, loopback-only bind, skip paths) |
 
 ## Current stub posture
 
-- `flatcar/lifecycle`: partially active — knuckle install, update channel, and afterburn implemented; boot-order swap, Ignition config-drive, and `update_strategy=off` remain `@future`.
+- `flatcar/lifecycle`: 6 scenarios, 5 active — knuckle install, Ignition first-boot verification, update channel, automatic-update disable via `update.conf`, and afterburn implemented. Only the boot-order swap remains `@future`: booting the installed target disk requires KubeVirt boot-device ordering owned by `projectbluefin/lab`, and without it a reboot silently returns to the live disk. The suite is not yet reachable from `e2e.yml` (tracked in #704).
 - `security/selinux`: all scenarios active (cosign verification across image variants).
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
 - `kde-smoke`: 13 `@informational` scenarios in one feature file (repo totals: 479 scenarios / 61 feature files by mechanical recount; see the count-drift notice in `suite-map/SKILL.md`); Aurora-only Phase-2 harness proof. The shared KDE helpers and `e2e.yml` suite registration it depends on landed in #641-#645.
