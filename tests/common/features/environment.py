@@ -40,6 +40,18 @@ def _is_bluefin_image(image: str) -> bool:
     return "bluefin" in name or "bazzite" in lower
 
 
+def _is_dakota_image(image: str) -> bool:
+    """Return True if the image reference looks like a Dakota image.
+
+    Matches the image name component only (e.g. "dakota" in
+    "ghcr.io/projectbluefin/dakota:testing") to avoid false-positives where
+    the org name "projectbluefin" would match a Bluefin image URL.
+    """
+    lower = image.lower()
+    name = lower.split("/")[-1].split(":")[0].split("@")[0]
+    return "dakota" in name
+
+
 def _scenario_tags(scenario) -> set[str]:
     return set(getattr(scenario, "effective_tags", scenario.tags))
 
@@ -59,6 +71,7 @@ def before_all(context):
     # @bluefin scenarios can be skipped gracefully on non-Bluefin images.
     image_ref = os.environ.get("IMAGE", userdata.get("image", ""))
     context.is_bluefin_image = _is_bluefin_image(image_ref) if image_ref else True
+    context.is_dakota_image = _is_dakota_image(image_ref) if image_ref else False
     context.vm_ip = _first_value(
         userdata.get("vm_ip", ""),
         userdata.get("host", ""),
@@ -134,6 +147,13 @@ def before_scenario(context, scenario):
     if not is_bluefin and "bluefin" in scenario_tags:
         scenario.skip(
             f"Skipping @bluefin scenario on non-Bluefin image "
+            f"(IMAGE={os.environ.get('IMAGE', 'unknown')})"
+        )
+        return
+    # Skip @dakota_only scenarios when running against a non-Dakota image.
+    if not getattr(context, "is_dakota_image", False) and "dakota_only" in scenario_tags:
+        scenario.skip(
+            f"Skipping @dakota_only scenario on non-Dakota image "
             f"(IMAGE={os.environ.get('IMAGE', 'unknown')})"
         )
         return

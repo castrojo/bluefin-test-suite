@@ -1,12 +1,21 @@
 ---
 name: gnome
+version: "1.0"
+last_updated: "2026-07-29"
+id: gnome
+one_line_purpose: Write GNOME Shell, AT-SPI, and dogtail interaction tests.
+entry_point: docs/skills/test-authoring/gnome/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [gnome, atspi, dogtail]
 description: "How to write GNOME Shell / AT-SPI / dogtail tests for the testsuite repo. Load when editing GNOME interaction steps."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # GNOME Desktop Testing Reference
 
 
@@ -33,8 +42,6 @@ metadata:
 5. Validate locally with `python3 -m py_compile tests/<suite>/features/steps/*.py`, duplicate-step detection, `ruff`, and `behave --dry-run`.
 
 `tests.shared.wait_for_shell.wait_for_shell()` is the GNOME Shell startup gate. Its contract is: retry Shell.Eval failures, retry when AT-SPI exposes no panel yet, retry on transient exceptions, then fail hard after the attempt budget is exhausted.
-
-Readiness needs **both** halves of the `gdbus` check. `gdbus call` exits 0 whenever the D-Bus method call itself succeeds, even when `org.gnome.Shell.Eval` reports failure — an unsuccessful eval still returns a well-formed `(false, '')` tuple on stdout. Assert the process exit code *and* that stdout contains `(true,` before treating the Shell as up; testing only the exit code makes the gate pass against a Shell that cannot evaluate anything.
 
 ## Stack
 
@@ -231,6 +238,41 @@ run them from the Fedora runner container. `_run_host(...)` transparently hops
 to the VM over SSH in that case, and `source /tmp/session.env 2>/dev/null; ...`
 preserves the GNOME user-session environment before probing Wayland or renderer
 state.
+
+## Unit-testing smoke step modules
+
+Smoke step modules drive AT-SPI, dogtail and live GNOME state, so most of their
+surface is not unit-testable. What *is* testable is the pure logic they wrap:
+command construction, output parsing, polling loops and assertion branches.
+Import them in `tests/unit/` with `behave`, `qecore`, `dogtail` and
+`app_support` stubbed via `sys.modules`, then patch the shell helper
+(`_run_host`, `_run_in_vm`) with `unittest.mock.patch.object`.
+
+Notes for the three a11y/input/XWayland modules:
+
+- `orca_steps.py` — wraps `_run_host` from `steps.steps` (the smoke steps
+  directory is only importable during a behave run, so unit tests must register
+  a `steps` package stub with a `__path__` before importing). Unit-testable:
+  the `Run command on VM` context bookkeeping, return-code/substring assertion
+  messages, the `gsettings set …screen-reader-enabled` command string,
+  `_orca_is_running()` (rc **and** non-empty stdout), `_wait_for_orca()` polling
+  and its start/stop timeout wording, and the toggle step's guarantee that the
+  screen-reader key is restored to `false` even when the start assertion fails.
+  Not unit-testable: whether Orca actually starts.
+- `input_methods_steps.py` — `_run_in_vm()` always prefixes
+  `source /tmp/session.env 2>/dev/null;` and dispatches to `_ssh_run` when
+  `_IN_CONTAINER`, else `subprocess.run(shell=True)`. `_restore_input_sources()`
+  is idempotent via a `_restored` flag so the explicit restore step and the
+  registered `context.add_cleanup` do not double-apply; the flag is latched only
+  when every `gsettings set` returned 0, so a failed restore raises and the
+  cleanup hook can retry instead of leaking state. Saved gsettings values
+  contain single quotes and are re-applied through `shlex.quote`. Not
+  unit-testable: whether IBus owns the bus name or a layout actually switches.
+- `xwayland_steps.py` — `_xwayland_display_env()` parses `pgrep -a -x Xwayland`
+  output: it takes the first line only, reads `-auth <file>` into `XAUTHORITY`
+  (omitted when absent or dangling), and picks the first `:<digits>` token as
+  `DISPLAY`, defaulting to `:0`. Not unit-testable: `xprop -root` against a real
+  X root window, or glxgears rendering.
 
 ## Per-app accessibility launch environment
 

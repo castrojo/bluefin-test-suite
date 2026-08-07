@@ -10,7 +10,7 @@ Review PRs in this repo against the contribution gates in `docs/skills/ci-ops/co
 ## First Action
 
 ```bash
-cat docs/skills/index.md
+cat docs/SKILL.md
 cat docs/skills/ci-ops/contributing/SKILL.md   # full contribution gates and review checklist
 cat docs/skills/test-authoring/behave/SKILL.md         # step authoring patterns
 cat docs/qa-review.md                  # current coverage baseline
