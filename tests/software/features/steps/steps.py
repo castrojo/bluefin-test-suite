@@ -335,10 +335,16 @@ def no_flatpak_user_overrides_exist(context, app_id: str) -> None:
         f"flatpak override --show {app_id} failed: "
         f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
     )
-    # No override-specific keys should be present (filesystems, devices, etc.)
-    override_keys = {"filesystems", "devices", "features", "sockets", "env"}
-    lines_lower = {line.strip().lower() for line in result.stdout.splitlines()}
-    found = override_keys & lines_lower
+    # No override-specific keys should be present (filesystems, devices, etc.).
+    # Override output is a keyfile ("filesystems=home;"), so compare the key part
+    # before "=" — comparing whole lines never matches and passes falsely.
+    override_keys = {"filesystems", "devices", "features", "sockets", "shared", "persistent"}
+    present_keys = {
+        line.split("=", 1)[0].strip().lower()
+        for line in result.stdout.splitlines()
+        if "=" in line
+    }
+    found = override_keys & present_keys
     assert not found, (
         f"Expected no user overrides for {app_id} after reset, "
         f"but found active override keys: {found}\n{result.stdout}"

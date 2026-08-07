@@ -173,6 +173,37 @@ class TestFlatpakUserOverrideIsActive:
 
 
 # ---------------------------------------------------------------------------
+# no_flatpak_user_overrides_exist — keyfile key detection
+# ---------------------------------------------------------------------------
+
+class TestNoFlatpakUserOverridesExist:
+    def test_passes_on_empty_output(self):
+        m = _import_software_steps()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="", rc=0)):
+            m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_raises_when_keyfile_entry_remains(self):
+        m = _import_software_steps()
+        import pytest
+        output = "[Context]\nfilesystems=home;\n"
+        with patch.object(m, "_flatpak", return_value=_completed(stdout=output, rc=0)):
+            with pytest.raises(AssertionError, match="found active override keys"):
+                m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_bare_section_header_is_not_an_override(self):
+        m = _import_software_steps()
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="[Context]\n", rc=0)):
+            m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+    def test_raises_on_nonzero_rc(self):
+        m = _import_software_steps()
+        import pytest
+        with patch.object(m, "_flatpak", return_value=_completed(stdout="", rc=1)):
+            with pytest.raises(AssertionError, match="failed"):
+                m.no_flatpak_user_overrides_exist(MagicMock(), "myapp")
+
+
+# ---------------------------------------------------------------------------
 # flatpak_app_info_is_queryable — new step
 # ---------------------------------------------------------------------------
 
