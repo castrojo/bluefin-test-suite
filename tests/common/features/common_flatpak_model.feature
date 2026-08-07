@@ -5,7 +5,9 @@ Feature: Bluefin Flatpak-only desktop model
   Background:
     * Bluefin VM is booted and reachable over SSH
 
-  @quarantine
+  # Pending: flatpak-preinstall.service is masked in e2e.yml, so remotes are never
+  # configured in CI.
+  @pending
   Scenario: Flathub is the only configured Flatpak remote
     * Run SSH command: "flatpak remotes --columns=name"
     * SSH command return code is "0"
@@ -18,7 +20,9 @@ Feature: Bluefin Flatpak-only desktop model
     * SSH command output does not contain "fedora-flathub"
     * SSH command output does not contain "fedora"
 
-  @quarantine
+  # Pending: flatpak-preinstall.service is masked in e2e.yml, so no system Flatpaks
+  # are installed in CI.
+  @pending
   Scenario: Required system Flatpaks are installed
     * Run SSH command: "flatpak list --app --columns=application"
     * SSH command return code is "0"
@@ -30,7 +34,8 @@ Feature: Bluefin Flatpak-only desktop model
     * Run SSH command: "grep -r \"^Exec=/usr/bin\" /usr/share/applications/ --include=\"*.desktop\" -l | grep -v -e \"ublue\" -e \"ujust\" -e \"just\" | wc -l | tr -d '[:space:]'"
     * SSH command output "is" "0"
 
-  @quarantine
+  # Pending: flatpak-preinstall.service is masked in e2e.yml; nothing to list.
+  @pending
   Scenario: Flatpak apps can be listed without errors
     * Run SSH command: "flatpak list --app"
     * SSH command return code is "0"

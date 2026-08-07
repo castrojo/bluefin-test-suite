@@ -22,7 +22,8 @@ Feature: Bluefin common systemd service health
     * SSH command return code is "0"
     * SSH command output stripped "is" "success"
 
-  @quarantine
+  # Pending: flatpak-preinstall.service is masked in e2e.yml, so it never runs in CI.
+  @pending
   Scenario: flatpak-preinstall installed required applications
     * Run SSH command: "systemctl show flatpak-preinstall.service --property=ActiveState --value"
     * SSH command return code is "0"
@@ -31,7 +32,9 @@ Feature: Bluefin common systemd service health
     * SSH command output contains "org.mozilla.firefox"
     * SSH command output contains "com.raggesilver.BlackBox"
 
-  @quarantine
+  # Pending: flatpak-preinstall.service is masked in e2e.yml and /var/lib/flatpak is
+  # never seeded, so no remotes exist to check.
+  @pending
   Scenario: flatpak remotes are flathub only
     * Run SSH command: "systemctl show flatpak-nuke-fedora.service --property=ActiveState --value"
     * SSH command return code is "0"
