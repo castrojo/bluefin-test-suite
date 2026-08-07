@@ -108,6 +108,35 @@ def test_future_reason_wins_over_pending():
     assert scenario.skip_message == "@future — planned coverage not yet runnable, skipping"
 
 
+def test_hardware_blocked_scenario_is_skipped_with_message():
+    """@hardware_blocked scenarios need absent hardware and must never execute."""
+    scenario = _FakeScenario(tags=["hardware_blocked", "requires_gpu"])
+    assert skip_quarantine(scenario) is True
+    assert scenario.skipped
+    assert scenario.skip_message == "@hardware_blocked — required hardware unavailable, skipping"
+
+
+def test_hardware_blocked_alone_is_skipped():
+    """A standalone @hardware_blocked scenario is skipped without @future masking it."""
+    scenario = _FakeScenario(tags=["hardware_blocked"])
+    assert skip_quarantine(scenario) is True
+    assert scenario.skipped
+
+
+def test_hardware_blocked_reason_wins_over_future():
+    """@hardware_blocked outranks @future, matching the documented precedence."""
+    scenario = _FakeScenario(tags=["future", "hardware_blocked"])
+    assert skip_quarantine(scenario) is True
+    assert scenario.skip_message == "@hardware_blocked — required hardware unavailable, skipping"
+
+
+def test_quarantine_reason_wins_over_hardware_blocked():
+    """@quarantine is the top of the precedence order."""
+    scenario = _FakeScenario(tags=["hardware_blocked", "quarantine"])
+    assert skip_quarantine(scenario) is True
+    assert scenario.skip_message == "@quarantine — known flaky, skipping"
+
+
 def test_quarantine_tag_mixed_with_others():
     """@quarantine alongside other tags still triggers skip."""
     scenario = _FakeScenario(tags=["smoke", "quarantine", "sla_10s"])

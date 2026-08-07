@@ -109,7 +109,9 @@ because duplicated policy drifts.
 | CODEOWNERS, triagers, branch protection | [`common/docs/skills/governance.md`](https://github.com/projectbluefin/common/blob/main/docs/skills/governance.md) |
 
 Factory-wide learning → open an issue in `projectbluefin/common` describing the
-learning, affected component, and evidence. Never write to `ublue-os/*`.
+learning, affected component, and evidence. Filing that issue is the only write
+you may make to `projectbluefin/common`: never push branches, open PRs, or edit
+files there. Never write to `ublue-os/*` or any KDE property at all.
 
 ## Hard boundaries
 

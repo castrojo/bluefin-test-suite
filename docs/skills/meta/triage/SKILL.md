@@ -118,9 +118,11 @@ describe scope, not state.
    GH_REPO=projectbluefin/testsuite gh issue edit <number> --remove-label "3-clanker-queue"
    ```
 
-5. **Triage PRs.**
+5. **Triage PRs.** Classification only — approving and merging are human
+   authority (see `docs/skills/meta/human-gates/SKILL.md`).
    - Mergeable and not reviewed → `4-review`
-   - Approved and green → enqueue via the merge queue; there is no `automerge` label
+   - Approved and green → report it as ready for a human to enqueue; do not
+     approve or merge it yourself, and there is no `automerge` label
    - Conflicting dependency update → leave for Renovate; do not hand-rebase
    - Two open PRs touching the same file → flag the overlap; one of them should
      fold into the other (see the disjointness rule in `AGENTS.md`)

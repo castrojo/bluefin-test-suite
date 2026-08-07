@@ -63,9 +63,9 @@ Triage open issues and PRs in `projectbluefin/testsuite`.
    ```
    Use `gh issue edit <n> --remove-label "3-clanker-queue"` on closed issues so the queue stays clean.
 
-6. **Triage PRs.**
+6. **Triage PRs.** Classification only — approving and merging are human authority.
    - Mergeable + no review → add `4-review`
-   - Approved and green → enqueue via the merge queue (there is no `automerge` label)
+   - Approved and green → report it as ready for a human to enqueue; do not approve or merge it yourself (there is no `automerge` label)
    - Conflicting dependency PRs → leave for Renovate; do not hand-rebase
 
 ## Issue Classification
