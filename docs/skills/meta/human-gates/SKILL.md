@@ -118,6 +118,14 @@ If `ghost-lab` appears, the lab gate is live: go back to "wait for `ghost-lab: s
 `ublue-os/*` repository. Read-only `gh api` calls are permitted. If a task requires
 writing to `ublue-os`, stop and tell the human to report it manually.
 
+### `projectbluefin/common` — issues only
+
+`projectbluefin/common` is a sibling factory repo, not a read-only upstream. You
+MAY file an issue there to report a factory-wide learning or a needed contract
+change — that is the escalation path `AGENTS.md` prescribes. You MAY NOT push
+branches, open PRs, or edit files there: a change to `common` is a human
+decision gate. Report it, do not make it.
+
 ### KDE properties — strictly read-only, no exceptions
 
 All KDE-owned properties are read-only for every agent and every automated process:

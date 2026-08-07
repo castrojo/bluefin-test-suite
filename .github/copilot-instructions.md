@@ -12,9 +12,17 @@ rules ([label workflow](https://github.com/projectbluefin/common/blob/main/docs/
 It never overrides local authority; local rules never override a factory-wide
 contract.
 
-Humans triage, approve, review, and merge. Agents work only on issues routed to
-them by assignment or `3-clanker-queue`. Clankers only transports Hive
+Humans hold triage, approval, review, and merge authority. Agents work only on
+issues routed to them by assignment or `3-clanker-queue`, and may apply
+lifecycle labels or close resolved issues **only during a triage pass a human
+explicitly asked for** (see `docs/skills/meta/triage/SKILL.md`). Agents never
+approve a PR and never merge or enqueue one. Clankers only transports Hive
 assignments — it is not merge authority.
 
-**Never write to `ublue-os/*`, `projectbluefin/common`, or any KDE property.**
-Read-only API calls are fine.
+**Never write to `ublue-os/*` or any KDE property.** Read-only API calls are
+fine.
+
+`projectbluefin/common` is a sibling factory repo, not a read-only upstream:
+**never push branches, open PRs, or edit files there**, but filing an issue is
+the prescribed escalation path for factory-wide learnings (see `AGENTS.md`,
+"Factory contracts").
