@@ -30,9 +30,8 @@ Feature: GNOME accessibility
     * Return code of last command output "is" "0"
 
   @accessibility @atspi
-  Scenario: AT-SPI registry daemon is running
-    * Run and save command output: "pgrep -x at-spi-bus-launcher && echo running"
-    * Last command output "contains" "running"
+  Scenario: AT-SPI accessibility bus is reachable from the GNOME session
+    * AT-SPI accessibility bus is reachable from the GNOME session
 
   @accessibility @regression
   Scenario: No accessibility-related journal errors after session start
