@@ -20,8 +20,10 @@ Feature: Bluefin common ujust recipes
     * SSH command output contains "Manufacturer"
 
   # Blocked on projectbluefin/common: the recipe declares a `ACTION="prompt"`
-  # parameter but never reads it, so the `gum choose` prompt always runs and
-  # there is no non-interactive entry point to drive from a test.
+  # parameter but never reads it. When `bctl` is present the recipe execs
+  # `bctl --screen updates` and hands off to a GUI panel; only without `bctl`
+  # does it fall back to a `gum choose` prompt, and that fallback blocks a
+  # non-interactive run. Neither branch has a non-interactive entry point.
   # See docs/skills/test-authoring/behave/SKILL.md and projectbluefin/testsuite#499.
   @pending @wip
   Scenario: ujust toggle-updates flips the automatic update timer
