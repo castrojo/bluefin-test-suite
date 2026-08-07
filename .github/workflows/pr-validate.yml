@@ -63,6 +63,23 @@ jobs:
       - name: Check quarantine age
         run: python3 scripts/check_quarantine_age.py --grace-days 30
 
+  coverage-snapshot:
+    name: Coverage snapshot fresh
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.14"
+
+      - name: Check coverage snapshot is regenerated
+        run: python3 scripts/update_coverage_snapshot.py --check
+
   dry-run:
     name: Behave dry-run
     runs-on: ubuntu-latest

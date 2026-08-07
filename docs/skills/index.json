@@ -87,7 +87,7 @@
       ],
       "description": "How to call and debug the reusable testsuite e2e workflow. Load when changing e2e.yml, action inputs, or consumer-repo wiring.",
       "version": "1.0",
-      "last_updated": "2026-08-01",
+      "last_updated": "2026-08-07",
       "doc_type": "pattern"
     },
     {
