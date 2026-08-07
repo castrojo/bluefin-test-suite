@@ -1,4 +1,4 @@
-from time import sleep
+from time import monotonic, sleep
 
 from behave import step
 try:
@@ -30,6 +30,41 @@ FIREFOX_LAUNCH_TARGETS = (
     ("flatpak", "org.mozilla.firefox"),
 )
 
+# Firefox does not build its accessibility tree just because the session has
+# `org.gnome.desktop.interface toolkit-accessibility` enabled — that setting
+# only drives the GTK atk-bridge, and Firefox renders its own chrome. Firefox
+# gates its AT-SPI bridge on these environment variables at process start, so
+# they must be present in the launched process's environment. Without them the
+# app registers with AT-SPI but exposes an empty subtree: no address bar, no
+# tab list. Mirrors the launch env already used in gnome_extensions_steps.py.
+FIREFOX_A11Y_ENV = {
+    "GNOME_ACCESSIBILITY": "1",
+    "ACCESSIBILITY_ENABLED": "1",
+    "GTK_A11Y": "atk-bridge",
+}
+
+# Roles GNOME 50 may use for a top-level application window. `filler` is
+# load-bearing: since GNOME 50, several apps expose their toplevel as `filler`
+# rather than `frame` (see commit 12bd892e). It is accepted only when the
+# candidate actually carries a populated subtree — see _firefox_window().
+FIREFOX_WINDOW_ROLES = {"frame", "filler"}
+
+# Chrome widgets a Firefox window always exposes once its a11y tree is built.
+# A window node with none of these is an empty shell, not a usable window.
+FIREFOX_CHROME_ROLES = {"entry", "page tab list", "tool bar", "push button"}
+
+A11Y_TREE_EMPTY_MESSAGE = (
+    "Firefox window found but its AT-SPI subtree is empty "
+    "(no entry / tool bar / page tab list descendants). "
+    "Firefox accessibility is not enabled — is GNOME_ACCESSIBILITY=1 set on the "
+    "Firefox launch, and is `gsettings get org.gnome.desktop.interface "
+    "toolkit-accessibility` true in the session?"
+)
+
+# Bounded wait for Firefox's a11y tree to appear after launch.
+A11Y_TREE_TIMEOUT_SECONDS = 30.0
+A11Y_TREE_POLL_SECONDS = 0.5
+
 
 def _firefox_app(context):
     instance = getattr(getattr(context, "firefox", None), "instance", None)
@@ -48,13 +83,46 @@ def _firefox_app(context):
 def launch_firefox_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
-    context.firefox_launch_target = launch_background(FIREFOX_LAUNCH_TARGETS)
+    context.firefox_launch_target = launch_background(
+        FIREFOX_LAUNCH_TARGETS, env=FIREFOX_A11Y_ENV
+    )
 
 
-def _firefox_window(context):
-    frames = _firefox_app(context).findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
-    assert frames, "Firefox main window not found"
-    return frames[0]
+def _window_candidates(context):
+    return _firefox_app(context).findChildren(
+        lambda n: n.roleName in FIREFOX_WINDOW_ROLES and n.showing
+    )
+
+
+def _has_populated_a11y_tree(node) -> bool:
+    """True when ``node`` exposes real Firefox chrome widgets via AT-SPI."""
+    try:
+        return bool(node.findChildren(lambda n: n.roleName in FIREFOX_CHROME_ROLES))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _firefox_window(context, *, require_a11y_tree: bool = True):
+    """Return the Firefox main window node.
+
+    A bare `filler` node with no descendants is *not* a usable window: it is
+    what Firefox exposes when its accessibility engine never started. Accepting
+    it made "Firefox main window is accessible" a false pass and pushed the real
+    failure into later steps as a confusing "address bar not found".
+    """
+    candidates = _window_candidates(context)
+    assert candidates, "Firefox main window not found"
+    if not require_a11y_tree:
+        return candidates[0]
+    # Prefer a real `frame`; fall back to any candidate with a usable subtree.
+    populated = [n for n in candidates if _has_populated_a11y_tree(n)]
+    for node in populated:
+        if node.roleName == "frame":
+            return node
+    if populated:
+        return populated[0]
+    roles = sorted({n.roleName for n in candidates})
+    raise AssertionError(f"{A11Y_TREE_EMPTY_MESSAGE} (window roles seen: {roles})")
 
 
 def _address_bar(context):
@@ -72,13 +140,24 @@ def _tab_count(context):
 
 @step("Firefox main window is accessible")
 def firefox_main_window_is_accessible(context) -> None:
-    for _ in range(30):
+    """Wait, bounded, for a Firefox window with a populated AT-SPI subtree.
+
+    Firefox builds its accessibility tree lazily after the window maps, so a
+    poll is required; the deadline is explicit rather than a bare sleep.
+    """
+    deadline = monotonic() + A11Y_TREE_TIMEOUT_SECONDS
+    last_error: Exception | None = None
+    while monotonic() < deadline:
         try:
             context.firefox_window = _firefox_window(context)
             return
-        except Exception:  # noqa: BLE001
-            sleep(0.5)
-    raise AssertionError("Firefox main window not accessible after 15 seconds")
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            sleep(A11Y_TREE_POLL_SECONDS)
+    raise AssertionError(
+        f"Firefox main window not accessible after "
+        f"{A11Y_TREE_TIMEOUT_SECONDS:.0f}s: {last_error}"
+    )
 
 
 @step("Firefox is no longer running")
@@ -87,7 +166,11 @@ def firefox_is_no_longer_running(context) -> None:
         for name in FIREFOX_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
+                # Liveness check only — an empty-subtree window still counts as
+                # "Firefox is running", so do not require an a11y tree here.
+                frames = app.findChildren(
+                    lambda n: n.roleName in FIREFOX_WINDOW_ROLES and n.showing
+                )
                 if frames:
                     break
             except Exception:  # noqa: BLE001

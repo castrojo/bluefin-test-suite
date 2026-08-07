@@ -30,9 +30,10 @@ metadata:
 
 1. Read the target `.feature` file and the suite's `steps/*.py` before adding phrases.
 2. Reuse `tests/shared/ssh_steps.py` for generic SSH command/assertion steps instead of duplicating helpers.
-3. Keep step phrases unique within the loaded suite and check for collisions before committing.
-4. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
-5. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
+3. Star-importing `tests/shared/ssh_steps` obligates the suite to set the context attributes those steps read. `run_ssh()` dereferences `context.ssh_key`, `context.ssh_user`, `context.vm_ip` and (optionally) `context.ssh_port`; a suite that skips this fails every SSH scenario with `AttributeError` on the first step. Call `tests.shared.ssh_config.populate_ssh_context(context)` from the suite's `before_all` (see `tests/software/features/environment.py`) — it resolves context attributes → behave userdata → `SSH_KEY`/`VM_IP`/`VM_USER`/`SSH_PORT` env vars → runner defaults, which is the same source suite-local SSH helpers (e.g. the software suite's `_flatpak()`) must use. Never let a suite keep a second, env-only SSH path alongside the shared steps.
+4. Keep step phrases unique within the loaded suite and check for collisions before committing.
+5. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
+6. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
 
 ## `grep -q` vs `grep -c` for existence checks
 
@@ -121,6 +122,40 @@ If a recipe is gated by `gum choose`, `pkexec`, or package-install side effects,
 land the coverage as `@pending @wip` until a non-interactive harness exists.
 Current example: `ujust toggle-updates` is interactive and flips `uupd.timer`
 or `rpm-ostreed-automatic.timer` (not `ublue-update.timer`).
+
+#### `toggle-updates` is not drivable non-interactively (verified 2026-08)
+
+`system_files/shared/usr/share/ublue-os/just/update.just` in
+`projectbluefin/common` declares the recipe as `toggle-updates ACTION="prompt":`
+but the recipe body never reads `ACTION`. The body has two branches:
+
+```bash
+# Open the bluefinctl Updates panel when available
+if command -v bctl &>/dev/null; then
+    exec bctl --screen updates
+fi
+...
+SELECTED_OPTION="$(gum choose --header="Toggle automatic updates?" "Enable" "Disable" "Cancel")"
+```
+
+Both branches are untestable, for different reasons:
+
+- On images that ship `bctl` (bluefinctl), the recipe `exec`s
+  `bctl --screen updates` and hands off to a GUI panel. The recipe never
+  reaches the timer logic and there is nothing for SSH to assert.
+- Only when `bctl` is absent does the recipe fall back to the shell path, and
+  that fallback blocks on `gum choose`. This is the branch that hangs a
+  non-interactive run.
+- `ujust toggle-updates Enable` accepts the argument on either path and ignores
+  it; the parameter is decorative, so no flag-based non-interactive entry point
+  exists today.
+- Asserting the timer state directly (`systemctl enable/disable uupd.timer`)
+  tests systemd, not the recipe, so it does not close this coverage gap.
+
+Keep the scenario `@pending @wip` until `projectbluefin/common` makes `ACTION`
+actually select `Enable`/`Disable`/`Cancel` without a prompt. That is a
+`projectbluefin/common` interface change and needs maintainer acceptance
+(`projectbluefin/testsuite#499`) before any testsuite implementation lands.
 
 ### uupd conditional suppression coverage
 
