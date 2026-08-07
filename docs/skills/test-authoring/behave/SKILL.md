@@ -84,6 +84,40 @@ land the coverage as `@pending @wip` until a non-interactive harness exists.
 Current example: `ujust toggle-updates` is interactive and flips `uupd.timer`
 or `rpm-ostreed-automatic.timer` (not `ublue-update.timer`).
 
+#### `toggle-updates` is not drivable non-interactively (verified 2026-08)
+
+`system_files/shared/usr/share/ublue-os/just/update.just` in
+`projectbluefin/common` declares the recipe as `toggle-updates ACTION="prompt":`
+but the recipe body never reads `ACTION`. The body has two branches:
+
+```bash
+# Open the bluefinctl Updates panel when available
+if command -v bctl &>/dev/null; then
+    exec bctl --screen updates
+fi
+...
+SELECTED_OPTION="$(gum choose --header="Toggle automatic updates?" "Enable" "Disable" "Cancel")"
+```
+
+Both branches are untestable, for different reasons:
+
+- On images that ship `bctl` (bluefinctl), the recipe `exec`s
+  `bctl --screen updates` and hands off to a GUI panel. The recipe never
+  reaches the timer logic and there is nothing for SSH to assert.
+- Only when `bctl` is absent does the recipe fall back to the shell path, and
+  that fallback blocks on `gum choose`. This is the branch that hangs a
+  non-interactive run.
+- `ujust toggle-updates Enable` accepts the argument on either path and ignores
+  it; the parameter is decorative, so no flag-based non-interactive entry point
+  exists today.
+- Asserting the timer state directly (`systemctl enable/disable uupd.timer`)
+  tests systemd, not the recipe, so it does not close this coverage gap.
+
+Keep the scenario `@pending @wip` until `projectbluefin/common` makes `ACTION`
+actually select `Enable`/`Disable`/`Cancel` without a prompt. That is a
+`projectbluefin/common` interface change and needs maintainer acceptance
+(`projectbluefin/testsuite#499`) before any testsuite implementation lands.
+
 ### uupd conditional suppression coverage
 
 Do not simulate uupd's battery or metered-network suppression in testsuite

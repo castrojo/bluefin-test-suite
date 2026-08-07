@@ -17,7 +17,10 @@ Feature: bootc upgrade and rollback lifecycle
     * SSH command return code is "0"
     * Capture booted image digest for rollback verification
 
-  @lifecycle @pin @quarantine
+  # Future: `bootc pin` races with the staged-deployment writer in a fresh QEMU
+  # install, so status can report the previous pin state. Needs a settled deployment
+  # barrier before this can run reliably.
+  @lifecycle @pin @future
   Scenario: bootc can pin and unpin the current deployment
     * Bluefin VM is booted and reachable over SSH
     * Run SSH command: "sudo bootc pin"
@@ -66,9 +69,9 @@ Feature: bootc upgrade and rollback lifecycle
     * Run SSH command: "sudo bootc status --format=json"
     * Active deployment matches original image digest
 
-  @lifecycle @switch @quarantine
+  @lifecycle @switch @future
   Scenario: bootc switch transitions to a different variant
-    # Quarantined: mutates VM image variant (bluefin → bluefin-dx), corrupting
+    # Future: mutates VM image variant (bluefin → bluefin-dx), corrupting
     # subsequent migration.feature scenarios that expect ublue-os/bluefin as source.
     # Run as a standalone suite once cross-variant golden-disk testing is set up.
     * Run long SSH command: "sudo bootc switch ghcr.io/ublue-os/bluefin-dx:latest"
