@@ -2,8 +2,9 @@
 
 Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/SKILL.md`. Read that file for the current per-suite matrix and `@future` stub list rather than duplicating counts here.
 
-The current branch's mechanical recount is 473 scenarios across 63 feature files;
-the five active sudo-rs scenarios are included in the smoke total there.
+The current branch's mechanical recount is 488 scenarios across 65 feature files:
+384 active, 0 `@quarantine`, 104 `@future`/`@pending`/`@hardware_blocked`. The five active
+sudo-rs scenarios are included in the smoke total there.
 
 ## What this repo is responsible for
 
@@ -60,7 +61,7 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_shared.py` | Shared step utilities |
 | `test_screenshot_cli.py` | `screenshot_cli.main()` argument parsing and dispatch |
 | `test_security_steps.py` | `_cosign_entries()` JSON validation and `_collect_values()` recursive extraction |
-| `test_quarantine.py` | `@quarantine` / `@pending` skip logic |
+| `test_quarantine.py` | `@quarantine` / `@pending` / `@future` skip logic |
 | `test_qemu_screendump.py` | `_ppm_to_png` conversion and `main()` entry point |
 | `test_app_support.py` | `_desktop_path`, `_flatpak_available`, launch helpers |
 | `test_system_health_steps.py` | `_has_image_reference`, `_running_in_vm`, ignored failed units |
