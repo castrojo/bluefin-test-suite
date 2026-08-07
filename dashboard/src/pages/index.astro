@@ -11,7 +11,7 @@ const passRatePercent = (aggregates.overall_pass_rate * 100).toFixed(1);
 const averageDurationMin = (aggregates.average_test_duration_ms / 1000 / 60).toFixed(1);
 
 const ARGO_UI = 'http://192.168.1.102:32746';
-const GH_REPO = 'https://github.com/projectbluefin/testing-lab';
+const GH_REPO = 'https://github.com/projectbluefin/lab';
 ---
 
 <Layout title="Project Bluefin QA Dashboard">
@@ -27,7 +27,7 @@ const GH_REPO = 'https://github.com/projectbluefin/testing-lab';
           <span>•</span>
           <a href={ARGO_UI} target="_blank" rel="noopener" class="text-blue-400 hover:underline">Argo UI</a>
           <span>•</span>
-          <a href={GH_REPO} target="_blank" rel="noopener" class="text-blue-400 hover:underline">testing-lab</a>
+          <a href={GH_REPO} target="_blank" rel="noopener" class="text-blue-400 hover:underline">lab</a>
         </div>
       </div>
       
@@ -42,10 +42,10 @@ const GH_REPO = 'https://github.com/projectbluefin/testing-lab';
       <span class="text-slate-400 font-semibold">Quick links:</span>
       <a href={`${ARGO_UI}/workflows/argo?phase=Failed`} target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">⚠ Failed workflows</a>
       <a href={`${ARGO_UI}/workflows/argo?phase=Running`} target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">▶ Running workflows</a>
-      <a href="https://github.com/projectbluefin/testing-lab/issues?q=is%3Aopen+label%3Abug" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">Bugs</a>
-      <a href="https://github.com/projectbluefin/testing-lab/issues/new/choose" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">+ File issue</a>
-      <a href="https://github.com/projectbluefin/testing-lab/blob/main/RUNBOOK.md" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">RUNBOOK</a>
-      <a href="https://github.com/projectbluefin/testing-lab/blob/main/docs/agent-cheatsheet.md" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">Cheatsheet</a>
+      <a href="https://github.com/projectbluefin/lab/issues?q=is%3Aopen+label%3Abug" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">Bugs</a>
+      <a href="https://github.com/projectbluefin/lab/issues/new/choose" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">+ File issue</a>
+      <a href="https://github.com/projectbluefin/lab/blob/main/RUNBOOK.md" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">RUNBOOK</a>
+      <a href="https://github.com/projectbluefin/lab/blob/main/docs/agent-cheatsheet.md" target="_blank" rel="noopener" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 px-3 py-1.5 rounded-lg transition-all duration-200">Cheatsheet</a>
     </div>
 
     <!-- Aggregates Stats Grid -->
