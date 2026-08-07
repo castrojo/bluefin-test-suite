@@ -43,6 +43,25 @@ attempts 15–30: Could not connect: No such file or directory
 
 **Read the snapshot before touching this repo:** if the socket never appears and `loginctl` shows no user session for uid 1000 for the whole budget, the replacement autologin session never came back. That is a lane/GDM provisioning problem in `<image-org>/lab` (`run-container-tests.yaml`), not a testsuite bug — no amount of polling in `wait_for_shell.py` can fix it.
 
+## Confirmed outcome (lab run `testsuite-737-...-5mlvl`, 2026-08-07)
+
+With the diagnostics in place, both lanes produced this at timeout:
+
+```
+ERROR: GNOME Shell readiness failed after 151 attempts / 300.2s (budget 300s).
+Error classes: bus-unavailable=137, service-unknown=14.
+Last error: session bus socket /run/user/1000/bus does not exist
+Final session diagnostics:
+  socket /run/user/1000/bus exists=False
+  ls -la runtime dir: ls: cannot access '/run/user/1000': No such file or directory
+  loginctl list-sessions: No sessions.
+  systemctl status gdm: Active: active (running)
+```
+
+`gdm.service` is healthy, but the whole runtime dir for uid 1000 is gone and `loginctl` cycles **greeter-only** sessions (`gdm-greeter` / `gdm-greeter-2`, uids 60578–60582) — a uid-1000 `bluefin-test` session is never recreated. GDM comes back to the **greeter**, not to autologin.
+
+So the post-restart failure is the [GDM autologin](gdm-autologin.md) failure mode, one restart later: no autologin ⇒ no user session ⇒ no `/run/user/1000` ⇒ no bus, permanently. **No amount of polling in `wait_for_shell.py` can fix this**; the fix belongs to the lane that restarts GDM (`run-container-tests.yaml` in the lab repo), which must ensure autologin survives the `qecore-headless` restart.
+
 **Ruled out, do not re-investigate:** Argo semaphore/concurrency (a solo run failed identically) and "just wait for the session to settle" (the settle probe passed the check and then the socket died immediately after).
 
 ---
