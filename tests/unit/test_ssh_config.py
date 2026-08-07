@@ -134,6 +134,42 @@ class TestSoftwareSuiteWiring:
         assert ctx.vm_ip == "192.0.2.30"
         assert ctx.ssh_key == "/env/key3"
 
+    def test_bazaar_probe_uses_shared_connection_details(self):
+        env_mod = self._import_software_environment()
+        ctx = _full_context()
+        details = {
+            "ssh_key": "/resolved/key",
+            "vm_ip": "192.0.2.40",
+            "ssh_user": "resolved-user",
+            "ssh_port": "2224",
+        }
+        result = types.SimpleNamespace(returncode=0)
+        with patch.object(env_mod, "resolve_ssh_details", return_value=details) as resolve, \
+             patch("subprocess.run", return_value=result) as run:
+            assert env_mod._has_bazaar(ctx)
+
+        resolve.assert_called_once_with(ctx)
+        command = run.call_args.args[0]
+        assert "/resolved/key" in command
+        assert "2224" in command
+        assert "resolved-user@192.0.2.40" in command
+
+    def test_before_scenario_passes_context_to_bazaar_probe(self):
+        env_mod = self._import_software_environment()
+        ctx = _bare_context()
+        scenario = types.SimpleNamespace(
+            effective_tags={"software"},
+            tags={"software"},
+            feature=types.SimpleNamespace(tags=set()),
+            name="Bazaar scenario",
+            skip=MagicMock(),
+        )
+        with patch.object(env_mod, "_has_bazaar", return_value=False) as probe:
+            env_mod.before_scenario(ctx, scenario)
+
+        probe.assert_called_once_with(ctx)
+        scenario.skip.assert_called_once()
+
     def test_steps_module_resolves_via_shared_source(self):
         """_flatpak() must use tests.shared.ssh_config, not private env reads."""
         from tests.unit.test_software_steps import _import_software_steps
