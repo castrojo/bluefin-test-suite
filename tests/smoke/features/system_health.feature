@@ -32,13 +32,18 @@ Feature: System health smoke checks
     * ujust is on PATH and returns exit 0
     * ujust --list prints at least one task
 
-  @system_health @ujust @ujust_report @quarantine
+  # Pending: `ujust report --confirm` validation ships in a `just` template change
+  # that is not yet in the images CI boots; needs an image rebuild first.
+  @system_health @ujust @ujust_report @pending
   Scenario: ujust report confirm validation rejects invalid inputs
     * ujust is on PATH and returns exit 0
     * ujust report --confirm rejects non-integer issue number
     * ujust report --confirm without issue number prints error
 
-  @health @composefs @regression @sla_10s @quarantine
+  # Re-activated: quarantined in #521 for projectbluefin/dakota#841 (ping missing
+  # cap_net_raw in :testing). That issue is closed, and @regression guards must
+  # stay active so a recurrence is caught.
+  @health @composefs @regression @sla_10s
   Scenario: composefs preserves file capabilities on newuidmap, newgidmap, and ping
     * newuidmap, newgidmap, and ping retain their security.capability xattrs
 
