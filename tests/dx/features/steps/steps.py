@@ -101,3 +101,47 @@ def dx_distrobox_can_be_created(context, name: str, image: str) -> None:
     list_out, list_rc = _ssh(context, 'distrobox list --no-color', timeout=60)
     assert list_rc == 0, f'distrobox list failed:\n{list_out}'
     assert name in list_out, f'distrobox {name!r} not found after create:\n{list_out}'
+
+
+@step('DX distrobox "{name}" installs package "{package}"')
+def dx_distrobox_installs_package(context, name: str, package: str) -> None:
+    """Install a package inside the container and verify the binary exists."""
+    install_out, install_rc = _ssh(
+        context,
+        f"distrobox enter --name {name} -- sudo dnf install -y {package}",
+        timeout=600,
+    )
+    assert install_rc == 0, f'dnf install {package!r} in distrobox {name!r} failed:\n{install_out}'
+
+    which_out, which_rc = _ssh(
+        context,
+        f"distrobox enter --name {name} -- which {package}",
+        timeout=60,
+    )
+    assert which_rc == 0, (
+        f'{package!r} not on PATH inside distrobox {name!r} after install:\n{which_out}'
+    )
+
+
+@step('DX distrobox "{name}" exports "{binary_path}" to the host')
+def dx_distrobox_exports_binary_to_host(context, name: str, binary_path: str) -> None:
+    """Export a binary from the container to ~/.local/bin on the host and verify."""
+    export_out, export_rc = _ssh(
+        context,
+        f'distrobox enter --name {name} -- '
+        f'distrobox-export --bin {binary_path} --export-path ~/.local/bin',
+        timeout=60,
+    )
+    assert export_rc == 0, (
+        f'distrobox-export of {binary_path!r} from {name!r} failed:\n{export_out}'
+    )
+
+    binary_name = binary_path.rsplit("/", 1)[-1]
+    ls_out, ls_rc = _ssh(
+        context,
+        f"ls ~/.local/bin/{binary_name}",
+        timeout=30,
+    )
+    assert ls_rc == 0, (
+        f'Exported binary {binary_name!r} not found in ~/.local/bin on the host:\n{ls_out}'
+    )

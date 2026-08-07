@@ -132,6 +132,7 @@ jobs:
             scripts/assert_kde_passed.py
             scripts/check_quarantine_age.py
             scripts/install-kde-webdriver.sh
+            scripts/e2e_summary.py
           sparse-checkout-cone-mode: false
 
       # smoke-a/smoke-b and common-a/common-b are parallel shards of their
@@ -1555,13 +1556,20 @@ jobs:
             python3 - << 'PY'
           import json, os
           import subprocess, json as _json
+          from scripts.e2e_summary import count_scenarios, summary_icon
           data    = json.load(open('results/results.json'))
-          failed  = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'failed')
-          skipped = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'skipped')
-          total   = sum(len(f.get('elements', [])) for f in data)
-          passed  = total - failed - skipped
+          counts  = count_scenarios(data)
+          passed  = counts['passed']
+          failed  = counts['failed']
+          skipped = counts['skipped']
+          undefined = counts['undefined']
+          untested = counts['untested']
+          other   = counts['other']
+          total   = sum(counts.values())
           suite   = os.environ.get('SUITE', 'smoke')
-          icon    = '✅' if failed == 0 else '❌'
+          # ✅ only when every scenario passed or was intentionally skipped;
+          # ❌ on any failure; ⚠️ for undefined/untested/errored runs.
+          icon    = summary_icon(counts)
 
           lines = [
             f'## {icon} E2E Results — GNOME 50 ({suite})', '',
@@ -1569,6 +1577,9 @@ jobs:
             f'| ✅ Passed  | {passed} |',
             f'| ❌ Failed  | {failed} |',
             f'| ⏭️ Skipped | {skipped} |',
+            f'| ⚠️ Undefined | {undefined} |',
+            f'| ⚪ Untested | {untested} |',
+            f'| 🛑 Error/other | {other} |',
             f'| **Total** | **{total}** |',
           ]
           if failed:

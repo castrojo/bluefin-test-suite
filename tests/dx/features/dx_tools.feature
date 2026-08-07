@@ -31,10 +31,33 @@ Feature: Bluefin DX variant smoke tests
     * Run DX SSH command: "which distrobox || echo missing"
     * Last command output does not contain "missing"
 
-  @quarantine @dx @distrobox @plain_ssh
+  @pending @dx @distrobox @plain_ssh
   Scenario: distrobox enter works with default container
-    # Quarantined: requires pulling fedora:latest from registry; times out in CI.
+    # Pending: requires pulling fedora:latest from the registry; times out in CI
+    # because the DX runner has no warm container cache.
     * DX distrobox "test-dx" can be created from "fedora:latest"
+
+  # The following scenarios cover the full distrobox value proposition —
+  # create a container, install an app inside it, export it to the host.
+  # All carry @requires_cached_image: they need a pre-pulled
+  # registry.fedoraproject.org/fedora-toolbox:latest on the VM, which no
+  # caching infrastructure provides yet (see projectbluefin/testsuite#501).
+  # They are @pending until projectbluefin/lab provisions that image cache;
+  # tests/shared/quarantine.py skips @pending at runtime.
+  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  Scenario: distrobox container can be created from fedora-toolbox
+    * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
+
+  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  Scenario: package can be installed inside a distrobox container
+    * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
+    * DX distrobox "test-box" installs package "htop"
+
+  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  Scenario: app inside a distrobox container can be exported to the host
+    * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
+    * DX distrobox "test-box" installs package "htop"
+    * DX distrobox "test-box" exports "/usr/bin/htop" to the host
 
   @dx @toolbox @plain_ssh
   Scenario: toolbox is available as alternative to distrobox
@@ -47,29 +70,30 @@ Feature: Bluefin DX variant smoke tests
     * SSH command return code is "0"
     * Last command output contains "podman-compose"
 
-  @quarantine @dx @jupyter @plain_ssh
+  @pending @dx @jupyter @plain_ssh
   Scenario: JupyterLab can be launched (DX includes scientific stack)
-    # Quarantined: JupyterLab not preinstalled in DX base image.
+    # Pending: JupyterLab is not preinstalled in the DX base image, so this covers
+    # planned scientific-stack content rather than shipped behaviour.
     * Run DX SSH command: "which jupyter-lab 2>/dev/null || (pip3 show jupyterlab 2>/dev/null | grep -q Name && echo found) || echo missing"
     * SSH command return code is "0"
     * Last command output does not contain "missing"
 
-  @quarantine @dx @brew @plain_ssh
+  @pending @dx @brew @plain_ssh
   Scenario: Homebrew is available on the DX variant
-    # Quarantined: e2e.yml masks brew-setup.service in CI, so brew is not initialized.
+    # Pending: e2e.yml masks brew-setup.service in CI, so brew is not initialized (see #487).
     * Run DX SSH command: "brew --version 2>&1 | head -1"
     * SSH command return code is "0"
     * Last command output contains "Homebrew"
 
-  @quarantine @dx @mise @plain_ssh
+  @pending @dx @mise @plain_ssh
   Scenario: mise is available for version management
-    # Quarantined: mise comes from Homebrew, and e2e.yml masks brew-setup.service in CI.
+    # Pending: mise comes from Homebrew, and e2e.yml masks brew-setup.service in CI (see #487).
     * Run DX SSH command: "mise --version"
     * SSH command return code is "0"
 
-  @quarantine @dx @mise @plain_ssh
+  @pending @dx @mise @plain_ssh
   Scenario: mise lists available runtimes
-    # Quarantined: mise comes from Homebrew, and e2e.yml masks brew-setup.service in CI.
+    # Pending: mise comes from Homebrew, and e2e.yml masks brew-setup.service in CI (see #487).
     * Run DX SSH command: "mise ls 2>/dev/null | wc -l || echo 0"
     * SSH command return code is "0"
 

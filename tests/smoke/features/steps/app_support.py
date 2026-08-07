@@ -1,4 +1,5 @@
 import os
+import shlex
 import shutil
 import subprocess
 
@@ -60,11 +61,32 @@ def _flatpak_available(app_id: str) -> bool:
     ).returncode == 0
 
 
-def _ssh_launch(cmd: str) -> None:
+def _env_exports(env: dict[str, str] | None) -> str:
+    """Render ``env`` as a shell ``export`` prefix for remote launches."""
+    if not env:
+        return ""
+    return "".join(f"export {k}={shlex.quote(v)}; " for k, v in sorted(env.items()))
+
+
+def _flatpak_env_args(env: dict[str, str] | None) -> list[str]:
+    """Render ``env`` as ``flatpak run --env=`` arguments.
+
+    Environment variables set outside the sandbox are not visible inside it, so
+    they must be forwarded explicitly.
+    """
+    if not env:
+        return []
+    return [f"--env={k}={v}" for k, v in sorted(env.items())]
+
+
+def _ssh_launch(cmd: str, env: dict[str, str] | None = None) -> None:
     """Launch an app on the VM via SSH; returns immediately (fire-and-forget)."""
     # Source session.env to get DBUS_SESSION_BUS_ADDRESS + WAYLAND_DISPLAY,
     # then run the launch command detached so SSH disconnect doesn't kill it.
-    full = f"source /tmp/session.env 2>/dev/null; nohup {cmd} </dev/null &>/dev/null & disown"
+    full = (
+        "source /tmp/session.env 2>/dev/null; "
+        f"{_env_exports(env)}nohup {cmd} </dev/null &>/dev/null & disown"
+    )
     subprocess.run(_ssh_args() + [full], capture_output=True, text=True, timeout=15)
 
 
@@ -83,40 +105,57 @@ def launch_target_available(targets: tuple[tuple[str, str], ...]) -> bool:
     return False
 
 
-def launch_background(targets: tuple[tuple[str, str], ...]) -> str:
+def launch_background(
+    targets: tuple[tuple[str, str], ...],
+    env: dict[str, str] | None = None,
+) -> str:
+    """Launch the first available target in the background.
+
+    ``env`` is applied to the launched process only. It is exported before the
+    command in SSH mode, merged into ``os.environ`` for local ``Popen`` calls,
+    and forwarded across the Flatpak sandbox boundary with ``--env=``.
+    Applications that gate their AT-SPI bridge on an environment variable (such
+    as Firefox, which needs ``GNOME_ACCESSIBILITY=1``) must be launched this way
+    or they never appear in the accessibility tree.
+    """
+    local_env = {**os.environ, **env} if env else None
     for kind, value in targets:
         if kind == "command":
             if _IN_CONTAINER:
                 if _ssh_run(f"command -v {value}").returncode == 0:
-                    _ssh_launch(value)
+                    _ssh_launch(value, env)
                     return f"command:{value}"
             elif shutil.which(value):
                 subprocess.Popen(
                     [value],
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    env=local_env,
                 )
                 return f"command:{value}"
         if kind == "desktop":
             dp = _desktop_path(value)
             if dp:
                 if _IN_CONTAINER:
-                    _ssh_launch(f"gio launch {dp}")
+                    _ssh_launch(f"gio launch {dp}", env)
                 else:
                     subprocess.Popen(
                         ["gtk-launch", value],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL,
+                        env=local_env,
                     )
                 return f"desktop:{value}"
         if kind == "flatpak" and _flatpak_available(value):
+            flatpak_args = ["flatpak", "run", *_flatpak_env_args(env), value]
             if _IN_CONTAINER:
-                _ssh_launch(f"flatpak run {value}")
+                _ssh_launch(" ".join(shlex.quote(a) for a in flatpak_args), env)
             else:
                 subprocess.Popen(
-                    ["flatpak", "run", value],
+                    flatpak_args,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
+                    env=local_env,
                 )
             return f"flatpak:{value}"
     raise AssertionError(f"No launch candidate available from {targets!r}")

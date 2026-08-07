@@ -167,3 +167,140 @@ class TestAfterburns:
             mock_run.return_value = ("1", 0)
             with patch("tests.flatcar.features.steps.steps.ssh_return_code_is"):
                 m.afterburn_service_is_available(ctx)
+
+
+# ---------------------------------------------------------------------------
+# parse_update_conf / automatic_updates_disabled
+# ---------------------------------------------------------------------------
+
+class TestParseUpdateConf:
+    def test_parses_plain_assignments(self):
+        m = _import_flatcar_steps()
+        assert m.parse_update_conf("GROUP=stable\nSERVER=https://public.update.flatcar-linux.net/v1/update/") == {
+            "GROUP": "stable",
+            "SERVER": "https://public.update.flatcar-linux.net/v1/update/",
+        }
+
+    def test_strips_quotes_and_whitespace(self):
+        m = _import_flatcar_steps()
+        assert m.parse_update_conf('  REBOOT_STRATEGY="off"  \n') == {"REBOOT_STRATEGY": "off"}
+        assert m.parse_update_conf("GROUP='beta'") == {"GROUP": "beta"}
+
+    def test_ignores_comments_and_blank_lines(self):
+        m = _import_flatcar_steps()
+        assert m.parse_update_conf("# comment\n\n   \nGROUP=alpha\n") == {"GROUP": "alpha"}
+
+    def test_ignores_lines_without_assignment(self):
+        m = _import_flatcar_steps()
+        assert m.parse_update_conf("not an assignment\nGROUP=stable") == {"GROUP": "stable"}
+
+    def test_last_assignment_wins(self):
+        m = _import_flatcar_steps()
+        assert m.parse_update_conf("SERVER=a\nSERVER=disabled")["SERVER"] == "disabled"
+
+    def test_handles_empty_input(self):
+        m = _import_flatcar_steps()
+        assert m.parse_update_conf("") == {}
+        assert m.parse_update_conf(None) == {}
+
+
+class TestAutomaticUpdatesDisabled:
+    @pytest.mark.parametrize("conf", [
+        "SERVER=disabled",
+        'SERVER="disabled"',
+        "GROUP=stable\nSERVER=disabled\n",
+        "SERVER=DISABLED",
+        "SERVER=off",
+        "SERVER=",
+    ])
+    def test_true_for_disabled_server_values(self, conf):
+        m = _import_flatcar_steps()
+        assert m.automatic_updates_disabled(conf) is True
+
+    @pytest.mark.parametrize("conf", [
+        "",
+        "GROUP=stable",
+        "SERVER=https://public.update.flatcar-linux.net/v1/update/",
+        "# SERVER=disabled",
+        "REBOOT_STRATEGY=off",
+    ])
+    def test_false_when_updates_remain_enabled(self, conf):
+        m = _import_flatcar_steps()
+        assert m.automatic_updates_disabled(conf) is False
+
+
+# ---------------------------------------------------------------------------
+# ignition_first_boot_marker_is_cleared
+# ---------------------------------------------------------------------------
+
+class TestIgnitionFirstBootMarkerIsCleared:
+    def test_passes_when_marker_absent(self):
+        m = _import_flatcar_steps()
+        ctx = _ctx()
+
+        def marker_absent(context, cmd, timeout=60):
+            context.ssh_rc = 1
+            return "", 1
+
+        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=marker_absent):
+            m.ignition_first_boot_marker_is_cleared(ctx)
+
+    def test_raises_when_marker_still_present(self):
+        m = _import_flatcar_steps()
+        ctx = _ctx()
+
+        def marker_present(context, cmd, timeout=60):
+            context.ssh_rc = 0
+            return "", 0
+
+        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=marker_present):
+            with pytest.raises(AssertionError, match="Ignition did not complete"):
+                m.ignition_first_boot_marker_is_cleared(ctx)
+
+
+# ---------------------------------------------------------------------------
+# flatcar_esp_is_mounted_at_boot
+# ---------------------------------------------------------------------------
+
+class TestFlatcarEspIsMountedAtBoot:
+    def _run(self, fstype):
+        m = _import_flatcar_steps()
+        ctx = _ctx()
+
+        def set_stdout(context, cmd, timeout=60):
+            context.command_stdout = fstype
+            return fstype, 0
+
+        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=set_stdout):
+            with patch("tests.flatcar.features.steps.steps.ssh_return_code_is"):
+                m.flatcar_esp_is_mounted_at_boot(ctx)
+
+    def test_passes_for_vfat(self):
+        self._run("vfat")
+
+    def test_raises_for_non_esp_filesystem(self):
+        with pytest.raises(AssertionError, match="EFI System Partition"):
+            self._run("ext4")
+
+
+# ---------------------------------------------------------------------------
+# restore_update_conf
+# ---------------------------------------------------------------------------
+
+class TestRestoreUpdateConf:
+    def test_no_op_when_no_backup_taken(self):
+        m = _import_flatcar_steps()
+        ctx = _ctx(update_conf_backed_up=False)
+        with patch("tests.flatcar.features.steps.steps.run_ssh") as mock_run:
+            m.restore_update_conf(ctx)
+            mock_run.assert_not_called()
+
+    def test_restores_and_clears_flag(self):
+        m = _import_flatcar_steps()
+        ctx = _ctx(update_conf_backed_up=True)
+        with patch("tests.flatcar.features.steps.steps.run_ssh", return_value=("", 0)) as mock_run:
+            with patch("tests.flatcar.features.steps.steps.ssh_return_code_is"):
+                m.restore_update_conf(ctx)
+        assert mock_run.call_count == 1
+        assert m.UPDATE_CONF_BACKUP in mock_run.call_args[0][1]
+        assert ctx.update_conf_backed_up is False
