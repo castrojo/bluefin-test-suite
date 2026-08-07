@@ -37,6 +37,24 @@ def last_command_exits_with_non_zero_status(context) -> None:
     )
 
 
+@step('ujust --choose runs mocked fzf recipe "{recipe}"')
+def ujust_choose_mocked_fzf(context, recipe: str) -> None:
+    """Run ``ujust --choose`` with a non-interactive fzf mock selecting recipe.
+
+    Creates a fake fzf binary that ignores stdin and arguments, prints the
+    chosen recipe name, and invokes ``ujust --choose`` with it on PATH.
+    """
+    mock_dir = "/tmp/fake-fzf-bin"
+    recipe_quoted = shlex.quote(recipe)
+    script = (
+        f"mkdir -p {mock_dir} && "
+        f"printf '#!/bin/sh\ncat >/dev/null\necho %s\n' {recipe_quoted} "
+        f"> {mock_dir}/fzf && "
+        f"chmod +x {mock_dir}/fzf && "
+        f"PATH={mock_dir}:$PATH ujust --choose"
+    )
+    run_ssh(context, script)
+
 @step("Screenshot portal accepts a non-interactive request")
 def screenshot_portal_accepts_noninteractive_request(context) -> None:
     """Call org.freedesktop.portal.Screenshot.Screenshot with interactive=false."""
@@ -163,3 +181,100 @@ print(f"OK: {out}")
         "Portal screenshot PNG check failed:\n"
         f"stdout: {stdout}\nstderr: {stderr}"
     )
+
+
+@step("ujust report runs with safe mocks and exits cleanly")
+def ujust_report_safe_mocks(context) -> None:
+    """Run ``ujust report`` with mocked gum/gh/xdg-open/glow.
+
+    Avoids interactive prompts and any real GitHub gist upload while still
+    exercising the successful-upload code path, including the local copy
+    persist step (regression guard for projectbluefin/dakota#913) and the
+    final exit status (projectbluefin/dakota#940).
+    """
+    script = r"""
+set -euo pipefail
+
+mock_dir="$(mktemp -d)"
+trap 'rm -rf "$mock_dir"' EXIT
+
+# Mock gum: skip deep metrics, approve upload, no-op style/pager, exec spin.
+cat > "$mock_dir/gum" <<'GUM_EOF'
+#!/bin/sh
+set -e
+case "$1" in
+  style) exit 0 ;;
+  pager) cat >/dev/null; exit 0 ;;
+  confirm)
+    if printf '%s\n' "$*" | grep -qi "deep"; then
+      exit 1  # skip deep hardware metrics
+    fi
+    exit 0  # approve upload
+    ;;
+  spin)
+    shift
+    while [ "$#" -gt 0 ] && [ "$1" != "--" ]; do
+      shift
+    done
+    [ "$1" = "--" ] && shift
+    exec "$@"
+    ;;
+  choose)
+    echo "Skip"
+    exit 0
+    ;;
+  *) exit 0 ;;
+esac
+GUM_EOF
+chmod +x "$mock_dir/gum"
+
+# Mock gh: active auth, fake gist URL.
+cat > "$mock_dir/gh" <<'GH_EOF'
+#!/bin/sh
+set -e
+case "$1" in
+  auth) exit 0 ;;
+  gist)
+    echo "https://gist.github.com/ujust-test/dakota-report-913-940"
+    exit 0
+    ;;
+  *) exit 1 ;;
+esac
+GH_EOF
+chmod +x "$mock_dir/gh"
+
+# Mock xdg-open and glow so the report never leaves the VM or blocks.
+cat > "$mock_dir/xdg-open" <<'XDG_EOF'
+#!/bin/sh
+exit 0
+XDG_EOF
+chmod +x "$mock_dir/xdg-open"
+
+cat > "$mock_dir/glow" <<'GLOW_EOF'
+#!/bin/sh
+cat >/dev/null
+exit 0
+GLOW_EOF
+chmod +x "$mock_dir/glow"
+
+export PATH="$mock_dir:$PATH"
+LOCAL_REPORT_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/ujust-report/last"
+rm -rf "$LOCAL_REPORT_DIR"
+
+rc=0
+ujust report || rc=$?
+printf 'MOCK_REPORT_RC=%d\n' "$rc"
+if [ -f "$LOCAL_REPORT_DIR/summary.md" ]; then
+    echo 'MOCK_REPORT_SUMMARY_OK=1'
+else
+    echo 'MOCK_REPORT_SUMMARY_OK=0'
+fi
+if [ -f "$LOCAL_REPORT_DIR/journal.txt" ]; then
+    echo 'MOCK_REPORT_JOURNAL_OK=1'
+else
+    echo 'MOCK_REPORT_JOURNAL_OK=0'
+fi
+rm -rf "$LOCAL_REPORT_DIR"
+exit "$rc"
+"""
+    run_ssh(context, script)
