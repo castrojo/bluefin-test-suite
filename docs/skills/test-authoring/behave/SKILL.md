@@ -121,11 +121,9 @@ run. Surface the failure instead of swallowing it.
 
 ## Common suite `ujust` recipe coverage
 
-Dakota's interactive recipes (`ujust --choose`, `ujust report`) are covered by
-shadowing `fzf`/`gum`/`gh` on `PATH`. Mocks must answer each prompt distinctly and
-assert on the invocation — see
-[references/mocking-interactive-cli.md](references/mocking-interactive-cli.md).
-
+Dakota's interactive recipes shadow `fzf`/`gum`/`gh` on `PATH`; mocks must answer each
+prompt distinctly and assert on the invocation, not merely that the tool ran
+([reference](references/mocking-interactive-cli.md)).
 
 Keep SSH-based `ujust` recipe checks in `tests/common/features/common_ujust.feature`.
 Prefer assertions against the wrapper's own output, not the underlying tool's raw
@@ -229,11 +227,53 @@ For smoke steps that must run several host commands, reuse the suite's canonical
 qecore-headless execution and the runner-container SSH fallback. Do not duplicate
 SSH argument construction or container detection in a new smoke step module.
 
-## Flatpak per-app permissions and software-suite wiring
+## Flatpak per-app permissions: assert via CLI, not Flatseal's GUI
 
-Cover Flatseal behaviour through the `flatpak` CLI, never its GUI, and mind the
-software suite's non-standard SSH wiring. Details, pitfalls and the CLI assertion
-table live in [references/flatpak-permissions.md](references/flatpak-permissions.md).
+Flatseal (`com.github.tchx84.Flatseal`) is only a front end over `flatpak override`
+and the portal permission store. Cover per-app permission behaviour with the CLI —
+it needs no desktop session and no AT-SPI:
+
+| What Flatseal shows | CLI assertion surface |
+|---|---|
+| Per-app toggles the user has changed | `flatpak override --user --show <app>` |
+| Effective manifest permissions | `flatpak info --show-permissions <app>` |
+| Portal grants (documents, notifications, background) | `flatpak permissions [<table>]` |
+
+Two properties make these scenarios survivable in CI, where
+`flatpak-preinstall.service` is masked and `/var/lib/flatpak` is not seeded
+(the reason `tests/smoke/features/flatpak_permissions.feature` is quarantined):
+
+1. **`flatpak override --user` accepts an application ID that is not installed.**
+   Use a synthetic ID such as `org.projectbluefin.TestsuitePermissionProbe` so the
+   round-trip neither depends on nor clobbers real installed apps. Always finish the
+   scenario with `Reset flatpak user overrides for ...`.
+2. **A sweep that passes on an empty install set is not coverage.** That is why
+   `Every installed flatpak app exposes a parsable permission set` is `@pending` on
+   #706. More traps: [references/flatpak-permissions.md](references/flatpak-permissions.md).
+
+`flatpak override --show` emits a keyfile, not flag syntax:
+
+```ini
+[Context]
+sockets=!wayland;
+```
+
+Parse it (`parse_flatpak_context` in
+`tests/software/features/steps/flatpak_permissions_steps.py`): split on the first
+`=` and compare the key — matching bare key names against `filesystems=home;`
+never matches and passes falsely.
+
+## Software suite SSH context
+
+`tests/software/features/environment.py` calls `populate_ssh_context(context)` in
+`before_all` (#718), so the shared `tests/shared/ssh_steps.py` steps work there.
+
+## `@flatpak_cli` marks image-agnostic software scenarios
+
+`tests/software/features/environment.py` skips any `@software` scenario when Bazaar
+(`io.github.kolunmi.Bazaar`) is absent — unless the scenario also carries
+`@flatpak_cli`. Tag CLI-only, image-agnostic software scenarios with `@flatpak_cli`
+so they still run on gnomeos and other non-Bluefin images.
 
 ## Feature scaffolding with @future
 
@@ -450,12 +490,9 @@ non-dependent scenarios to a separate feature.
 
 ## On-demand references
 
-Load these when you hit the specific topic:
-
 - [Shared SSH helpers and where to use them.](references/shared-ssh.md)
 - [When to use local subprocess instead of SSH in the smoke suite.](references/smoke-vs-ssh.md)
 - [Avoiding duplicate step phrases and AmbiguousStep errors.](references/ambiguous-steps.md)
-- [Flatpak per-app permission coverage via the CLI.](references/flatpak-permissions.md)
 - [Mocking interactive CLI tools (gum, fzf, gh) in ujust coverage.](references/mocking-interactive-cli.md)
 
 ## Sources

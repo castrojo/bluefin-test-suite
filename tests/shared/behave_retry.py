@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Retry wrapper for behave with quarantine-tag filtering."""
+"""Retry wrapper for behave with non-runnable tag filtering."""
 
 from __future__ import annotations
 
@@ -64,8 +64,18 @@ def parse_cli_args(argv: list[str]) -> tuple[int, list[str]]:
     return retries, behave_args
 
 
+NON_RUNNABLE_TAGS = ("quarantine", "hardware_blocked")
+
+
 def with_quarantine_filter(args: list[str]) -> list[str]:
-    return [*args, "--tags", "~@quarantine"]
+    """Append a ~@tag filter for every tag that must never execute.
+
+    Each tag is passed as its own --tags argument so behave ANDs them.
+    """
+    filters: list[str] = []
+    for tag in NON_RUNNABLE_TAGS:
+        filters.extend(["--tags", f"~@{tag}"])
+    return [*args, *filters]
 
 
 def _split_long_option(arg: str) -> str:

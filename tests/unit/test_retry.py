@@ -7,6 +7,10 @@ from unittest.mock import patch
 from tests.shared import behave_retry
 from tests.shared.quarantine import skip_quarantine
 
+# Derived from production so adding a non-runnable tag does not silently rot
+# these expectations into a false pass.
+_TAG_FILTER = [arg for tag in behave_retry.NON_RUNNABLE_TAGS for arg in ("--tags", f"~@{tag}")]
+
 
 class DummyScenario:
     def __init__(self, tags):
@@ -89,14 +93,12 @@ def test_retry_reruns_failed_scenarios_until_success(monkeypatch, tmp_path):
         "pretty",
         "--outfile",
         "results/results.txt",
-        "--tags",
-        "~@quarantine",
+        *_TAG_FILTER,
     ]
     assert commands[1][:3] == [expected_python, "-m", "behave"]
     assert "tests/smoke/features" not in commands[1]
     assert commands[1][3:-4] == [
-        "--tags",
-        "~@quarantine",
+        *_TAG_FILTER,
         "features/demo.feature:12",
         "features/other.feature:7",
     ]
@@ -135,8 +137,8 @@ def test_retry_skips_untagged_failures(monkeypatch, tmp_path):
 
     assert rc == 1
     assert calls == [
-        ["tests/smoke/features", "--tags", "~@quarantine"],
-        ["--tags", "~@quarantine", "features/retry.feature:5"],
+        ["tests/smoke/features", *_TAG_FILTER],
+        [*_TAG_FILTER, "features/retry.feature:5"],
     ]
 
 

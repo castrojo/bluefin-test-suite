@@ -219,7 +219,7 @@ The same rule applies to every other non-cone checkout in this repo, including t
 18. **Load runner container into VM** — non-common suites; ensures `bluefin-test` has `/etc/subuid`/`/etc/subgid`, runs `podman system migrate`, pipes `ghcr.io/<image-org>/testsuite:runner` via `podman save | ssh podman load`; patches `openssh-clients` into the runner image if missing
 19. **Install Python test stack** — non-common suites; loads `uinput` kernel module, sets device permissions, copies SSH private key into VM for `@plain_ssh` scenarios, queries GNOME session environment into `/tmp/session.env`, enables `unsafe-mode@bluefin-test` extension, sets `toolkit-accessibility true`, disables idle locking for the disposable test user, re-queries AT-SPI bus address after enabling accessibility, terminates any pre-started `gnome-control-center`
 20. **Install gnome-ponytail-daemon** — non-common suites; builds `gnome-ponytail-daemon` (tag `0.0.11`) and `grim` from source inside a `debian:bookworm` container on the runner (without libei, uses Mutter D-Bus fallback for input events; wayland-protocols 1.37 built from source for grim); SCPs binaries into `~/.local/libexec/` and `~/.local/bin/`; registers D-Bus service file and pre-starts the daemon
-21. **Run behave suite** — `common`/`lifecycle`: runner-side `python3 tests/shared/behave_retry.py` with `VM_IP/VM_USER/SSH_KEY/SSH_PORT` env vars; GUI suites: SCP `tests/<suite>` + `tests/shared` + `tests/__init__.py` to VM, then `podman run ... ghcr.io/<image-org>/testsuite:runner "python3 .../behave_retry.py ... --format json.pretty"` inside VM; always `--tags ~quarantine`; retries controlled by `BEHAVE_RETRIES=2`
+21. **Run behave suite** — `common`/`lifecycle`/`installer`: runner-side `python3 tests/shared/behave_retry.py` with `VM_IP/VM_USER/SSH_KEY/SSH_PORT` env vars; GUI suites: SCP `tests/<suite>` + `tests/shared` + `tests/__init__.py` to VM, then `podman run ... ghcr.io/<image-org>/testsuite:runner "python3 .../behave_retry.py ... --format json.pretty"` inside VM; always `--tags ~quarantine`; retries controlled by `BEHAVE_RETRIES=2`
 22. **Capture post-upgrade desktop screenshot** — lifecycle suite only; SSHes with `ControlMaster=no`, waits up to 60 s for Wayland socket, captures via `gdbus org.gnome.Shell.Eval`
 23. **Capture post-migration screenshot and status** — lifecycle suite only; QEMU framebuffer capture via `qemu_screendump.py` + SSH for `bootc status`, `fastfetch`, `os-release` into `results/migration-status.txt`
 24. **Capture Flatpak screenshots** — when `inputs.screenshot_flatpaks != ''`; runs `screenshot_cli.py` inside the runner container
@@ -427,10 +427,17 @@ Key differences from GNOME suites:
 - **Version-skew skip:** If the DUT's Plasma version or distro is unsupported, the
   suite is skipped with a clear message instead of producing phantom failures.
 - **Installer safety contract:** `scripts/install-kde-webdriver.sh` is guarded by
-  `tests/unit/test_install_kde_webdriver.py`, which locks three invariants:
-  immutable `SELENIUM_AT_SPI_SHA` pin format, loopback-only server posture
-  (no `HOST=0.0.0.0` override), and explicit `KDE_WEBDRIVER_SKIP=...` + `exit 0`
-  paths for unsupported Plasma/distro cases.
+  `tests/unit/test_install_kde_webdriver.py`, which **executes** the installer in
+  a sandbox (fake `PATH` tools, throwaway `HOME`, `BASH_ENV` override of
+  `/etc/os-release` sourcing) and asserts observed behaviour: the ref handed to
+  `git fetch`/`git checkout` equals the pinned `SELENIUM_AT_SPI_SHA`, the emitted
+  `kde-webdriver.service` `ExecStart` carries no bind-address override and no
+  `[Service]` `Environment=` names a non-loopback host, and each
+  `KDE_WEBDRIVER_SKIP=...` branch actually short-circuits before any install.
+  Do not replace these with text assertions on the script source — a grep for a
+  security *comment* or a count of skip blocks passes against a broken script.
+  An earlier text-based version of this file stayed green when `--host 0.0.0.0`
+  was added to `ExecStart` and when the checkout ref was changed to `master`.
 - **Session setup:** SDDM autologin and a KDE determinism environment drop-in are
   written at disk-prep time.
 - **`passed > 0` backstop:** the step `Assert KDE suite has passing scenarios`
