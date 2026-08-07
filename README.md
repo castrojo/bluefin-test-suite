@@ -107,3 +107,4 @@ This repo is agent-first: AI agents are primary maintainers of GNOME 50 test cov
 - `docs/runbook.md` — operational commands
 - `docs/qa-review.md` — release-trust review
 - `docs/skills/index.md` — skill manifest and hard rules
+- `docs/update-cadence-research.md` — design for testsuite-informed update cadence & promotion gating (issue #431)
