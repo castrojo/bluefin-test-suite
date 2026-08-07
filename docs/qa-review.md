@@ -74,6 +74,7 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_input_methods_steps.py` | `_run_in_vm` dispatch, exact `uint32` index parsing, success-latched input-source restore |
 | `test_xwayland_steps.py` | `_xwayland_display_env` `pgrep` parsing, xprop/glxgears step branches |
 | `test_install_kde_webdriver.py` | `scripts/install-kde-webdriver.sh` contract invariants (pinned SHA, loopback-only bind, skip paths) |
+| `test_validate_docs.py` | `scripts/validate_docs.py` frontmatter parsing, heading levels, and link/skill validation |
 | `test_wait_for_shell.py` | `tests/shared/wait_for_shell.py` retry contract (Shell.Eval failures, missing panel, attempt budget) |
 
 ## Current stub posture
