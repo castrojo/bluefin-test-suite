@@ -17,7 +17,7 @@ def _import_common_steps():
 
     ssh_steps_stub = types.ModuleType("tests.shared.ssh_steps")
     ssh_steps_stub.run_ssh = lambda *a, **kw: ("", 0)
-    sys.modules["tests.shared"] = sys.modules.get("tests.shared", types.ModuleType("tests.shared"))
+    _ensure_tests_shared_package()
     sys.modules["tests.shared.ssh_steps"] = ssh_steps_stub
 
     for key in list(sys.modules):
@@ -42,6 +42,26 @@ _ENVIRONMENT_STUB_KEYS = [
 ]
 
 
+def _ensure_tests_shared_package():
+    """Make sure `tests.shared` in sys.modules is the real package.
+
+    `before_scenario` imports `tests.shared.quarantine` lazily, at call time
+    rather than at module import. If `tests.shared` has been replaced by a
+    plain `ModuleType` it carries no `__path__`, so that submodule import
+    raises `ModuleNotFoundError: 'tests.shared' is not a package` — but only
+    when this file runs in isolation, since a real import elsewhere in the
+    suite otherwise leaves the genuine package cached.
+    """
+    cached = sys.modules.get("tests.shared")
+    if cached is not None and not hasattr(cached, "__path__"):
+        # A previous helper installed a non-package stub; drop it so the
+        # import below resolves the real package from disk.
+        del sys.modules["tests.shared"]
+
+    import tests.shared  # noqa: PLC0415
+
+    sys.modules["tests.shared"] = tests.shared
+
 def _import_common_environment(*, run_ssh_returncode=0):
     ssh_steps_stub = types.ModuleType("tests.shared.ssh_steps")
 
@@ -58,7 +78,7 @@ def _import_common_environment(*, run_ssh_returncode=0):
     # dict stored on the returned module so callers can clean up.
     _saved = {k: sys.modules.get(k) for k in _ENVIRONMENT_STUB_KEYS}
 
-    sys.modules["tests.shared"] = sys.modules.get("tests.shared", types.ModuleType("tests.shared"))
+    _ensure_tests_shared_package()
     sys.modules["tests.shared.ssh_steps"] = ssh_steps_stub
 
     quarantine_stub = types.ModuleType("tests.shared.quarantine")
@@ -169,3 +189,60 @@ class TestCommonEnvironmentRequiresBrew:
 
         assert scenario.skip_message is None
         assert context.has_brew is True
+
+
+# ---------------------------------------------------------------------------
+# _is_dakota_image / @dakota_only gating
+# ---------------------------------------------------------------------------
+
+class TestIsDakotaImage:
+    @pytest.mark.parametrize(
+        "image",
+        [
+            "ghcr.io/projectbluefin/dakota:testing",
+            "ghcr.io/projectbluefin/dakota",
+            "DAKOTA:latest",
+            "ghcr.io/projectbluefin/dakota@sha256:abc123",
+        ],
+    )
+    def test_matches_dakota_images(self, image):
+        m = _import_common_environment()
+        assert m._is_dakota_image(image) is True
+
+    @pytest.mark.parametrize(
+        "image",
+        [
+            "ghcr.io/projectbluefin/bluefin:testing",
+            "ghcr.io/projectbluefin/bluefin-lts:latest",
+            "ghcr.io/ublue-os/bazzite:stable",
+            "",
+        ],
+    )
+    def test_rejects_non_dakota_images(self, image):
+        m = _import_common_environment()
+        assert m._is_dakota_image(image) is False
+
+    def test_org_name_alone_does_not_match(self):
+        """Only the image name is inspected, so a dakota-named org cannot match."""
+        m = _import_common_environment()
+        assert m._is_dakota_image("ghcr.io/dakota/bluefin:testing") is False
+
+
+class TestCommonEnvironmentDakotaOnly:
+    def test_skips_dakota_only_on_non_dakota_image(self):
+        m = _import_common_environment()
+        context = _ctx(is_bluefin_image=True, is_dakota_image=False)
+        scenario = _Scenario(["dakota_only"])
+
+        m.before_scenario(context, scenario)
+
+        assert "Skipping @dakota_only scenario" in scenario.skip_message
+
+    def test_allows_dakota_only_on_dakota_image(self):
+        m = _import_common_environment()
+        context = _ctx(is_bluefin_image=True, is_dakota_image=True, has_brew=True)
+        scenario = _Scenario(["dakota_only"])
+
+        m.before_scenario(context, scenario)
+
+        assert scenario.skip_message is None
