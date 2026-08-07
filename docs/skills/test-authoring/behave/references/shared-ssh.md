@@ -39,15 +39,18 @@ from tests.shared.ssh_steps import *  # noqa: F401,F403
 ## Importing the steps is only half the contract
 
 `run_ssh()` reads its connection details from **`context`**, not from the
-environment. A suite that star-imports `ssh_steps` must also populate them in
-`before_all`, or every SSH step raises `AttributeError` at runtime:
+environment. A suite that star-imports `ssh_steps` must also populate
+`context.vm_ip`, `context.ssh_user`, `context.ssh_key` and optionally
+`context.ssh_port` in `before_all`, or every SSH step raises `AttributeError`
+at runtime.
+
+Resolve them through the shared helper rather than hand-rolling per suite:
 
 ```python
+from tests.shared.ssh_config import populate_ssh_context
+
 def before_all(context):
-    context.vm_ip = os.environ.get("VM_IP", "")
-    context.ssh_user = os.environ.get("VM_USER", "bluefin-test")
-    context.ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-    context.ssh_port = os.environ.get("SSH_PORT", "")  # optional
+    populate_ssh_context(context)
 ```
 
 Importing the steps registers the step phrases, so `behave --dry-run` passes and
@@ -58,10 +61,11 @@ Unit tests cannot catch this either: they stub `tests.shared.ssh_steps` wholesal
 `run_ssh()` never executes. Assert on the suite's `before_all` instead — verify
 it sets the attributes `run_ssh()` requires.
 
-**Never read connection details from `os.environ` inside a suite-local helper.**
-A private helper that resolves `VM_IP`/`SSH_KEY` itself will work while the
-shared steps in the same suite fail, which masks the missing wiring and creates
-two sources of truth. Resolve once in `before_all`, onto `context`.
+**Never keep a second, env-only SSH path alongside the shared steps.** A
+suite-local helper that resolves `VM_IP`/`SSH_KEY` from `os.environ` itself will
+keep working while the shared steps in the same suite fail, which masks the
+missing wiring and creates two sources of truth. Resolve once, onto `context`,
+and have suite-local helpers read the same resolved values.
 
 Never duplicate `_ssh()` or generic step definitions in suite-specific `steps.py`.  
 Default `run_ssh()` timeout: **60s** (not 30s — hardware commands are slow).
