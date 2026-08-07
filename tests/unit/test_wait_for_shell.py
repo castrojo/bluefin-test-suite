@@ -67,6 +67,35 @@ def test_wait_for_shell_retries_on_shell_eval_failure():
     assert sleep_mock.call_count == 1
 
 
+def test_wait_for_shell_retries_when_eval_tuple_is_unsuccessful():
+    """Exit code 0 is not enough — gdbus returns 0 for a failed Shell.Eval."""
+    mod = _import_wait_for_shell()
+    _ready_shell(mod)
+    run_results = [
+        _proc(returncode=0, stdout="(false, '')"),
+        _proc(returncode=0, stdout="(true, 'true')"),
+    ]
+
+    with patch.object(mod.subprocess, "run", side_effect=run_results) as run_mock:
+        with patch.object(mod.time, "sleep") as sleep_mock:
+            assert mod.wait_for_shell(attempts=2, sleep_time=0) is True
+
+    assert run_mock.call_count == 2
+    assert sleep_mock.call_count == 1
+
+
+def test_wait_for_shell_fails_when_eval_tuple_never_succeeds(capsys):
+    """A permanently unsuccessful Shell.Eval must not be reported as ready."""
+    mod = _import_wait_for_shell()
+    _ready_shell(mod)
+
+    with patch.object(mod.subprocess, "run", return_value=_proc(returncode=0, stdout="(false, '')")):
+        with patch.object(mod.time, "sleep"):
+            assert mod.wait_for_shell(attempts=2, sleep_time=0) is False
+
+    assert "Shell.Eval not ready" in capsys.readouterr().out
+
+
 def test_wait_for_shell_retries_when_panel_not_visible():
     mod = _import_wait_for_shell()
     shell = MagicMock()

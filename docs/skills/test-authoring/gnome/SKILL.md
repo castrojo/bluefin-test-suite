@@ -43,6 +43,8 @@ metadata:
 
 `tests.shared.wait_for_shell.wait_for_shell()` is the GNOME Shell startup gate. Its contract is: retry Shell.Eval failures, retry when AT-SPI exposes no panel yet, retry on transient exceptions, then fail hard after the attempt budget is exhausted.
 
+Readiness needs **both** halves of the `gdbus` check. `gdbus call` exits 0 whenever the D-Bus method call itself succeeds, even when `org.gnome.Shell.Eval` reports failure — an unsuccessful eval still returns a well-formed `(false, '')` tuple on stdout. Assert the process exit code *and* that stdout contains `(true,` before treating the Shell as up; testing only the exit code makes the gate pass against a Shell that cannot evaluate anything.
+
 ## Stack
 
 
