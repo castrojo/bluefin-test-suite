@@ -1,0 +1,68 @@
+name: "Help this project"
+description: "Ask for a high-signal report on a repo, issue, or PR. Filed for human triage first."
+labels: ["1-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ask for a report on a repo, issue, or PR. Be specific — "look at this repo" produces a shallow overview, a focused question produces something actionable.
+
+        This form files an issue labelled `1-triage`. A human reads it and decides what happens next; there is no automatic dispatch.
+
+  - type: checkboxes
+    id: clanker-opt-in
+    attributes:
+      label: "Agent assistance"
+      options:
+        - label: "I am happy for a clanker to take this on if a maintainer routes it that way"
+          required: false
+
+  - type: input
+    id: target-url
+    attributes:
+      label: "Target URL"
+      description: "Repo, issue, PR, roadmap, or docs page. Must be publicly accessible."
+      placeholder: "https://github.com/owner/repo"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: flow
+    attributes:
+      label: "What kind of help?"
+      description: "Helps the triager pick the right kind of work."
+      options:
+        - "Project report — survey a repo or org and summarize what needs attention"
+        - "Issue review — read a linked issue and recommend next steps"
+        - "PR review — audit a linked PR for correctness and completeness"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: "What specifically should the agent focus on?"
+      description: "The more specific you are, the more useful the report. One to three sentences."
+      placeholder: |
+        Check whether the CI pipeline for this repo has any reliability issues that would
+        explain the flaky validate failures we have been seeing. Focus on the BST cache
+        interactions and the bst2 container pin check.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: "Extra context"
+      description: "Optional. Known problem areas, related Dakota issues, or constraints the agent should respect."
+      placeholder: "Related to #503. The agent should not suggest changes that require a new external dependency."
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        Thanks! This will be filed with the `1-triage` label and a human will pick it up.
+
+        If a maintainer decides an agent should take it, they add `3-clanker-queue` during triage and the report comes back as a comment here. Until then nothing is dispatched automatically, so please be patient.

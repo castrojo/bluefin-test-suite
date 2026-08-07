@@ -129,6 +129,7 @@ learning, affected component, and evidence. Never write to `ublue-os/*`.
   If your file set overlaps an open PR, either fold your change into that PR or
   wait for it to land. Overlapping PRs are the thing that actually costs review
   time and creates merge-queue churn.
+- **All isolated work happens in `.worktrees/<short-desc>` at the repo root**, branched from `origin/main` — never in `/tmp`, `/var/tmp`, or sibling directories. Every agent that commits gets its own worktree, and must not touch another worktree's branch or working tree. Remove the worktree and prune after the PR merges. See [`docs/skills/ci-ops/contributing/references/branch-and-worktree.md`](docs/skills/ci-ops/contributing/references/branch-and-worktree.md).
 - **Merge through the merge queue with green CI.** Never `--admin`, never self-merge.
 
 ## Mandatory gates before enqueuing any PR

@@ -113,6 +113,27 @@ This skill guides agents through modifying, compiling, and deploying the QA dash
 | "GitHub handles the custom domain automatically, no need to push CNAME." | Cleaning the pages branch during deploy deletes the CNAME file, which instantly breaks the custom domain. Always write CNAME back during the build. |
 | "A dependency bump PR is green, so the dashboard still builds." | `publish-to-pages.yml` never runs on pull requests. Green PR checks say nothing about `npm ci`; run it locally before merging any `dashboard/` dependency change. |
 
+## Coverage badges: `scripts/generate_badges.py`
+
+The shields.io coverage badges are generated at publish time by parsing
+`.feature` files under `tests/*/features/`. No counts are hardcoded, so the
+badges always track current test content.
+
+Every scenario lands in exactly one of three buckets, evaluated in this order:
+
+1. **stub** — tagged `@future` *or* `@pending`
+2. **quarantined** — tagged `@quarantine` (at feature or scenario level)
+3. **active** — everything else
+
+`@pending` counts as a stub, not as active. Both tags mean "written but not
+running", and the badge already renders this bucket as `N pending`, so
+excluding `@pending` inflated the active count and under-reported stubs.
+
+Order matters: the stub check runs first, so a scenario tagged both `@future`
+and `@quarantine` is reported as a stub. Adding a new "not running yet" tag
+means updating `count_scenarios()` — otherwise those scenarios are silently
+counted as active.
+
 ## Red Flags
 - Setting `base: '/testsuite/'` in `astro.config.mjs` while deploying to the custom domain `qa.projectbluefin.io` (breaks CSS andPagefind assets).
 - Adding complex TypeScript type assertions inside a vanilla JS client-side script tag when `<script is:inline>` would safely bypass them.

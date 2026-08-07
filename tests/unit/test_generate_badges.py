@@ -112,6 +112,7 @@ def test_count_scenarios_buckets_by_suite(tmp_path):
     (tests / "common" / "features" / "a.feature").write_text(
         "@common_suite\nFeature: Common A\n\n"
         "  @future\n  Scenario: Future common\n    * step\n\n"
+        "  @pending\n  Scenario: Pending common\n    * step\n\n"
         "  Scenario: Active common\n    * step\n",
         encoding="utf-8",
     )
@@ -123,7 +124,7 @@ def test_count_scenarios_buckets_by_suite(tmp_path):
     assert suites["smoke"].future == 0
     assert suites["common"].active == 1
     assert suites["common"].quarantined == 0
-    assert suites["common"].future == 1
+    assert suites["common"].future == 2
 
 
 def test_count_scenarios_no_feature_files(tmp_path):
