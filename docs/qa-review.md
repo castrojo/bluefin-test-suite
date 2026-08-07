@@ -2,8 +2,8 @@
 
 Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/SKILL.md`. Read that file for the current per-suite matrix and `@future` stub list rather than duplicating counts here.
 
-The current branch's mechanical recount is 486 scenarios across 63 feature files:
-382 active, 0 `@quarantine`, 104 `@future`/`@pending`/`@hardware_blocked`. The five active
+The current branch's mechanical recount is 493 scenarios across 64 feature files:
+384 active, 0 `@quarantine`, 109 `@future`/`@pending`/`@hardware_blocked`. The five active
 sudo-rs scenarios are included in the smoke total there.
 
 ## What this repo is responsible for
@@ -70,6 +70,8 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_retry.py` | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | `scripts/parse_results.py` parsing integration |
 | `test_quarantine_age.py` | `scripts/check_quarantine_age.py` parsing and reporting |
+| `test_install_kde_webdriver.py` | `scripts/install-kde-webdriver.sh` contract invariants (pinned SHA, loopback-only bind, skip paths) |
+| `test_wait_for_shell.py` | `tests/shared/wait_for_shell.py` retry contract (Shell.Eval failures, missing panel, attempt budget) |
 
 ## Current stub posture
 
