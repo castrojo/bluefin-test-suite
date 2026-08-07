@@ -16,9 +16,9 @@ Feature: XDG desktop portal Screenshot interface
   Scenario: Screenshot portal accepts a non-interactive request
     * Screenshot portal accepts a non-interactive request
 
-  @quarantine
+  @pending
   Scenario: Screenshot portal request produces a valid PNG
-    # Quarantine reason: the Screenshot portal backend in the non-interactive
+    # Pending reason: the Screenshot portal backend in the non-interactive
     # headless CI session does not emit a usable Request::Response with a
     # file:// URI. The broker accepts the request (scenario above), but the
     # backend needs a real compositor/display session to produce an image.
