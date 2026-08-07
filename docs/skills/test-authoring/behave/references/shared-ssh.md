@@ -36,6 +36,33 @@ Import in suite `environment.py`:
 from tests.shared.ssh_steps import *  # noqa: F401,F403
 ```
 
+## Importing the steps is only half the contract
+
+`run_ssh()` reads its connection details from **`context`**, not from the
+environment. A suite that star-imports `ssh_steps` must also populate them in
+`before_all`, or every SSH step raises `AttributeError` at runtime:
+
+```python
+def before_all(context):
+    context.vm_ip = os.environ.get("VM_IP", "")
+    context.ssh_user = os.environ.get("VM_USER", "bluefin-test")
+    context.ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
+    context.ssh_port = os.environ.get("SSH_PORT", "")  # optional
+```
+
+Importing the steps registers the step phrases, so `behave --dry-run` passes and
+the gap stays invisible until the suite runs against a real VM.
+
+Unit tests cannot catch this either: they stub `tests.shared.ssh_steps` wholesale
+(see [unit-test-module-stubs](unit-test-module-stubs.md)), so the real
+`run_ssh()` never executes. Assert on the suite's `before_all` instead — verify
+it sets the attributes `run_ssh()` requires.
+
+**Never read connection details from `os.environ` inside a suite-local helper.**
+A private helper that resolves `VM_IP`/`SSH_KEY` itself will work while the
+shared steps in the same suite fail, which masks the missing wiring and creates
+two sources of truth. Resolve once in `before_all`, onto `context`.
+
 Never duplicate `_ssh()` or generic step definitions in suite-specific `steps.py`.  
 Default `run_ssh()` timeout: **60s** (not 30s — hardware commands are slow).
 In `tests/common/features/`, `environment.py` already exports
