@@ -30,6 +30,7 @@ except Exception as _qecore_exc:  # noqa: BLE001
     _QECORE_AVAILABLE = False
 
 from steps.app_support import launch_target_available
+from tests.shared.runtime_env import in_container_lane
 
 # ── qecore keyboard key mapping patch ────────────────────────────────────────
 # qecore 4.16 keyboard_key_combo_input builds uinput key names as
@@ -333,6 +334,18 @@ def before_scenario(context, scenario) -> None:
             return
 
     scenario_tags = set(getattr(scenario, "effective_tags", scenario.tags))
+
+    # Skip @vm_only scenarios in container lanes. Those scenarios drive the
+    # device under test over SSH, but a container lane runs behave inside the
+    # target itself and has no sshd — the resulting connection failure is a
+    # runner limitation, not an image regression.
+    if "vm_only" in scenario_tags and in_container_lane():
+        try:
+            scenario.skip("Skipping @vm_only scenario in a container lane (no SSH target)")
+        except TypeError:
+            scenario.skip()
+        print(f"Skipping {scenario.name}: @vm_only scenario in a container lane", flush=True)
+        return
 
     # Skip @bluefin scenarios on non-Bluefin images (e.g. dakota).
     if not getattr(context, "is_bluefin_image", True):
