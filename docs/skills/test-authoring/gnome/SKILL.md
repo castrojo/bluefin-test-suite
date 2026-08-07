@@ -434,6 +434,13 @@ canonical readiness helper and encodes the resulting contract:
   the outgoing session moments before GDM tears it down.
 - The loop is bounded by a 300s wall-clock deadline, and the timeout message
   reports a per-error-class attempt breakdown plus the last error.
+- When the socket file is absent the probe short-circuits instead of spawning
+  `gdbus`, because an unreachable/empty address sends GIO down the
+  `dbus-launch --autolaunch` path, which cannot work in the test container.
+- `collect_session_diagnostics()` snapshots socket presence, `loginctl
+  list-sessions` and `systemctl status gdm` on the first failure, every 15th
+  failure, and at timeout. If the socket never returns and no user session is
+  listed, the fault is lane-side GDM provisioning, not this helper.
 
 Reuse this helper rather than writing a new `gdbus`-poll loop. See
 `docs/skills/ci-ops/ops/references/qecore-headless-restarts-gdm-bus-socket-churn.md`.

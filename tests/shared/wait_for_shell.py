@@ -33,6 +33,11 @@ DEFAULT_TIMEOUT = 300.0
 DEFAULT_INTERVAL = 2.0
 DEFAULT_STABLE_CHECKS = 2
 
+# Log session/bus/GDM state on the first failure and then every Nth attempt, so a
+# 300s failure carries enough evidence to tell "helper is wrong" apart from "the
+# replacement session never came back" without re-running the lane.
+DIAGNOSTIC_EVERY_N_ATTEMPTS = 15
+
 ERR_SERVICE_UNKNOWN = "service-unknown"
 ERR_BUS_UNAVAILABLE = "bus-unavailable"
 ERR_SHELL_NOT_READY = "shell-not-ready"
@@ -90,11 +95,12 @@ def resolve_session_bus_env(base_env=None) -> dict:
     ``/run/user/<uid>/bus`` when the inherited address points at a socket that
     no longer exists.
 
-    The address is *always* set, even while no socket exists. Unsetting it makes
-    ``gdbus`` fall back to ``dbus-launch --autolaunch``, which either fails
-    opaquely or spawns a private bus that the real session never joins; keeping
-    the canonical path means the very next attempt connects as soon as the
-    replacement session creates it.
+    The address is *always* set to a non-empty value, even while no socket
+    exists. GIO falls back to ``dbus-launch --autolaunch`` only when the address
+    is unset or empty; that path cannot work in the test container (no X11, and
+    ``--close-stderr`` hides the reason) and can spawn a private bus the real
+    session never joins. Keeping the canonical path means the very next attempt
+    connects as soon as the replacement session creates the socket.
     """
     env = dict(os.environ if base_env is None else base_env)
 
@@ -120,8 +126,51 @@ def resolve_session_bus_env(base_env=None) -> dict:
     return env
 
 
+def session_bus_socket_path(env: dict) -> str:
+    """Filesystem path of the session bus socket the probe will connect to."""
+    return _address_socket_path(env.get("DBUS_SESSION_BUS_ADDRESS", "")) or ""
+
+
+def collect_session_diagnostics(env: dict) -> str:
+    """Snapshot bus/session/GDM state.
+
+    Answers the question the failure log otherwise cannot: did the replacement
+    autologin session ever come back? If the socket never reappears and
+    ``loginctl`` shows no user session, the fault is in how the lane restarts
+    GDM, not in this helper.
+    """
+    socket_path = session_bus_socket_path(env) or os.path.join(
+        env.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"), "bus"
+    )
+    lines = [
+        f"  DBUS_SESSION_BUS_ADDRESS={env.get('DBUS_SESSION_BUS_ADDRESS', '<unset>')}",
+        f"  XDG_RUNTIME_DIR={env.get('XDG_RUNTIME_DIR', '<unset>')}",
+        f"  socket {socket_path} exists={os.path.exists(socket_path)}",
+    ]
+    probes = (
+        ("ls -la runtime dir", ["ls", "-la", os.path.dirname(socket_path)]),
+        ("loginctl list-sessions", ["loginctl", "list-sessions", "--no-pager"]),
+        ("systemctl status gdm", ["systemctl", "status", "gdm", "--no-pager", "-n", "5"]),
+        ("systemctl --user is-system-running", ["systemctl", "--user", "is-system-running"]),
+    )
+    for label, argv in probes:
+        try:
+            proc = subprocess.run(argv, capture_output=True, text=True, timeout=10, env=env)
+            output = (proc.stdout or proc.stderr or "").strip()
+        except (OSError, subprocess.SubprocessError) as exc:  # noqa: PERF203
+            output = f"<probe failed: {exc}>"
+        lines.append(f"  {label}: {output[:600]}" if output else f"  {label}: <no output>")
+    return "\n".join(lines)
+
+
 def _shell_eval_ready(env: dict, timeout: float = 5.0) -> tuple[bool, str, str]:
     """Run the Shell.Eval readiness probe. Returns (ready, error_class, detail)."""
+    socket_path = session_bus_socket_path(env)
+    if socket_path and not os.path.exists(socket_path):
+        # Do not even spawn gdbus: with no socket it can only fail, and if the
+        # address were ever lost it would silently autolaunch a private bus.
+        return False, ERR_BUS_UNAVAILABLE, f"session bus socket {socket_path} does not exist"
+
     try:
         result = subprocess.run(
             [
@@ -183,6 +232,7 @@ def wait_for_shell(
     timeout: float = DEFAULT_TIMEOUT,
     interval: float = DEFAULT_INTERVAL,
     stable_checks: int = DEFAULT_STABLE_CHECKS,
+    diagnostic_every: int = DIAGNOSTIC_EVERY_N_ATTEMPTS,
 ) -> bool:
     """Poll until GNOME Shell is stably ready, or the deadline expires.
 
@@ -196,10 +246,13 @@ def wait_for_shell(
     last_error = "unknown"
     consecutive_ok = 0
     attempt = 0
+    failures = 0
+    last_env: dict = {}
 
     while True:
         attempt += 1
         env = resolve_session_bus_env()
+        last_env = env
 
         ready, error_class, detail = _shell_eval_ready(env)
         if ready:
@@ -228,9 +281,16 @@ def wait_for_shell(
                     flush=True,
                 )
             consecutive_ok = 0
+            failures += 1
             error_counts[error_class] = error_counts.get(error_class, 0) + 1
             last_error = detail
             print(f"Readiness attempt {attempt} [{error_class}]: {detail}", flush=True)
+            if diagnostic_every and (failures == 1 or failures % diagnostic_every == 0):
+                print(
+                    f"Session diagnostics (attempt {attempt}):\n"
+                    f"{collect_session_diagnostics(env)}",
+                    flush=True,
+                )
 
         if time.monotonic() >= deadline:
             break
@@ -245,6 +305,14 @@ def wait_for_shell(
         "restarted (qecore-headless does this) and the replacement session never "
         f"came up; '{ERR_SERVICE_UNKNOWN}' means the bus is up but org.gnome.Shell "
         "never took its name.",
+        file=sys.stderr,
+        flush=True,
+    )
+    print(
+        f"Final session diagnostics:\n{collect_session_diagnostics(last_env)}\n"
+        "If the socket never exists and loginctl shows no user session, the "
+        "replacement autologin session never came back — that is a lane/GDM "
+        "problem, not a bug in this helper.",
         file=sys.stderr,
         flush=True,
     )
