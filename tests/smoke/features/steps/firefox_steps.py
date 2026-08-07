@@ -23,11 +23,17 @@ def _skip_if_no_atspi(context) -> bool:
 
 
 FIREFOX_APP_NAMES = ("firefox", "Firefox", "Mozilla Firefox")
+# Order matters. The Flatpak target is listed before the Flatpak-exported
+# desktop entry so a Flatpak-packaged Firefox is always started through
+# `flatpak run --env=`, the only launch path that carries FIREFOX_A11Y_ENV
+# across the sandbox boundary. `launch_background()` additionally redirects any
+# desktop entry that resolves to a Flatpak export onto that same path, so the
+# accessibility env can never be silently dropped.
 FIREFOX_LAUNCH_TARGETS = (
     ("command", "firefox"),
     ("desktop", "firefox.desktop"),
-    ("desktop", "org.mozilla.firefox.desktop"),
     ("flatpak", "org.mozilla.firefox"),
+    ("desktop", "org.mozilla.firefox.desktop"),
 )
 
 # Firefox does not build its accessibility tree just because the session has

@@ -278,3 +278,93 @@ class TestLaunchEnvironment:
 
         remote_cmd = mock_run.call_args.args[0][-1]
         assert "export GNOME_ACCESSIBILITY=1; nohup firefox" in remote_cmd
+
+
+# ---------------------------------------------------------------------------
+# Flatpak-exported desktop entries
+# ---------------------------------------------------------------------------
+
+class TestFlatpakExportedDesktopEntries:
+    """A desktop entry that is really a Flatpak export must launch via
+    ``flatpak run --env=``.
+
+    ``gio launch`` / ``gtk-launch`` start the app inside its sandbox, where the
+    outer-shell exports are invisible, so an accessibility payload such as
+    ``GNOME_ACCESSIBILITY=1`` would never reach Firefox.
+    """
+
+    def setup_method(self):
+        _no_container.start()
+
+    def teardown_method(self):
+        _no_container.stop()
+
+    def test_detects_system_flatpak_export(self):
+        assert app_support._flatpak_desktop_app_id(
+            "/var/lib/flatpak/exports/share/applications/org.mozilla.firefox.desktop",
+            "org.mozilla.firefox.desktop",
+        ) == "org.mozilla.firefox"
+
+    def test_detects_user_flatpak_export(self):
+        assert app_support._flatpak_desktop_app_id(
+            "/home/u/.local/share/flatpak/exports/share/applications/org.mozilla.firefox.desktop",
+            "org.mozilla.firefox.desktop",
+        ) == "org.mozilla.firefox"
+
+    def test_system_desktop_entry_is_not_a_flatpak_export(self):
+        assert app_support._flatpak_desktop_app_id(
+            "/usr/share/applications/firefox.desktop", "firefox.desktop"
+        ) is None
+
+    def test_flatpak_exported_desktop_target_forwards_env_into_sandbox(self, tmp_path):
+        desktop_id = "org.mozilla.firefox.desktop"
+        export_dir = tmp_path / "flatpak" / "exports" / "share" / "applications"
+        export_dir.mkdir(parents=True)
+        (export_dir / desktop_id).write_text("")
+
+        with patch.object(app_support, "DESKTOP_DIRS", (str(export_dir),)):
+            with patch("tests.smoke.features.steps.app_support.subprocess.Popen") as mock_popen:
+                result = app_support.launch_background(
+                    (("desktop", desktop_id),), env={"GNOME_ACCESSIBILITY": "1"}
+                )
+
+        assert result == "flatpak:org.mozilla.firefox"
+        assert mock_popen.call_args.args[0] == [
+            "flatpak", "run", "--env=GNOME_ACCESSIBILITY=1", "org.mozilla.firefox",
+        ]
+
+    def test_non_flatpak_desktop_target_still_uses_gtk_launch(self, tmp_path):
+        desktop_id = "firefox.desktop"
+        (tmp_path / desktop_id).write_text("")
+
+        with patch.object(app_support, "DESKTOP_DIRS", (str(tmp_path),)):
+            with patch("tests.smoke.features.steps.app_support.subprocess.Popen") as mock_popen:
+                result = app_support.launch_background(
+                    (("desktop", desktop_id),), env={"GNOME_ACCESSIBILITY": "1"}
+                )
+
+        assert result == f"desktop:{desktop_id}"
+        assert mock_popen.call_args.args[0] == ["gtk-launch", desktop_id]
+        assert mock_popen.call_args.kwargs["env"]["GNOME_ACCESSIBILITY"] == "1"
+
+    def test_ssh_mode_flatpak_export_uses_flatpak_run(self, tmp_path):
+        _no_container.stop()
+        try:
+            with patch.object(app_support, "_IN_CONTAINER", True):
+                with patch.object(
+                    app_support, "_desktop_path",
+                    return_value="/var/lib/flatpak/exports/share/applications/org.mozilla.firefox.desktop",
+                ):
+                    with patch("tests.smoke.features.steps.app_support.subprocess.run") as mock_run:
+                        result = app_support.launch_background(
+                            (("desktop", "org.mozilla.firefox.desktop"),),
+                            env={"GNOME_ACCESSIBILITY": "1"},
+                        )
+        finally:
+            _no_container.start()
+
+        assert result == "flatpak:org.mozilla.firefox"
+        remote_cmd = mock_run.call_args.args[0][-1]
+        assert "flatpak run --env=GNOME_ACCESSIBILITY=1 org.mozilla.firefox" in remote_cmd
+        assert "gio launch" not in remote_cmd
+

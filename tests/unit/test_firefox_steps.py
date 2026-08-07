@@ -239,3 +239,25 @@ class TestFirefoxWindow:
         context.firefox.instance = _FakeNode("application", children=[hidden])
         with pytest.raises(AssertionError, match="main window not found"):
             m._firefox_window(context)
+
+
+class TestLaunchTargetOrdering:
+    """The Flatpak target must win over the Flatpak-exported desktop entry.
+
+    Only `flatpak run --env=` carries FIREFOX_A11Y_ENV across the sandbox
+    boundary; a `gio launch` of the exported entry drops it and leaves Firefox
+    with an empty AT-SPI subtree.
+    """
+
+    def test_flatpak_precedes_exported_desktop_entry(self):
+        m = _import_firefox_steps()
+        targets = list(m.FIREFOX_LAUNCH_TARGETS)
+        assert targets.index(("flatpak", "org.mozilla.firefox")) < targets.index(
+            ("desktop", "org.mozilla.firefox.desktop")
+        )
+
+    def test_launch_passes_accessibility_env(self):
+        m = _import_firefox_steps()
+        context = MagicMock()
+        m.launch_firefox_via_command(context)
+        assert m.launch_background.call_args.kwargs["env"] == m.FIREFOX_A11Y_ENV
