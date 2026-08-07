@@ -319,3 +319,136 @@ class TestCommonEnvironmentDevmodeCleanup:
         scenario.status = "failed"
 
         m.after_scenario(context, scenario)  # should not raise
+
+
+# ---------------------------------------------------------------------------
+# Dakota ujust chooser / report mocks
+# ---------------------------------------------------------------------------
+
+def _captured_script(step_callable, *args):
+    """Run a step with run_ssh stubbed and return the shell script it sent."""
+    m = _import_common_steps()
+    captured = {}
+
+    def fake_run_ssh(context, command, **kwargs):
+        captured["command"] = command
+        return ("", 0)
+
+    m.run_ssh = fake_run_ssh
+    step_callable(m)(_ctx(), *args)
+    return captured["command"]
+
+
+def _extract_heredoc(script, marker):
+    """Return the body of a ``<<'MARKER'`` heredoc embedded in a script."""
+    start = script.index(f"<<'{marker}'\n") + len(f"<<'{marker}'\n")
+    end = script.index(f"\n{marker}\n", start)
+    return script[start:end]
+
+
+class TestUjustChooseMockedFzf:
+    def test_records_and_reports_fzf_invocation(self):
+        script = _captured_script(
+            lambda m: m.ujust_choose_mocked_fzf, "logs-this-boot"
+        )
+        assert "touch /tmp/fake-fzf-bin/invoked" in script
+        assert "echo FZF_INVOKED=1" in script
+        assert "echo FZF_INVOKED=0" in script
+
+    def test_propagates_ujust_return_code(self):
+        script = _captured_script(
+            lambda m: m.ujust_choose_mocked_fzf, "logs-this-boot"
+        )
+        assert "ujust --choose || rc=$?" in script
+        assert script.rstrip().endswith("exit $rc")
+
+    def test_clears_stale_invocation_marker_first(self):
+        script = _captured_script(
+            lambda m: m.ujust_choose_mocked_fzf, "logs-this-boot"
+        )
+        assert script.index("rm -f /tmp/fake-fzf-bin/invoked") < script.index(
+            "ujust --choose"
+        )
+
+    def test_quotes_the_recipe_name(self):
+        script = _captured_script(lambda m: m.ujust_choose_mocked_fzf, "a b; rm -rf /")
+        assert "'a b; rm -rf /'" in script
+
+
+class TestUjustReportMocks:
+    def _script(self):
+        return _captured_script(lambda m: m.ujust_report_safe_mocks)
+
+    def test_gum_choose_drives_the_real_prompts(self):
+        script = self._script()
+        assert 'echo "Skip"' not in script
+        assert '"Update / boot"' in script
+        assert '"Bug report"' in script
+        assert '"No queue preference"' in script
+
+    def test_reports_gist_and_issue_markers(self):
+        script = self._script()
+        assert "MOCK_GH_GIST_OK=1" in script
+        assert "MOCK_GH_ISSUE_OK=1" in script
+
+    def test_gh_is_only_ever_the_mock_on_path(self):
+        """No real GitHub call can escape: gh is shadowed before ujust runs."""
+        script = self._script()
+        assert script.index('export PATH="$mock_dir:$PATH"') < script.index(
+            "ujust report"
+        )
+
+    @pytest.mark.parametrize(
+        "argv,expected_rc",
+        [
+            (["auth", "status"], 0),
+            (["gist", "create", "--public", "--desc", "d", "FILE"], 0),
+            (["gist", "list"], 1),
+            (["gist", "create", "--public", "--desc", "d"], 1),
+            (["gist", "create", "--public", "FILE"], 1),
+            (["gist", "create", "--public", "--desc", "d", "missing.txt"], 1),
+            (["issue", "create", "--title", "t"], 0),
+            (["issue", "list"], 1),
+            (["pr", "create"], 1),
+        ],
+    )
+    def test_gh_mock_validates_the_invocation(self, tmp_path, argv, expected_rc):
+        import subprocess  # noqa: PLC0415
+
+        gh = tmp_path / "gh"
+        gh.write_text(_extract_heredoc(self._script(), "GH_EOF"))
+        gh.chmod(0o755)
+        payload = tmp_path / "payload.md"
+        payload.write_text("body\n")
+        argv = [str(payload) if a == "FILE" else a for a in argv]
+
+        result = subprocess.run(
+            [str(gh), *argv],
+            cwd=tmp_path,
+            env={"MOCK_GH_LOG": str(tmp_path / "gh.log"), "PATH": "/usr/bin:/bin"},
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == expected_rc, result.stderr
+
+    def test_gh_mock_logs_a_successful_gist_upload(self, tmp_path):
+        import subprocess  # noqa: PLC0415
+
+        gh = tmp_path / "gh"
+        gh.write_text(_extract_heredoc(self._script(), "GH_EOF"))
+        gh.chmod(0o755)
+        payload = tmp_path / "payload.md"
+        payload.write_text("body\n")
+        log = tmp_path / "gh.log"
+
+        result = subprocess.run(
+            [str(gh), "gist", "create", "--public", "--desc", "d", str(payload)],
+            cwd=tmp_path,
+            env={"MOCK_GH_LOG": str(log), "PATH": "/usr/bin:/bin"},
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0
+        assert "gist.github.com" in result.stdout
+        assert "MOCK_GH_GIST_OK=1" in log.read_text()

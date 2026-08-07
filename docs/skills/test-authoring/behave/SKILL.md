@@ -121,6 +121,9 @@ run. Surface the failure instead of swallowing it.
 
 ## Common suite `ujust` recipe coverage
 
+Dakota's interactive recipes shadow `fzf`/`gum`/`gh` on `PATH`; mocks must answer each
+prompt distinctly and assert on the invocation, not merely that the tool ran
+([reference](references/mocking-interactive-cli.md)).
 
 Keep SSH-based `ujust` recipe checks in `tests/common/features/common_ujust.feature`.
 Prefer assertions against the wrapper's own output, not the underlying tool's raw
@@ -216,9 +219,9 @@ Two properties make these scenarios survivable in CI, where
    Use a synthetic ID such as `org.projectbluefin.TestsuitePermissionProbe` so the
    round-trip neither depends on nor clobbers real installed apps. Always finish the
    scenario with `Reset flatpak user overrides for ...`.
-2. **Sweeps over the install set must pass on an empty set.** `Every installed
-   flatpak app exposes a parsable permission set` iterates `flatpak list` and is a
-   no-op when nothing is installed — a real assertion on Bluefin, a trivial pass in CI.
+2. **A sweep that passes on an empty install set is not coverage.** That is why
+   `Every installed flatpak app exposes a parsable permission set` is `@pending` on
+   #706. More traps: [references/flatpak-permissions.md](references/flatpak-permissions.md).
 
 `flatpak override --show` emits a keyfile, not flag syntax:
 
@@ -459,11 +462,10 @@ non-dependent scenarios to a separate feature.
 
 ## On-demand references
 
-Load these when you hit the specific topic:
-
 - [Shared SSH helpers and where to use them.](references/shared-ssh.md)
 - [When to use local subprocess instead of SSH in the smoke suite.](references/smoke-vs-ssh.md)
 - [Avoiding duplicate step phrases and AmbiguousStep errors.](references/ambiguous-steps.md)
+- [Mocking interactive CLI tools (gum, fzf, gh) in ujust coverage.](references/mocking-interactive-cli.md)
 - [Driving bluefinctl devmode non-interactively, and the assertion traps around it.](references/bctl-devmode.md)
 - [Which ujust recipes can be driven non-interactively, and why the rest stay @pending.](references/ujust-noninteractive.md)
 
