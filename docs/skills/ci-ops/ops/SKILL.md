@@ -124,3 +124,5 @@ Load these when you hit the specific topic:
 - [lab ArgoCD template resolution timing](references/argo-mutex.md)
 - [Workflows without a pull_request trigger break main silently](references/workflows-without-a-pull-request-trigger-break-main-silently.md)
 - [qecore-headless restarts GDM — the session bus socket is replaced](references/qecore-headless-restarts-gdm-bus-socket-churn.md)
+- [ghost-lab poller failure signatures — infra vs PR-caused](references/ghost-lab-poller-failures.md)
+- [Coverage snapshot is generated — never hand-edit scenario counts](references/coverage-snapshot-generated.md)
