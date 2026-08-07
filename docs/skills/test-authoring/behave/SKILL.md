@@ -1,12 +1,21 @@
 ---
 name: behave
+version: "1.0"
+last_updated: "2026-07-29"
+id: behave
+one_line_purpose: Write behave scenarios and step definitions for testsuite suites.
+entry_point: docs/skills/test-authoring/behave/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [behave, bdd, steps]
 description: "How to write behave scenarios and step definitions for the testsuite repo. Load when editing .feature files or steps.py."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Behave Patterns Reference
 
 
@@ -70,6 +79,45 @@ Audit every `python3 -c` added to an SSH command for this pattern. Avoid
 nested escaped double quotes around the entire Python expression; those
 escapes can survive into the remote shell and expose Python punctuation to
 shell parsing.
+
+## Assert parsed values, not substrings
+
+`gsettings get` returns GVariant text such as `uint32 1`. `assert "1" in output`
+also matches `uint32 10`, `uint32 11`, and `uint32 100`, so a failed state change
+reads as a pass. Parse the payload and compare it exactly:
+
+```python
+_UINT32_RE = re.compile(r"^(?:uint32\s+)?(\d+)$")
+
+def _parse_index(output: str) -> int | None:
+    match = _UINT32_RE.match(output.strip())
+    return int(match.group(1)) if match else None
+
+assert _parse_index(output) == 1, f"Current input source is not 1: {output}"
+```
+
+An unparseable value must fail, never pass by default.
+
+## Restore hooks must only latch on success
+
+A cleanup helper that saves state and restores it later is normally guarded by a
+`_restored` flag so the explicit step and the `context.add_cleanup` hook do not
+run twice. Set that flag **only after every restore command actually returned 0**:
+
+```python
+failures = []
+for key in ("sources", "current"):
+    output, rc = _run_in_vm_checked(f"gsettings set {schema} {key} {shlex.quote(value)}")
+    if rc != 0:
+        failures.append(f"{key} (rc={rc}): {output}")
+if failures:
+    raise AssertionError("Failed to restore ...: " + "; ".join(failures))
+state["_restored"] = True
+```
+
+Latching the flag on a *failed* command turns the cleanup hook into a no-op: the
+retry never happens and the mutated state leaks into every later scenario in the
+run. Surface the failure instead of swallowing it.
 
 ## Common suite `ujust` recipe coverage
 
@@ -175,6 +223,54 @@ For smoke steps that must run several host commands, reuse the suite's canonical
 `_run_host` helper with `from steps.steps import _run_host`. It handles local
 qecore-headless execution and the runner-container SSH fallback. Do not duplicate
 SSH argument construction or container detection in a new smoke step module.
+
+## Flatpak per-app permissions: assert via CLI, not Flatseal's GUI
+
+Flatseal (`com.github.tchx84.Flatseal`) is only a front end over `flatpak override`
+and the portal permission store. Cover per-app permission behaviour with the CLI —
+it needs no desktop session and no AT-SPI:
+
+| What Flatseal shows | CLI assertion surface |
+|---|---|
+| Per-app toggles the user has changed | `flatpak override --user --show <app>` |
+| Effective manifest permissions | `flatpak info --show-permissions <app>` |
+| Portal grants (documents, notifications, background) | `flatpak permissions [<table>]` |
+
+Two properties make these scenarios survivable in CI, where
+`flatpak-preinstall.service` is masked and `/var/lib/flatpak` is not seeded
+(the reason `tests/smoke/features/flatpak_permissions.feature` is quarantined):
+
+1. **`flatpak override --user` accepts an application ID that is not installed.**
+   Use a synthetic ID such as `org.projectbluefin.TestsuitePermissionProbe` so the
+   round-trip neither depends on nor clobbers real installed apps. Always finish the
+   scenario with `Reset flatpak user overrides for ...`.
+2. **Sweeps over the install set must pass on an empty set.** `Every installed
+   flatpak app exposes a parsable permission set` iterates `flatpak list` and is a
+   no-op when nothing is installed — a real assertion on Bluefin, a trivial pass in CI.
+
+`flatpak override --show` emits a keyfile, not flag syntax:
+
+```ini
+[Context]
+sockets=!wayland;
+```
+
+Parse it (`parse_flatpak_context` in
+`tests/software/features/steps/flatpak_permissions_steps.py`): split on the first
+`=` and compare the key — matching bare key names against `filesystems=home;`
+never matches and passes falsely.
+
+## Software suite SSH context
+
+`tests/software/features/environment.py` calls `populate_ssh_context(context)` in
+`before_all` (#718), so the shared `tests/shared/ssh_steps.py` steps work there.
+
+## `@flatpak_cli` marks image-agnostic software scenarios
+
+`tests/software/features/environment.py` skips any `@software` scenario when Bazaar
+(`io.github.kolunmi.Bazaar`) is absent — unless the scenario also carries
+`@flatpak_cli`. Tag CLI-only, image-agnostic software scenarios with `@flatpak_cli`
+so they still run on gnomeos and other non-Bluefin images.
 
 ## Feature scaffolding with @future
 
@@ -290,7 +386,7 @@ In the SSH-driven `common` suite, validate Bluefin desktop identity overrides wi
 - Use `gsettings get` for regular schemas shipped via `zz0-bluefin-modifications.gschema.override` (for example `org.gnome.desktop.interface accent-color` or `org.gnome.desktop.app-folders folder-children`).
 - Use `dconf read` for relocatable schemas and extensions without XML schemas (for example custom media-key keybindings under `/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/`, Search Light under `/org/gnome/shell/extensions/search-light/`, and Ptyxis profile palette keys under `/org/gnome/Ptyxis/Profiles/<uuid>/`).
 
-This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `<image-org>/common`.
+This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `projectbluefin/common`.
 
 ## Quarantine Protocol
 

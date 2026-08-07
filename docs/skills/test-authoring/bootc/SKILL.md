@@ -1,12 +1,21 @@
 ---
 name: bootc
+version: "1.0"
+last_updated: "2026-07-20"
+id: bootc
+one_line_purpose: Write bootc upgrade, rollback, and migration tests.
+entry_point: docs/skills/test-authoring/bootc/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [bootc, lifecycle, rollback]
 description: "How to write bootc upgrade, rollback, and migration tests for the testsuite repo. Load when editing bootc-related .feature files or steps."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # bootc Lifecycle Testing Reference
 
 Load when: writing or debugging lifecycle, upgrade, or rollback tests.

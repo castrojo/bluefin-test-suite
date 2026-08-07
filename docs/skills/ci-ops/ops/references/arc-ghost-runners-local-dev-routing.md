@@ -14,7 +14,7 @@ The testsuite can run on the ghost k3s cluster's ARC runners instead of GitHub-h
 
 ### How it works
 
-A global pre-push hook (`~/.git-hooks/pre-push`) intercepts pushes to `<image-org>/*` repos and:
+A global pre-push hook (`~/.git-hooks/pre-push`) intercepts pushes to `projectbluefin/*` repos and:
 1. Creates `ghost/<branch>` with `ubuntu-latest` → `ghost-runners` patched in workflow files
 2. Pushes the ghost branch, triggering push-based workflows automatically
 3. Auto-dispatches `workflow_dispatch` workflows (skips `manual.yml`)
@@ -26,16 +26,16 @@ GHOST_REF="ghost/<your-branch>"
 SUITES="smoke,developer,dx,software,vanilla-gnome,bazzite,lifecycle"
 
 for image in \
-  "ghcr.io/<image-org>/bluefin:testing" \
-  "ghcr.io/<image-org>/bluefin:stable" \
-  "ghcr.io/<image-org>/bluefin-lts:testing" \
-  "ghcr.io/<image-org>/bluefin-lts:stable" \
-  "ghcr.io/<image-org>/bluefin-lts-hwe:testing" \
-  "ghcr.io/<image-org>/bluefin-lts-hwe:stable" \
-  "ghcr.io/<image-org>/dakota:testing" \
-  "ghcr.io/<image-org>/dakota:stable"; do
+  "ghcr.io/projectbluefin/bluefin:testing" \
+  "ghcr.io/projectbluefin/bluefin:stable" \
+  "ghcr.io/projectbluefin/bluefin-lts:testing" \
+  "ghcr.io/projectbluefin/bluefin-lts:stable" \
+  "ghcr.io/projectbluefin/bluefin-lts-hwe:testing" \
+  "ghcr.io/projectbluefin/bluefin-lts-hwe:stable" \
+  "ghcr.io/projectbluefin/dakota:testing" \
+  "ghcr.io/projectbluefin/dakota:stable"; do
   gh workflow run manual.yml \
-    --repo <image-org>/testsuite \
+    --repo projectbluefin/testsuite \
     --ref "${GHOST_REF}" \
     --field image="${image}" \
     --field suites="${SUITES}"

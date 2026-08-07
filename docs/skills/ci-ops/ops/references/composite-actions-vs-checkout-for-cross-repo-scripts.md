@@ -10,7 +10,7 @@ metadata:
 
 ## Composite actions vs checkout for cross-repo scripts
 
-**Never** check out `<image-org>/actions` into the caller repo workspace to run a script.
+**Never** check out `projectbluefin/actions` into the caller repo workspace to run a script.
 Placing a nested git repo in the workspace causes `git add -A` to capture it as an
 undeclared gitlink (mode 160000 with no `.gitmodules` entry). That gitlink ends up in
 squash commits and breaks any consumer build using `submodules: recursive`:
@@ -30,7 +30,7 @@ runs:
       run: python3 "$GITHUB_ACTION_PATH/my_script.py" ...
 ```
 
-Call it from a reusable workflow with `uses: <image-org>/actions/.github/actions/my-action@v1`.
+Call it from a reusable workflow with `uses: projectbluefin/actions/.github/actions/my-action@v1`.
 GitHub checks out the actions repo to a runner cache path, never inside the caller workspace.
 
 Also: `.gitignore` rules without a leading `/` match anywhere in the tree.

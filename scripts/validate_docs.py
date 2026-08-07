@@ -118,6 +118,49 @@ def validate_links(path: Path, text: str) -> None:
             error(f"{path}: broken relative link '{url}' -> {target.relative_to(ROOT)}")
 
 
+CATALOG_FIELDS = (
+    "id",
+    "version",
+    "last_updated",
+    "one_line_purpose",
+    "entry_point",
+    "category",
+    "status",
+    "tags",
+)
+CATEGORIES = {"ci-ops", "test-authoring", "meta"}
+STATUSES = {"active", "deprecated", "reserved"}
+
+
+def validate_catalog_frontmatter(path: Path, fm: dict) -> None:
+    """SKILL.md front matter must satisfy the shared factory catalog schema.
+
+    Mirrors projectbluefin/common's docs/skills/index.schema.json so the
+    generated catalog in docs/skills/index.json stays valid.
+    """
+    rel = path.relative_to(ROOT).as_posix()
+    for field in CATALOG_FIELDS:
+        if not fm.get(field):
+            error(f"{path}: frontmatter missing '{field}' (required by docs/skills/index.schema.json)")
+    if fm.get("category") and fm["category"] not in CATEGORIES:
+        error(f"{path}: category '{fm['category']}' not in {sorted(CATEGORIES)}")
+    if fm.get("status") and fm["status"] not in STATUSES:
+        error(f"{path}: status '{fm['status']}' not in {sorted(STATUSES)}")
+    if fm.get("id") and fm.get("name") and fm["id"] != fm["name"]:
+        error(f"{path}: id '{fm['id']}' does not match name '{fm['name']}'")
+    if fm.get("entry_point") and fm["entry_point"] != rel:
+        error(f"{path}: entry_point '{fm['entry_point']}' does not match its own path '{rel}'")
+    lu = fm.get("last_updated")
+    if lu and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(lu)):
+        error(f"{path}: last_updated '{lu}' is not YYYY-MM-DD")
+    olp = fm.get("one_line_purpose")
+    if olp and len(str(olp)) > 120:
+        error(f"{path}: one_line_purpose exceeds 120 characters")
+    tags = fm.get("tags")
+    if tags is not None and (not isinstance(tags, list) or not tags):
+        error(f"{path}: tags must be a non-empty list")
+
+
 def validate_skill(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     fm, body = parse_frontmatter(text)
@@ -138,6 +181,7 @@ def validate_skill(path: Path) -> None:
         expected_dir = path.parent.name
         if name and name != expected_dir:
             error(f"{path}: frontmatter name '{name}' does not match directory '{expected_dir}'")
+        validate_catalog_frontmatter(path, fm)
     elif is_reference:
         if name and path.stem != name:
             warn(f"{path}: frontmatter name '{name}' does not match filename '{path.stem}'")
@@ -157,13 +201,30 @@ def validate_other(path: Path) -> None:
     validate_links(path, text)
 
 
+def validate_router() -> None:
+    """docs/SKILL.md is the factory-contract entry point; it must exist."""
+    router = ROOT / "docs" / "SKILL.md"
+    if not router.exists():
+        error("docs/SKILL.md is missing (required by the factory onboarding contract)")
+        return
+    fm, _ = parse_frontmatter(router.read_text(encoding="utf-8"))
+    if fm is None:
+        error("docs/SKILL.md: missing YAML frontmatter")
+        return
+    validate_catalog_frontmatter(router, fm)
+
+
 def main() -> int:
     for path in collect_md_files():
         rel = path.relative_to(ROOT)
-        if "docs/skills/" in str(rel) and path.name.endswith(".md"):
+        if str(rel) == "docs/SKILL.md":
+            validate_other(path)
+        elif "docs/skills/" in str(rel) and path.name.endswith(".md"):
             validate_skill(path)
         else:
             validate_other(path)
+
+    validate_router()
 
     if WARNINGS:
         print("\n".join(f"WARN: {w}" for w in WARNINGS))

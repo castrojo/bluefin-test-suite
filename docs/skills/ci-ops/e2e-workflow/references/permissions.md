@@ -17,12 +17,12 @@ When calling this workflow from another repo, the following are explicitly banne
 - **No VM tuning inputs** — do not request inputs for CPU/RAM/kernel params. The pipeline runs on GitHub-hosted runners; the VM spec is fixed.
 ## GHCR screenshot push — cross-repo token scope
 
-**Symptom:** `e2e.yml` "Push desktop screenshot to GHCR" step silently succeeds (exit 0) but no tag appears in `ghcr.io/<image-org>/testsuite/desktop-screenshot`. Dashboard shows 0 screenshots.
+**Symptom:** `e2e.yml` "Push desktop screenshot to GHCR" step silently succeeds (exit 0) but no tag appears in `ghcr.io/projectbluefin/testsuite/desktop-screenshot`. Dashboard shows 0 screenshots.
 
-**Cause:** When consumer repos (bluefin, bluefin-lts, dakota) call `e2e.yml` via `workflow_call`, `github.token` is scoped to the **caller's** repository. It can write to that repo's own GHCR packages, but NOT to `ghcr.io/<image-org>/testsuite/desktop-screenshot` (owned by this repo). The push step has `continue-on-error: true`, so the failure is silent.
+**Cause:** When consumer repos (bluefin, bluefin-lts, dakota) call `e2e.yml` via `workflow_call`, `github.token` is scoped to the **caller's** repository. It can write to that repo's own GHCR packages, but NOT to `ghcr.io/projectbluefin/testsuite/desktop-screenshot` (owned by this repo). The push step has `continue-on-error: true`, so the failure is silent.
 
 **Fix:** Grant explicit write access to each consumer repo on the `desktop-screenshot` package:
-1. Go to [ghcr.io/<image-org>/testsuite/desktop-screenshot](https://github.com/orgs/<image-org>/packages/container/testsuite%2Fdesktop-screenshot/settings)
+1. Go to [ghcr.io/projectbluefin/testsuite/desktop-screenshot](https://github.com/orgs/projectbluefin/packages/container/testsuite%2Fdesktop-screenshot/settings)
 2. Package Settings → Manage Access
 3. Add each consumer repo (`bluefin`, `bluefin-lts`, `dakota`) with `Write` role
 

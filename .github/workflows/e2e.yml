@@ -26,7 +26,7 @@ on:
         default: ""
         required: false
       suites:
-        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common,lifecycle,kde-smoke"
+        description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common,lifecycle,installer,kde-smoke"
         type: string
         default: "smoke"
       skip_native_apps:
@@ -57,6 +57,12 @@ on:
           github.ref_name inside this file because GitHub resolves it to main here.
         type: string
         default: "main"
+      test_repository:
+        description: >
+          Repository from which to check out the tests/ directory. Defaults to
+          projectbluefin/testsuite; fork validation may override this explicitly.
+        type: string
+        default: "projectbluefin/testsuite"
 
 jobs:
   # Resolve comma-separated suite list into a JSON matrix
@@ -106,10 +112,10 @@ jobs:
 
     steps:
       # Always fetch the latest testsuite tests so test fixes are picked up
-      # immediately. Explicitly target projectbluefin/testsuite so that caller
-      # repos (e.g. projectbluefin/common, dakota) without their own tests/
-      # directory work correctly — github.repository resolves to the caller
-      # when a reusable workflow is invoked cross-repo.
+      # immediately. Default to projectbluefin/testsuite so that caller repos
+      # (e.g. projectbluefin/common, dakota) without their own tests/ directory
+      # work correctly. Fork-only manual validation may explicitly override the
+      # repository alongside test_ref.
       #
       # IMPORTANT: branch selection is owned by the caller via inputs.test_ref.
       # Do not add github.ref_name fallback here: inside workflow_call it resolves
@@ -117,7 +123,7 @@ jobs:
       - name: Checkout testsuite
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          repository: projectbluefin/testsuite
+          repository: ${{ inputs.test_repository }}
           ref: ${{ inputs.test_ref }}
           fetch-depth: 0
           sparse-checkout: |
@@ -244,7 +250,10 @@ jobs:
         env:
           SUITE_DIR: ${{ steps.shard.outputs.suite_dir }}
         run: |
-          fallocate -l 32G disk.raw
+          # The NVIDIA release candidate used 92% of a 32 GiB disk in run
+          # 30926761425.  A 40 GiB disk leaves roughly 26% free at that same
+          # payload size, preserving the smoke suite's 15% safety floor.
+          fallocate -l 40G disk.raw
 
           # --bootloader was added in bootc ≥0.1.13. Older images (e.g. nvidia:latest
           # built Oct 2025) ship an earlier bootc that rejects the flag. Probe
@@ -958,6 +967,16 @@ jobs:
               || echo 'WARNING: toolkit-accessibility not set (gsettings failed)'
           "
 
+          # Smoke shards can run long enough for the default idle timer to
+          # lock the session. Disable the lock only in this disposable test
+          # user. The smoke suite dismisses Bluefin's welcome dialog through
+          # its visible Skip control after AT-SPI is ready.
+          $SSH "
+            source /tmp/session.env
+            gsettings set org.gnome.desktop.session idle-delay 0
+            gsettings set org.gnome.desktop.screensaver lock-enabled false
+          "
+
           # Re-query AT-SPI bus address after enabling toolkit-accessibility.
           # On images where toolkit-accessibility was not pre-enabled (e.g. older
           # production images), the AT-SPI bus is only started when the setting is
@@ -1190,7 +1209,7 @@ jobs:
             exit 0
           fi
 
-          if [[ "${SUITE_DIR}" == "common" || "${SUITE_DIR}" == "lifecycle" ]]; then
+          if [[ "${SUITE_DIR}" == "common" || "${SUITE_DIR}" == "lifecycle" || "${SUITE_DIR}" == "installer" ]]; then
             python3 -m pip install -q --user behave
             if [[ -n "${FEATURE_ARGS}" ]]; then
               LOCAL_FEATURE_ARGS="${FEATURE_ARGS}"
