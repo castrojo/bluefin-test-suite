@@ -13,7 +13,7 @@ sudo-rs scenarios are included in the smoke total there.
 - Shared step/harness reuse across suites
 - Reliable scenario-level validation logic
 
-What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan VM lifecycle → `testing-lab`.
+What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan VM lifecycle → `projectbluefin/lab`.
 
 ## uupd conditional suppression coverage
 

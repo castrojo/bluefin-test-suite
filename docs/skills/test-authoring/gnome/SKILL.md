@@ -1,12 +1,21 @@
 ---
 name: gnome
+version: "1.0"
+last_updated: "2026-07-29"
+id: gnome
+one_line_purpose: Write GNOME Shell, AT-SPI, and dogtail interaction tests.
+entry_point: docs/skills/test-authoring/gnome/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [gnome, atspi, dogtail]
 description: "How to write GNOME Shell / AT-SPI / dogtail tests for the testsuite repo. Load when editing GNOME interaction steps."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # GNOME Desktop Testing Reference
 
 

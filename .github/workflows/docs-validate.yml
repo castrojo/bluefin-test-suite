@@ -28,3 +28,6 @@ jobs:
 
       - name: Validate docs
         run: python3 scripts/validate_docs.py
+
+      - name: Check skill catalog is in sync
+        run: python3 scripts/generate_skill_index.py --check

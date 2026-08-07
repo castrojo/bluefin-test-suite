@@ -1,12 +1,21 @@
 ---
 name: behave
+version: "1.0"
+last_updated: "2026-07-29"
+id: behave
+one_line_purpose: Write behave scenarios and step definitions for testsuite suites.
+entry_point: docs/skills/test-authoring/behave/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [behave, bdd, steps]
 description: "How to write behave scenarios and step definitions for the testsuite repo. Load when editing .feature files or steps.py."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Behave Patterns Reference
 
 
@@ -290,7 +299,7 @@ In the SSH-driven `common` suite, validate Bluefin desktop identity overrides wi
 - Use `gsettings get` for regular schemas shipped via `zz0-bluefin-modifications.gschema.override` (for example `org.gnome.desktop.interface accent-color` or `org.gnome.desktop.app-folders folder-children`).
 - Use `dconf read` for relocatable schemas and extensions without XML schemas (for example custom media-key keybindings under `/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/`, Search Light under `/org/gnome/shell/extensions/search-light/`, and Ptyxis profile palette keys under `/org/gnome/Ptyxis/Profiles/<uuid>/`).
 
-This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `<image-org>/common`.
+This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `projectbluefin/common`.
 
 ## Quarantine Protocol
 
