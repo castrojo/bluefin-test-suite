@@ -68,6 +68,6 @@ Coverage lands in `tests/common/features/common_devmode.feature` in two parts:
   polkit/session gap, not a recipe interface gap like `toggle-updates` above (same file) —
   do not conflate the two when triaging failures here.
 
-See [`references/bctl-devmode.md`](references/bctl-devmode.md) for the
+See [`bctl-devmode.md`](bctl-devmode.md) for the
 `@requires_bctl` gate, the content-vs-exit-code assertion rule, and the
 `@devmode_cleanup` teardown hook.
