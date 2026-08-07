@@ -51,9 +51,31 @@ JSON mode (`--json`) emits every current quarantine entry, including `days`, `qu
 - The rollout job currently runs `python3 scripts/check_quarantine_age.py --grace-days 30` to avoid blocking PRs immediately while still aging out stale quarantines.
 - Any workflow using `--json` still needs full history and the full `tests/` tree checked out; otherwise age calculations and counts will be incomplete.
 
+## Choosing the right tag when a quarantine ages out
+
+| Situation | Tag | Required comment |
+|---|---|---|
+| Blocked on CI infrastructure (a masked service, unseeded state, headless session limits) | `@pending` | Name the blocker and the tracking issue |
+| Covers a feature or policy that has not shipped yet, or needs a harness that does not exist | `@future` | Name the feature/harness and the tracking issue |
+| The referenced upstream bug is closed | remove the tag | Note that the guard was re-activated and why |
+| Genuinely flaky and under active repair | `@quarantine` | You are committing to a fix inside 30 days |
+
+Every converted scenario keeps an explanatory comment line immediately above its tags, in the
+style used by `tests/developer/features/ptyxis.feature`:
+
+```gherkin
+  # Pending: e2e.yml masks brew-setup.service, so Homebrew is never provisioned in CI (#487).
+  @pending @brew_version
+  Scenario: brew --version returns a version string
+```
+
+Never delete a scenario to clear the gate — the coverage intent is the asset. Never raise
+`--max-days`/`--grace-days` or edit the `quarantine-age` job thresholds to clear the gate.
+
 ## Operator expectations
 
 - If a quarantine ages out, fix the scenario or convert it to `@future`/`@pending` when it represents planned coverage rather than flaky regression coverage.
+- `@quarantine`, `@pending` and `@future` are all skipped at runtime by `tests/shared/quarantine.py`, which every suite's `before_scenario` hook calls. Reclassifying a tag therefore keeps the scenario skipped rather than turning it into a failure — but only because that helper handles all three tags. Do not drop one.
 - Keep the script dependency-free so it can run on `ubuntu-latest` with only checkout + Python setup.
 - Prefer snapshot-based history checks (`git show <sha>:<path>`) over fragile diff hunk matching; the goal is stable CI enforcement, not perfect archeology.
 
@@ -76,6 +98,6 @@ JSON mode (`--json`) emits every current quarantine entry, including `days`, `qu
 ## Verification
 
 - [ ] `python3 -m ruff check tests/ scripts/ --select E,F,W --ignore E501` passes
-- [ ] `python3 -m pytest tests/unit/test_quarantine_age.py -v` passes
+- [ ] `python3 -m pytest tests/unit/test_quarantine_age.py tests/unit/test_quarantine.py -v` passes
 - [ ] `python3 -m py_compile scripts/check_quarantine_age.py` passes
 - [ ] The workflow uses SHA-pinned actions and `actions/checkout` has `fetch-depth: 0`

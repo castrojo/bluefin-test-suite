@@ -85,6 +85,22 @@ def test_pending_scenario_is_skipped_with_message():
     assert scenario.skip_message == "@pending — placeholder coverage, skipping"
 
 
+def test_future_scenario_is_skipped_with_message():
+    """@future scenarios cover planned work and must never execute."""
+    scenario = _FakeScenario(tags=["future", "lifecycle"])
+    result = skip_quarantine(scenario)
+    assert result is True
+    assert scenario.skipped
+    assert scenario.skip_message == "@future — planned coverage not yet runnable, skipping"
+
+
+def test_quarantine_reason_wins_over_future():
+    """When several skip tags coexist the @quarantine reason is reported."""
+    scenario = _FakeScenario(tags=["future", "quarantine"])
+    assert skip_quarantine(scenario) is True
+    assert scenario.skip_message == "@quarantine — known flaky, skipping"
+
+
 def test_quarantine_tag_mixed_with_others():
     """@quarantine alongside other tags still triggers skip."""
     scenario = _FakeScenario(tags=["smoke", "quarantine", "sla_10s"])

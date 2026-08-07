@@ -6,7 +6,7 @@ Feature: Bazaar CLI validation for Bluefin
   _has_bazaar() guard in environment.py.
 
   Replaces the @pending placeholder from issue #419. AT-SPI-based Bazaar
-  navigation scenarios remain quarantined in flatpak.feature pending GNOME 50
+  navigation scenarios remain `@future` in flatpak.feature pending GNOME 50
   AT-SPI re-validation (#176).
 
   @software @bazaar
