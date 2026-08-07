@@ -32,6 +32,8 @@ metadata:
 4. Poll for visible widgets or windows; avoid unconditional sleeps when a retry loop can prove readiness.
 5. Validate locally with `python3 -m py_compile tests/<suite>/features/steps/*.py`, duplicate-step detection, `ruff`, and `behave --dry-run`.
 
+`tests.shared.wait_for_shell.wait_for_shell()` is the GNOME Shell startup gate. Its contract is: retry Shell.Eval failures, retry when AT-SPI exposes no panel yet, retry on transient exceptions, then fail hard after the attempt budget is exhausted.
+
 ## Stack
 
 
@@ -228,6 +230,52 @@ to the VM over SSH in that case, and `source /tmp/session.env 2>/dev/null; ...`
 preserves the GNOME user-session environment before probing Wayland or renderer
 state.
 
+## Per-app accessibility launch environment
+
+
+Session-wide `gsettings set org.gnome.desktop.interface toolkit-accessibility true`
+(set by `e2e.yml`) only enables the **GTK** atk-bridge. Applications that render
+their own chrome build their AT-SPI tree from their own environment and must be
+launched with explicit accessibility variables:
+
+```python
+FIREFOX_A11Y_ENV = {
+    "GNOME_ACCESSIBILITY": "1",
+    "ACCESSIBILITY_ENABLED": "1",
+    "GTK_A11Y": "atk-bridge",
+}
+context.firefox_launch_target = launch_background(FIREFOX_LAUNCH_TARGETS, env=FIREFOX_A11Y_ENV)
+```
+
+`launch_background(targets, env=...)` in `tests/smoke/features/steps/app_support.py`
+applies `env` on every launch path: exported before the command in SSH mode,
+merged into `os.environ` for local `Popen`, and forwarded across the Flatpak
+sandbox boundary with `--env=`. Environment set outside a Flatpak sandbox is
+**not** visible inside it — always use the `env=` parameter, never a shell prefix.
+
+Symptom when this is missing: the application appears in the AT-SPI tree but its
+window node has **no descendants** — no `entry`, `tool bar`, or `page tab list`.
+Steps then fail late with confusing messages such as "address bar not found".
+
+## Window-role checks must prove the subtree is populated
+
+
+Since GNOME 50 some apps expose their toplevel as `filler` rather than `frame`,
+so smoke helpers accept `{"frame", "filler"}`. Accepting a bare `filler` node on
+its own is a **false pass**: it is exactly what an app exposes when its
+accessibility engine never started. Require evidence of a real subtree:
+
+```python
+def _has_populated_a11y_tree(node) -> bool:
+    return bool(node.findChildren(lambda n: n.roleName in CHROME_ROLES))
+```
+
+Prefer a `frame` with a populated subtree, fall back to a populated `filler`, and
+otherwise fail with a message that names the likely cause
+(`GNOME_ACCESSIBILITY` / `toolkit-accessibility`). Keep a
+`require_a11y_tree=False` escape hatch for pure liveness checks such as
+"the app is no longer running".
+
 ## Sleep discipline in step definitions
 
 
@@ -258,6 +306,8 @@ The pattern `for _ in range(N): ... sleep(X)` that returns early already IS exit
 - Polling `Main.extensionManager.lookup(uuid)?.state` via Shell.Eval (returns 6 on GNOME 50)
 - Using the SSH-based `_extension_state()` pattern in the smoke suite (smoke uses local subprocess)
 - `_<app>_app()` helper does a single-pass lookup with no retry loop — will flake on GNOME 50 QEMU
+- A `_<app>_window()` helper accepts `roleName "filler"` without checking that the node has descendants (false pass)
+- A GUI app that renders its own chrome is launched without `GNOME_ACCESSIBILITY=1`
 
 ## Verification
 
@@ -268,6 +318,7 @@ The pattern `for _ in range(N): ... sleep(X)` that returns early already IS exit
 - [ ] UUID wrapped in single quotes for GVariant: `f"'{uuid}'"` not `uuid`
 - [ ] Smoke suite steps use `subprocess.run`, not SSH helpers
 - [ ] `behave --dry-run tests/smoke/features/` passes before pushing
+- [ ] Window-role helpers that accept `filler` also assert the node has a populated subtree
 
 ## Common Rationalizations
 
