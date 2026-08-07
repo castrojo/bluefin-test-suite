@@ -1,12 +1,21 @@
 ---
 name: behave
+version: "1.0"
+last_updated: "2026-07-29"
+id: behave
+one_line_purpose: Write behave scenarios and step definitions for testsuite suites.
+entry_point: docs/skills/test-authoring/behave/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [behave, bdd, steps]
 description: "How to write behave scenarios and step definitions for the testsuite repo. Load when editing .feature files or steps.py."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Behave Patterns Reference
 
 
@@ -71,6 +80,45 @@ nested escaped double quotes around the entire Python expression; those
 escapes can survive into the remote shell and expose Python punctuation to
 shell parsing.
 
+## Assert parsed values, not substrings
+
+`gsettings get` returns GVariant text such as `uint32 1`. `assert "1" in output`
+also matches `uint32 10`, `uint32 11`, and `uint32 100`, so a failed state change
+reads as a pass. Parse the payload and compare it exactly:
+
+```python
+_UINT32_RE = re.compile(r"^(?:uint32\s+)?(\d+)$")
+
+def _parse_index(output: str) -> int | None:
+    match = _UINT32_RE.match(output.strip())
+    return int(match.group(1)) if match else None
+
+assert _parse_index(output) == 1, f"Current input source is not 1: {output}"
+```
+
+An unparseable value must fail, never pass by default.
+
+## Restore hooks must only latch on success
+
+A cleanup helper that saves state and restores it later is normally guarded by a
+`_restored` flag so the explicit step and the `context.add_cleanup` hook do not
+run twice. Set that flag **only after every restore command actually returned 0**:
+
+```python
+failures = []
+for key in ("sources", "current"):
+    output, rc = _run_in_vm_checked(f"gsettings set {schema} {key} {shlex.quote(value)}")
+    if rc != 0:
+        failures.append(f"{key} (rc={rc}): {output}")
+if failures:
+    raise AssertionError("Failed to restore ...: " + "; ".join(failures))
+state["_restored"] = True
+```
+
+Latching the flag on a *failed* command turns the cleanup hook into a no-op: the
+retry never happens and the mutated state leaks into every later scenario in the
+run. Surface the failure instead of swallowing it.
+
 ## Common suite `ujust` recipe coverage
 
 
@@ -130,11 +178,12 @@ ships `--enable`/`--disable` flags (`src/bluefinctl/cli.py`) that call
 
 Coverage lands in `tests/common/features/common_devmode.feature` in two parts:
 
-- **Presence + idempotent state-check (real scenarios):** `bctl devmode --help`
+- **Presence + idempotent state-check (`@requires_bctl`):** `bctl devmode --help`
   advertises both flags, and `bctl devmode --disable` on an already-inactive
   VM takes bluefinctl's read-only branch (checks `_check_devmode_active()`,
-  prints "already inactive", returns) — this exercises the state-check without
-  mutating anything.
+  prints `Developer mode is already inactive.`, returns) — this exercises the
+  state-check without mutating anything. Assert the full sentence, not the exit
+  code: `bctl devmode` returns 0 on both branches, so rc alone proves nothing.
 - **Group mutation (`@pending @wip`):** `bctl devmode --enable` calls
   `pkexec usermod` to add the `docker`/`incus-admin`/`libvirt`/`dialout`
   groups. `pkexec` requires an authentication agent registered against a real
@@ -142,6 +191,10 @@ Coverage lands in `tests/common/features/common_devmode.feature` in two parts:
   cannot be driven headlessly in the current SSH-only harness. This is a CI
   polkit/session gap, not a recipe interface gap like `toggle-updates` above —
   do not conflate the two when triaging failures here.
+
+See [`references/bctl-devmode.md`](references/bctl-devmode.md) for the
+`@requires_bctl` gate, the content-vs-exit-code assertion rule, and the
+`@devmode_cleanup` teardown hook.
 
 ### uupd conditional suppression coverage
 
@@ -315,7 +368,7 @@ In the SSH-driven `common` suite, validate Bluefin desktop identity overrides wi
 - Use `gsettings get` for regular schemas shipped via `zz0-bluefin-modifications.gschema.override` (for example `org.gnome.desktop.interface accent-color` or `org.gnome.desktop.app-folders folder-children`).
 - Use `dconf read` for relocatable schemas and extensions without XML schemas (for example custom media-key keybindings under `/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/`, Search Light under `/org/gnome/shell/extensions/search-light/`, and Ptyxis profile palette keys under `/org/gnome/Ptyxis/Profiles/<uuid>/`).
 
-This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `<image-org>/common`.
+This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `projectbluefin/common`.
 
 ## Quarantine Protocol
 
@@ -421,6 +474,7 @@ Load these when you hit the specific topic:
 - [Shared SSH helpers and where to use them.](references/shared-ssh.md)
 - [When to use local subprocess instead of SSH in the smoke suite.](references/smoke-vs-ssh.md)
 - [Avoiding duplicate step phrases and AmbiguousStep errors.](references/ambiguous-steps.md)
+- [Driving bluefinctl devmode non-interactively, and the assertion traps around it.](references/bctl-devmode.md)
 
 ## Sources
 

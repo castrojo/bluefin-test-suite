@@ -4,11 +4,23 @@ The behave runner for the smoke suite executes inside the runner container,
 not inside the VM session. Commands that need the VM's session bus, gsettings,
 or system binaries must be forwarded via SSH when `_IN_CONTAINER` is true.
 """
+import re
 import shlex
 import subprocess
 
 from behave import step
 from app_support import _IN_CONTAINER, _ssh_run
+
+# `gsettings get org.gnome.desktop.input-sources current` prints a GVariant
+# such as "uint32 1". A substring test for "1" also matches "uint32 10", so the
+# numeric payload must be parsed and compared exactly.
+_UINT32_RE = re.compile(r"^(?:uint32\s+)?(\d+)$")
+
+
+def _parse_index(output: str) -> int | None:
+    """Return the integer payload of a gsettings ``uint32`` value, or None."""
+    match = _UINT32_RE.match(output.strip())
+    return int(match.group(1)) if match else None
 
 
 def _run_in_vm(cmd: str, timeout: int = 30):
@@ -43,22 +55,33 @@ def _restore_input_sources(context) -> None:
     Registered as a behave cleanup task so restoration happens even if a
     scenario fails mid-way. Idempotent so the explicit restore step and the
     automatic cleanup do not fight.
+
+    The state is marked restored **only** when every `gsettings set` actually
+    succeeded. Marking it on a failed command would make the cleanup hook a
+    no-op and leak the mutated input sources into later scenarios, so failures
+    are raised instead of swallowed.
     """
     state = getattr(context, "_input_methods_original_state", None)
     if not state or state.get("_restored"):
         return
 
-    sources = state.get("sources", "")
-    current = state.get("current", "")
-    if sources:
-        _run_in_vm(
-            "gsettings set org.gnome.desktop.input-sources sources "
-            f"{shlex.quote(sources)}"
+    failures = []
+    for key in ("sources", "current"):
+        value = state.get(key, "")
+        if not value:
+            continue
+        output, returncode = _run_in_vm_checked(
+            f"gsettings set org.gnome.desktop.input-sources {key} "
+            f"{shlex.quote(value)}"
         )
-    if current:
-        _run_in_vm(
-            "gsettings set org.gnome.desktop.input-sources current "
-            f"{shlex.quote(current)}"
+        if returncode != 0:
+            failures.append(f"{key}={value!r} (rc={returncode}): {output}")
+
+    if failures:
+        raise AssertionError(
+            "Failed to restore original input sources; the mutated state is "
+            "still live and will leak into later scenarios: "
+            + "; ".join(failures)
         )
     state["_restored"] = True
 
@@ -146,7 +169,8 @@ def current_input_source_index_is_1(context) -> None:
         "gsettings get org.gnome.desktop.input-sources current"
     )
     assert returncode == 0, f"Failed to read current input source: {output}"
-    assert "1" in output, f"Current input source is not 1: {output}"
+    index = _parse_index(output)
+    assert index == 1, f"Current input source is not 1: {output}"
 
 
 @step("Original input sources are restored")
