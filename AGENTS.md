@@ -56,6 +56,7 @@ Full router: [`docs/SKILL.md`](docs/SKILL.md). Most-used entries:
 | Knowing when to stop and ask a human | `docs/skills/meta/human-gates/SKILL.md` |
 | Operational commands (manual runs, merge queue, diagnostics) | `docs/runbook.md` |
 | Release-trust / audit posture | `docs/qa-review.md` |
+| Update cadence / promotion-gate design (research #431) | `docs/update-cadence-research.md` |
 
 ## Self-improvement
 

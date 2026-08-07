@@ -108,3 +108,4 @@ This repo is agent-first: AI agents are primary maintainers of GNOME 50 test cov
 - `docs/qa-review.md` — release-trust review
 - `docs/SKILL.md` — task → skill router and hard rules
 - `docs/skills/index.json` — generated skill catalog (mirror: `docs/skills/index.md`)
+- `docs/update-cadence-research.md` — design for testsuite-informed update cadence & promotion gating (issue #431)
