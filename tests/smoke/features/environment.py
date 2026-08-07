@@ -174,6 +174,11 @@ def before_all(context) -> None:
     import time
     import subprocess
 
+    # Shared ssh_steps (star-imported by offline_boot_steps) dereference
+    # context.ssh_key/ssh_user/vm_ip — populate them from userdata/env.
+    from tests.shared.ssh_config import populate_ssh_context
+    populate_ssh_context(context)
+
     # Give GDM/GNOME Shell time to start the session
     time.sleep(5)
 

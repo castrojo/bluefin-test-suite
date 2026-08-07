@@ -150,4 +150,4 @@ Feature: GNOME Shell smoke tests
 
   @regression @bluefin_4642
   Scenario: No gnome-shell coredump after session start (bluefin#4642)
-    * No coredump entries exist for "gnome-shell"
+    * No coredump entries exist on the host for "gnome-shell"

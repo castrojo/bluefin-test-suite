@@ -4,28 +4,10 @@ import subprocess
 import time
 
 from behave import step
-from tests.shared.ssh_config import resolve_ssh_details
 from tests.shared.ssh_steps import *  # noqa: F401,F403
 
 
 _IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
-
-
-def _ssh(context, cmd: str, timeout: int = 30) -> subprocess.CompletedProcess:
-    ssh = resolve_ssh_details(context)
-    return subprocess.run(
-        [
-            "ssh",
-            "-i", ssh["ssh_key"],
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null",
-            "-o", "ConnectTimeout=10",
-            "-p", ssh["ssh_port"],
-            f"{ssh['ssh_user']}@{ssh['vm_ip']}",
-            cmd,
-        ],
-        capture_output=True, text=True, timeout=timeout,
-    )
 
 
 def _run_host(cmd: str, timeout: int = 30) -> tuple[str, int, str]:
@@ -124,3 +106,16 @@ def restore_default_route(context) -> None:
         # Best-effort: try to bring the default interface back via DHCP
         _run_host("sudo nmcli device connect $(nmcli -t -f DEVICE device status | head -1 | cut -d: -f1) 2>/dev/null || true")
     time.sleep(2)
+
+
+@step("Bluefin VM boots with all network interfaces administratively down")
+def boot_with_interfaces_down(context) -> None:
+    """Placeholder for the blocked cold-boot-offline scenario (@pending).
+
+    Requires a VM orchestration layer that can reboot with modified kernel
+    args — skip until that harness exists.
+    """
+    context.scenario.skip(
+        "Blocked: no harness to reboot the VM with network-suppressing "
+        "kernel args (rd.net.timeout.carrier=0, systemd.mask=...)."
+    )

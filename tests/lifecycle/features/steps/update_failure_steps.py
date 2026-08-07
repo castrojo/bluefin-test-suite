@@ -74,3 +74,33 @@ def force_bootc_rollback_and_reboot(context) -> None:
             pass
         time.sleep(5)
     raise AssertionError("VM did not come back after forced rollback reboot")
+
+
+# ── @pending greenboot / corrupted-digest stubs ─────────────────────────────
+# These steps back scenarios tagged @pending (skipped by the quarantine hook
+# before any step runs).  They exist so `behave --dry-run` sees every phrase
+# defined; each skips unconditionally if it is ever reached.
+
+
+@step("Plant a failing greenboot health check")
+def plant_failing_greenboot_check(context) -> None:
+    """Blocked: needs a greenboot-enabled VM variant — see feature comments."""
+    _skip(context, "greenboot is masked in CI QEMU VMs — scenario is @pending")
+
+
+@step("Wait for greenboot to exhaust retries and roll back")
+def wait_greenboot_rollback(context) -> None:
+    """Blocked: needs a greenboot-enabled VM variant — see feature comments."""
+    _skip(context, "greenboot is masked in CI QEMU VMs — scenario is @pending")
+
+
+@step("Remove the planted greenboot health check")
+def remove_planted_greenboot_check(context) -> None:
+    """Blocked: needs a greenboot-enabled VM variant — see feature comments."""
+    _skip(context, "greenboot is masked in CI QEMU VMs — scenario is @pending")
+
+
+@step("Stage a corrupted image digest via registry mirror")
+def stage_corrupted_image_digest(context) -> None:
+    """Blocked: needs a registry mirror serving a truncated manifest."""
+    _skip(context, "no corrupted-digest registry mirror in CI — scenario is @pending")

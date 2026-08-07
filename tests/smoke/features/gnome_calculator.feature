@@ -85,4 +85,4 @@ Feature: GNOME Calculator smoke tests
 
   @calculator @coredump @regression @bluefin
   Scenario: No gnome-calculator coredump after session start
-    * No coredump entries exist for "gnome-calculator"
+    * No coredump entries exist on the host for "gnome-calculator"

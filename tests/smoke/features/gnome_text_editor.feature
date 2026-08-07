@@ -48,4 +48,4 @@ Feature: GNOME Text Editor smoke tests
 
   @text_editor @coredump @regression @bluefin
   Scenario: No gnome-text-editor coredump after session start
-    * No coredump entries exist for "gnome-text-editor"
+    * No coredump entries exist on the host for "gnome-text-editor"
