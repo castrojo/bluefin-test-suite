@@ -70,6 +70,7 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_retry.py` | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | `scripts/parse_results.py` parsing integration |
 | `test_quarantine_age.py` | `scripts/check_quarantine_age.py` parsing and reporting |
+| `test_validate_docs.py` | `scripts/validate_docs.py` frontmatter parsing, heading levels, and link/skill validation |
 
 ## Current stub posture
 
