@@ -263,7 +263,7 @@ def _overview_search_entry(context, timeout: int = 10):
     raise AssertionError("Overview search entry not found in AT-SPI tree")
 
 
-def _dismiss_welcome_dialog() -> None:
+def _dismiss_welcome_dialog(attempts: int = 10, delay: float = 0.5) -> bool:
     """Dismiss the Bluefin first-boot Welcome dialog if it blocks the session.
 
     Fresh CI VMs show a "Welcome to Bluefin" modal with Skip/Take Tour buttons.
@@ -272,15 +272,16 @@ def _dismiss_welcome_dialog() -> None:
     try:
         from dogtail import tree
     except Exception:  # noqa: BLE001
-        return
-    for _ in range(10):
+        return False
+    for _ in range(attempts):
         skip_buttons = tree.root.findChildren(
             lambda n: n.showing
             and n.roleName in {"push button", "button"}
             and (n.name or "").strip().lower() == "skip"
         )
         if not skip_buttons:
-            return
+            sleep(delay)
+            continue
         try:
             skip_buttons[0].click()
         except Exception:  # noqa: BLE001
@@ -292,7 +293,8 @@ def _dismiss_welcome_dialog() -> None:
                         break
             except Exception:  # noqa: BLE001
                 pass
-        sleep(0.5)
+        return True
+    return False
 
 
 @step('Dismiss the Bluefin welcome dialog if it appears')
@@ -717,19 +719,45 @@ def no_llvmpipe(context) -> None:
 
 @step("Dash to Dock panel is visible")
 def dash_to_dock_visible(context) -> None:
-    visible = _eval_bool(
-        "(() => { "
-        "try { "
-        "const ext = Main.extensionManager.lookup('dash-to-dock@micxgx.gmail.com'); "
-        "if (!ext || !ext.stateObj) return false; "
-        "const dockManager = ext.stateObj.dockManager; "
-        "if (!dockManager) return false; "
-        "const docks = dockManager._allDocks || []; "
-        "return docks.length > 0 && docks.some(dock => dock?.actor?.visible === true); "
-        "} catch (e) { return false; } "
-        "})().toString()"
+    # First distinguish an extension activation failure from a rendering
+    # failure through GNOME Shell's public Extensions D-Bus API.
+    output = _gdbus_call(
+        method="GetExtensionInfo",
+        interface="org.gnome.Shell.Extensions",
+        object_path="/org/gnome/Shell/Extensions",
+        args="'dash-to-dock@micxgx.gmail.com'",
     )
-    assert visible, "Dash to Dock panel is not visible"
+    import re
+
+    match = re.search(r"'state':\s*<uint32\s+(\d+)>", output)
+    assert match, f"Dash to Dock extension info lacked a state: {output!r}"
+    assert match.group(1) == "1", (
+        "Dash to Dock is not enabled according to org.gnome.Shell.Extensions: "
+        f"state={match.group(1)}"
+    )
+    # Dash-to-Dock v106 names its rendered top-level actor
+    # "dashtodockContainer". Traverse the public Clutter actor tree rather
+    # than the extension's private stateObj/dockManager object graph, then
+    # require a mapped, opaque, allocated dock whose slide container is open.
+    visible = _wait_eval_bool(
+        "(() => { "
+        "const findDock = actor => { "
+        "if (actor.get_name?.() === 'dashtodockContainer') return actor; "
+        "for (const child of actor.get_children?.() ?? []) { "
+        "const found = findDock(child); if (found) return found; "
+        "} return null; }; "
+        "const dock = findDock(global.stage); "
+        "if (!dock || !dock.is_mapped() || !dock.is_visible() || dock.opacity === 0) return false; "
+        "const slider = dock.get_child(); "
+        "if (!slider || slider.slideX < 0.9) return false; "
+        "const [width, height] = dock.get_transformed_size(); "
+        "return width > 1 && height > 1; "
+        "})().toString()",
+        expected=True,
+        retries=10,
+        delay=0.2,
+    )
+    assert visible, "Dash to Dock extension is enabled but its panel is not visibly rendered"
 
 
 @step("System tray area is present in the panel")
@@ -839,4 +867,3 @@ def flatpak_no_excessive_permissions(context, app_id: str) -> None:
     assert not re.search(r"filesystems=(host|home)", perms_out), (
         f"{app_id} has excessive filesystem access:\n{perms_out}"
     )
-

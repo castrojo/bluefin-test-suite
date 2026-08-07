@@ -202,6 +202,18 @@ def writable_system_storage_has_at_least_percent_free_space(context, percent: st
     )
 
 
+@step("AT-SPI accessibility bus is reachable from the GNOME session")
+def at_spi_accessibility_bus_is_reachable_from_the_gnome_session(context) -> None:
+    """Verify the VM's session-scoped accessibility bus, not the runner container."""
+    output, returncode, stderr = _run_host(
+        "source /tmp/session.env 2>/dev/null; "
+        "gdbus call --session --dest org.a11y.Bus --object-path /org/a11y/bus "
+        "--method org.a11y.Bus.GetAddress"
+    )
+    assert returncode == 0, f"AT-SPI bus query failed: {stderr or output}"
+    assert "unix:" in output, f"AT-SPI bus returned no Unix address: {output!r}"
+
+
 @step("ujust is on PATH and returns exit 0")
 def ujust_on_path(context) -> None:
     which_out, which_rc, _ = _run_host("which ujust 2>/dev/null")
@@ -334,4 +346,3 @@ def fastfetch_is_present_and_operational(context) -> None:
     output, returncode, stderr = _run_host("fastfetch --version")
     assert returncode == 0, f"fastfetch --version failed (rc={returncode}): {stderr or output}"
     assert "fastfetch" in output.lower(), f"Expected 'fastfetch' in output, got: {output}"
-
