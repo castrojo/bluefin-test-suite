@@ -404,10 +404,17 @@ Key differences from GNOME suites:
 - **Version-skew skip:** If the DUT's Plasma version or distro is unsupported, the
   suite is skipped with a clear message instead of producing phantom failures.
 - **Installer safety contract:** `scripts/install-kde-webdriver.sh` is guarded by
-  `tests/unit/test_install_kde_webdriver.py`, which locks three invariants:
-  immutable `SELENIUM_AT_SPI_SHA` pin format, loopback-only server posture
-  (no `HOST=0.0.0.0` override), and explicit `KDE_WEBDRIVER_SKIP=...` + `exit 0`
-  paths for unsupported Plasma/distro cases.
+  `tests/unit/test_install_kde_webdriver.py`, which **executes** the installer in
+  a sandbox (fake `PATH` tools, throwaway `HOME`, `BASH_ENV` override of
+  `/etc/os-release` sourcing) and asserts observed behaviour: the ref handed to
+  `git fetch`/`git checkout` equals the pinned `SELENIUM_AT_SPI_SHA`, the emitted
+  `kde-webdriver.service` `ExecStart` carries no bind-address override and no
+  `[Service]` `Environment=` names a non-loopback host, and each
+  `KDE_WEBDRIVER_SKIP=...` branch actually short-circuits before any install.
+  Do not replace these with text assertions on the script source — a grep for a
+  security *comment* or a count of skip blocks passes against a broken script.
+  An earlier text-based version of this file stayed green when `--host 0.0.0.0`
+  was added to `ExecStart` and when the checkout ref was changed to `master`.
 - **Session setup:** SDDM autologin and a KDE determinism environment drop-in are
   written at disk-prep time.
 - **`passed > 0` backstop:** the step `Assert KDE suite has passing scenarios`
