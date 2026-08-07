@@ -23,3 +23,14 @@ def test_e2e_keeps_tailscale_running_with_sufficient_storage():
 
     assert "fallocate -l 32G disk.raw" in workflow
     assert "systemd.mask=tailscaled.service" not in workflow
+
+
+def test_e2e_filters_all_non_runnable_scenario_tags():
+    workflow = (
+        Path(__file__).parents[2] / ".github" / "workflows" / "e2e.yml"
+    ).read_text()
+
+    assert (
+        'BEHAVE_TAG_ARGS="--tags ~quarantine --tags ~pending --tags ~future"'
+        in workflow
+    )
