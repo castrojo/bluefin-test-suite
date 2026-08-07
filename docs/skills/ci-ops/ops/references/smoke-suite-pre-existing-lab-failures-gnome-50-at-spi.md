@@ -24,6 +24,14 @@ updated:
 | `gnome_apps.feature` | No launch candidate | OOTB Flatpaks not installed (no OOBE run) |
 | `system_health.feature` | Root filesystem 5% free | VM disk too small (20GB VM vs ~17GB image) |
 
+Additionally, in nested **container** lanes:
+
+| Symptom | Root cause |
+|---|---|
+| `ModuleNotFoundError: No module named 'pkg_resources'` | `pkg_resources` is removed in setuptools 81+ and unbundled on Python 3.12+; the test stack still imports it. Fix by provisioning `setuptools` in the nested target |
+| `User 'bluefin-test' does not have write permissions for '/dev/uinput'` | dogtail/qecore need uinput to synthesize input; the user is missing the owning group |
+| `Cannot reach VM at 127.0.0.1 over SSH` | VM-only scenarios selected into a container lane, where no VM exists — a selection/tagging problem, not an infra fault |
+
 **None of these failures indicate a bug in the PR under test.** They are visible in
 smoke runs for unrelated PRs and for the post-merge smoke workflow. Tag scenarios
 exposing these as `@quarantine` when the failure is a lab constraint, not a product bug.

@@ -33,6 +33,7 @@ metadata:
 
 ## When to Use
 
+- Container-QA lanes fail in `wait_for_shell.py` with `bus-unavailable`
 - VM boots to GDM greeter instead of a GNOME session
 - Debugging infra-layer CI failures (runner container, D-Bus, AT-SPI)
 - Adding new packages or patches to `container/Containerfile.runner`
@@ -55,6 +56,8 @@ metadata:
 
 
 - Using `_run(cmd)` in smoke suite for DNS or network checks (runs on container, not VM)
+- Raising the `wait_for_shell.py` readiness timeout to fix `bus-unavailable` (the socket is absent indefinitely, not late — find why no session registers)
+- Assuming a `bus-unavailable` readiness failure is a testsuite bug (the client re-resolves the bus every attempt; a permanently missing `/run/user/1000` is lab-side)
 - Setting `sys.exit(1)` inside `before_scenario` (kills all subsequent scenarios silently)
 - Lowering the SSH timeout below 60 seconds (hardware commands are slow in QEMU)
 - Adding a second `-monitor` flag to QEMU (breaks `qemu_screendump.py`)
@@ -69,6 +72,7 @@ metadata:
 
 
 - [ ] Smoke suite network/DNS checks use `_run_host()` not `_run()`
+- [ ] A `bus-unavailable` readiness failure was diagnosed from the `collect_session_diagnostics()` snapshot before any code change
 - [ ] No `sys.exit()` calls in `before_scenario` / `after_scenario`
 - [ ] `before_scenario` guard uses `getattr(context, 'failed_setup', None)`, not `hasattr()`
 - [ ] SSH step timeout is 60s or higher for hardware/bootc commands
@@ -122,6 +126,7 @@ Load these when you hit the specific topic:
 - [common suite execution model — runner container, not inside VM](references/common-suite-execution-model-runner-container-not-inside-vm.md)
 - [smoke suite — pre-existing lab failures (GNOME 50 AT-SPI)](references/smoke-suite-pre-existing-lab-failures-gnome-50-at-spi.md)
 - [lab ArgoCD template resolution timing](references/argo-mutex.md)
+- [GNOME Shell readiness failures in container-QA lanes](references/gnome-shell-readiness-failures.md)
 - [Workflows without a pull_request trigger break main silently](references/workflows-without-a-pull-request-trigger-break-main-silently.md)
 - [qecore-headless restarts GDM — the session bus socket is replaced](references/qecore-headless-restarts-gdm-bus-socket-churn.md)
 - [ghost-lab poller failure signatures — infra vs PR-caused](references/ghost-lab-poller-failures.md)
