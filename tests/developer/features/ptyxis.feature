@@ -13,42 +13,42 @@ Feature: Ptyxis terminal smoke tests
     * Application "ptyxis" is running
     * Ptyxis window is accessible
 
-  @quarantine @ptyxis @input
+  @pending @ptyxis @input
   Scenario: Terminal accepts keyboard input
-    # Quarantined: Background restarts ptyxis each scenario via SSH shim; ptyxis does
+    # Pending: Background restarts ptyxis each scenario via SSH shim; ptyxis does
     # not re-register in AT-SPI within wait_before_app_starts(30s) on 2nd+ launches.
     # Tracked: projectbluefin/testsuite#368
     * Type text: "echo bluefin-test" with uinput
     * Press key: "Return" with uinput
     * Terminal output in ptyxis contains "bluefin-test"
 
-  @quarantine @ptyxis @brew
+  @pending @ptyxis @brew
   Scenario: brew is on PATH and returns version string
-    # Quarantined: e2e workflow masks brew-setup.service, so Homebrew is unavailable in CI.
+    # Pending: e2e workflow masks brew-setup.service, so Homebrew is unavailable in CI (see #487).
     * Type text: "brew --version" with uinput
     * Press key: "Return" with uinput
     * Terminal output in ptyxis contains "Homebrew"
 
-  @quarantine @ptyxis @podman
+  @pending @ptyxis @podman
   Scenario: podman is available in terminal
-    # Quarantined: ptyxis AT-SPI restart issue (see #368) blocks terminal input scenarios.
+    # Pending: ptyxis AT-SPI restart issue (see #368) blocks terminal input scenarios.
     * Type text: "podman --version" with uinput
     * Press key: "Return" with uinput
     * Terminal output in ptyxis contains "podman version"
 
-  @quarantine @ptyxis @regression @bluefin_4620
+  @pending @ptyxis @regression @bluefin_4620
   Scenario: No Vulkan validation spam on terminal open (bluefin#4620)
-    # Quarantined: Background restart errors cascade to this scenario (see #368).
+    # Pending: Background restart errors cascade to this scenario (see #368).
     * No journal entries match "VUID-"
 
-  @quarantine @ptyxis @new_tab
+  @pending @ptyxis @new_tab
   Scenario: New tab opens via keyboard shortcut
-    # Quarantined: ptyxis AT-SPI restart issue (see #368) blocks multi-scenario runs.
+    # Pending: ptyxis AT-SPI restart issue (see #368) blocks multi-scenario runs.
     * Key combo: "<Shift><Ctrl><T>" with uinput
     * Ptyxis has "2" tabs
 
-  @quarantine @ptyxis @close
+  @pending @ptyxis @close
   Scenario: Ptyxis closes via shortcut
-    # Quarantined: ptyxis AT-SPI restart issue (see #368) blocks multi-scenario runs.
+    # Pending: ptyxis AT-SPI restart issue (see #368) blocks multi-scenario runs.
     * Close application "ptyxis" via "shortcut"
     * Application "ptyxis" is no longer running

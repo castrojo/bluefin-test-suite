@@ -12,18 +12,18 @@ Feature: Bazaar (GNOME Software) smoke tests
     * Application "software" is running
     * Item "Software" "frame" is "showing" in "software"
 
-  # Quarantined: these target GNOME Software's Explore/Installed widgets, not
+  # Future: these target GNOME Software's Explore/Installed widgets, not
   # Bazaar's real AdwViewStack layout. Replaced by bazaar_ui.feature for
-  # Bluefin images; keep quarantined for potential vanilla-gnome coverage (#176).
-  @quarantine @software @navigation
+  # Bluefin images; retained as planned vanilla-gnome coverage (#176).
+  @future @software @navigation
   Scenario: Explore tab is present and accessible
     * Item "Explore" "toggle button" is "showing" in "software"
 
-  @quarantine @software @navigation
+  @future @software @navigation
   Scenario: Installed tab is present and accessible
     * Item "Installed" "toggle button" is "showing" in "software"
 
-  @quarantine @software @navigation
+  @future @software @navigation
   Scenario: Clicking Installed tab shows installed apps list
     * Left click "Installed" "toggle button" in "software"
     * Wait until "Installed" "page tab" appears in "software"
@@ -35,20 +35,20 @@ Feature: Bazaar (GNOME Software) smoke tests
     * Wait until "Firefox" "label" appears in "software"
 
   # These crash/close checks also target the old GNOME Software widget model.
-  # Replaced by bazaar_ui.feature for Bluefin images; retain quarantine here
-  # for potential upstream GNOME Software coverage on vanilla-gnome images.
-  @quarantine @software @regression @bluefin_4062
+  # Replaced by bazaar_ui.feature for Bluefin images; retained as planned
+  # upstream GNOME Software coverage on vanilla-gnome images (#176).
+  @future @software @regression @bluefin_4062
   Scenario: Flatpak updates section is reachable without crash (bluefin#4062)
     * Left click "Installed" "toggle button" in "software"
     * No journal entries match "gnome-software.*segfault|gnome-software.*abort"
 
-  @quarantine @software @regression @bluefin_4471
+  @future @software @regression @bluefin_4471
   Scenario: No gnome-software coredump on Explore page load (bluefin#4471)
     * Left click "Explore" "toggle button" in "software"
     * Wait 2 seconds before action
     * No coredump entries exist for "gnome-software"
 
-  @quarantine @software @close
+  @future @software @close
   Scenario: Bazaar closes cleanly via shortcut
     * Close application "software" via "shortcut"
     * Application "software" is no longer running

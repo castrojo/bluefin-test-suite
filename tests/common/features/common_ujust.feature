@@ -24,7 +24,8 @@ Feature: Bluefin common ujust recipes
     * Run SSH command: "if systemctl cat -- uupd.timer >/dev/null 2>&1; then TIMER=uupd.timer; else TIMER=rpm-ostreed-automatic.timer; fi; before=$(systemctl is-enabled \"$TIMER\" || true); ujust toggle-updates; after=$(systemctl is-enabled \"$TIMER\" || true); test \"$before\" != \"$after\""
     * SSH command return code is "0"
 
-  @quarantine
+  # Pending: glow is unavailable because brew-setup.service is masked in CI (#487).
+  @pending
   Scenario: ujust changelogs renders release notes
     * Run SSH command: "command -v glow >/dev/null && ujust changelogs"
     * SSH command return code is "0"
