@@ -3,11 +3,12 @@ Software test environment — qecore TestSandbox for Bazaar (gnome-software in B
 
 Regressions: bluefin#4062, #4471.
 """
-import os
 import traceback
 
 from qecore.sandbox import TestSandbox
 from qecore.common_steps import *  # noqa: F401,F403
+
+from tests.shared.ssh_config import populate_ssh_context, resolve_ssh_details
 
 try:
     from tests.shared.timing import record_end, record_start
@@ -46,18 +47,19 @@ except Exception as exc:  # noqa: BLE001
 SUITE_NAME = "software"
 
 
-def _has_bazaar() -> bool:
+def _has_bazaar(context) -> bool:
     """Return True when Bazaar (io.github.kolunmi.Bazaar) is installed on the VM."""
     import subprocess
+    ssh = resolve_ssh_details(context)
     ssh_args = [
         'ssh',
-        '-i', os.environ.get('SSH_KEY', '/home/bluefin-test/.ssh/id_ed25519'),
+        '-i', ssh['ssh_key'],
         '-o', 'StrictHostKeyChecking=no',
         '-o', 'UserKnownHostsFile=/dev/null',
         '-o', 'ConnectTimeout=10',
         '-o', 'LogLevel=ERROR',
-        '-p', os.environ.get('SSH_PORT', '22'),
-        f"{os.environ.get('VM_USER', 'bluefin-test')}@{os.environ.get('VM_IP', '127.0.0.1')}",
+        '-p', ssh['ssh_port'],
+        f"{ssh['ssh_user']}@{ssh['vm_ip']}",
         'flatpak list --app --columns=application 2>/dev/null | grep -q io.github.kolunmi.Bazaar',
     ]
     try:
@@ -71,6 +73,10 @@ def before_all(context) -> None:
     # qecore sandbox.py accesses context.html_formatter in reporting hooks;
     # set to None to avoid AttributeError when behave-html-formatter is absent.
     context.html_formatter = None
+    # Shared SSH steps (star-imported via steps.py) read context.vm_ip,
+    # context.ssh_user, context.ssh_key and context.ssh_port. Populate them
+    # from userdata/environment so those steps work in this suite.
+    populate_ssh_context(context)
     try:
         # In GNOME 50 / Fedora 44 the desktop file is org.gnome.Software.desktop
         # (reverse-DNS naming); qecore TestSandbox resolves it from the component name.
@@ -103,7 +109,7 @@ def before_scenario(context, scenario) -> None:
     # Bazaar (io.github.kolunmi.Bazaar) ships only on Bluefin/UBlue images.
     # flatpak_cli scenarios carry @flatpak_cli and are image-agnostic.
     scenario_tags = {t for t in scenario.tags} | {t for t in scenario.feature.tags}
-    if "software" in scenario_tags and "flatpak_cli" not in scenario_tags and not _has_bazaar():
+    if "software" in scenario_tags and "flatpak_cli" not in scenario_tags and not _has_bazaar(context):
         try:
             scenario.skip(reason="Bazaar not installed on this image")
         except TypeError:

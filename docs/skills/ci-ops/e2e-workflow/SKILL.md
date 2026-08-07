@@ -7,6 +7,7 @@ metadata:
   maturity: stable
   context7-sources:
     - /actions/checkout
+    - /websites/github_en_actions
 ---
 
 # Reusable E2E Workflow — GNOME in QEMU
@@ -37,6 +38,14 @@ Load when: integrating the testsuite into another repo's CI (e.g. `<image-org>/d
 4. Validate the workflow file parses, then run the repo's required local checks before committing.
 5. Write back any non-obvious workflow pattern discovered during the change in this skill file.
 
+## Heredocs in YAML `run` blocks
+
+Keep heredoc delimiters at the YAML literal block's minimum indentation.
+YAML removes that common indentation before Bash runs, so the delimiter reaches
+column zero in the rendered script. Moving a delimiter to column zero in the
+YAML source terminates the block early and prevents GitHub Actions from
+scheduling any jobs.
+
 ## ISO validation boundary
 
 ISO validation is intentionally separate from this OCI/GNOME workflow. Use `.github/workflows/iso-validation.yml` for a published ISO URL; it checks out `projectbluefin/iso` at the caller-provided immutable `iso_ref`, installs QEMU/xorriso tooling, runs the ISO repository's `tests/iso` harness, and uploads its smoke/E2E evidence. The matching `.github/workflows/iso-manual.yml` exposes the same contract in the Actions UI.
@@ -60,6 +69,56 @@ Rollouts should start with `--grace-days` in CI (currently `--grace-days 30`) so
 
 `e2e.yml` reuses the same script for job-summary reporting via `python3 scripts/check_quarantine_age.py --json`.
 That summary path is informational only, but it still needs the same prerequisites: the workflow checkout must include `scripts/check_quarantine_age.py`, the `tests/` tree, and full git history (`fetch-depth: 0`) or the age calculations will be incomplete.
+
+## Job-summary scenario counts come from `scripts/e2e_summary.py`
+
+Never derive `passed` by subtraction. `passed = total - failed - skipped` is wrong
+on two counts:
+
+- `results.json` `elements` include **`background`** entries alongside `scenario`
+  entries, so `len(elements)` overstates the scenario total.
+- behave also emits `undefined` and `untested` statuses. Subtraction silently
+  folds both into `passed`, reporting unimplemented steps as successes.
+
+`count_scenarios()` filters to `element["type"] == "scenario"` and counts each of
+`passed`, `failed`, `skipped`, `undefined`, `untested` explicitly. Because it is
+consumed by the inline `python3` heredoc in the job-summary step,
+`scripts/e2e_summary.py` must be listed in the non-cone `sparse-checkout` block
+or the import fails at runtime.
+
+### Unknown statuses land in `other` — never drop a scenario
+
+behave 1.3.3's `Scenario.compute_status()` can also return **`error`** (any
+errored step) and **`hook_error`** (a failed `before_scenario`/`after_scenario`
+hook). Filtering to a hardcoded status allowlist made those scenarios vanish
+from both the breakdown *and* the total, so a report of five scenarios could
+report `Total: 3`.
+
+`count_scenarios()` therefore counts **every** scenario element exactly once:
+known statuses under their own key, and anything else — `error`, `hook_error`,
+a missing `status` key, or any future behave status — under `other`. The
+invariant is `sum(counts.values()) == number of scenario elements`. Do not
+"fix" a new status by adding it to `SCENARIO_STATUSES` unless you also want it
+as its own summary column; the `other` bucket already guarantees nothing is
+lost. `scripts/assert_kde_passed.py` uses the same bucketing pattern — keep the
+two consistent.
+
+## Headline icon semantics: ✅ means "actually passed"
+
+`failed == 0` is **not** success. An undefined-only, untested-only, or errored
+run has zero failures but proved nothing. `summary_icon()` in
+`scripts/e2e_summary.py` is the single source of truth for the headline:
+
+| Condition | Icon |
+|---|---|
+| any `failed` scenario | ❌ |
+| every counted scenario is `passed` or `skipped` | ✅ |
+| anything else (`undefined`, `untested`, `other`) | ⚠️ |
+
+`skipped` counts as success because `@quarantine`/`@pending`/`@future` scenarios
+are intentionally not run. The job-summary step in `e2e.yml` calls
+`summary_icon(counts)` rather than inlining the comparison, so the rule is unit
+tested in `tests/unit/test_e2e_summary.py` instead of living only in YAML.
 
 ## Sparse checkout is non-cone — every script must be listed explicitly
 
@@ -104,12 +163,12 @@ The same rule applies to every other non-cone checkout in this repo, including t
 2. **Checkout testsuite** — non-cone sparse checkout of the explicitly listed paths (`flatpak-app-list.txt`, `tests`, `scripts/check_quarantine_age.py`, `scripts/install-kde-webdriver.sh`) from `<image-org>/testsuite` at `inputs.test_ref`; always `fetch-depth: 0`
 3. **Resolve suite shard** — Python step computes `SUITE_DIR` (physical directory), `FEATURE_ARGS` (specific `.feature` files for shards), and `SCREENSHOT_SUITE` (normalized suite name for GHCR tags)
 4. **Restore/prime Flatpak download cache** — Bluefin GUI suites only; caches a runner-side user Flatpak repo keyed on `flatpak-app-list.txt` hash
-5. **Free disk space** — runs `<readonly-upstream>/remove-unwanted-software@v9`; keeps the 30 GB `disk.raw` allocation viable on GitHub-hosted runners
+5. **Free disk space** — runs `<readonly-upstream>/remove-unwanted-software@v9`; keeps the 32 GB `disk.raw` allocation viable on GitHub-hosted runners
 6. **Enable KVM** — udev rule for `/dev/kvm` access
 7. **Install QEMU + pull OCI image** — parallel: `apt-get install qemu-system-x86` while `sudo podman pull <image>` and `sudo podman pull ghcr.io/<image-org>/testsuite:runner` run concurrently in background
 8. **Generate SSH keypair** — creates `ed25519` keypair at `/tmp/vm_key`; public key stored in `VM_PUBKEY` env var
 9. **Install OCI image and configure disk** — combined step that:
-   - `fallocate -l 30G disk.raw`
+   - `fallocate -l 32G disk.raw`
    - `bootc install to-disk --via-loopback disk.raw --filesystem ext4` (with `--bootloader systemd` flag when bootc ≥0.1.13; older images skip the flag)
    - Mounts the raw disk, finds `ROOT_UUID` (partition 3), ostree deployment hash, and `KVER`
    - Copies `vmlinuz` + `initramfs.img` from deployment `usr/lib/modules/<kver>/` (or boot partition fallback)
@@ -136,7 +195,7 @@ The same rule applies to every other non-cone checkout in this repo, including t
 25. **Capture desktop screenshot (QEMU screendump fallback)** — non-common suites; if no `screenshot_*fastfetch*.png` found in `results/`, captures QEMU VGA framebuffer via `/tmp/qemu-monitor.sock`
 26. **Promote desktop screenshot** — finds best screenshot (`screenshot-post-migration.png` > upgrade > fastfetch); for non-common/non-lifecycle suites, fails loud if no screenshot found
 27. **Push desktop screenshot to GHCR** — pushes `:<short-sha>`, `:<SCREENSHOT_SUITE>-latest`, and `:<image-slug>-<SCREENSHOT_SUITE>-latest` tags; also pushes per-Flatpak gallery tags
-28. **Write job summary** — parses `results.json`, writes pass/fail table + failed scenarios; includes quarantine age summary from `scripts/check_quarantine_age.py --json`; includes screenshot pull commands and gh-pages URL
+28. **Write job summary** — parses `results.json` via `count_scenarios()` from `scripts/e2e_summary.py`, writes pass/fail table + failed scenarios; includes quarantine age summary from `scripts/check_quarantine_age.py --json`; includes screenshot pull commands and gh-pages URL
 29. **Prepare artifact metadata** — writes `results/artifact-metadata.json`; computes `artifact_suffix` by sanitizing the full image reference (not just image name — the full `ghcr.io/org/image:tag` string is sanitized)
 30. **Upload results artifact** — `e2e-results-<artifact-suffix>-<suite>` (30 days); includes `results.json`, `results.txt`, `artifact-metadata.json`, and any screenshots
 31. **Upload serial log artifact** — `vm-serial-log-<artifact-suffix>-<suite>` (3 days)
@@ -179,10 +238,18 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 - No GPU acceleration for GL/Vulkan in GHA runners. Hardware-specific tests require SSH-mode suites not yet in the GHA action (epics #43/#44).
 - Partition layout assumes `p3` is the root partition. Tested against standard Anaconda/bootc partition tables. Non-standard layouts may break the disk-configure step.
 
+## Common Rationalizations
+
+| Rationalization | Reality |
+|---|---|
+| "Bash requires the delimiter at column zero in the YAML file." | YAML strips the literal block's minimum indentation before Bash sees it. Column zero in YAML ends the block and makes the workflow invalid. |
+| "A YAML parser passing is enough." | Also parse the rendered affected `run` blocks with `bash -n`; YAML indentation can change the shell script. |
+
 ## Red Flags
 
 
 - A cache step targets `~/.local/share/containers` or another non-root path even though pulls use `sudo podman`
+- A heredoc delimiter appears at column zero in YAML source
 - `workflow_call` checkout logic starts using `github.ref_name` inside `e2e.yml`
 - External actions are added with floating tags instead of full SHAs
 - A workflow step invokes a repo script that is not listed in that job's `sparse-checkout` block (cone mode is off — unlisted paths do not exist at runtime)
@@ -194,6 +261,7 @@ The serial log is always uploaded (even on failure) — it's the primary debug t
 
 
 - [ ] `.github/workflows/e2e.yml` parses with `yaml.safe_load`
+- [ ] Each rendered `run` block with a heredoc passes `bash -n`
 - [ ] Every external `uses:` line in `e2e.yml` is SHA-pinned with a version comment
 - [ ] KDE setup steps use `startsWith(steps.shard.outputs.suite_dir, 'kde')` and do not fire for GNOME suites
 - [ ] Every script referenced by a job step appears in that job's `sparse-checkout` list
@@ -326,6 +394,11 @@ Key differences from GNOME suites:
   the fallback.
 - **Version-skew skip:** If the DUT's Plasma version or distro is unsupported, the
   suite is skipped with a clear message instead of producing phantom failures.
+- **Installer safety contract:** `scripts/install-kde-webdriver.sh` is guarded by
+  `tests/unit/test_install_kde_webdriver.py`, which locks three invariants:
+  immutable `SELENIUM_AT_SPI_SHA` pin format, loopback-only server posture
+  (no `HOST=0.0.0.0` override), and explicit `KDE_WEBDRIVER_SKIP=...` + `exit 0`
+  paths for unsupported Plasma/distro cases.
 - **Session setup:** SDDM autologin and a KDE determinism environment drop-in are
   written at disk-prep time.
 - **`passed > 0` backstop:** the step `Assert KDE suite has passing scenarios`

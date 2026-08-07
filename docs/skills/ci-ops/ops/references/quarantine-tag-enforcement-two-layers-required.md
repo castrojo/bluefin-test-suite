@@ -18,4 +18,10 @@ metadata:
 
 Do not remove either layer.
 
+**Runtime skipping covers three tags.** `tests/shared/quarantine.py` skips `@quarantine`,
+`@pending` and `@future`, and every suite's `before_scenario` hook calls it. The `--tags
+~quarantine` filter only covers `@quarantine`, so `@pending` and `@future` scenarios rely
+entirely on that helper. If you remove a tag from `_SKIP_TAGS`, dozens of intentionally
+skipped scenarios start executing and failing.
+
 ---

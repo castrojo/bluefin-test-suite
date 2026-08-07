@@ -214,3 +214,67 @@ class TestLaunchBackground:
         with patch.object(app_support.shutil, "which", return_value=None):
             with pytest.raises(AssertionError, match="No launch candidate"):
                 app_support.launch_background(targets)
+
+
+# ---------------------------------------------------------------------------
+# Launch environment forwarding
+# ---------------------------------------------------------------------------
+
+class TestLaunchEnvironment:
+    def setup_method(self):
+        _no_container.start()
+
+    def teardown_method(self):
+        _no_container.stop()
+
+    def test_env_exports_is_empty_without_env(self):
+        assert app_support._env_exports(None) == ""
+        assert app_support._env_exports({}) == ""
+
+    def test_env_exports_quotes_values(self):
+        rendered = app_support._env_exports({"A": "1", "B": "two words"})
+        assert rendered == "export A=1; export B='two words'; "
+
+    def test_flatpak_env_args_forwards_each_variable(self):
+        assert app_support._flatpak_env_args({"GNOME_ACCESSIBILITY": "1"}) == [
+            "--env=GNOME_ACCESSIBILITY=1"
+        ]
+
+    def test_flatpak_env_args_empty_without_env(self):
+        assert app_support._flatpak_env_args(None) == []
+
+    def test_command_launch_merges_env_into_os_environ(self):
+        targets = (("command", "bash"),)
+        with patch.object(app_support.shutil, "which", return_value="/usr/bin/bash"):
+            with patch("tests.smoke.features.steps.app_support.subprocess.Popen") as mock_popen:
+                app_support.launch_background(targets, env={"GNOME_ACCESSIBILITY": "1"})
+
+        passed = mock_popen.call_args.kwargs["env"]
+        assert passed["GNOME_ACCESSIBILITY"] == "1"
+        assert "PATH" in passed
+
+    def test_command_launch_without_env_inherits_environ(self):
+        targets = (("command", "bash"),)
+        with patch.object(app_support.shutil, "which", return_value="/usr/bin/bash"):
+            with patch("tests.smoke.features.steps.app_support.subprocess.Popen") as mock_popen:
+                app_support.launch_background(targets)
+
+        assert mock_popen.call_args.kwargs["env"] is None
+
+    def test_flatpak_launch_forwards_env_into_sandbox(self):
+        targets = (("flatpak", "org.mozilla.firefox"),)
+        with patch("tests.smoke.features.steps.app_support.subprocess.run",
+                   return_value=SimpleNamespace(returncode=0)):
+            with patch("tests.smoke.features.steps.app_support.subprocess.Popen") as mock_popen:
+                app_support.launch_background(targets, env={"GNOME_ACCESSIBILITY": "1"})
+
+        assert mock_popen.call_args.args[0] == [
+            "flatpak", "run", "--env=GNOME_ACCESSIBILITY=1", "org.mozilla.firefox",
+        ]
+
+    def test_ssh_launch_exports_env_before_command(self):
+        with patch("tests.smoke.features.steps.app_support.subprocess.run") as mock_run:
+            app_support._ssh_launch("firefox", {"GNOME_ACCESSIBILITY": "1"})
+
+        remote_cmd = mock_run.call_args.args[0][-1]
+        assert "export GNOME_ACCESSIBILITY=1; nohup firefox" in remote_cmd

@@ -40,7 +40,16 @@ def before_scenario(context, scenario) -> None:
     context.command_stdout = ""
     context.ssh_rc = 0
     context.last_ssh_result = None
+    context.update_conf_backed_up = False
 
 
 def after_scenario(context, scenario) -> None:
-    pass
+    """Restore any host state a failed scenario may have left behind."""
+    if not getattr(context, "update_conf_backed_up", False):
+        return
+    from tests.flatcar.features.steps.steps import restore_update_conf
+
+    try:
+        restore_update_conf(context)
+    except Exception:  # noqa: BLE001 - cleanup must not mask the real failure
+        pass

@@ -126,6 +126,7 @@ jobs:
             scripts/assert_kde_passed.py
             scripts/check_quarantine_age.py
             scripts/install-kde-webdriver.sh
+            scripts/e2e_summary.py
           sparse-checkout-cone-mode: false
 
       # smoke-a/smoke-b and common-a/common-b are parallel shards of their
@@ -163,7 +164,7 @@ jobs:
               print(f"suite_dir={suite_dir}", file=fh)
               print(f"feature_args={feature_args}", file=fh)
               print(f"screenshot_suite={screenshot_suite}", file=fh)
-PY
+          PY
 
       - name: Export suite shard environment
         run: |
@@ -243,7 +244,7 @@ PY
         env:
           SUITE_DIR: ${{ steps.shard.outputs.suite_dir }}
         run: |
-          fallocate -l 30G disk.raw
+          fallocate -l 32G disk.raw
 
           # --bootloader was added in bootc ≥0.1.13. Older images (e.g. nvidia:latest
           # built Oct 2025) ship an earlier bootc that rejects the flag. Probe
@@ -404,7 +405,7 @@ PY
           #
           # systemd.journald.forward_to_console=1 — forward full journal to serial for
           #   diagnostics when SSH fails (output captured in vm-serial.log artifact).
-          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.journald.forward_to_console=1 systemd.mask=tailscaled.service systemd.mask=brew-setup.service systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service systemd.mask=flatpak-preinstall.service systemd.mask=podman-auto-update.service systemd.mask=podman-auto-update.timer systemd.mask=malcontent-webd.service systemd.mask=malcontent-webd-update.service systemd.mask=malcontent-control.service systemd.mask=speech-dispatcherd.service systemd.mask=avahi-daemon.service systemd.mask=avahi-daemon.socket systemd.mask=cups.service systemd.mask=cups.path systemd.mask=cups.socket systemd.mask=cups.browsed.service systemd.mask=blueman-mechanism.service systemd.mask=gnome-remote-desktop.service systemd.mask=bazzite-hardware-setup.service systemd.mask=greenboot-healthcheck.service systemd.mask=greenboot-set-rollback-trigger.service systemd.mask=systemd-udev-settle.service"
+          KERNEL_ARGS="root=UUID=${ROOT_UUID} rw ostree=${OSTREE_PATH} systemd.firstboot=no selinux=0 console=ttyS0,115200 systemd.journald.forward_to_console=1 systemd.mask=brew-setup.service systemd.mask=NetworkManager-wait-online.service systemd.mask=firewalld.service systemd.mask=wpa_supplicant.service systemd.mask=flatpak-preinstall.service systemd.mask=podman-auto-update.service systemd.mask=podman-auto-update.timer systemd.mask=malcontent-webd.service systemd.mask=malcontent-webd-update.service systemd.mask=malcontent-control.service systemd.mask=speech-dispatcherd.service systemd.mask=avahi-daemon.service systemd.mask=avahi-daemon.socket systemd.mask=cups.service systemd.mask=cups.path systemd.mask=cups.socket systemd.mask=cups.browsed.service systemd.mask=blueman-mechanism.service systemd.mask=gnome-remote-desktop.service systemd.mask=bazzite-hardware-setup.service systemd.mask=greenboot-healthcheck.service systemd.mask=greenboot-set-rollback-trigger.service systemd.mask=systemd-udev-settle.service"
           echo "KERNEL_ARGS=${KERNEL_ARGS}" >> "$GITHUB_ENV"
 
           # Apply user + sshd config to ALL deployments in this stateroot.
@@ -475,11 +476,11 @@ PY
                 sudo tee "${DEP}/etc/environment.d/99-kde-ci.conf" >/dev/null
             fi
 
-            # dconf system override: ensure allow-extension-installation=true so
-            # gnome-shell scans ~/.local/share/gnome-shell/extensions/ at startup,
-            # and pre-add our UUID to enabled-extensions so it activates automatically.
+            # Allow the unsafe-mode test extension without replacing the image's
+            # enabled-extensions default. It is enabled in the user database
+            # after the GNOME session starts.
             sudo mkdir -p "${DEP}/etc/dconf/db/local.d"
-            printf '[org/gnome/shell]\nallow-extension-installation=true\nenabled-extensions=['\''unsafe-mode@bluefin-test'\'']\n' | \
+            printf '[org/gnome/shell]\nallow-extension-installation=true\n' | \
               sudo tee "${DEP}/etc/dconf/db/local.d/00-ci-testing" > /dev/null
             # Best-effort compile: works if host glibc matches the deployment binary.
             # If this fails (glibc mismatch), dconf-service will auto-compile on first start.
@@ -541,7 +542,7 @@ PY
                     }
                 }
             }
-EXTEOF
+          EXTEOF
           fi
 
           sudo chown -R "${BFT_UID}:${BFT_UID}" "${VAR}/home/bluefin-test"
@@ -733,7 +734,7 @@ EXTEOF
               sudo flatpak install --system --assumeyes --noninteractive flathub "$app"
             fi
           done
-EOF
+          EOF
 
           rm -f "${CACHE_TAR}"
 
@@ -1184,7 +1185,7 @@ EOF
           with open('results/results.json', 'w') as f:
               json.dump(data, f, indent=2)
           print(f"Wrote skip results: {reason}")
-PY
+          PY
             echo "behave_rc=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -1536,13 +1537,20 @@ PY
             python3 - << 'PY'
           import json, os
           import subprocess, json as _json
+          from scripts.e2e_summary import count_scenarios, summary_icon
           data    = json.load(open('results/results.json'))
-          failed  = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'failed')
-          skipped = sum(1 for f in data for s in f.get('elements', []) if s.get('status') == 'skipped')
-          total   = sum(len(f.get('elements', [])) for f in data)
-          passed  = total - failed - skipped
+          counts  = count_scenarios(data)
+          passed  = counts['passed']
+          failed  = counts['failed']
+          skipped = counts['skipped']
+          undefined = counts['undefined']
+          untested = counts['untested']
+          other   = counts['other']
+          total   = sum(counts.values())
           suite   = os.environ.get('SUITE', 'smoke')
-          icon    = '✅' if failed == 0 else '❌'
+          # ✅ only when every scenario passed or was intentionally skipped;
+          # ❌ on any failure; ⚠️ for undefined/untested/errored runs.
+          icon    = summary_icon(counts)
 
           lines = [
             f'## {icon} E2E Results — GNOME 50 ({suite})', '',
@@ -1550,6 +1558,9 @@ PY
             f'| ✅ Passed  | {passed} |',
             f'| ❌ Failed  | {failed} |',
             f'| ⏭️ Skipped | {skipped} |',
+            f'| ⚠️ Undefined | {undefined} |',
+            f'| ⚪ Untested | {untested} |',
+            f'| 🛑 Error/other | {other} |',
             f'| **Total** | **{total}** |',
           ]
           if failed:
@@ -1632,7 +1643,7 @@ PY
 
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as f:
             f.write('\n'.join(lines) + '\n')
-PY
+          PY
           else
             echo "## ⚠️ No results.json — test run did not complete" >> "$GITHUB_STEP_SUMMARY"
             echo "<details><summary>VM serial console output</summary>" >> "$GITHUB_STEP_SUMMARY"
@@ -1668,7 +1679,7 @@ PY
           )
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output_file:
               output_file.write(f"artifact_suffix={artifact_suffix}\n")
-PY
+          PY
 
       - name: Upload results artifact
         if: always()

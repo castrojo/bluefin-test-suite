@@ -1,11 +1,58 @@
 """Unit tests for smoke display-scaling command and assertion helpers."""
 
+import sys
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
 from tests.smoke.features.steps import display_scaling_steps
+
+
+def _display_config_namespace(monkeypatch):
+    """Load the embedded DisplayConfig helper without running its CLI entrypoint."""
+    fake_dbus = SimpleNamespace(
+        Dictionary=lambda value, signature: value,
+        Boolean=bool,
+        Int32=int,
+        Int64=int,
+        UInt32=int,
+        UInt64=int,
+        Double=float,
+        String=str,
+        Array=list,
+    )
+    monkeypatch.setitem(sys.modules, "dbus", fake_dbus)
+    script = display_scaling_steps._DISPLAY_CONFIG_SCRIPT.split(
+        "\naction = sys.argv[1]", maxsplit=1
+    )[0]
+    namespace = {}
+    exec(script, namespace)
+    return namespace
+
+
+def test_display_config_repositions_logical_monitors_when_scaling(monkeypatch):
+    namespace = _display_config_namespace(monkeypatch)
+    monitor = (
+        ("HDMI-1", "vendor", "product", "serial"),
+        [("1920x1080", None, None, None, None, None, {"is-current": True})],
+    )
+    logical_monitor = (
+        1920,
+        1080,
+        1.0,
+        0,
+        False,
+        [("HDMI-1", "vendor", "product", "serial")],
+    )
+
+    result = namespace["_build_logical_monitor"](
+        logical_monitor,
+        {("HDMI-1", "vendor", "product", "serial"): monitor},
+        1.5,
+    )
+
+    assert result[:3] == (1280, 720, 1.5)
 
 
 def test_remote_session_commands_source_session_environment():

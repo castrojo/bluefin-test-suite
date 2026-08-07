@@ -11,6 +11,7 @@ try:
 except Exception:  # noqa: BLE001
     tree = None  # type: ignore[assignment]
 from qecore.common_steps import *  # noqa: F401,F403
+from tests.shared.ssh_config import resolve_ssh_details
 from tests.shared.ssh_steps import *  # noqa: F401,F403
 from tests.smoke.features.steps.app_support import atspi_click, launch_background
 
@@ -43,17 +44,19 @@ def _skip_if_no_atspi(context) -> bool:
     return False
 
 
-def _flatpak(args: list[str], timeout: int = 10) -> subprocess.CompletedProcess:
-    """Run flatpak via SSH when inside the runner container."""
+def _flatpak(context, args: list[str], timeout: int = 10) -> subprocess.CompletedProcess:
+    """Run flatpak via SSH when inside the runner container.
+
+    Connection details come from the same source as the shared SSH steps
+    (``tests.shared.ssh_config.resolve_ssh_details``): context attributes,
+    then behave userdata, then environment variables.
+    """
     if _IN_CONTAINER:
-        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
-        vm_user = os.environ.get("VM_USER", "bluefin-test")
-        ssh_port = os.environ.get("SSH_PORT", "22")
+        ssh = resolve_ssh_details(context)
         return subprocess.run(
-            ["ssh", "-i", ssh_key, "-o", "StrictHostKeyChecking=no",
+            ["ssh", "-i", ssh["ssh_key"], "-o", "StrictHostKeyChecking=no",
              "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10",
-             "-p", ssh_port, f"{vm_user}@{vm_ip}",
+             "-p", ssh["ssh_port"], f"{ssh['ssh_user']}@{ssh['vm_ip']}",
              " ".join(["flatpak"] + [f"'{a}'" for a in args])],
             capture_output=True, text=True, timeout=timeout,
         )
@@ -156,8 +159,8 @@ def wait_for_bazaar_main_content(context, timeout: int = 30) -> bool:
     return False
 
 
-def _bazaar_flatpak_is_running() -> bool:
-    result = _flatpak(["ps", "--columns=application"], timeout=15)
+def _bazaar_flatpak_is_running(context) -> bool:
+    result = _flatpak(context, ["ps", "--columns=application"], timeout=15)
     if result.returncode != 0:
         return False
     apps = {
@@ -176,7 +179,7 @@ def _wait_for_bazaar_to_close(context, timeout: int = 15) -> None:
             _bazaar_window(context, timeout=1)
         except Exception:  # noqa: BLE001
             window_visible = False
-        if not window_visible and not _bazaar_flatpak_is_running():
+        if not window_visible and not _bazaar_flatpak_is_running(context):
             return
         sleep(0.2)
     raise AssertionError("Bazaar is still visible or running after close shortcut")
@@ -288,7 +291,7 @@ def bazaar_is_no_longer_running(context) -> None:
 
 @step('Flatpak permissions table "{table}" is queryable')
 def flatpak_permissions_table_is_queryable(context, table: str) -> None:
-    result = _flatpak(["permissions", table])
+    result = _flatpak(context, ["permissions", table])
     # rc=0 means success (table exists, possibly empty);
     # rc=1 with "No permissions" is also a valid empty-table response.
     assert result.returncode == 0 or "No permissions" in result.stdout or "No permissions" in result.stderr, (
@@ -299,7 +302,7 @@ def flatpak_permissions_table_is_queryable(context, table: str) -> None:
 
 @step('Set flatpak user override "{override}" for "{app_id}"')
 def set_flatpak_user_override(context, override: str, app_id: str) -> None:
-    result = _flatpak(["override", "--user"] + override.split() + [app_id])
+    result = _flatpak(context, ["override", "--user"] + override.split() + [app_id])
     assert result.returncode == 0, (
         f"flatpak override --user {override} {app_id} failed: "
         f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
@@ -308,7 +311,7 @@ def set_flatpak_user_override(context, override: str, app_id: str) -> None:
 
 @step('Flatpak user override "{fragment}" is active for "{app_id}"')
 def flatpak_user_override_is_active(context, fragment: str, app_id: str) -> None:
-    result = _flatpak(["override", "--user", "--show", app_id])
+    result = _flatpak(context, ["override", "--user", "--show", app_id])
     assert result.returncode == 0, (
         f"flatpak override --show {app_id} failed: "
         f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
@@ -320,7 +323,7 @@ def flatpak_user_override_is_active(context, fragment: str, app_id: str) -> None
 
 @step('Reset flatpak user overrides for "{app_id}"')
 def reset_flatpak_user_overrides(context, app_id: str) -> None:
-    result = _flatpak(["override", "--user", "--reset", app_id])
+    result = _flatpak(context, ["override", "--user", "--reset", app_id])
     assert result.returncode == 0, (
         f"flatpak override --user --reset {app_id} failed: "
         f"rc={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
@@ -329,7 +332,7 @@ def reset_flatpak_user_overrides(context, app_id: str) -> None:
 
 @step('No flatpak user overrides exist for "{app_id}"')
 def no_flatpak_user_overrides_exist(context, app_id: str) -> None:
-    result = _flatpak(["override", "--user", "--show", app_id])
+    result = _flatpak(context, ["override", "--user", "--show", app_id])
     # After reset, --show returns empty output (rc=0) or a minimal [Context] header.
     assert result.returncode == 0, (
         f"flatpak override --show {app_id} failed: "
@@ -347,7 +350,7 @@ def no_flatpak_user_overrides_exist(context, app_id: str) -> None:
 
 @step('Flatpak remote "{name}" is configured')
 def flatpak_remote_is_configured(context, name: str) -> None:
-    result = _flatpak(['remote-list', '--columns=name'])
+    result = _flatpak(context, ['remote-list', '--columns=name'])
     assert result.returncode == 0, (
         f'flatpak remote-list failed: rc={result.returncode}\n'
         f'stdout={result.stdout}\nstderr={result.stderr}'
@@ -358,7 +361,7 @@ def flatpak_remote_is_configured(context, name: str) -> None:
 
 @step('Flatpak app "{app_id}" is installed')
 def flatpak_app_is_installed(context, app_id: str) -> None:
-    result = _flatpak(['list', '--app', '--columns=application'])
+    result = _flatpak(context, ['list', '--app', '--columns=application'])
     assert result.returncode == 0, (
         f'flatpak list failed: rc={result.returncode}\n'
         f'stdout={result.stdout}\nstderr={result.stderr}'
@@ -369,7 +372,7 @@ def flatpak_app_is_installed(context, app_id: str) -> None:
 
 @step('Flatpak app info is queryable for "{app_id}"')
 def flatpak_app_info_is_queryable(context, app_id: str) -> None:
-    result = _flatpak(['info', app_id])
+    result = _flatpak(context, ['info', app_id])
     assert result.returncode == 0, (
         f'flatpak info {app_id!r} failed: rc={result.returncode}\n'
         f'stdout={result.stdout}\nstderr={result.stderr}'
@@ -381,7 +384,7 @@ def flatpak_app_info_is_queryable(context, app_id: str) -> None:
 
 @step('Flatpak app "{app_id}" is from remote "{remote}"')
 def flatpak_app_is_from_remote(context, app_id: str, remote: str) -> None:
-    result = _flatpak(['info', app_id])
+    result = _flatpak(context, ['info', app_id])
     assert result.returncode == 0, (
         f'flatpak info {app_id!r} failed: rc={result.returncode}\n'
         f'stdout={result.stdout}\nstderr={result.stderr}'
@@ -394,7 +397,7 @@ def flatpak_app_is_from_remote(context, app_id: str, remote: str) -> None:
 
 @step('Flatpak app "{app_id}" is not installed')
 def flatpak_app_is_not_installed(context, app_id: str) -> None:
-    result = _flatpak(['list', '--app', '--columns=application'])
+    result = _flatpak(context, ['list', '--app', '--columns=application'])
     assert result.returncode == 0, (
         f'flatpak list failed: rc={result.returncode}\n'
         f'stdout={result.stdout}\nstderr={result.stderr}'
