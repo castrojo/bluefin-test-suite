@@ -5,6 +5,7 @@ existing test_retry.py (which focuses on the full retry loop).
 """
 from tests.shared.behave_retry import (
     DEFAULT_RETRIES,
+    NON_RUNNABLE_TAGS,
     OPTION_FLAGS_WITH_VALUES,
     REPORTER_FLAGS,
     RERUN_ENTRY_RE,
@@ -16,7 +17,7 @@ from tests.shared.behave_retry import (
     retry_tags_for_entry,
     should_retry_entry,
     strip_reporter_args,
-    with_quarantine_filter,
+    with_skip_filters,
 )
 
 
@@ -92,28 +93,36 @@ class TestParseCliArgs:
 
 
 # ---------------------------------------------------------------------------
-# with_quarantine_filter
+# with_skip_filters
 # ---------------------------------------------------------------------------
 
-class TestWithQuarantineFilter:
-    def test_appends_quarantine_tag(self):
-        result = with_quarantine_filter(["tests/"])
-        assert "--tags" in result
-        assert "~@quarantine" in result
+class TestWithSkipFilters:
+    def test_appends_all_non_runnable_tags(self):
+        result = with_skip_filters(["tests/"])
+        assert result == [
+            "tests/",
+            "--tags",
+            "~@quarantine",
+            "--tags",
+            "~@pending",
+            "--tags",
+            "~@future",
+        ]
 
     def test_preserves_existing_args(self):
-        result = with_quarantine_filter(["tests/", "--dry-run"])
+        result = with_skip_filters(["tests/", "--dry-run"])
         assert "tests/" in result
         assert "--dry-run" in result
 
-    def test_adds_at_end(self):
-        result = with_quarantine_filter(["tests/"])
-        idx = result.index("~@quarantine")
-        assert result[idx - 1] == "--tags"
+    def test_adds_each_filter_as_a_tags_option(self):
+        result = with_skip_filters(["tests/"])
+        for tag in NON_RUNNABLE_TAGS:
+            idx = result.index(f"~@{tag}")
+            assert result[idx - 1] == "--tags"
 
     def test_does_not_mutate_original(self):
         original = ["tests/"]
-        with_quarantine_filter(original)
+        with_skip_filters(original)
         assert original == ["tests/"]
 
 

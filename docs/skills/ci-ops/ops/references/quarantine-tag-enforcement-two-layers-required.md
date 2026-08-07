@@ -1,27 +1,28 @@
 ---
 name: quarantine-tag-enforcement-two-layers-required
-description: "Deep dive: @quarantine tag enforcement — two layers required"
+description: "Deep dive: non-runnable scenario tag enforcement — two runner layers required"
 metadata:
   type: reference
   audience: agents
   maturity: stable
 ---
-# Quarantine Tag Enforcement Two Layers Required
+# Non-Runnable Tag Enforcement Requires Two Runner Layers
 
-## @quarantine tag enforcement — two layers required
+## Filter non-runnable scenarios before hooks
 
-**Symptom:** Scenarios tagged `@quarantine` run and fail.
+**Symptom:** Scenarios tagged `@quarantine`, `@pending`, or `@future` run and fail.
 
 **How it works (two required layers):**
-1. `behave_retry.py` calls `with_quarantine_filter()` — appends `--tags ~@quarantine` to every behave invocation.
-2. `e2e.yml` sets `BEHAVE_TAG_ARGS="--tags ~@quarantine"` before calling `behave_retry.py`.
+1. `behave_retry.py` calls `with_skip_filters()` and appends one negative tag
+   filter for each non-runnable classification to every behave invocation.
+2. `e2e.yml` includes the same three negative filters in `BEHAVE_TAG_ARGS`
+   before calling `behave_retry.py`.
 
 Do not remove either layer.
 
-**Runtime skipping covers three tags.** `tests/shared/quarantine.py` skips `@quarantine`,
-`@pending` and `@future`, and every suite's `before_scenario` hook calls it. The `--tags
-~quarantine` filter only covers `@quarantine`, so `@pending` and `@future` scenarios rely
-entirely on that helper. If you remove a tag from `_SKIP_TAGS`, dozens of intentionally
-skipped scenarios start executing and failing.
+Every suite's `before_scenario` hook also calls `tests/shared/quarantine.py`,
+which skips the same tags for direct behave invocations that bypass the runner
+filters. Keep the wrapper constant, workflow arguments, and runtime helper in
+sync so no single regression activates intentionally disabled coverage.
 
 ---

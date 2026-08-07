@@ -75,7 +75,7 @@ Never delete a scenario to clear the gate — the coverage intent is the asset. 
 ## Operator expectations
 
 - If a quarantine ages out, fix the scenario or convert it to `@future`/`@pending` when it represents planned coverage rather than flaky regression coverage.
-- `@quarantine`, `@pending` and `@future` are all skipped at runtime by `tests/shared/quarantine.py`, which every suite's `before_scenario` hook calls. Reclassifying a tag therefore keeps the scenario skipped rather than turning it into a failure — but only because that helper handles all three tags. Do not drop one.
+- `@quarantine`, `@pending` and `@future` are excluded by both `tests/shared/behave_retry.py` and `e2e.yml`, then skipped again by `tests/shared/quarantine.py` for direct behave invocations. Keep all three layers aligned.
 - Keep the script dependency-free so it can run on `ubuntu-latest` with only checkout + Python setup.
 - Prefer snapshot-based history checks (`git show <sha>:<path>`) over fragile diff hunk matching; the goal is stable CI enforcement, not perfect archeology.
 

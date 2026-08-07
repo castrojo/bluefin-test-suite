@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Retry wrapper for behave with quarantine-tag filtering."""
+"""Retry wrapper for behave with non-runnable scenario filtering."""
 
 from __future__ import annotations
 
@@ -43,6 +43,7 @@ OPTION_FLAGS_WITH_VALUES = {
 REPORTER_FLAGS = {"-f", "--format", "-o", "--outfile", "--junit", "--junit-directory"}
 RERUN_ENTRY_RE = re.compile(r".+\.feature(?::\d+)?$")
 TAG_RE = re.compile(r"@([A-Za-z0-9_.-]+)")
+NON_RUNNABLE_TAGS = ("quarantine", "pending", "future")
 
 
 def parse_cli_args(argv: list[str]) -> tuple[int, list[str]]:
@@ -64,8 +65,11 @@ def parse_cli_args(argv: list[str]) -> tuple[int, list[str]]:
     return retries, behave_args
 
 
-def with_quarantine_filter(args: list[str]) -> list[str]:
-    return [*args, "--tags", "~@quarantine"]
+def with_skip_filters(args: list[str]) -> list[str]:
+    filtered = [*args]
+    for tag in NON_RUNNABLE_TAGS:
+        filtered.extend(("--tags", f"~@{tag}"))
+    return filtered
 
 
 def _split_long_option(arg: str) -> str:
@@ -217,7 +221,7 @@ def run_behave(args: list[str], rerun_path: Path) -> tuple[int, list[str]]:
 
 def main(argv: list[str] | None = None) -> int:
     retries, behave_args = parse_cli_args(list(sys.argv[1:] if argv is None else argv))
-    base_args = with_quarantine_filter(behave_args)
+    base_args = with_skip_filters(behave_args)
     rerun_path = Path.cwd() / RERUN_FILENAME
 
     rc, failed_entries = run_behave(base_args, rerun_path)

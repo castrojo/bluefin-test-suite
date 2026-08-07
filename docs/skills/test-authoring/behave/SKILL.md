@@ -257,39 +257,33 @@ In the SSH-driven `common` suite, validate Bluefin desktop identity overrides wi
 
 This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `<image-org>/common`.
 
-## Quarantine Protocol
+## Non-runnable scenario protocol
 
 
-When a scenario fails in QEMU CI due to a known environment limitation (not a code bug), tag it `@quarantine` and file a tracking issue:
+Classify non-runnable coverage by why it cannot run:
 
 ```gherkin
-@quarantine
+# Pending: flatpak-preinstall.service is masked in CI (#123).
+@pending
 Scenario: Flathub remote is configured
   ...
 ```
 
-The CI runs behave with `--tags ~quarantine`, so quarantined scenarios are skipped and do not block the gate.
+The workflow and retry wrapper exclude `@quarantine`, `@pending`, and
+`@future`. Suite hooks skip the same tags for direct behave invocations.
 
-### When to quarantine vs fix
+### Choose the narrowest tag
 
-| Situation | Action |
+| Situation | Tag/action |
 |---|---|
-| Scenario fails because a first-boot service is masked in CI | Quarantine + image-side issue |
-| Scenario fails due to GNOME 50 API change | Quarantine + investigate new API |
-| Scenario fails due to a real regression in the image | Do NOT quarantine — it's a gate hit |
-| Scenario fails intermittently (flaky network, timing) | Add `@retry` tag instead |
+| Blocked by CI infrastructure or unseeded state | `@pending` plus the blocker and tracking issue |
+| Feature or required harness has not shipped | `@future` plus the planned dependency |
+| Genuinely flaky and under active repair | `@quarantine`; fix within 30 days |
+| Real image regression | Keep active; it is a gate failure |
+| Intermittent network or timing failure with a valid retry path | `@retry` |
 
-### Known quarantine categories (2026-06)
-
-**smoke-b:** screen lock (#528), PDF/PNG/video MIME defaults (#529)
-- Screen lock: GNOME 50 headless QEMU — lock screen doesn't engage within 10s
-- MIME defaults: Fedora system mimeapps.list sets Firefox as default; Flatpak Papers/Loupe don't override at system level on fresh install
-
-**common-a/b:** 13 scenarios in dconf, flatpak, immutable, polkit (#531)
-- Flatpak: /var/lib/flatpak not preserved from OCI build; flatpak-preinstall.service masked in CI
-- dconf: some schema defaults may require un-investigated setup; Ptyxis palette is user-session state
-- Immutable: rpm-ostree status / bootc status / /usr ro failing for unknown reason in fresh QEMU bootc install
-- Polkit: rules may be in /usr/share/ not /etc/polkit-1/rules.d/
+See `../quarantine-age/SKILL.md` for age enforcement and reclassification
+requirements.
 
 ## Behave Background scope — don't put app-open preconditions for all scenarios
 

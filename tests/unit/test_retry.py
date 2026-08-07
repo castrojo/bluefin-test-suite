@@ -91,12 +91,20 @@ def test_retry_reruns_failed_scenarios_until_success(monkeypatch, tmp_path):
         "results/results.txt",
         "--tags",
         "~@quarantine",
+        "--tags",
+        "~@pending",
+        "--tags",
+        "~@future",
     ]
     assert commands[1][:3] == [expected_python, "-m", "behave"]
     assert "tests/smoke/features" not in commands[1]
     assert commands[1][3:-4] == [
         "--tags",
         "~@quarantine",
+        "--tags",
+        "~@pending",
+        "--tags",
+        "~@future",
         "features/demo.feature:12",
         "features/other.feature:7",
     ]
@@ -135,8 +143,24 @@ def test_retry_skips_untagged_failures(monkeypatch, tmp_path):
 
     assert rc == 1
     assert calls == [
-        ["tests/smoke/features", "--tags", "~@quarantine"],
-        ["--tags", "~@quarantine", "features/retry.feature:5"],
+        [
+            "tests/smoke/features",
+            "--tags",
+            "~@quarantine",
+            "--tags",
+            "~@pending",
+            "--tags",
+            "~@future",
+        ],
+        [
+            "--tags",
+            "~@quarantine",
+            "--tags",
+            "~@pending",
+            "--tags",
+            "~@future",
+            "features/retry.feature:5",
+        ],
     ]
 
 
