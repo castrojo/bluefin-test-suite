@@ -13,7 +13,7 @@ body:
     attributes:
       label: "Agent assistance"
       options:
-        - label: "Opt-in to making a clanker figure this out"
+        - label: "I am happy for a clanker to take this on if a maintainer routes it that way"
           required: false
 
   - type: textarea

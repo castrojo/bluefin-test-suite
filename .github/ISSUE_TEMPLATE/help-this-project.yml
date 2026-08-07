@@ -1,18 +1,20 @@
 name: "Help this project"
-description: "Donate agent time — point at a repo, issue, or PR and get a high-signal report back."
+description: "Ask for a high-signal report on a repo, issue, or PR. Filed for human triage first."
 labels: ["1-triage"]
 body:
   - type: markdown
     attributes:
       value: |
-        Point an agent at a repo, issue, or PR and get a report back. Be specific — "look at this repo" produces a shallow overview, a focused question produces something actionable.
+        Ask for a report on a repo, issue, or PR. Be specific — "look at this repo" produces a shallow overview, a focused question produces something actionable.
+
+        This form files an issue labelled `1-triage`. A human reads it and decides what happens next; there is no automatic dispatch.
 
   - type: checkboxes
     id: clanker-opt-in
     attributes:
       label: "Agent assistance"
       options:
-        - label: "Opt-in to making a clanker figure this out"
+        - label: "I am happy for a clanker to take this on if a maintainer routes it that way"
           required: false
 
   - type: input
@@ -28,7 +30,7 @@ body:
     id: flow
     attributes:
       label: "What kind of help?"
-      description: "This routes the right agent to the right task."
+      description: "Helps the triager pick the right kind of work."
       options:
         - "Project report — survey a repo or org and summarize what needs attention"
         - "Issue review — read a linked issue and recommend next steps"
@@ -61,4 +63,6 @@ body:
     attributes:
       value: |
         ---
-        Hive will route this to the right agent based on the flow type above. The agent files its report as a comment on this issue.
+        Thanks! This will be filed with the `1-triage` label and a human will pick it up.
+
+        If a maintainer decides an agent should take it, they add `3-clanker-queue` during triage and the report comes back as a comment here. Until then nothing is dispatched automatically, so please be patient.
