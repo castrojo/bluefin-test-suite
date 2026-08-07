@@ -143,7 +143,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 ## Coverage snapshot
 
-486 scenarios across 63 feature files: 382 active, 0 quarantined, 104 `@future`/`@pending`/`@hardware_blocked`
+489 scenarios across 63 feature files: 382 active, 0 quarantined, 107 `@future`/`@pending`/`@hardware_blocked`
 (mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679).
 
 > **Quarantine backlog is now zero.** Every scenario that was quarantined for an
@@ -170,9 +170,9 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 | hardware | 13 | 13 | 0 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
 | security | 15 | 15 | 0 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
 | bazzite | 20 | 20 | 0 | 0 | Extension presence + shell behaviour |
-| dx | 15 | 10 | 0 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps, all `@pending` |
+| dx | 18 | 10 | 0 | 8 | distrobox enter/create/install/export, JupyterLab, brew, mise×2 — infra gaps, all `@pending` |
 | nvidia | 12 | 0 | 0 | 12 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
-| flatcar | 13 | 10 | 0 | 3 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
+| flatcar | 13 | 12 | 0 | 1 | boot (7 active) + lifecycle (5 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`) |
 | kde-smoke | 13 | 13 | 0 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
 
 ## Known coverage gaps
@@ -181,7 +181,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 |---|---|---|
 | Bazaar / Flatpak management GUI | High | Bazaar CLI/config integrity coverage active; GUI navigation pending GNOME 50 AT-SPI re-validation |
 | Flatpak permission management | Low | Flatseal / per-app permissions not exercised |
-| OOBE / first-boot | Low | Initial user setup flow not covered |
+| OOBE / first-boot | Low | True GDM → GIS flow is not covered; qecore assumes autologin. The [design spike](../../../archive/spikes/oobe-first-boot.md) recommends a bounded mock-mode accessibility probe and defers a fresh-disk QEMU input lane pending maintainer approval. |
 | `ujust toggle-updates` | Medium | Blocked upstream in `projectbluefin/common`. `update.just` declares `toggle-updates ACTION="prompt":` but never reads `ACTION`. On images with `bctl` the recipe `exec`s `bctl --screen updates`, a GUI panel; only without `bctl` does it fall back to a `gum choose` prompt, which blocks non-interactive runs. Neither branch offers a non-interactive entry point. Scenario stays `@pending @wip` in `common_ujust.feature`. Next step: `projectbluefin/common` must honour `ACTION`; tracked in `projectbluefin/testsuite#499`. |
 | uupd conditional suppression | Medium | Battery and metered-network checks are not covered: uupd reads UPower and NetworkManager system-bus properties, while testsuite has no supported isolated state-injection contract. Do not use `/sys/class/power_supply` or GNOME proxy settings as substitutes. Next step: add a lab/image-owned simulation hook, then cover the upstream `/etc/uupd/config.json` contract. |
 
@@ -218,6 +218,7 @@ skipped-coverage table above.
 | ptyxis: `@brew` (×1) | developer | `@pending` | brew must be initialized first (#487) |
 | ptyxis: `@input`, `@podman`, `@regression`, `@new_tab`, `@close` (×5) | developer | `@pending` | AT-SPI restart issue in CI (#368) — ptyxis reopens between scenarios but the new process isn't reliably accessible |
 | distrobox enter (×1) | dx | `@pending` | pulls `fedora:latest`; no pre-pull in CI, times out |
+| distrobox create/install/export (×3) | dx | `@pending @requires_cached_image` | no cached `fedora-toolbox:latest` on the VM; lab-side OCI image pre-pull required (#501) |
 | JupyterLab (×1) | dx | `@pending` | not preinstalled in DX image |
 | brew + mise (×3) | dx | `@pending` | `brew-setup.service` masked (#487) — mise uses brew-installed shims |
 | ujust report confirm validation (×1) | smoke | `@pending` | `just` template change not in the booted image; awaiting rebuild |
