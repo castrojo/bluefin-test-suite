@@ -119,6 +119,30 @@ SSH-key placement differs by image age — Ignition writes either
 `update-ssh-keys` layout). Accept both and assert on the return code; never parse
 the key file's contents.
 
+### Never infer "file absent" from a nonzero SSH return code
+
+`run_ssh(context, "test -e /boot/flatcar/first_boot")` returning nonzero does **not**
+mean the marker is gone: rc 255 is an SSH transport failure, so an unreachable VM
+produces a green Ignition check. Use a probe that exits 0 whenever the connection
+worked and reports the answer in stdout:
+
+```python
+run_ssh(context, f"test -e {FIRST_BOOT_MARKER} && echo present || echo absent")
+ssh_return_code_is(context, "0")          # transport failure fails here
+state = context.command_stdout.strip()
+assert state in {"present", "absent"}      # unexpected output is a failure too
+assert state == "absent"
+```
+
+### A cleared marker alone does not prove *your* config was applied
+
+The first-boot marker and "the user has some SSH key" are both satisfied by an empty
+Ignition config plus externally provisioned keys. To claim real Ignition coverage,
+assert on an artifact the suite's *own* Ignition config uniquely provisions (a
+suite-owned file, hostname, or systemd unit). Until such an artifact exists, tag the
+scenario `@pending` with a named blocker rather than advertising the weaker check as
+coverage.
+
 ## Flatcar: disabling automatic updates
 
 There is **no `update_strategy` setting in Flatcar.** The two real knobs both live in
@@ -143,7 +167,25 @@ Any scenario that mutates `update.conf` must back it up first and restore it in 
 an explicit final step *and* `after_scenario`, so a mid-scenario failure cannot leave
 the VM with updates permanently off.
 
+**Clear the "backed up" flag only after restoration is verified.** Clearing it before
+the assertions turns the `after_scenario` hook into a no-op on a failed restore, so
+the VM keeps automatic updates disabled for the rest of the run with no retry:
+
+```python
+run_ssh(context, f"sudo test -e {BACKUP} && sudo mv -f {BACKUP} {UPDATE_CONF} && ...")
+ssh_return_code_is(context, "0")
+run_ssh(context, f"cat {UPDATE_CONF}")
+ssh_return_code_is(context, "0")
+assert not automatic_updates_disabled(context.command_stdout)
+context.update_conf_backed_up = False     # last, never first
+```
+
 ## Flatcar: what still needs the lab
+
+The flatcar suite is not referenced anywhere in `.github/workflows/e2e.yml`, so no
+flatcar scenario can run in CI today (tracked in #704). Scenarios written against it
+stay `@pending` with a named blocker comment until the suite is wired up — an
+"active" scenario that can never execute misreports coverage.
 
 Booting the disk that `knuckle` just installed to requires swapping the KubeVirt VM's
 boot device. That lives in the VM spec, owned by `projectbluefin/lab`, not this repo.

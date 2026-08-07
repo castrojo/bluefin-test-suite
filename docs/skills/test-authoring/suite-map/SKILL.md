@@ -143,7 +143,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 ## Coverage snapshot
 
-493 scenarios across 64 feature files: 384 active, 0 quarantined, 109 `@future`/`@pending`/`@hardware_blocked`
+493 scenarios across 64 feature files: 382 active, 0 quarantined, 111 `@future`/`@pending`/`@hardware_blocked`
 (mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679; +4 `@pending` `bctl.feature`
 scenarios added ahead of the design-gated CI infra in #487).
 
@@ -173,7 +173,7 @@ scenarios added ahead of the design-gated CI infra in #487).
 | bazzite | 20 | 20 | 0 | 0 | Extension presence + shell behaviour |
 | dx | 18 | 10 | 0 | 8 | distrobox enter/create/install/export, JupyterLab, brew, mise×2 — infra gaps, all `@pending` |
 | nvidia | 12 | 0 | 0 | 12 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
-| flatcar | 13 | 12 | 0 | 1 | boot (7 active) + lifecycle (5 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`) |
+| flatcar | 13 | 10 | 0 | 3 | boot (7 active) + lifecycle (3 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`), 2 `@pending` (Ignition first-boot and `update.conf` disable — suite not wired into `e2e.yml`, #704) |
 | kde-smoke | 13 | 13 | 0 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
 
 ## Known coverage gaps

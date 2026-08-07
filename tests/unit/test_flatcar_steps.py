@@ -234,28 +234,59 @@ class TestAutomaticUpdatesDisabled:
 # ---------------------------------------------------------------------------
 
 class TestIgnitionFirstBootMarkerIsCleared:
+    @staticmethod
+    def _probe(stdout, rc):
+        def _run(context, cmd, timeout=60):
+            context.command_stdout = stdout
+            context.ssh_rc = rc
+            return stdout, rc
+        return _run
+
     def test_passes_when_marker_absent(self):
         m = _import_flatcar_steps()
         ctx = _ctx()
-
-        def marker_absent(context, cmd, timeout=60):
-            context.ssh_rc = 1
-            return "", 1
-
-        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=marker_absent):
+        with patch("tests.flatcar.features.steps.steps.run_ssh",
+                   side_effect=self._probe("absent", 0)):
             m.ignition_first_boot_marker_is_cleared(ctx)
 
     def test_raises_when_marker_still_present(self):
         m = _import_flatcar_steps()
         ctx = _ctx()
-
-        def marker_present(context, cmd, timeout=60):
-            context.ssh_rc = 0
-            return "", 0
-
-        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=marker_present):
+        with patch("tests.flatcar.features.steps.steps.run_ssh",
+                   side_effect=self._probe("present", 0)):
             with pytest.raises(AssertionError, match="Ignition did not complete"):
                 m.ignition_first_boot_marker_is_cleared(ctx)
+
+    def test_ssh_transport_failure_is_not_read_as_marker_absent(self):
+        """rc 255 means the connection failed, not that Ignition succeeded.
+
+        The previous implementation treated *any* nonzero result as proof the
+        marker was gone, so an unreachable VM produced a green Ignition check.
+        """
+        m = _import_flatcar_steps()
+        ctx = _ctx()
+        with patch("tests.flatcar.features.steps.steps.run_ssh",
+                   side_effect=self._probe("", 255)):
+            with pytest.raises(AssertionError):
+                m.ignition_first_boot_marker_is_cleared(ctx)
+
+    def test_shell_failure_without_recognisable_output_fails(self):
+        m = _import_flatcar_steps()
+        ctx = _ctx()
+        with patch("tests.flatcar.features.steps.steps.run_ssh",
+                   side_effect=self._probe("bash: no such thing", 0)):
+            with pytest.raises(AssertionError, match="Could not determine"):
+                m.ignition_first_boot_marker_is_cleared(ctx)
+
+    def test_probe_always_reports_state_in_stdout(self):
+        m = _import_flatcar_steps()
+        ctx = _ctx()
+        with patch("tests.flatcar.features.steps.steps.run_ssh",
+                   side_effect=self._probe("absent", 0)) as mock_run:
+            m.ignition_first_boot_marker_is_cleared(ctx)
+
+        cmd = mock_run.call_args[0][1]
+        assert "echo present" in cmd and "echo absent" in cmd
 
 
 # ---------------------------------------------------------------------------
@@ -298,9 +329,75 @@ class TestRestoreUpdateConf:
     def test_restores_and_clears_flag(self):
         m = _import_flatcar_steps()
         ctx = _ctx(update_conf_backed_up=True)
-        with patch("tests.flatcar.features.steps.steps.run_ssh", return_value=("", 0)) as mock_run:
-            with patch("tests.flatcar.features.steps.steps.ssh_return_code_is"):
+
+        def _run(context, cmd, timeout=60):
+            context.command_stdout = "GROUP=stable\nSERVER=https://public.update.flatcar-linux.net/v1/update/"
+            context.ssh_rc = 0
+            return context.command_stdout, 0
+
+        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=_run) as mock_run:
+            m.restore_update_conf(ctx)
+
+        commands = [call[0][1] for call in mock_run.call_args_list]
+        assert m.UPDATE_CONF_BACKUP in commands[0]
+        assert commands[-1] == f"cat {m.UPDATE_CONF}"
+        assert ctx.update_conf_backed_up is False
+
+    def test_failed_restore_command_keeps_flag_set_for_retry(self):
+        """A failed restore must leave the flag set so after_scenario retries.
+
+        Clearing it first left the VM with automatic updates disabled and no
+        way to recover for the rest of the run.
+        """
+        m = _import_flatcar_steps()
+        ctx = _ctx(update_conf_backed_up=True)
+
+        def _run(context, cmd, timeout=60):
+            context.command_stdout = ""
+            context.ssh_rc = 1
+            return "", 1
+
+        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=_run):
+            with pytest.raises(AssertionError):
                 m.restore_update_conf(ctx)
-        assert mock_run.call_count == 1
-        assert m.UPDATE_CONF_BACKUP in mock_run.call_args[0][1]
+
+        assert ctx.update_conf_backed_up is True
+
+    def test_unverified_restore_keeps_flag_set(self):
+        """The move can succeed while the file still disables updates."""
+        m = _import_flatcar_steps()
+        ctx = _ctx(update_conf_backed_up=True)
+
+        def _run(context, cmd, timeout=60):
+            context.command_stdout = "GROUP=stable\nSERVER=disabled"
+            context.ssh_rc = 0
+            return context.command_stdout, 0
+
+        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=_run):
+            with pytest.raises(AssertionError, match="still disables automatic updates"):
+                m.restore_update_conf(ctx)
+
+        assert ctx.update_conf_backed_up is True
+
+    def test_cleanup_can_retry_after_a_failed_restore(self):
+        m = _import_flatcar_steps()
+        ctx = _ctx(update_conf_backed_up=True)
+
+        def _fail(context, cmd, timeout=60):
+            context.command_stdout = ""
+            context.ssh_rc = 1
+            return "", 1
+
+        def _ok(context, cmd, timeout=60):
+            context.command_stdout = "GROUP=stable\nSERVER=https://public.update.flatcar-linux.net/v1/update/"
+            context.ssh_rc = 0
+            return context.command_stdout, 0
+
+        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=_fail):
+            with pytest.raises(AssertionError):
+                m.restore_update_conf(ctx)
+
+        with patch("tests.flatcar.features.steps.steps.run_ssh", side_effect=_ok):
+            m.restore_update_conf(ctx)
+
         assert ctx.update_conf_backed_up is False

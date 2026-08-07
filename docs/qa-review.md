@@ -3,7 +3,7 @@
 Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/SKILL.md`. Read that file for the current per-suite matrix and `@future` stub list rather than duplicating counts here.
 
 The current branch's mechanical recount is 493 scenarios across 64 feature files:
-384 active, 0 `@quarantine`, 109 `@future`/`@pending`/`@hardware_blocked`. The five active
+382 active, 0 `@quarantine`, 111 `@future`/`@pending`/`@hardware_blocked`. The five active
 sudo-rs scenarios are included in the smoke total there.
 
 ## What this repo is responsible for
@@ -75,7 +75,7 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 
 ## Current stub posture
 
-- `flatcar/lifecycle`: 6 scenarios, 5 active — knuckle install, Ignition first-boot verification, update channel, automatic-update disable via `update.conf`, and afterburn implemented. Only the boot-order swap remains `@future`: booting the installed target disk requires KubeVirt boot-device ordering owned by `projectbluefin/lab`, and without it a reboot silently returns to the live disk. The suite is not yet reachable from `e2e.yml` (tracked in #704).
+- `flatcar/lifecycle`: 6 scenarios, 3 active — knuckle install, update channel, and afterburn. The boot-order swap remains `@future`: booting the installed target disk requires KubeVirt boot-device ordering owned by `projectbluefin/lab`, and without it a reboot silently returns to the live disk. The Ignition first-boot and `update.conf` disable scenarios are implemented but `@pending`: the suite is not reachable from `e2e.yml` (#704), so neither can run, and the Ignition assertions additionally need an artifact uniquely provisioned by this suite's own Ignition config before they prove anything beyond "some Ignition run finished".
 - `security/selinux`: all scenarios active (cosign verification across image variants).
 - `nvidia`: still `@future` / `@hardware_blocked` until GPU passthrough exists in the lab.
 - `kde-smoke`: 13 `@informational` scenarios in one feature file (repo totals: 479 scenarios / 61 feature files by mechanical recount; see the count-drift notice in `suite-map/SKILL.md`); Aurora-only Phase-2 harness proof. The shared KDE helpers and `e2e.yml` suite registration it depends on landed in #641-#645.

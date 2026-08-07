@@ -194,9 +194,21 @@ def ignition_first_boot_marker_is_cleared(context) -> None:
     ``flatcar/first_boot``, and that marker is deleted only after Ignition runs
     successfully. A marker still present on a booted system means Ignition
     either did not run or did not complete.
+
+    A bare ``test -e`` cannot be used here: *any* nonzero return code would
+    read as "the marker is absent", and rc 255 means the SSH transport failed,
+    not that Ignition succeeded. The probe therefore always exits 0 when the
+    connection worked and reports presence in stdout, so a transport failure
+    fails loudly on the return-code assertion instead of passing silently.
     """
-    run_ssh(context, f"test -e {FIRST_BOOT_MARKER}")
-    assert getattr(context, "ssh_rc", 0) != 0, (
+    run_ssh(context, f"test -e {FIRST_BOOT_MARKER} && echo present || echo absent")
+    ssh_return_code_is(context, "0")
+    state = getattr(context, "command_stdout", "").strip()
+    assert state in {"present", "absent"}, (
+        f"Could not determine whether {FIRST_BOOT_MARKER} exists; the probe "
+        f"returned {state!r} (SSH transport or shell failure)"
+    )
+    assert state == "absent", (
         f"{FIRST_BOOT_MARKER} still exists — Ignition did not complete on first boot"
     )
 
@@ -270,6 +282,11 @@ def restore_update_conf(context) -> None:
 
     Called both by the explicit Gherkin step and by ``after_scenario`` so a
     mid-scenario failure cannot leave the VM with updates disabled.
+
+    The ``update_conf_backed_up`` flag is cleared **only after** restoration is
+    verified on the VM. Clearing it first turned the ``after_scenario`` hook
+    into a no-op whenever the restore command failed, which left automatic
+    updates disabled for the rest of the run with no retry.
     """
     if not getattr(context, "update_conf_backed_up", False):
         return
@@ -280,8 +297,16 @@ def restore_update_conf(context) -> None:
         f"&& sudo systemctl restart update-engine",
         timeout=120,
     )
-    context.update_conf_backed_up = False
     ssh_return_code_is(context, "0")
+
+    run_ssh(context, f"cat {UPDATE_CONF}")
+    ssh_return_code_is(context, "0")
+    conf = getattr(context, "command_stdout", "")
+    assert not automatic_updates_disabled(conf), (
+        f"{UPDATE_CONF} still disables automatic updates after restore; "
+        f"leaving the backup flag set so cleanup can retry:\n{conf}"
+    )
+    context.update_conf_backed_up = False
 
 
 @step("Flatcar update channel is configured")
