@@ -31,7 +31,9 @@ Feature: XDG desktop portal health
     * SSH command return code is "0"
     * SSH command output contains "portal"
 
-  @quarantine
+  # Pending: the user podman.socket is not activated in the non-interactive CI
+  # session; there is no lingering user session to start it.
+  @pending
   Scenario: podman user socket is active
     * Run SSH command: "systemctl --user is-active podman.socket 2>/dev/null"
     * SSH command return code is "0"
