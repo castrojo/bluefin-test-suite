@@ -70,7 +70,7 @@ If a skill doc (`docs/skills/*.md`) is wrong or incomplete:
 
 ## On-demand references
 
-- [Branch naming](references/branch-and-worktree.md)
+- [Branch naming and worktree policy](references/branch-and-worktree.md)
 - [Working in <image-org>/actions](references/actions-repo.md)
 - [PR description format](references/pr-format.md)
 - [Testing your changes with the GitHub Action](references/testing-changes.md)
