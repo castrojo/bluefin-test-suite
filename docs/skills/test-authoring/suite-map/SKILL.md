@@ -143,8 +143,9 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 ## Coverage snapshot
 
-489 scenarios across 63 feature files: 382 active, 0 quarantined, 107 `@future`/`@pending`/`@hardware_blocked`
-(mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679).
+493 scenarios across 64 feature files: 384 active, 0 quarantined, 109 `@future`/`@pending`/`@hardware_blocked`
+(mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679; +4 `@pending` `bctl.feature`
+scenarios added ahead of the design-gated CI infra in #487).
 
 > **Quarantine backlog is now zero.** Every scenario that was quarantined for an
 > infrastructure or unshipped-feature blocker was reclassified to `@pending`/`@future` with a
@@ -162,7 +163,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 | Suite | Scenarios | Active | Quarantined | Pending/Future | Notes |
 |---|---|---|---|---|---|
 | smoke | 187 | 143 | 0 | 44 | 39 `@pending` flatpak-permission audits blocked on CI never seeding system Flatpaks; MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks |
-| developer | 19 | 7 | 0 | 12 | 6 brew + 6 ptyxis now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368) |
+| developer | 23 | 7 | 0 | 16 | 6 brew + 6 ptyxis + 4 bctl now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368) |
 | software | 23 | 16 | 0 | 7 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios are `@future` (#176) |
 | common | 116 | 97 | 0 | 19 | Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
 | vanilla-gnome | 13 | 13 | 0 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
@@ -215,6 +216,7 @@ skipped-coverage table above.
 | Scenario | Suite | New tag | Blocked by |
 |---|---|---|---|
 | brew (×6) | developer | `@pending` | `brew-setup.service` masked in `e2e.yml` (#487) |
+| bctl (×4) | developer | `@pending` | `brew-setup.service` masked in `e2e.yml`, so bctl (installed via Homebrew) is never provisioned in CI; dedicated CI job to unmask it is design-gated (#487) |
 | ptyxis: `@brew` (×1) | developer | `@pending` | brew must be initialized first (#487) |
 | ptyxis: `@input`, `@podman`, `@regression`, `@new_tab`, `@close` (×5) | developer | `@pending` | AT-SPI restart issue in CI (#368) — ptyxis reopens between scenarios but the new process isn't reliably accessible |
 | distrobox enter (×1) | dx | `@pending` | pulls `fedora:latest`; no pre-pull in CI, times out |
