@@ -47,6 +47,11 @@ gh workflow run manual.yml --repo <image-org>/testsuite --ref main \
   -f image=ghcr.io/<image-org>/bluefin:testing \
   -f suites=smoke,common,vanilla-gnome
 
+# Installer post-boot assertions (SSH-mode, like common/lifecycle)
+gh workflow run manual.yml --repo <image-org>/testsuite --ref main \
+  -f image=ghcr.io/<image-org>/bluefin:testing \
+  -f suites=installer
+
 # Manual ISO validation (smoke + unattended install)
 gh workflow run iso-manual.yml --repo projectbluefin/testsuite --ref main \
   -f iso_url=https://example.invalid/candidate.iso \

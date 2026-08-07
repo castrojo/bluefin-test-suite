@@ -75,6 +75,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `nvidia` | — | — | ✅ | — | — | — | — | GPU driver validation; NVIDIA variant only |
 | `flatcar` | — | — | — | — | — | — | ✅ | Flatcar OS boot and lifecycle |
 | `kde-smoke` | — | — | — | — | — | — | — | KDE Plasma harness proof-of-concept; Aurora-only, all scenarios `@informational` |
+| `installer` | ✅ | — | — | — | — | — | — | Post-boot installer assertions (UEFI boot entry, installer Flatpak exclusion, LUKS cmdline); SSH-mode |
 
 **GitHub Action consumers**:
 ```yaml
@@ -139,12 +140,14 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 | `@homed_migration` | systemd-homed migration scenarios; dakota lifecycle; SSH-mode; skip-safe when homed absent |
 | `@regression` | Anchors a known incident regression guard; must remain active indefinitely |
 | `@kde_smoke` | KDE Plasma smoke-suite identifier; used by `e2e.yml` suite registration (#645) |
+| `@installer` | Installer post-boot assertion suite; SSH-mode; `@luks` scenarios skip when `LUKS_ENABLED=false` |
 | `@informational` | Bake-period tier; scenario runs and reports results but does not gate promotion until promoted to `@critical` |
 
 ## Coverage snapshot
 
-489 scenarios across 63 feature files: 382 active, 0 quarantined, 107 `@future`/`@pending`/`@hardware_blocked`
-(mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679).
+492 scenarios across 64 feature files: 387 active, 0 quarantined, 105 `@future`/`@pending`/`@hardware_blocked`
+(mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679; +3 active `installer` post-boot
+scenarios in #697).
 
 > **Quarantine backlog is now zero.** Every scenario that was quarantined for an
 > infrastructure or unshipped-feature blocker was reclassified to `@pending`/`@future` with a
@@ -174,6 +177,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 | nvidia | 12 | 0 | 0 | 12 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
 | flatcar | 13 | 12 | 0 | 1 | boot (7 active) + lifecycle (5 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`) |
 | kde-smoke | 13 | 13 | 0 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
+| installer | 3 | 3 | 0 | 0 | Post-boot assertions: UEFI boot entry in firmware, installer Flatpaks excluded from target, LUKS `rd.luks.*` cmdline parseable; SSH-mode; `@luks` skips when LUKS disabled |
 
 ## Known coverage gaps
 
