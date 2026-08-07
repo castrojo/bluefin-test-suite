@@ -224,62 +224,11 @@ For smoke steps that must run several host commands, reuse the suite's canonical
 qecore-headless execution and the runner-container SSH fallback. Do not duplicate
 SSH argument construction or container detection in a new smoke step module.
 
-## Flatpak per-app permissions: assert via CLI, not Flatseal's GUI
+## Flatpak per-app permissions and software-suite wiring
 
-Flatseal (`com.github.tchx84.Flatseal`) is only a front end over `flatpak override`
-and the portal permission store. Cover per-app permission behaviour with the CLI —
-it needs no desktop session and no AT-SPI:
-
-| What Flatseal shows | CLI assertion surface |
-|---|---|
-| Per-app toggles the user has changed | `flatpak override --user --show <app>` |
-| Effective manifest permissions | `flatpak info --show-permissions <app>` |
-| Portal grants (documents, notifications, background) | `flatpak permissions [<table>]` |
-
-Two properties make these scenarios survivable in CI, where
-`flatpak-preinstall.service` is masked and `/var/lib/flatpak` is not seeded
-(the reason `tests/smoke/features/flatpak_permissions.feature` is quarantined):
-
-1. **`flatpak override --user` accepts an application ID that is not installed.**
-   Use a synthetic ID such as `org.projectbluefin.TestsuitePermissionProbe` so the
-   round-trip neither depends on nor clobbers real installed apps. Always finish the
-   scenario with `Reset flatpak user overrides for ...`.
-2. **Sweeps over the install set must pass on an empty set.** `Every installed
-   flatpak app exposes a parsable permission set` iterates `flatpak list` and is a
-   no-op when nothing is installed — a real assertion on Bluefin, a trivial pass in CI.
-
-`flatpak override --show` emits a keyfile, not flag syntax:
-
-```ini
-[Context]
-sockets=!wayland;
-devices=all;
-
-[Environment]
-BLUEFIN_TESTSUITE=1
-```
-
-Parse it (`parse_flatpak_context` in
-`tests/software/features/steps/flatpak_permissions_steps.py`) instead of matching raw
-lines. Comparing whole stripped lines against bare key names (`"filesystems"`) never
-matches `filesystems=home;` and passes falsely — the same class of bug as
-`grep -c ... || echo 0`. Split on the first `=` and compare the key.
-
-## Software suite is not wired for shared SSH steps
-
-`tests/software/features/environment.py` never sets `context.ssh_key`,
-`context.ssh_user`, or `context.vm_ip`, so `Run SSH command` from
-`tests/shared/ssh_steps.py` raises `AttributeError` there even though the module is
-star-imported. New software-suite steps must go through the suite's own `_flatpak`
-helper (or another helper that builds its own SSH invocation from `SSH_KEY`/`VM_IP`/
-`VM_USER`/`SSH_PORT` env vars), not the shared SSH steps.
-
-## `@flatpak_cli` marks image-agnostic software scenarios
-
-`tests/software/features/environment.py` skips any `@software` scenario when Bazaar
-(`io.github.kolunmi.Bazaar`) is absent — unless the scenario also carries
-`@flatpak_cli`. Tag CLI-only, image-agnostic software scenarios with `@flatpak_cli`
-so they still run on gnomeos and other non-Bluefin images.
+Cover Flatseal behaviour through the `flatpak` CLI, never its GUI, and mind the
+software suite's non-standard SSH wiring. Details, pitfalls and the CLI assertion
+table live in [references/flatpak-permissions.md](references/flatpak-permissions.md).
 
 ## Feature scaffolding with @future
 
@@ -501,6 +450,7 @@ Load these when you hit the specific topic:
 - [Shared SSH helpers and where to use them.](references/shared-ssh.md)
 - [When to use local subprocess instead of SSH in the smoke suite.](references/smoke-vs-ssh.md)
 - [Avoiding duplicate step phrases and AmbiguousStep errors.](references/ambiguous-steps.md)
+- [Flatpak per-app permission coverage via the CLI.](references/flatpak-permissions.md)
 
 ## Sources
 
