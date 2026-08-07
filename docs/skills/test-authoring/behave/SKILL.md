@@ -1,12 +1,21 @@
 ---
 name: behave
+version: "1.0"
+last_updated: "2026-07-29"
+id: behave
+one_line_purpose: Write behave scenarios and step definitions for testsuite suites.
+entry_point: docs/skills/test-authoring/behave/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [behave, bdd, steps]
 description: "How to write behave scenarios and step definitions for the testsuite repo. Load when editing .feature files or steps.py."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Behave Patterns Reference
 
 
@@ -30,9 +39,10 @@ metadata:
 
 1. Read the target `.feature` file and the suite's `steps/*.py` before adding phrases.
 2. Reuse `tests/shared/ssh_steps.py` for generic SSH command/assertion steps instead of duplicating helpers.
-3. Keep step phrases unique within the loaded suite and check for collisions before committing.
-4. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
-5. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
+3. Star-importing `tests/shared/ssh_steps` obligates the suite to set the context attributes those steps read. `run_ssh()` dereferences `context.ssh_key`, `context.ssh_user`, `context.vm_ip` and (optionally) `context.ssh_port`; a suite that skips this fails every SSH scenario with `AttributeError` on the first step. Call `tests.shared.ssh_config.populate_ssh_context(context)` from the suite's `before_all` (see `tests/software/features/environment.py`) — it resolves context attributes → behave userdata → `SSH_KEY`/`VM_IP`/`VM_USER`/`SSH_PORT` env vars → runner defaults, which is the same source suite-local SSH helpers (e.g. the software suite's `_flatpak()`) must use. Never let a suite keep a second, env-only SSH path alongside the shared steps.
+4. Keep step phrases unique within the loaded suite and check for collisions before committing.
+5. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
+6. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
 
 ## `grep -q` vs `grep -c` for existence checks
 
@@ -69,6 +79,45 @@ Audit every `python3 -c` added to an SSH command for this pattern. Avoid
 nested escaped double quotes around the entire Python expression; those
 escapes can survive into the remote shell and expose Python punctuation to
 shell parsing.
+
+## Assert parsed values, not substrings
+
+`gsettings get` returns GVariant text such as `uint32 1`. `assert "1" in output`
+also matches `uint32 10`, `uint32 11`, and `uint32 100`, so a failed state change
+reads as a pass. Parse the payload and compare it exactly:
+
+```python
+_UINT32_RE = re.compile(r"^(?:uint32\s+)?(\d+)$")
+
+def _parse_index(output: str) -> int | None:
+    match = _UINT32_RE.match(output.strip())
+    return int(match.group(1)) if match else None
+
+assert _parse_index(output) == 1, f"Current input source is not 1: {output}"
+```
+
+An unparseable value must fail, never pass by default.
+
+## Restore hooks must only latch on success
+
+A cleanup helper that saves state and restores it later is normally guarded by a
+`_restored` flag so the explicit step and the `context.add_cleanup` hook do not
+run twice. Set that flag **only after every restore command actually returned 0**:
+
+```python
+failures = []
+for key in ("sources", "current"):
+    output, rc = _run_in_vm_checked(f"gsettings set {schema} {key} {shlex.quote(value)}")
+    if rc != 0:
+        failures.append(f"{key} (rc={rc}): {output}")
+if failures:
+    raise AssertionError("Failed to restore ...: " + "; ".join(failures))
+state["_restored"] = True
+```
+
+Latching the flag on a *failed* command turns the cleanup hook into a no-op: the
+retry never happens and the mutated state leaks into every later scenario in the
+run. Surface the failure instead of swallowing it.
 
 ## Common suite `ujust` recipe coverage
 
@@ -289,7 +338,7 @@ In the SSH-driven `common` suite, validate Bluefin desktop identity overrides wi
 - Use `gsettings get` for regular schemas shipped via `zz0-bluefin-modifications.gschema.override` (for example `org.gnome.desktop.interface accent-color` or `org.gnome.desktop.app-folders folder-children`).
 - Use `dconf read` for relocatable schemas and extensions without XML schemas (for example custom media-key keybindings under `/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/`, Search Light under `/org/gnome/shell/extensions/search-light/`, and Ptyxis profile palette keys under `/org/gnome/Ptyxis/Profiles/<uuid>/`).
 
-This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `<image-org>/common`.
+This keeps common-suite assertions aligned with how Bluefin actually ships those defaults in `projectbluefin/common`.
 
 ## Quarantine Protocol
 

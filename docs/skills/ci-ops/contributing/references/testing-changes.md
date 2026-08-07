@@ -18,9 +18,9 @@ name: Test my scenario
 on: push
 jobs:
   e2e:
-    uses: <image-org>/testsuite/.github/workflows/e2e.yml@<your-branch>
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@<your-branch>
     with:
-      image: ghcr.io/<image-org>/bluefin:testing
+      image: ghcr.io/projectbluefin/bluefin:testing
       suites: smoke
 ```
 

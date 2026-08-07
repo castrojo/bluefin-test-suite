@@ -5,13 +5,13 @@ Bluefin DX (developer experience) variant — GPU tools, distrobox, JupyterLab, 
 ## Run via GitHub Action
 
 ```yaml
-uses: <image-org>/testsuite/.github/workflows/e2e.yml@v1
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
 with:
-  image: ghcr.io/<readonly-upstream>/bluefin-dx:latest
+  image: ghcr.io/ublue-os/bluefin-dx:latest
   suites: dx
 ```
 
 ## Related skills
 
-- Skill index: `docs/skills/index.md`
+- Skill router: `docs/SKILL.md`
 - `test-authoring/behave/SKILL.md`

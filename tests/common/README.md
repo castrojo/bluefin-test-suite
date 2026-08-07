@@ -5,13 +5,13 @@ SSH-mode portable health gate for any GNOME bootc image — Flatpak, portals, po
 ## Run via GitHub Action
 
 ```yaml
-uses: <image-org>/testsuite/.github/workflows/e2e.yml@v1
+uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
 with:
-  image: ghcr.io/<image-org>/bluefin:latest
+  image: ghcr.io/projectbluefin/bluefin:latest
   suites: common
 ```
 
 ## Related skills
 
-- Skill index: `docs/skills/index.md`
+- Skill router: `docs/SKILL.md`
 - `test-authoring/behave/SKILL.md`

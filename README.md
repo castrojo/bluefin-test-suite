@@ -11,9 +11,9 @@ Coverage metrics and screenshots are published to the [Live Build Health Dashboa
 ## Where this repo fits
 
 ```
-<image-org>/bluefin      ──┐
-<image-org>/bluefin-lts  ┼──▶ images ──▶ testsuite (e2e gate) ──▶ promotion
-<image-org>/dakota       ──┘
+projectbluefin/bluefin      ──┐
+projectbluefin/bluefin-lts  ┼──▶ images ──▶ testsuite (e2e gate) ──▶ promotion
+projectbluefin/dakota       ──┘
 
 Any GNOME bootc image ──────────────────▶ testsuite (smoke + common)
 ```
@@ -64,7 +64,7 @@ on:
 
 jobs:
   test:
-    uses: <image-org>/testsuite/.github/workflows/e2e.yml@v1
+    uses: projectbluefin/testsuite/.github/workflows/e2e.yml@v1
     with:
       image: ghcr.io/<your-org>/<your-image>:latest
       suites: smoke,common
@@ -86,7 +86,7 @@ Pin to `@v1`; testsuite updates the `v1` tag automatically on each merge.
 | `cpus` | string | `4` | VM CPU count |
 | `free-disk-space` | boolean | `true` | Run disk cleanup before provisioning |
 
-For full control, use the composite action at `<image-org>/testsuite/.github/actions/gnome-e2e@v1`.
+For full control, use the composite action at `projectbluefin/testsuite/.github/actions/gnome-e2e@v1`.
 
 ## Local development
 
@@ -97,7 +97,7 @@ For full control, use the composite action at `<image-org>/testsuite/.github/act
 
 ## Agentic factory
 
-This repo is agent-first: AI agents are primary maintainers of GNOME 50 test coverage. Agents file issues and submit PRs directly within the gates defined in `docs/skills/meta/human-gates/SKILL.md`. Every session produces two outputs: the work and a skill-doc update. See `AGENTS.md` for the agent entry point and `docs/skills/index.md` for the skill map.
+This repo is agent-first: AI agents are primary maintainers of GNOME 50 test coverage. Agents file issues and submit PRs directly within the gates defined in `docs/skills/meta/human-gates/SKILL.md`. Every session produces two outputs: the work and a skill-doc update. See `AGENTS.md` for the agent entry point and `docs/SKILL.md` for the skill router.
 
 ## Further reading
 
@@ -106,4 +106,6 @@ This repo is agent-first: AI agents are primary maintainers of GNOME 50 test cov
 - `docs/architecture.md` — canonical ownership boundary
 - `docs/runbook.md` — operational commands
 - `docs/qa-review.md` — release-trust review
-- `docs/skills/index.md` — skill manifest and hard rules
+- `docs/SKILL.md` — task → skill router and hard rules
+- `docs/skills/index.json` — generated skill catalog (mirror: `docs/skills/index.md`)
+- `docs/update-cadence-research.md` — design for testsuite-informed update cadence & promotion gating (issue #431)

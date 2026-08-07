@@ -1,12 +1,21 @@
 ---
 name: bootc
+version: "1.0"
+last_updated: "2026-07-20"
+id: bootc
+one_line_purpose: Write bootc upgrade, rollback, and migration tests.
+entry_point: docs/skills/test-authoring/bootc/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [bootc, lifecycle, rollback]
 description: "How to write bootc upgrade, rollback, and migration tests for the testsuite repo. Load when editing bootc-related .feature files or steps."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # bootc Lifecycle Testing Reference
 
 Load when: writing or debugging lifecycle, upgrade, or rollback tests.
@@ -92,3 +101,61 @@ Step definitions in `tests/lifecycle/features/steps/steps.py`:
 
 Both use `_parse_bootc_status(context)` for validated JSON access — do not duplicate the bare `json.loads` pattern.
 
+
+## Flatcar: verifying Ignition ran
+
+Ignition executes **in the initramfs**, so its systemd units (`ignition-*.service`,
+`ignition-complete.target`) are not visible from the booted root. Do not assert on
+`systemctl status ignition-*` — those checks pass vacuously.
+
+The observable proof of a successful run is the ESP first-boot marker. GRUB sets
+`flatcar.first_boot=detected` when `flatcar/first_boot` exists on the EFI System
+Partition, and Ignition deletes that file only after it completes successfully:
+
+```gherkin
+* Flatcar ESP is mounted at /boot
+* Ignition first-boot marker is cleared
+* Ignition-provisioned SSH keys are present for the test user
+```
+
+**Always assert the ESP is mounted first.** `/boot/flatcar/first_boot` is checked for
+*absence*; if `/boot` were not mounted the absence check would pass trivially. The
+`Flatcar ESP is mounted at /boot` step asserts `findmnt -no FSTYPE /boot` reports
+`vfat`, which closes that false-pass hole.
+
+SSH-key placement differs by image age — Ignition writes either
+`~/.ssh/authorized_keys` or an `~/.ssh/authorized_keys.d/` fragment (the
+`update-ssh-keys` layout). Accept both and assert on the return code; never parse
+the key file's contents.
+
+## Flatcar: disabling automatic updates
+
+There is **no `update_strategy` setting in Flatcar.** The two real knobs both live in
+`/etc/flatcar/update.conf`:
+
+| Key | Effect |
+|---|---|
+| `SERVER=disabled` | Disables automatic updates (upstream's recommended switch; what `flatcar-update --disable-afterwards` writes) |
+| `REBOOT_STRATEGY=off` | Update is still downloaded to the passive partition; only the *reboot* is suppressed |
+
+Upstream explicitly discourages masking `update-engine.service` / `locksmithd.service`,
+because a masked `update-engine` cannot mark a freshly booted partition successful and
+GRUB then rolls back. So `systemctl is-active update-engine` is **not** a valid
+"updates are disabled" assertion — after disabling, the unit must still be `active`.
+
+Parse `update.conf` with `parse_update_conf()` / `automatic_updates_disabled()` in
+`tests/flatcar/features/steps/steps.py` rather than grepping. It is a shell-sourced
+`KEY=VALUE` fragment: values may be quoted, `#` comments are ignored, and later
+assignments win.
+
+Any scenario that mutates `update.conf` must back it up first and restore it in both
+an explicit final step *and* `after_scenario`, so a mid-scenario failure cannot leave
+the VM with updates permanently off.
+
+## Flatcar: what still needs the lab
+
+Booting the disk that `knuckle` just installed to requires swapping the KubeVirt VM's
+boot device. That lives in the VM spec, owned by `projectbluefin/lab`, not this repo.
+Without it a reboot silently returns to the live rootdisk and the scenario passes while
+testing nothing — which is why that scenario stays `@future` rather than being written
+optimistically.
