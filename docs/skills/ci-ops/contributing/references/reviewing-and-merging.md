@@ -11,13 +11,13 @@ metadata:
 
 ## Reviewing PRs before merging
 
-Before enqueuing any PR, read the diff (`gh pr diff <N> --repo <image-org>/testsuite`). Check:
+Before enqueuing any PR, read the diff (`gh pr diff <N> --repo projectbluefin/testsuite`). Check:
 
 1. **Correctness** — step names in `.feature` files have matching `@step` implementations; new steps don't duplicate existing ones.
 2. **Not superseded** — compare the PR's changes against `git show origin/main:<file>` for each modified file. If the core change is already in main (landed via another PR), close the PR with a comment explaining which commit superseded it.
 3. **Contributor PRs** — check `maintainerCanModify` before deciding to fix vs close:
    ```bash
-   gh pr view <N> --repo <image-org>/testsuite --json maintainerCanModify,headRepositoryOwner,headRefName
+   gh pr view <N> --repo projectbluefin/testsuite --json maintainerCanModify,headRepositoryOwner,headRefName
    ```
    If `maintainerCanModify: true`, check out and push fixes directly to the contributor's branch rather than opening a new PR.
 
@@ -58,16 +58,16 @@ Corollary: do not close or skip enqueuing a "dependency" PR just because its CI 
 | `Behave dry-run` | `pr-validate.yml` | same |
 | `pytest` | `unit-tests.yml` | `pull_request`, `merge_group`, `push: main` |
 
-These three are the required status checks configured on the `main — merge queue` repository **ruleset** (which also enables the merge queue, squash method, `ALLGREEN` grouping). Note that `gh api repos/<image-org>/testsuite/branches/main/protection` returns `404 Branch not protected` — that is expected, because the configuration lives in a ruleset rather than legacy branch protection. Verify with:
+These three are the required status checks configured on the `main — merge queue` repository **ruleset** (which also enables the merge queue, squash method, `ALLGREEN` grouping). Note that `gh api repos/projectbluefin/testsuite/branches/main/protection` returns `404 Branch not protected` — that is expected, because the configuration lives in a ruleset rather than legacy branch protection. Verify with:
 
 ```bash
-gh api repos/<image-org>/testsuite/rulesets
+gh api repos/projectbluefin/testsuite/rulesets
 ```
 
 Once CI is green and a human has approved the merge, enqueue with:
 
 ```bash
-gh pr merge <NUMBER> --repo <image-org>/testsuite --squash --auto
+gh pr merge <NUMBER> --repo projectbluefin/testsuite --squash --auto
 ```
 
 The `--auto` flag enqueues the PR; the merge queue re-runs the required checks on the merge commit and lands to `main` automatically on green.
@@ -86,12 +86,12 @@ This is a known gap, not a licence to skip verification. While it persists:
 
 ### How to tell whether the lab gate is live
 
-The intended workflow is **submit to lab → wait for results → merge on pass, fix on fail**: the `pr-label-poller` CronWorkflow in `<image-org>/testing-lab` runs the `smoke,common` suites on a real KubeVirt VM for every open testsuite PR and publishes the result as a `ghost-lab` commit status on the PR head SHA. The poller runs; the reporting leg is what has been broken.
+The intended workflow is **submit to lab → wait for results → merge on pass, fix on fail**: the `pr-label-poller` CronWorkflow in `projectbluefin/lab` runs the `smoke,common` suites on a real KubeVirt VM for every open testsuite PR and publishes the result as a `ghost-lab` commit status on the PR head SHA. The poller runs; the reporting leg is what has been broken.
 
 The only trustworthy check is an observed status. Run:
 
 ```bash
-gh api repos/<image-org>/testsuite/commits/$(gh pr view <N> --repo <image-org>/testsuite --json headRefOid --jq .headRefOid)/status \
+gh api repos/projectbluefin/testsuite/commits/$(gh pr view <N> --repo projectbluefin/testsuite --json headRefOid --jq .headRefOid)/status \
   --jq '.statuses[].context'
 ```
 
@@ -113,7 +113,7 @@ A template that defines the token but never interpolates it into the request sho
 
 ## Dependency updates (Renovate / mergeraptor)
 
-Dependency updates for this repo and `<image-org>/bluefin` are managed by Renovate (bot login: `app/mergeraptor`). No manual action is required from agents.
+Dependency updates for this repo and `projectbluefin/bluefin` are managed by Renovate (bot login: `app/mergeraptor`). No manual action is required from agents.
 
 **Automerge policy (configured in `renovate.json`):**
 
@@ -124,20 +124,20 @@ Dependency updates for this repo and `<image-org>/bluefin` are managed by Renova
 
 **Triggering Renovate manually** (e.g. after config changes):
 
-1. Open the [Dependency Dashboard](https://github.com/<image-org>/testsuite/issues) issue (titled "Dependency Dashboard")
+1. Open the [Dependency Dashboard](https://github.com/projectbluefin/testsuite/issues) issue (titled "Dependency Dashboard")
 2. Check the **"rebase all open PRs"** checkbox — Renovate will pick up the updated config and rebase all open dep PRs
 
 Or edit the checkbox directly via gh:
 ```bash
-gh issue view <dashboard-issue-number> --repo <image-org>/testsuite --json body --jq '.body' | \
+gh issue view <dashboard-issue-number> --repo projectbluefin/testsuite --json body --jq '.body' | \
   sed 's/ - \[ \] <!-- rebase-all-open-prs -->/ - [x] <!-- rebase-all-open-prs -->/' | \
-  gh issue edit <dashboard-issue-number> --repo <image-org>/testsuite --body-file -
+  gh issue edit <dashboard-issue-number> --repo projectbluefin/testsuite --body-file -
 ```
 
-**bluefin-specific:** `renovate.json` in `<image-org>/bluefin` sets `"baseBranches": ["testing"]` — all Renovate PRs there target the `testing` branch, not `main`.
+**bluefin-specific:** `renovate.json` in `projectbluefin/bluefin` sets `"baseBranches": ["testing"]` — all Renovate PRs there target the `testing` branch, not `main`.
 
 ## After the PR merges
 
 - If you changed `docs/qa-review.md`, verify the scenario count is still accurate
 - If you resolved a `@future` scenario, confirm `just list-stubs` no longer lists it
-- If you added a new operational gotcha to `docs/skills/ci-ops/ops/SKILL.md`, check `docs/skills/index.md`'s rules section doesn't already cover it (avoid duplication)
+- If you added a new operational gotcha to `docs/skills/ci-ops/ops/SKILL.md`, check `docs/SKILL.md`'s rules section doesn't already cover it (avoid duplication)

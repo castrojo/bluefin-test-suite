@@ -1,12 +1,21 @@
 ---
 name: skill-improvement
+version: "1.0"
+last_updated: "2026-07-20"
+id: skill-improvement
+one_line_purpose: Capture durable agent learnings in maintained skill docs.
+entry_point: docs/skills/meta/skill-improvement/SKILL.md
+category: meta
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [skills, learning, factory]
 description: "The self-improvement loop: when and how to write a skill update for a code change. Load when you changed tests, workflows, actions, or scripts."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Skill Improvement Mandate
 
 Every agent session that changes this repo produces two outputs:
@@ -15,6 +24,16 @@ Every agent session that changes this repo produces two outputs:
 2. **The learning** — what a future agent should know
 
 Output 1 without Output 2 leaves the factory no smarter. The loop only compounds if agents write back.
+
+This is the factory-wide two-output rule; the canonical statement lives in
+[`common/docs/skills/factory-onboarding.md`](https://github.com/projectbluefin/common/blob/main/docs/skills/factory-onboarding.md).
+This file covers what is specific to testsuite.
+
+**Banned artifacts — delete on sight:** changelog files (`CHANGELOG.md`,
+`IMPROVEMENTS.md`, `SESSION.md`), committed session logs and plan files
+(`NOTES.md`, `PLAN.md`, `TODO.md`, `plans/*.md`), and any doc instructing you to
+"append here". Route the content to the matching `docs/skills/**` file instead.
+`plans/*.fmf` are TMT/fmf test metadata, not session logs — leave them.
 
 ## Before You Mark Work Complete
 
@@ -28,7 +47,7 @@ Run this checklist before enqueuing any PR:
 
 If all five are checked, you're done. If any are unchecked, finish them first.
 
-The skill-drift CI check will warn if you modify `tests/**`, `.github/workflows/**`, or `scripts/**` without touching a skill file. Treat warnings as hard requirements.
+No CI job enforces this. The skill-drift check was retired in #681; the mandate is now a review expectation. Reviewers reject PRs that change `tests/**`, `.github/workflows/**`, `.github/actions/**`, or `scripts/**` without a matching skill update.
 
 ## What Counts as a Learning Worth Writing Back
 
@@ -61,8 +80,8 @@ The skill-drift CI check will warn if you modify `tests/**`, `.github/workflows/
 | `.github/workflows/**` | `docs/skills/ci-ops/e2e-workflow/SKILL.md` or `docs/skills/test-authoring/suite-map/SKILL.md` |
 | `.github/actions/**` | `docs/skills/ci-ops/e2e-workflow/SKILL.md` |
 | `scripts/**` | `docs/skills/ci-ops/e2e-workflow/SKILL.md` |
-| New domain entirely | Create `docs/skills/<area>.md` |
-| Cross-cutting (affects `<image-org>/testsuite` + other repos) | Update local skill first, then open a propagation issue in `<image-org>/actions` |
+| New domain entirely | Create `docs/skills/<category>/<area>/SKILL.md`, then run `python3 scripts/generate_skill_index.py` |
+| Cross-cutting (affects `projectbluefin/testsuite` + other repos) | Update local skill first, then open a propagation issue in `projectbluefin/actions` |
 
 ## Which Skill File to Update
 
@@ -76,9 +95,8 @@ The skill-drift CI check will warn if you modify `tests/**`, `.github/workflows/
 | VM boot, GDM, Argo, systemd-oomd, infra gotcha | `ops.md` |
 | UEFI boot, OVMF, systemd-boot | `uefi-boot.md` |
 | PR process, merge queue, Renovate | `contributing.md` |
-| Hard rules for all agents | `index.md` (rules section only) |
+| Hard rules for all agents | `docs/SKILL.md` (rules section only) |
 | Skill file format, skill update mandate | `skill-improvement.md` (this file) |
-| skill-drift CI check behavior | `skill-drift.md` |
 
 When in doubt, update the closest existing skill rather than creating a new file.
 
@@ -98,4 +116,4 @@ Assisted-by: Claude Sonnet 4.6 via GitHub Copilot
 Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 ```
 
-The skill-drift CI gate will warn if you forget. See `docs/skills/meta/skill-drift/SKILL.md` for the full path mapping and waiver process.
+Nothing in CI will catch a missing skill update — reviewers will. The path mapping above is the full contract.

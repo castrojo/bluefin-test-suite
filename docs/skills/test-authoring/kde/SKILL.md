@@ -1,12 +1,21 @@
 ---
 name: kde
+version: "1.0"
+last_updated: "2026-07-28"
+id: kde
+one_line_purpose: Write KDE Plasma e2e tests with selenium-webdriver-at-spi and CDP.
+entry_point: docs/skills/test-authoring/kde/SKILL.md
+category: test-authoring
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [kde, plasma, webdriver]
 description: "How to write KDE/Plasma e2e tests with selenium-webdriver-at-spi and raw CDP for Steam Gamescope. Use when authoring KDE tests, setting up the KDE runner image, or deciding where inputsynth must live."
 metadata:
   type: pattern
   audience: agents
   maturity: draft
 ---
-
 # KDE and Steam Gamescope Testing Reference
 
 ## When to Use

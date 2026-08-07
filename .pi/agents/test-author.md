@@ -10,7 +10,7 @@ Write production-ready behave scenarios for this repo's coverage gaps.
 ## First Action
 
 ```bash
-cat docs/skills/index.md          # routing table and hard rules
+cat docs/SKILL.md                # routing table and hard rules
 cat docs/skills/test-authoring/suite-map/SKILL.md      # coverage snapshot and @future gaps
 cat docs/skills/test-authoring/behave/SKILL.md         # step patterns and suite scaffolding
 cat docs/skills/test-authoring/gnome/SKILL.md          # AT-SPI/dogtail patterns (if writing GNOME tests)

@@ -1,12 +1,21 @@
 ---
 name: ops
+version: "1.0"
+last_updated: "2026-07-29"
+id: ops
+one_line_purpose: Diagnose lab and CI failure signatures for testsuite runs.
+entry_point: docs/skills/ci-ops/ops/SKILL.md
+category: ci-ops
+mcp_compliance_level: partial
+status: active
+dependencies: []
+tags: [ops, lab, debugging, gdm, argo]
 description: "Operational gotchas and failure signatures for the testsuite lab/CI setup. Load when debugging e2e failures, GDM, oomd, Argo, or runner issues."
 metadata:
   type: pattern
   audience: agents
   maturity: stable
 ---
-
 # Operational Gotchas
 
     # → success
@@ -98,7 +107,6 @@ Load these when you hit the specific topic:
 - [ublue-motd prepended to SSH output](references/ublue-motd-prepended-to-ssh-output.md)
 - [Do not add a second -monitor flag to QEMU](references/do-not-add-a-second-monitor-flag-to-qemu.md)
 - [common shell tools missing on bluefin:lts / bluefin-gdx](references/common-shell-tools-missing-on-bluefin-lts-bluefin-gdx.md)
-- [lifecycle / on-pr-opened: pr/needs-review label must exist](references/lifecycle-on-pr-opened-pr-needs-review-label-must-exist.md)
 - [ARC ghost runners — local dev routing](references/arc-ghost-runners-local-dev-routing.md)
 - [oras pull: always use a directory, never a file path](references/oras-pull-always-use-a-directory-never-a-file-path.md)
 - [GitHub API: rulesets require PUT not PATCH](references/github-api-rulesets-require-put-not-patch.md)
@@ -110,5 +118,5 @@ Load these when you hit the specific topic:
 - [Composite actions vs checkout for cross-repo scripts](references/composite-actions-vs-checkout-for-cross-repo-scripts.md)
 - [common suite execution model — runner container, not inside VM](references/common-suite-execution-model-runner-container-not-inside-vm.md)
 - [smoke suite — pre-existing lab failures (GNOME 50 AT-SPI)](references/smoke-suite-pre-existing-lab-failures-gnome-50-at-spi.md)
-- [testing-lab ArgoCD template resolution timing](references/argo-mutex.md)
+- [lab ArgoCD template resolution timing](references/argo-mutex.md)
 - [Workflows without a pull_request trigger break main silently](references/workflows-without-a-pull-request-trigger-break-main-silently.md)

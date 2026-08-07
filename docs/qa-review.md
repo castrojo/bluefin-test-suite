@@ -2,8 +2,8 @@
 
 Coverage snapshot and known gaps live in `docs/skills/test-authoring/suite-map/SKILL.md`. Read that file for the current per-suite matrix and `@future` stub list rather than duplicating counts here.
 
-The current branch's mechanical recount is 493 scenarios across 64 feature files:
-384 active, 0 `@quarantine`, 109 `@future`/`@pending`/`@hardware_blocked`. The five active
+The current branch's mechanical recount is 495 scenarios across 66 feature files:
+386 active, 0 `@quarantine`, 109 `@future`/`@pending`/`@hardware_blocked`. The five active
 sudo-rs scenarios are included in the smoke total there.
 
 ## What this repo is responsible for
@@ -13,7 +13,7 @@ sudo-rs scenarios are included in the smoke total there.
 - Shared step/harness reuse across suites
 - Reliable scenario-level validation logic
 
-What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan VM lifecycle → `testing-lab`.
+What it is **not** responsible for: lab hardware ops, ArgoCD, persistent titan VM lifecycle → `projectbluefin/lab`.
 
 ## uupd conditional suppression coverage
 
@@ -70,6 +70,9 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_retry.py` | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | `scripts/parse_results.py` parsing integration |
 | `test_quarantine_age.py` | `scripts/check_quarantine_age.py` parsing and reporting |
+| `test_orca_steps.py` | Orca screen-reader toggle steps, `_wait_for_orca` polling, restore semantics |
+| `test_input_methods_steps.py` | `_run_in_vm` dispatch, exact `uint32` index parsing, success-latched input-source restore |
+| `test_xwayland_steps.py` | `_xwayland_display_env` `pgrep` parsing, xprop/glxgears step branches |
 | `test_install_kde_webdriver.py` | `scripts/install-kde-webdriver.sh` contract invariants (pinned SHA, loopback-only bind, skip paths) |
 | `test_wait_for_shell.py` | `tests/shared/wait_for_shell.py` retry contract (Shell.Eval failures, missing panel, attempt budget) |
 
