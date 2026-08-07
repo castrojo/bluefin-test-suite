@@ -1156,7 +1156,7 @@ jobs:
         run: |
           mkdir -p results
           BEHAVE_RC=0
-          BEHAVE_TAG_ARGS="--tags ~quarantine"
+          BEHAVE_TAG_ARGS="--tags ~quarantine --tags ~hardware_blocked"
           [[ "${SKIP_NATIVE_APPS}" == "true" ]] && BEHAVE_TAG_ARGS="${BEHAVE_TAG_ARGS} --tags ~native_app"
 
           # If the DUT was unsupported for KDE testing, emit a single skipped

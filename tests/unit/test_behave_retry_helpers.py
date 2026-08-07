@@ -5,6 +5,7 @@ existing test_retry.py (which focuses on the full retry loop).
 """
 from tests.shared.behave_retry import (
     DEFAULT_RETRIES,
+    NON_RUNNABLE_TAGS,
     OPTION_FLAGS_WITH_VALUES,
     REPORTER_FLAGS,
     RERUN_ENTRY_RE,
@@ -115,6 +116,19 @@ class TestWithQuarantineFilter:
         original = ["tests/"]
         with_quarantine_filter(original)
         assert original == ["tests/"]
+
+    def test_appends_hardware_blocked_tag(self):
+        """@hardware_blocked must never execute in CI."""
+        result = with_quarantine_filter(["tests/"])
+        idx = result.index("~@hardware_blocked")
+        assert result[idx - 1] == "--tags"
+
+    def test_every_non_runnable_tag_is_filtered(self):
+        """Each non-runnable tag gets its own --tags flag so behave ANDs them."""
+        result = with_quarantine_filter(["tests/"])
+        for tag in NON_RUNNABLE_TAGS:
+            idx = result.index(f"~@{tag}")
+            assert result[idx - 1] == "--tags"
 
 
 # ---------------------------------------------------------------------------

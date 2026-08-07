@@ -159,6 +159,24 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 > parsing scenario tags across `tests/*/features/**/*.feature`. A scenario counts once, in
 > tag precedence order: `@quarantine` > `@hardware_blocked` > `@future` > `@pending` > active.
 
+> **Non-runnable tags are enforced in two independent layers.** A tag is only truly
+> non-runnable if BOTH are updated — miss one and the scenario still executes:
+>
+> | Layer | File | What it does |
+> |---|---|---|
+> | CI tag filter | `.github/workflows/e2e.yml` (`BEHAVE_TAG_ARGS`) and `NON_RUNNABLE_TAGS` in `tests/shared/behave_retry.py` | Never selects the scenario. Each tag needs its OWN `--tags ~@tag`; behave ANDs separate `--tags` flags but ORs comma-joined tags in one flag. |
+> | Runtime skip | `_SKIP_TAGS` in `tests/shared/quarantine.py` | Skips it from `before_scenario`, and decides which reason is reported. Order here must match the precedence above. |
+>
+> `@future` and `@pending` are enforced **only** at the runtime layer; `@quarantine` and
+> `@hardware_blocked` are enforced at both. When adding a new non-runnable tag, update
+> `_SKIP_TAGS`, `_SKIP_REASONS`, `NON_RUNNABLE_TAGS`, `BEHAVE_TAG_ARGS`, and add a
+> regression test to `tests/unit/test_quarantine.py` and
+> `tests/unit/test_behave_retry_helpers.py`.
+>
+> A tag that is only ever applied alongside another non-runnable tag is **masked**: it looks
+> enforced but is not. `@hardware_blocked` was masked by `@future` on
+> `tests/nvidia/features/gpu.feature` and went unenforced. Assert each tag independently.
+
 | Suite | Scenarios | Active | Quarantined | Pending/Future | Notes |
 |---|---|---|---|---|---|
 | smoke | 187 | 143 | 0 | 44 | 39 `@pending` flatpak-permission audits blocked on CI never seeding system Flatpaks; MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks |

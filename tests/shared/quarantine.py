@@ -1,4 +1,7 @@
-"""Shared helpers for @quarantine, @pending and @future scenario handling."""
+"""Shared helpers for non-runnable scenario tags.
+
+Covers @quarantine, @future, @pending and @hardware_blocked.
+"""
 
 from __future__ import annotations
 
@@ -7,12 +10,13 @@ _SKIP_REASONS = {
     "quarantine": "@quarantine — known flaky, skipping",
     "pending": "@pending — placeholder coverage, skipping",
     "future": "@future — planned coverage not yet runnable, skipping",
+    "hardware_blocked": "@hardware_blocked — required hardware unavailable, skipping",
 }
 
 # Order matters only for the reported reason when several tags coexist.
-# Must match the precedence documented in
-# docs/skills/test-authoring/suite-map/SKILL.md.
-_SKIP_TAGS = ("quarantine", "future", "pending")
+# Precedence documented in docs/skills/test-authoring/suite-map/SKILL.md:
+# @quarantine > @hardware_blocked > @future > @pending > active.
+_SKIP_TAGS = ("quarantine", "hardware_blocked", "future", "pending")
 
 
 def skip_quarantine(scenario) -> bool:
