@@ -132,69 +132,11 @@ land the coverage as `@pending @wip` until a non-interactive harness exists.
 Current example: `ujust toggle-updates` is interactive and flips `uupd.timer`
 or `rpm-ostreed-automatic.timer` (not `ublue-update.timer`).
 
-#### `toggle-updates` is not drivable non-interactively (verified 2026-08)
-
-`system_files/shared/usr/share/ublue-os/just/update.just` in
-`projectbluefin/common` declares the recipe as `toggle-updates ACTION="prompt":`
-but the recipe body never reads `ACTION`. The body has two branches:
-
-```bash
-# Open the bluefinctl Updates panel when available
-if command -v bctl &>/dev/null; then
-    exec bctl --screen updates
-fi
-...
-SELECTED_OPTION="$(gum choose --header="Toggle automatic updates?" "Enable" "Disable" "Cancel")"
-```
-
-Both branches are untestable, for different reasons:
-
-- On images that ship `bctl` (bluefinctl), the recipe `exec`s
-  `bctl --screen updates` and hands off to a GUI panel. The recipe never
-  reaches the timer logic and there is nothing for SSH to assert.
-- Only when `bctl` is absent does the recipe fall back to the shell path, and
-  that fallback blocks on `gum choose`. This is the branch that hangs a
-  non-interactive run.
-- `ujust toggle-updates Enable` accepts the argument on either path and ignores
-  it; the parameter is decorative, so no flag-based non-interactive entry point
-  exists today.
-- Asserting the timer state directly (`systemctl enable/disable uupd.timer`)
-  tests systemd, not the recipe, so it does not close this coverage gap.
-
-Keep the scenario `@pending @wip` until `projectbluefin/common` makes `ACTION`
-actually select `Enable`/`Disable`/`Cancel` without a prompt. That is a
-`projectbluefin/common` interface change and needs maintainer acceptance
-(`projectbluefin/testsuite#499`) before any testsuite implementation lands.
-
-#### `bctl devmode` is the non-interactive contract for `toggle-devmode` (verified 2026-08)
-
-`ujust toggle-devmode` (`system_files/bluefin/usr/share/ublue-os/just/system.just`
-in `projectbluefin/common`) execs `bctl devmode --enable` whenever `bctl`
-(bluefinctl) is present, before it ever reaches the interactive `gum choose`
-stack-picker. `projectbluefin/bluefinctl`'s `devmode` Typer command already
-ships `--enable`/`--disable` flags (`src/bluefinctl/cli.py`) that call
-`bluefinctl.core.devmode.toggle_devmode()` headlessly — this closes the
-"no non-interactive entry point" gap tracked in `projectbluefin/testsuite#500`.
-
-Coverage lands in `tests/common/features/common_devmode.feature` in two parts:
-
-- **Presence + idempotent state-check (`@requires_bctl`):** `bctl devmode --help`
-  advertises both flags, and `bctl devmode --disable` on an already-inactive
-  VM takes bluefinctl's read-only branch (checks `_check_devmode_active()`,
-  prints `Developer mode is already inactive.`, returns) — this exercises the
-  state-check without mutating anything. Assert the full sentence, not the exit
-  code: `bctl devmode` returns 0 on both branches, so rc alone proves nothing.
-- **Group mutation (`@pending @wip`):** `bctl devmode --enable` calls
-  `pkexec usermod` to add the `docker`/`incus-admin`/`libvirt`/`dialout`
-  groups. `pkexec` requires an authentication agent registered against a real
-  login session; a plain SSH connection has none, so the mutating branch
-  cannot be driven headlessly in the current SSH-only harness. This is a CI
-  polkit/session gap, not a recipe interface gap like `toggle-updates` above —
-  do not conflate the two when triaging failures here.
-
-See [`references/bctl-devmode.md`](references/bctl-devmode.md) for the
-`@requires_bctl` gate, the content-vs-exit-code assertion rule, and the
-`@devmode_cleanup` teardown hook.
+Two recipes are worked out in detail in
+[`references/ujust-noninteractive.md`](references/ujust-noninteractive.md):
+`toggle-updates` has no non-interactive entry point at all (stays `@pending @wip`,
+`projectbluefin/testsuite#499`), while `toggle-devmode` does have one via
+`bctl devmode --enable/--disable` (`projectbluefin/testsuite#500`).
 
 ### uupd conditional suppression coverage
 
@@ -253,6 +195,63 @@ For smoke steps that must run several host commands, reuse the suite's canonical
 `_run_host` helper with `from steps.steps import _run_host`. It handles local
 qecore-headless execution and the runner-container SSH fallback. Do not duplicate
 SSH argument construction or container detection in a new smoke step module.
+
+## Flatpak per-app permissions: assert via CLI, not Flatseal's GUI
+
+Flatseal (`com.github.tchx84.Flatseal`) is only a front end over `flatpak override`
+and the portal permission store. Cover per-app permission behaviour with the CLI —
+it needs no desktop session and no AT-SPI:
+
+| What Flatseal shows | CLI assertion surface |
+|---|---|
+| Per-app toggles the user has changed | `flatpak override --user --show <app>` |
+| Effective manifest permissions | `flatpak info --show-permissions <app>` |
+| Portal grants (documents, notifications, background) | `flatpak permissions [<table>]` |
+
+Two properties make these scenarios survivable in CI, where
+`flatpak-preinstall.service` is masked and `/var/lib/flatpak` is not seeded
+(the reason `tests/smoke/features/flatpak_permissions.feature` is quarantined):
+
+1. **`flatpak override --user` accepts an application ID that is not installed.**
+   Use a synthetic ID such as `org.projectbluefin.TestsuitePermissionProbe` so the
+   round-trip neither depends on nor clobbers real installed apps. Always finish the
+   scenario with `Reset flatpak user overrides for ...`.
+2. **Sweeps over the install set must pass on an empty set.** `Every installed
+   flatpak app exposes a parsable permission set` iterates `flatpak list` and is a
+   no-op when nothing is installed — a real assertion on Bluefin, a trivial pass in CI.
+
+`flatpak override --show` emits a keyfile, not flag syntax:
+
+```ini
+[Context]
+sockets=!wayland;
+devices=all;
+
+[Environment]
+BLUEFIN_TESTSUITE=1
+```
+
+Parse it (`parse_flatpak_context` in
+`tests/software/features/steps/flatpak_permissions_steps.py`) instead of matching raw
+lines. Comparing whole stripped lines against bare key names (`"filesystems"`) never
+matches `filesystems=home;` and passes falsely — the same class of bug as
+`grep -c ... || echo 0`. Split on the first `=` and compare the key.
+
+## Software suite is not wired for shared SSH steps
+
+`tests/software/features/environment.py` never sets `context.ssh_key`,
+`context.ssh_user`, or `context.vm_ip`, so `Run SSH command` from
+`tests/shared/ssh_steps.py` raises `AttributeError` there even though the module is
+star-imported. New software-suite steps must go through the suite's own `_flatpak`
+helper (or another helper that builds its own SSH invocation from `SSH_KEY`/`VM_IP`/
+`VM_USER`/`SSH_PORT` env vars), not the shared SSH steps.
+
+## `@flatpak_cli` marks image-agnostic software scenarios
+
+`tests/software/features/environment.py` skips any `@software` scenario when Bazaar
+(`io.github.kolunmi.Bazaar`) is absent — unless the scenario also carries
+`@flatpak_cli`. Tag CLI-only, image-agnostic software scenarios with `@flatpak_cli`
+so they still run on gnomeos and other non-Bluefin images.
 
 ## Feature scaffolding with @future
 
@@ -475,6 +474,7 @@ Load these when you hit the specific topic:
 - [When to use local subprocess instead of SSH in the smoke suite.](references/smoke-vs-ssh.md)
 - [Avoiding duplicate step phrases and AmbiguousStep errors.](references/ambiguous-steps.md)
 - [Driving bluefinctl devmode non-interactively, and the assertion traps around it.](references/bctl-devmode.md)
+- [Which ujust recipes can be driven non-interactively, and why the rest stay @pending.](references/ujust-noninteractive.md)
 
 ## Sources
 
