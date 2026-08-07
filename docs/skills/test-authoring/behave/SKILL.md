@@ -118,6 +118,31 @@ actually select `Enable`/`Disable`/`Cancel` without a prompt. That is a
 `projectbluefin/common` interface change and needs maintainer acceptance
 (`projectbluefin/testsuite#499`) before any testsuite implementation lands.
 
+#### `bctl devmode` is the non-interactive contract for `toggle-devmode` (verified 2026-08)
+
+`ujust toggle-devmode` (`system_files/bluefin/usr/share/ublue-os/just/system.just`
+in `projectbluefin/common`) execs `bctl devmode --enable` whenever `bctl`
+(bluefinctl) is present, before it ever reaches the interactive `gum choose`
+stack-picker. `projectbluefin/bluefinctl`'s `devmode` Typer command already
+ships `--enable`/`--disable` flags (`src/bluefinctl/cli.py`) that call
+`bluefinctl.core.devmode.toggle_devmode()` headlessly — this closes the
+"no non-interactive entry point" gap tracked in `projectbluefin/testsuite#500`.
+
+Coverage lands in `tests/common/features/common_devmode.feature` in two parts:
+
+- **Presence + idempotent state-check (real scenarios):** `bctl devmode --help`
+  advertises both flags, and `bctl devmode --disable` on an already-inactive
+  VM takes bluefinctl's read-only branch (checks `_check_devmode_active()`,
+  prints "already inactive", returns) — this exercises the state-check without
+  mutating anything.
+- **Group mutation (`@pending @wip`):** `bctl devmode --enable` calls
+  `pkexec usermod` to add the `docker`/`incus-admin`/`libvirt`/`dialout`
+  groups. `pkexec` requires an authentication agent registered against a real
+  login session; a plain SSH connection has none, so the mutating branch
+  cannot be driven headlessly in the current SSH-only harness. This is a CI
+  polkit/session gap, not a recipe interface gap like `toggle-updates` above —
+  do not conflate the two when triaging failures here.
+
 ### uupd conditional suppression coverage
 
 Do not simulate uupd's battery or metered-network suppression in testsuite
