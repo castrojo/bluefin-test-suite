@@ -31,6 +31,7 @@ metadata:
 - common-suite service health scenarios fail with unexpected `ActiveState` values
 - Polkit rules presence check returns zero results
 - A scheduled or push-only workflow is red and you need to find which merge broke it
+- Session readiness fails with `ServiceUnknown` then `Could not connect: No such file or directory`
 
 ## When NOT to Use
 
@@ -53,6 +54,7 @@ metadata:
 - Using `oras pull` with a file path instead of a directory
 - A workflow that builds or validates an artifact has no `pull_request` trigger and no equivalent job in `pr-validate.yml` (its first red run will be on `main`)
 - Triaging a long-red scheduled workflow by blaming the most recent merge instead of locating the first failing run
+- Treating `Could not connect: No such file or directory` from `gdbus --session` as terminal, or caching a session bus address across a GDM restart
 
 ## Verification
 
@@ -65,6 +67,7 @@ metadata:
 - [ ] Every workflow that builds a PR-breakable artifact is reachable from a `pull_request` trigger or a `pr-validate.yml` job
 - [ ] Scheduled-workflow triage identified the first failing run and diffed it against the last green one
 - [ ] Runner container changes followed by `build-runner.yml` dispatch before test runs
+- [ ] Session-readiness helpers re-resolve `DBUS_SESSION_BUS_ADDRESS` on every attempt and require consecutive stable checks
 
 ---
 
@@ -112,3 +115,4 @@ Load these when you hit the specific topic:
 - [smoke suite — pre-existing lab failures (GNOME 50 AT-SPI)](references/smoke-suite-pre-existing-lab-failures-gnome-50-at-spi.md)
 - [testing-lab ArgoCD template resolution timing](references/argo-mutex.md)
 - [Workflows without a pull_request trigger break main silently](references/workflows-without-a-pull-request-trigger-break-main-silently.md)
+- [qecore-headless restarts GDM — the session bus socket is replaced](references/qecore-headless-restarts-gdm-bus-socket-churn.md)

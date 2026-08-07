@@ -71,7 +71,7 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_parse_results.py` | `scripts/parse_results.py` parsing integration |
 | `test_quarantine_age.py` | `scripts/check_quarantine_age.py` parsing and reporting |
 | `test_install_kde_webdriver.py` | `scripts/install-kde-webdriver.sh` contract invariants (pinned SHA, loopback-only bind, skip paths) |
-| `test_wait_for_shell.py` | `tests/shared/wait_for_shell.py` retry contract (Shell.Eval failures, missing panel, attempt budget) |
+| `test_wait_for_shell.py` | `tests/shared/wait_for_shell.py` retry contract (Shell.Eval failures, missing panel, GDM-restart bus-socket churn, bus address re-resolution, stable checks, bounded deadline) |
 
 ## Current stub posture
 
