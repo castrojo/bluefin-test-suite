@@ -49,7 +49,9 @@ Feature: Bluefin common system scripts
     * Run SSH command: "systemctl --user show bazaar.service --property=LoadState 2>/dev/null | grep -v 'not-found' || true"
     * SSH command return code is "0"
 
-  @quarantine
+  # Pending: ublue-update.timer is not enabled in CI images, so this asserts
+  # planned behaviour rather than shipped behaviour.
+  @pending
   Scenario: ublue-update timer is enabled
     * Run SSH command: "systemctl is-enabled ublue-update.timer 2>/dev/null || systemctl list-timers ublue-update.timer --all 2>/dev/null | grep ublue-update"
     * SSH command return code is "0"

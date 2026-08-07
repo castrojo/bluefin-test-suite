@@ -66,7 +66,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Homebrew/Ptyxis |
-| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, config YAML validation, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios remain quarantined (#176) |
+| `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, config YAML validation, Flathub remote, permissions DB, and Bazaar CLI presence/info/remote active; upstream GNOME Software navigation scenarios are `@future` (#176) |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | Flatpak model/state, XDG portals, container runtime, polkit, shell env/sourcing, system scripts, ujust recipes, GSettings/dconf, immutable OS integrity |
 | `lifecycle` | ✅ | — | ✅ | ✅ `@homed_migration` | — | — | — | bootc upgrade/rollback; SSH-mode; dakota: homed migration only |
 | `security` | ✅ | — | ✅ | — | — | — | — | cosign + SELinux; SSH-mode |
@@ -119,7 +119,7 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 - `dakota`: `testing` + `latest`
 
 **Why these assignments:**
-- `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → the GNOME Software navigation scenarios stay quarantined (#176); Bazaar CLI presence/info/remote coverage is active in `bazaar.feature` and Bazaar config integrity coverage is active in `bazaar_config.feature`
+- `bluefin` does not ship GNOME Software (it ships Bazaar — `io.github.kolunmi.Bazaar`, a Flatpak software center) → the GNOME Software navigation scenarios are tagged `@future` (#176); Bazaar CLI presence/info/remote coverage is active in `bazaar.feature` and Bazaar config integrity coverage is active in `bazaar_config.feature`
 - `bazzite` is not vanilla GNOME → only the bazzite suite runs against it (no vanilla-gnome)
 - `bluefin-nvidia-open` is used because nvidia-open is built daily; nvidia services (`nvidia-persistenced`, `ublue-nvctk-cdi`) are in `IGNORED_FAILED_UNITS_IN_VM` — they always fail in QEMU without a physical GPU
 
@@ -143,31 +143,37 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 
 ## Coverage snapshot
 
-486 scenarios across 62 feature files (mechanical recount 2026-07-29; fractional scaling adds 2 and sudo-rs adds 5 smoke scenarios).
+486 scenarios across 63 feature files: 382 active, 0 quarantined, 104 `@future`/`@pending`/`@hardware_blocked`
+(mechanical recount 2026-08-07 after the quarantine-debt cleanup in #679).
+
+> **Quarantine backlog is now zero.** Every scenario that was quarantined for an
+> infrastructure or unshipped-feature blocker was reclassified to `@pending`/`@future` with a
+> named blocker, and the one regression guard whose upstream bug is fixed was re-activated.
+> `@quarantine` is reserved for genuinely flaky regression coverage under active repair —
+> if you reach for it, you are committing to fixing the scenario inside 30 days.
 
 > **Count drift notice.** The previous snapshot claimed 427 scenarios across 52 files. A
 > mechanical recount of `tests/*/features/**/*.feature` on `main` found **479 across 61** —
 > the snapshot had drifted by ~39 scenarios before any KDE work began. The totals above and
-> the Scenarios/Active/Quarantined columns below are now mechanically derived from
-> `behave --dry-run` (bare, and with `--tags=quarantine`) per suite. The *Remaining
-> quarantine breakdown* table further down is a non-exhaustive list of known blockers,
-> inherited from the 2026-06-30 audit; it does not enumerate every quarantined scenario.
+> the Scenarios/Active/Quarantined/Pending columns below are now mechanically derived by
+> parsing scenario tags across `tests/*/features/**/*.feature`. A scenario counts once, in
+> tag precedence order: `@quarantine` > `@hardware_blocked` > `@future` > `@pending` > active.
 
-| Suite | Scenarios | Active | Quarantined | Notes |
-|---|---|---|---|---|
-| smoke | 187 | 142 | 45 | MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks |
-| developer | 19 | 7 | 12 | 6 brew + 6 ptyxis (AT-SPI restart issue #368) — `brew-setup.service` masked in CI |
-| software | 23 | 15 | 8 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios quarantined |
-| common | 116 | 98 | 18 | Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
-| vanilla-gnome | 13 | 13 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
-| lifecycle | 27 | 25 | 2 | bootc upgrade / rollback / migration; pin + switch quarantined |
-| hardware | 13 | 13 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
-| security | 15 | 15 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
-| bazzite | 20 | 20 | 0 | Extension presence + shell behaviour |
-| dx | 15 | 10 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps |
-| nvidia | 12 | 0 | 0 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
-| flatcar | 13 | 10 | 0 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
-| kde-smoke | 13 | 13 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
+| Suite | Scenarios | Active | Quarantined | Pending/Future | Notes |
+|---|---|---|---|---|---|
+| smoke | 187 | 143 | 0 | 44 | 39 `@pending` flatpak-permission audits blocked on CI never seeding system Flatpaks; MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks |
+| developer | 19 | 7 | 0 | 12 | 6 brew + 6 ptyxis now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368) |
+| software | 23 | 16 | 0 | 7 | Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; upstream GNOME Software scenarios are `@future` (#176) |
+| common | 116 | 97 | 0 | 19 | Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; GSettings/dconf defaults; immutable OS integrity (no layered RPMs, /usr read-only, bootc status); desktop entries; signing assertions |
+| vanilla-gnome | 13 | 13 | 0 | 0 | Baseline GNOME Shell parity check; runs on any GNOME image |
+| lifecycle | 27 | 25 | 0 | 2 | bootc upgrade / rollback / migration; pin + switch are `@future` (pin races the staged-deployment writer; switch needs a valid alternate image ref) |
+| hardware | 13 | 13 | 0 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
+| security | 15 | 15 | 0 | 0 | cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative) |
+| bazzite | 20 | 20 | 0 | 0 | Extension presence + shell behaviour |
+| dx | 15 | 10 | 0 | 5 | distrobox enter, JupyterLab, brew, mise×2 — infra gaps, all `@pending` |
+| nvidia | 12 | 0 | 0 | 12 | `@future` / `@hardware_blocked` until GPU passthrough exists in the lab |
+| flatcar | 13 | 10 | 0 | 3 | boot (7 active) + lifecycle (3 active); 3 `@future` (Ignition, boot-order, update_strategy=off) |
+| kde-smoke | 13 | 13 | 0 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
 
 ## Known coverage gaps
 
@@ -179,31 +185,47 @@ Set `chunked_enabled: true` once `ghcr.io/<image-org>/bluefin:latest` ships zstd
 | `ujust toggle-updates` | Medium | Blocked upstream in `projectbluefin/common`. `update.just` declares `toggle-updates ACTION="prompt":` but never reads `ACTION`. On images with `bctl` the recipe `exec`s `bctl --screen updates`, a GUI panel; only without `bctl` does it fall back to a `gum choose` prompt, which blocks non-interactive runs. Neither branch offers a non-interactive entry point. Scenario stays `@pending @wip` in `common_ujust.feature`. Next step: `projectbluefin/common` must honour `ACTION`; tracked in `projectbluefin/testsuite#499`. |
 | uupd conditional suppression | Medium | Battery and metered-network checks are not covered: uupd reads UPower and NetworkManager system-bus properties, while testsuite has no supported isolated state-injection contract. Do not use `/sys/class/power_supply` or GNOME proxy settings as substitutes. Next step: add a lab/image-owned simulation hook, then cover the upstream `/etc/uupd/config.json` contract. |
 
-### Remaining quarantine breakdown
+### Skipped-coverage breakdown
 
-| Scenario | Suite | Blocked by |
-|---|---|---|
-| brew (×6) | developer | `brew-setup.service` masked in CI |
-| ptyxis: `@brew` | developer | brew must be initialized first |
-| ptyxis: `@input`, `@podman`, `@regression`, `@new_tab`, `@close` (×5) | developer | AT-SPI restart issue in CI — ptyxis reopens between scenarios but the new process isn't reliably accessible |
-| VS Code extensions via Marketplace | dx | Flatpak marketplace not in RPM-installed VS Code |
-| distrobox enter | dx | pulls `fedora:latest`; no pre-pull in CI, times out |
-| JupyterLab | dx | not preinstalled in DX image |
-| mise (×2) | dx | `brew-setup.service` masked — mise uses brew-installed shims |
-| ujust report (×1) | smoke | `just` version change parses `{{.Repository}}` as template; awaiting image rebuild |
-| Activities overview (×3) | smoke | GNOME 50 — `Main.overview.visible` always false in QEMU |
-| screen lock (×1) | smoke | GNOME 50 headless — lock doesn't engage in 10s |
-| MIME defaults PDF/PNG/video (×3) | smoke | Fedora system mimeapps.list sets Firefox as default; Flatpak apps don't override at system level |
-| software GNOME Software scenarios (×8) | software | Bluefin uses Bazaar; upstream GNOME Software GUI coverage quarantined |
-| common signing (×2) | common | pending signing policy enforcement |
-| common flatpak model/state (×4) | common | flatpak-preinstall.service masked in CI; /var not preserved from OCI build |
-| common dconf (×4) | common | gsettings/dconf schema defaults; Ptyxis palette is user-session state |
-| common immutable (×2) | common | rpm-ostree/bootc status failing in fresh QEMU bootc install |
-| common portals podman.socket (×1) | common | user socket not active in non-interactive CI session |
-| common scripts ujust changelogs (×1) | common | glow not available (brew-setup.service masked in CI) |
-| common services flatpak (×2) | common | flatpak-preinstall.service masked; /var/lib/flatpak not seeded |
-| bootc pin | lifecycle | pin not supported on all images (race condition in some test environments) |
-| bootc switch | lifecycle | switch target requires a valid alternate image ref in CI |
+Why the `@pending`/`@future` scenarios above cannot run today.
+
+| Scenario | Suite | Tag | Blocked by |
+|---|---|---|---|
+| MIME defaults PDF/PNG/video (×3) | smoke | `@pending` | Fedora system mimeapps.list sets Firefox as default; Flatpak apps don't override at system level (#529) |
+| flatpak_permissions system-wide installs (×39) | smoke | `@pending` | `flatpak-preinstall.service` masked in `e2e.yml` and `/var/lib/flatpak` never seeded |
+| common flatpak model/state (×4) | common | `@pending` | flatpak-preinstall.service masked in CI; /var not preserved from OCI build |
+| common dconf (×4) | common | `@pending` | gsettings/dconf schema defaults; Ptyxis palette is user-session state |
+| common immutable (×2) | common | `@pending` | rpm-ostree/bootc status failing in fresh QEMU bootc install |
+| common portals podman.socket (×1) | common | `@pending` | user socket not active in non-interactive CI session |
+| common ujust changelogs (×1) | common | `@pending` | glow not available (brew-setup.service masked in CI, #487) |
+| common scripts ublue-update timer (×1) | common | `@pending` | ublue-update.timer not enabled in CI images |
+| common services flatpak (×2) | common | `@pending` | flatpak-preinstall.service masked; /var/lib/flatpak not seeded |
+| GNOME Online Accounts provider list (×1) | smoke | `@pending` | session auto-locks during the long smoke run; AT-SPI cannot see panel rows |
+| Screenshot portal PNG (×1) | common | `@pending` | portal backend emits no usable Request::Response headlessly |
+
+### Reclassified in #679 (formerly `@quarantine`)
+
+Quarantine is for flaky regression coverage that will be repaired soon. All 90 quarantined
+scenarios were blocked on infrastructure or unshipped features rather than flakiness, so 89
+were converted to `@pending`/`@future` with a named blocker and 1 (the composefs capability
+regression guard) was re-activated because its upstream bug — projectbluefin/dakota#841 — is
+closed. The highest-signal conversions are listed below; the rest appear in the
+skipped-coverage table above.
+
+| Scenario | Suite | New tag | Blocked by |
+|---|---|---|---|
+| brew (×6) | developer | `@pending` | `brew-setup.service` masked in `e2e.yml` (#487) |
+| ptyxis: `@brew` (×1) | developer | `@pending` | brew must be initialized first (#487) |
+| ptyxis: `@input`, `@podman`, `@regression`, `@new_tab`, `@close` (×5) | developer | `@pending` | AT-SPI restart issue in CI (#368) — ptyxis reopens between scenarios but the new process isn't reliably accessible |
+| distrobox enter (×1) | dx | `@pending` | pulls `fedora:latest`; no pre-pull in CI, times out |
+| JupyterLab (×1) | dx | `@pending` | not preinstalled in DX image |
+| brew + mise (×3) | dx | `@pending` | `brew-setup.service` masked (#487) — mise uses brew-installed shims |
+| ujust report confirm validation (×1) | smoke | `@pending` | `just` template change not in the booted image; awaiting rebuild |
+| GNOME Software navigation/regression/close (×6) | software | `@future` | Bluefin ships Bazaar, not GNOME Software (#176) |
+| flatpak install/uninstall round-trip (×1) | software | `@future` | gnomeos/GNOME 50 startup path unverified (#176); also slow network I/O |
+| common signing (×2) | common | `@future` | signing policy not yet enforced upstream; mid-migration ublue-os → projectbluefin |
+| bootc pin (×1) | lifecycle | `@future` | `bootc pin` races the staged-deployment writer in a fresh QEMU install |
+| bootc switch (×1) | lifecycle | `@future` | mutates VM image variant; needs cross-variant golden-disk testing |
 
 ## @future inventory
 

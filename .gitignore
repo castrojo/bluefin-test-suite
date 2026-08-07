@@ -5,3 +5,17 @@ images.lock
 .coverage
 
 .worktrees/
+
+# Local e2e diagnostics
+/*-grep.txt
+/*-log.txt
+/run.json
+/session.db
+/smoke-artifacts/
+
+# Extracted bootc image roots and inspection dumps. `bootc image copy-to-storage`
+# and friends unpack a full filesystem tree (~1.8 GB) into the repo, which buries
+# real changes in `git status` and risks committing image content as source.
+/bluefin-root/
+/*-root/
+/preinspect/
