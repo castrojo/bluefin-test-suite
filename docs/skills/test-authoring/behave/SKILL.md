@@ -30,9 +30,10 @@ metadata:
 
 1. Read the target `.feature` file and the suite's `steps/*.py` before adding phrases.
 2. Reuse `tests/shared/ssh_steps.py` for generic SSH command/assertion steps instead of duplicating helpers.
-3. Keep step phrases unique within the loaded suite and check for collisions before committing.
-4. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
-5. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
+3. Star-importing `tests/shared/ssh_steps` obligates the suite to set the context attributes those steps read. `run_ssh()` dereferences `context.ssh_key`, `context.ssh_user`, `context.vm_ip` and (optionally) `context.ssh_port`; a suite that skips this fails every SSH scenario with `AttributeError` on the first step. Call `tests.shared.ssh_config.populate_ssh_context(context)` from the suite's `before_all` (see `tests/software/features/environment.py`) — it resolves context attributes → behave userdata → `SSH_KEY`/`VM_IP`/`VM_USER`/`SSH_PORT` env vars → runner defaults, which is the same source suite-local SSH helpers (e.g. the software suite's `_flatpak()`) must use. Never let a suite keep a second, env-only SSH path alongside the shared steps.
+4. Keep step phrases unique within the loaded suite and check for collisions before committing.
+5. Choose assertions that match the command shape: equality for single-line output, substring for multiline output.
+6. Run `behave --dry-run` on the touched suite before pushing so undefined or ambiguous phrases fail locally.
 
 ## `grep -q` vs `grep -c` for existence checks
 
