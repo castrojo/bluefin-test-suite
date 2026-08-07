@@ -175,11 +175,13 @@ class TestWaitEvalBool:
     def test_retries_on_assertion_error(self):
         m = _import_steps()
         call_count = [0]
+
         def flaky_eval(js):
             call_count[0] += 1
             if call_count[0] < 3:
                 raise AssertionError("not ready")
             return True
+
         with patch.object(m, "_eval_bool", side_effect=flaky_eval), \
              patch("time.sleep"):
             result = m._wait_eval_bool("someJs", expected=True, retries=5, delay=0.0)
@@ -193,6 +195,52 @@ class TestWaitEvalBool:
             result = m._wait_eval_bool("someJs", expected=False, retries=3, delay=0.0)
         assert result is False
 
+
+class TestWelcomeDialog:
+    def test_retries_until_skip_button_appears_and_clicks_it(self):
+        m = _import_steps()
+        skip = MagicMock()
+        tree = sys.modules["dogtail.tree"]
+        tree.root.findChildren.side_effect = [[], [skip]]
+
+        with patch.object(m, "sleep") as sleep:
+            assert m._dismiss_welcome_dialog(attempts=2, delay=0.1) is True
+
+        sleep.assert_called_once_with(0.1)
+        skip.click.assert_called_once_with()
+
+    def test_returns_false_when_dialog_never_appears(self):
+        m = _import_steps()
+        tree = sys.modules["dogtail.tree"]
+        tree.root.findChildren.return_value = []
+
+        with patch.object(m, "sleep"):
+            assert m._dismiss_welcome_dialog(attempts=2, delay=0) is False
+
+
+class TestDashToDock:
+    def test_requires_enabled_extension_and_visible_actor(self):
+        m = _import_steps()
+        extension_info = "({'state': <uint32 1>},)"
+
+        with patch.object(m, "_gdbus_call", return_value=extension_info), \
+             patch.object(m, "_wait_eval_bool", return_value=True) as wait_visible:
+            m.dash_to_dock_visible(MagicMock())
+
+        visibility_js = wait_visible.call_args.args[0]
+        assert "dashtodockContainer" in visibility_js
+        assert "is_mapped()" in visibility_js
+        assert "get_transformed_size()" in visibility_js
+
+    def test_fails_when_enabled_extension_is_not_visibly_rendered(self):
+        import pytest
+
+        m = _import_steps()
+        extension_info = "({'state': <uint32 1>},)"
+        with patch.object(m, "_gdbus_call", return_value=extension_info), \
+             patch.object(m, "_wait_eval_bool", return_value=False), \
+             pytest.raises(AssertionError, match="not visibly rendered"):
+            m.dash_to_dock_visible(MagicMock())
 
 # ---------------------------------------------------------------------------
 # DND helpers
