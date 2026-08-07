@@ -394,6 +394,11 @@ Key differences from GNOME suites:
   the fallback.
 - **Version-skew skip:** If the DUT's Plasma version or distro is unsupported, the
   suite is skipped with a clear message instead of producing phantom failures.
+- **Installer safety contract:** `scripts/install-kde-webdriver.sh` is guarded by
+  `tests/unit/test_install_kde_webdriver.py`, which locks three invariants:
+  immutable `SELENIUM_AT_SPI_SHA` pin format, loopback-only server posture
+  (no `HOST=0.0.0.0` override), and explicit `KDE_WEBDRIVER_SKIP=...` + `exit 0`
+  paths for unsupported Plasma/distro cases.
 - **Session setup:** SDDM autologin and a KDE determinism environment drop-in are
   written at disk-prep time.
 - **`passed > 0` backstop:** the step `Assert KDE suite has passing scenarios`

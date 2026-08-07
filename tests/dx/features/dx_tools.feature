@@ -37,6 +37,28 @@ Feature: Bluefin DX variant smoke tests
     # because the DX runner has no warm container cache.
     * DX distrobox "test-dx" can be created from "fedora:latest"
 
+  # The following scenarios cover the full distrobox value proposition —
+  # create a container, install an app inside it, export it to the host.
+  # All carry @requires_cached_image: they need a pre-pulled
+  # registry.fedoraproject.org/fedora-toolbox:latest on the VM, which no
+  # caching infrastructure provides yet (see projectbluefin/testsuite#501).
+  # They are @pending until projectbluefin/lab provisions that image cache;
+  # tests/shared/quarantine.py skips @pending at runtime.
+  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  Scenario: distrobox container can be created from fedora-toolbox
+    * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
+
+  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  Scenario: package can be installed inside a distrobox container
+    * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
+    * DX distrobox "test-box" installs package "htop"
+
+  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  Scenario: app inside a distrobox container can be exported to the host
+    * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
+    * DX distrobox "test-box" installs package "htop"
+    * DX distrobox "test-box" exports "/usr/bin/htop" to the host
+
   @dx @toolbox @plain_ssh
   Scenario: toolbox is available as alternative to distrobox
     * Run DX SSH command: "which toolbox || echo missing"
