@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "label": "lifecycle",
-  "message": "25 active / 2 quarantined",
-  "color": "yellow"
+  "message": "25 active / 0 quarantined",
+  "color": "green"
 }
