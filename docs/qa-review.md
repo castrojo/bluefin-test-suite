@@ -69,6 +69,9 @@ Run unit tests with `python3 -m pytest tests/unit/ -q`. The `pytest` CI check (`
 | `test_retry.py` | Behave retry harness, `sys.executable` fallback |
 | `test_parse_results.py` | `scripts/parse_results.py` parsing integration |
 | `test_quarantine_age.py` | `scripts/check_quarantine_age.py` parsing and reporting |
+| `test_orca_steps.py` | Orca screen-reader toggle steps, `_wait_for_orca` polling, restore semantics |
+| `test_input_methods_steps.py` | `_run_in_vm` dispatch, idempotent input-source restore, gsettings assertions |
+| `test_xwayland_steps.py` | `_xwayland_display_env` `pgrep` parsing, xprop/glxgears step branches |
 
 ## Current stub posture
 
