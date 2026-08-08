@@ -21,6 +21,8 @@ on:
     - cron: "0 3 * * 1"   # weekly Monday 03:00 UTC — keep base + pip deps fresh
   workflow_dispatch:
 
+permissions: {}
+
 jobs:
   build:
     name: Build and push testsuite:runner
