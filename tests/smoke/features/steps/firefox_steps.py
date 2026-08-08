@@ -26,8 +26,8 @@ FIREFOX_APP_NAMES = ("firefox", "Firefox", "Mozilla Firefox")
 FIREFOX_LAUNCH_TARGETS = (
     ("command", "firefox"),
     ("desktop", "firefox.desktop"),
-    ("desktop", "org.mozilla.firefox.desktop"),
     ("flatpak", "org.mozilla.firefox"),
+    ("desktop", "org.mozilla.firefox.desktop"),
 )
 
 # Firefox does not build its accessibility tree just because the session has

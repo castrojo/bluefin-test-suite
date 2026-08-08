@@ -239,3 +239,12 @@ class TestFirefoxWindow:
         context.firefox.instance = _FakeNode("application", children=[hidden])
         with pytest.raises(AssertionError, match="main window not found"):
             m._firefox_window(context)
+
+
+class TestLaunchTargetOrdering:
+    def test_flatpak_precedes_exported_desktop_entry(self):
+        m = _import_firefox_steps()
+        targets = list(m.FIREFOX_LAUNCH_TARGETS)
+        assert targets.index(("flatpak", "org.mozilla.firefox")) < targets.index(
+            ("desktop", "org.mozilla.firefox.desktop")
+        )
