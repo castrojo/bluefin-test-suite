@@ -267,14 +267,21 @@ def ujust_report_confirm_missing_number(context) -> None:
 # composefs file-capability regression (dakota#841)
 # Multi-layer OCI images silently strip security.capability xattrs; getcap
 # verifies the xattrs survived the composefs replay.
+#
+# ping is deliberately not asserted: Fedora's iputils ships /usr/bin/ping with
+# no file capability (plain 0755; only clockdiff/arping get %caps(cap_net_raw=p))
+# and provides unprivileged ping via net.ipv4.ping_group_range instead. A
+# cap_net_raw assertion can never hold on a Fedora-based image, so it only
+# produced a deterministic false failure (projectbluefin/bluefin#989) instead of
+# a regression signal. newuidmap/newgidmap retain the real capability-bearing
+# signal for the dakota#841 failure class.
 # ---------------------------------------------------------------------------
 
-@step("newuidmap, newgidmap, and ping retain their security.capability xattrs")
+@step("newuidmap and newgidmap retain their security.capability xattrs")
 def composefs_file_capabilities_preserved(context) -> None:
     binaries = {
         "/usr/bin/newuidmap": "cap_setuid",
         "/usr/bin/newgidmap": "cap_setgid",
-        "/usr/bin/ping":      "cap_net_raw",
     }
     missing = []
     for path, expected_cap in binaries.items():
