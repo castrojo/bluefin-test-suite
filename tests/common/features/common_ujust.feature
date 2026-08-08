@@ -19,15 +19,21 @@ Feature: Bluefin common ujust recipes
     * SSH command return code is "0"
     * SSH command output contains "Manufacturer"
 
-  # Blocked on projectbluefin/common: the recipe declares a `ACTION="prompt"`
-  # parameter but never reads it. When `bctl` is present the recipe execs
-  # `bctl --screen updates` and hands off to a GUI panel; only without `bctl`
-  # does it fall back to a `gum choose` prompt, and that fallback blocks a
-  # non-interactive run. Neither branch has a non-interactive entry point.
-  # See docs/skills/test-authoring/behave/SKILL.md and projectbluefin/testsuite#499.
-  @pending @wip
-  Scenario: ujust toggle-updates flips the automatic update timer
-    * Run SSH command: "if systemctl cat -- uupd.timer >/dev/null 2>&1; then TIMER=uupd.timer; else TIMER=rpm-ostreed-automatic.timer; fi; before=$(systemctl is-enabled \"$TIMER\" || true); ujust toggle-updates; after=$(systemctl is-enabled \"$TIMER\" || true); test \"$before\" != \"$after\""
+  # ujust toggle-updates is interactive (gum choose, or the bctl panel on
+  # bctl-equipped images) and cannot be driven from an SSH step. The recipe
+  # now honors a non-interactive ACTION argument (projectbluefin/common):
+  # `ujust toggle-updates enable|disable|cancel` skips all prompts. The
+  # @requires_toggle_action gate probes for that contract and skips on images
+  # that have not shipped it yet. See
+  # docs/skills/test-authoring/behave/references/ujust-noninteractive.md.
+  @requires_toggle_action
+  Scenario: ujust toggle-updates enables and disables the update timer non-interactively
+    # Flip the update timer through the recipe itself, assert the state
+    # changed, then flip it back so the scenario is repeatable. Matches the
+    # recipe's own timer detection (uupd.timer, falling back to
+    # rpm-ostreed-automatic.timer) and asserts the recipe's confirmation
+    # output so a broken recipe cannot pass by leaving the timer untouched.
+    * Run SSH command: "if systemctl cat -- uupd.timer >/dev/null 2>&1; then TIMER=uupd.timer; else TIMER=rpm-ostreed-automatic.timer; fi; if systemctl is-enabled --quiet \"$TIMER\"; then before=enabled; else before=disabled; fi; if [ \"$before\" = enabled ]; then OUT=$(ujust toggle-updates disable); else OUT=$(ujust toggle-updates enable); fi; if systemctl is-enabled --quiet \"$TIMER\"; then mid=enabled; else mid=disabled; fi; if [ \"$before\" = enabled ]; then ujust toggle-updates enable >/dev/null; else ujust toggle-updates disable >/dev/null; fi; if systemctl is-enabled --quiet \"$TIMER\"; then restored=enabled; else restored=disabled; fi; printf '%s' \"$OUT\" | grep -q 'Updates have been' && [ \"$mid\" != \"$before\" ] && [ \"$restored\" = \"$before\" ]"
     * SSH command return code is "0"
 
   # Pending: glow is unavailable because brew-setup.service is masked in CI (#487).

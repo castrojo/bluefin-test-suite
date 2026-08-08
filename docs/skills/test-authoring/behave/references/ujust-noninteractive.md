@@ -8,39 +8,35 @@ metadata:
 ---
 # Ujust Noninteractive
 
-## `toggle-updates` is not drivable non-interactively (verified 2026-08)
+## `toggle-updates` — non-interactive via `ACTION` (verified 2026-08)
 
 `system_files/shared/usr/share/ublue-os/just/update.just` in
 `projectbluefin/common` declares the recipe as `toggle-updates ACTION="prompt":`
-but the recipe body never reads `ACTION`. The body has two branches:
+and now reads the parameter through just's `{{ ACTION }}` interpolation (shebang
+recipe bodies receive parameters only via interpolation, never as positional
+arguments):
 
-```bash
-# Open the bluefinctl Updates panel when available
-if command -v bctl &>/dev/null; then
-    exec bctl --screen updates
-fi
-...
-SELECTED_OPTION="$(gum choose --header="Toggle automatic updates?" "Enable" "Disable" "Cancel")"
-```
+- `ujust toggle-updates enable` / `disable` / `cancel` (case-insensitive)
+  select the action directly and skip both the bctl panel and the `gum choose`
+  prompt. This is the non-interactive entry point tracked in
+  `projectbluefin/testsuite#499`.
+- Any other value — including the default `ACTION="prompt"` — keeps the
+  interactive behavior: on images that ship `bctl` (bluefinctl), the recipe
+  `exec`s `bctl --screen updates` and hands off to a GUI panel; otherwise it
+  blocks on `gum choose`.
 
-Both branches are untestable, for different reasons:
+Asserting the timer state directly (`systemctl enable/disable uupd.timer`)
+would test systemd, not the recipe, so it does not close the coverage gap.
 
-- On images that ship `bctl` (bluefinctl), the recipe `exec`s
-  `bctl --screen updates` and hands off to a GUI panel. The recipe never
-  reaches the timer logic and there is nothing for SSH to assert.
-- Only when `bctl` is absent does the recipe fall back to the shell path, and
-  that fallback blocks on `gum choose`. This is the branch that hangs a
-  non-interactive run.
-- `ujust toggle-updates Enable` accepts the argument on either path and ignores
-  it; the parameter is decorative, so no flag-based non-interactive entry point
-  exists today.
-- Asserting the timer state directly (`systemctl enable/disable uupd.timer`)
-  tests systemd, not the recipe, so it does not close this coverage gap.
-
-Keep the scenario `@pending @wip` until `projectbluefin/common` makes `ACTION`
-actually select `Enable`/`Disable`/`Cancel` without a prompt. That is a
-`projectbluefin/common` interface change and needs maintainer acceptance
-(`projectbluefin/testsuite#499`) before any testsuite implementation lands.
+Coverage lives in `tests/common/features/common_ujust.feature` behind a
+`@requires_toggle_action` tag: the environment probes
+`ujust toggle-updates cancel` (the non-mutating action — the new recipe exits 0
+immediately, the old recipe blocks on gum/bctl and fails or times out without a
+TTY) and skips the scenario on images that have not shipped the contract yet.
+The scenario flips the update timer through the recipe itself (detecting
+`uupd.timer`, falling back to `rpm-ostreed-automatic.timer`, matching the
+recipe's own logic), asserts the state changed and the recipe's confirmation
+output, then restores the original state so the scenario is repeatable.
 
 ## `bctl devmode` is the non-interactive contract for `toggle-devmode` (verified 2026-08)
 

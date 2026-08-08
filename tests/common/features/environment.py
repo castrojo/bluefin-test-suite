@@ -81,6 +81,27 @@ def _has_bctl(context) -> bool:
     return context.has_bctl
 
 
+def _has_toggle_action(context) -> bool:
+    """Return True when the image's toggle-updates recipe honors ACTION.
+
+    ``ujust toggle-updates`` gained non-interactive ``ACTION=enable|disable|
+    cancel`` support in projectbluefin/common (see projectbluefin/testsuite#499).
+    Probe with the non-mutating ``cancel`` action: the new recipe exits 0
+    immediately, while the old recipe ignores ACTION and blocks on the gum
+    prompt (or the bctl panel), which fails or times out without a TTY.
+    Scenarios tagged ``@requires_toggle_action`` skip until the image ships
+    the contract, then activate automatically.
+    """
+    cached = getattr(context, "has_toggle_action", None)
+    if cached is not None:
+        return cached
+    _, returncode = run_ssh(
+        context, "timeout 15 ujust toggle-updates cancel >/dev/null 2>&1"
+    )
+    context.has_toggle_action = returncode == 0
+    return context.has_toggle_action
+
+
 def before_all(context):
     userdata = context.config.userdata
     # When IMAGE env var is set (GHA runner), auto-detect image family so
@@ -179,6 +200,9 @@ def before_scenario(context, scenario):
         return
     if "requires_bctl" in scenario_tags and not _has_bctl(context):
         scenario.skip("bluefinctl (bctl) not present on this image")
+        return
+    if "requires_toggle_action" in scenario_tags and not _has_toggle_action(context):
+        scenario.skip("ujust toggle-updates ACTION support not present on this image")
         return
     context.command_stdout = ""
     context.last_command_output = ""
