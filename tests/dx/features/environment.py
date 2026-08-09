@@ -88,9 +88,15 @@ def before_all(context):
 
 
 def before_scenario(context, scenario):
+    from tests.shared.image_cache import skip_when_image_not_cached
     from tests.shared.quarantine import skip_quarantine
 
     if skip_quarantine(scenario):
+        return
+    # @requires_cached_image scenarios assume their image is already in the
+    # VM's podman store; running one without it would pull from the registry
+    # mid-scenario and hit the CI timeout instead of reporting a result.
+    if skip_when_image_not_cached(context, scenario):
         return
     context.scenario = scenario
     context.command_stdout = ""

@@ -149,6 +149,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 | `@regression` | Anchors a known incident regression guard; must remain active indefinitely |
 | `@kde_smoke` | KDE Plasma smoke-suite identifier; used by `e2e.yml` suite registration (#645) |
 | `@informational` | Bake-period tier; scenario runs and reports results but does not gate promotion until promoted to `@critical` |
+| `@requires_cached_image` | Scenario needs the OCI image named in its own steps to be pre-pulled on the DUT; `tests/shared/image_cache.py` probes `podman image exists` from `before_scenario` and skips while it is absent. A **runtime capability gate** like `@requires_bctl`, not a non-runnable tag — never pair it with `@pending`/`@future`, which mask it (#501) |
 
 ## Coverage snapshot
 
@@ -159,14 +160,14 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 
 <!-- coverage-snapshot:start -->
 
-526 scenarios across 72 feature files: 412 active, 0 quarantined, 114 `@future`/`@pending`/`@hardware_blocked`
+526 scenarios across 72 feature files: 415 active, 0 quarantined, 111 `@future`/`@pending`/`@hardware_blocked`
 
 | Suite | Scenarios | Active | Quarantined | Pending/Future | Notes |
 |---|---|---|---|---|---|
 | bazzite | 20 | 20 | 0 | 0 | Extension presence + shell behaviour |
 | common | 121 | 101 | 0 | 20 | Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; devmode via bctl (non-interactive contract + idempotent state-check gated `@requires_bctl`, group mutation `@pending` on CI polkit); GSettings/dconf defaults; immutable OS integrity; desktop entries; signing assertions; Dakota `ujust --choose` regression guard active (`@dakota_only`); `ujust report` is `@pending` on #706 until a Dakota lab run validates the mocked submit flow |
 | developer | 23 | 7 | 0 | 16 | 6 brew + 6 ptyxis + 4 bctl now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368) |
-| dx | 18 | 10 | 0 | 8 | distrobox enter/create/install/export, JupyterLab, brew, mise — infra gaps, all `@pending` |
+| dx | 18 | 13 | 0 | 5 | distrobox create/install/export are active behind the `@requires_cached_image` runtime gate — they skip until `fedora-toolbox:latest` is pre-pulled on the VM (#501 / projectbluefin/lab#621) and activate without a feature-file edit; distrobox enter, JupyterLab, brew, mise remain `@pending` on infra gaps |
 | flatcar | 13 | 12 | 0 | 1 | boot (7 active) + lifecycle (5 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`) |
 | hardware | 13 | 13 | 0 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
 | installer | 3 | 3 | 0 | 0 | post-boot assertions for installer-driven installs (UEFI, Flatpak exclusion, LUKS cmdline) |
@@ -255,7 +256,7 @@ skipped-coverage table above.
 | ptyxis: `@brew` (×1) | developer | `@pending` | brew must be initialized first (#487) |
 | ptyxis: `@input`, `@podman`, `@regression`, `@new_tab`, `@close` (×5) | developer | `@pending` | AT-SPI restart issue in CI (#368) — ptyxis reopens between scenarios but the new process isn't reliably accessible |
 | distrobox enter (×1) | dx | `@pending` | pulls `fedora:latest`; no pre-pull in CI, times out |
-| distrobox create/install/export (×3) | dx | `@pending @requires_cached_image` | no cached `fedora-toolbox:latest` on the VM; lab-side OCI image pre-pull required (#501, tracked in projectbluefin/lab#621) |
+| distrobox create/install/export (×3) | dx | `@requires_cached_image` | Active, gated at runtime, **not** `@pending`. `tests/shared/image_cache.py` probes `podman image exists` for the image each scenario names and skips while `fedora-toolbox:latest` is absent from the VM's podman store. Self-activating once the lab-side OCI image pre-pull lands (#501, tracked in projectbluefin/lab#621) — no feature-file edit needed |
 | JupyterLab (×1) | dx | `@pending` | not preinstalled in DX image |
 | brew + mise (×3) | dx | `@pending` | `brew-setup.service` masked (#487) — mise uses brew-installed shims |
 | ujust report confirm validation (×1) | smoke | `@pending` | `just` template change not in the booted image; awaiting rebuild |

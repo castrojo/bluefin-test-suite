@@ -252,6 +252,22 @@ never matches and passes falsely.
 `@flatpak_cli`. Tag CLI-only, image-agnostic software scenarios with `@flatpak_cli`
 so they still run on gnomeos and other non-Bluefin images.
 
+## `@requires_cached_image` gates scenarios on a pre-pulled OCI image
+
+A scenario must never pull the container image it needs — a cold
+`distrobox create` pulls inside the scenario and eats the CI timeout (#501).
+Tag it `@requires_cached_image`; `skip_when_image_not_cached()` in
+`tests/shared/image_cache.py`, called from the suite's `before_scenario` right
+after `skip_quarantine`, reads the image refs out of the scenario's own step
+text, probes each with `podman image exists` on the DUT, and skips while any is
+absent. The scenario then activates on its own once the image is cached.
+
+It is a **runtime capability gate** like `@requires_bctl`, not a non-runnable
+tag: keep it out of `_SKIP_TAGS` / `NON_RUNNABLE_TAGS` / `BEHAVE_TAG_ARGS`, and
+never pair it with `@pending` or `@future` — `skip_quarantine` returns first and
+the gate goes inert. See
+[the cached-image gate reference](references/cached-image-gate.md).
+
 ## Feature scaffolding with @future
 
 
@@ -325,6 +341,8 @@ Each suite loads only its own `steps/*.py` files plus `qecore.common_steps`. A s
 **Rule:** When the audit agent (or any agent) moves a step phrase from a shared/smoke context into a suite-specific file, verify that every `.feature` file using that phrase is in the same suite. If multiple suites use the phrase, define it in each suite's `steps.py`.
 
 Lesson surfaced 2026-05-30: `No journal entries match "{pattern}"` was added to `software/steps.py` but `ptyxis.feature` (developer suite) also used it — causing `UndefinedStep` at runtime.
+
+Isolation cuts the other way too: an `environment.py` hook that imports a module containing `@step` decorators registers those phrases into the suite it runs in. `tests/shared/ssh_steps.py` collides with the DX suite's own `SSH command return code is "{code}"`, so hooks that need to run a command on the DUT resolve connection details from `tests/shared/ssh_config.py` and call `subprocess` directly rather than importing the step library (#501).
 
 ## behave rerun output can contain non-path noise
 
@@ -473,6 +491,7 @@ non-dependent scenarios to a separate feature.
 - [Mocking interactive CLI tools (gum, fzf, gh) in ujust coverage.](references/mocking-interactive-cli.md)
 - [Driving bluefinctl devmode non-interactively, and the assertion traps around it.](references/bctl-devmode.md)
 - [Which ujust recipes can be driven non-interactively, and why the rest stay @pending.](references/ujust-noninteractive.md)
+- [Gating scenarios on a pre-pulled OCI image with @requires_cached_image.](references/cached-image-gate.md)
 
 ## Sources
 
