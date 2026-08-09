@@ -131,14 +131,19 @@ output — for example `ujust bios-info` prints `Manufacturer:` / `Release Date:
 labels itself, so checking for raw `dmidecode` keys like `Vendor` is brittle.
 
 If a recipe is gated by `gum choose`, `pkexec`, or package-install side effects,
-land the coverage as `@pending @wip` until a non-interactive harness exists.
-Current example: `ujust toggle-updates` is interactive and flips `uupd.timer`
-or `rpm-ostreed-automatic.timer` (not `ublue-update.timer`).
+prefer a non-interactive entry point in the recipe itself. Where the image has
+not shipped one yet, land the coverage behind a `@requires_*` skip tag so it
+activates when the contract lands, instead of leaving the scenario `@pending`
+forever. `ujust toggle-updates` flips `uupd.timer` or
+`rpm-ostreed-automatic.timer` (not `ublue-update.timer`) and is covered via its
+non-interactive `ACTION=enable|disable|cancel` argument (see the reference
+below).
 
 Two recipes are worked out in detail in
 [`references/ujust-noninteractive.md`](references/ujust-noninteractive.md):
-`toggle-updates` has no non-interactive entry point at all (stays `@pending @wip`,
-`projectbluefin/testsuite#499`), while `toggle-devmode` does have one via
+`toggle-updates` gained a non-interactive `ACTION` entry point in
+`projectbluefin/common` and is covered by a `@requires_toggle_action` scenario
+(`projectbluefin/testsuite#499`), while `toggle-devmode` has one via
 `bctl devmode --enable/--disable` (`projectbluefin/testsuite#500`).
 
 ### uupd conditional suppression coverage
