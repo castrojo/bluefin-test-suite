@@ -255,7 +255,7 @@ skipped-coverage table above.
 | ptyxis: `@brew` (×1) | developer | `@pending` | brew must be initialized first (#487) |
 | ptyxis: `@input`, `@podman`, `@regression`, `@new_tab`, `@close` (×5) | developer | `@pending` | AT-SPI restart issue in CI (#368) — ptyxis reopens between scenarios but the new process isn't reliably accessible |
 | distrobox enter (×1) | dx | `@pending` | pulls `fedora:latest`; no pre-pull in CI, times out |
-| distrobox create/install/export (×3) | dx | `@pending @requires_cached_image` | no cached `fedora-toolbox:latest` on the VM; lab-side OCI image pre-pull required (#501) |
+| distrobox create/install/export (×3) | dx | `@pending @requires_cached_image` | no cached `fedora-toolbox:latest` on the VM; lab-side OCI image pre-pull required (#501, tracked in projectbluefin/lab#621) |
 | JupyterLab (×1) | dx | `@pending` | not preinstalled in DX image |
 | brew + mise (×3) | dx | `@pending` | `brew-setup.service` masked (#487) — mise uses brew-installed shims |
 | ujust report confirm validation (×1) | smoke | `@pending` | `just` template change not in the booted image; awaiting rebuild |
