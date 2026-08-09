@@ -40,12 +40,20 @@ Feature: System health smoke checks
     * ujust report --confirm rejects non-integer issue number
     * ujust report --confirm without issue number prints error
 
-  # Re-activated: quarantined in #521 for projectbluefin/dakota#841 (ping missing
-  # cap_net_raw in :testing). That issue is closed, and @regression guards must
-  # stay active so a recurrence is caught.
+  # Re-activated: quarantined in #521 for projectbluefin/dakota#841. That
+  # regression was composefs stripping security.capability xattrs from a
+  # multi-layer OCI image; newuidmap/newgidmap (shadow-utils %caps) carry the
+  # signal for that class and must stay active so a recurrence is caught.
+  #
+  # ping was dropped from this check: Fedora's iputils ships /usr/bin/ping
+  # without a file capability (plain 0755; only clockdiff/arping get
+  # %caps(cap_net_raw=p)) and relies on net.ipv4.ping_group_range for
+  # unprivileged ping instead. A cap_net_raw assertion can never pass on a
+  # Fedora-based image, so it only produced a deterministic false failure
+  # (projectbluefin/bluefin#989 smoke-b) rather than a real regression signal.
   @health @composefs @regression @sla_10s
-  Scenario: composefs preserves file capabilities on newuidmap, newgidmap, and ping
-    * newuidmap, newgidmap, and ping retain their security.capability xattrs
+  Scenario: composefs preserves file capabilities on newuidmap and newgidmap
+    * newuidmap and newgidmap retain their security.capability xattrs
 
   @health @gdm @regression @sla_10s
   Scenario: System boots to display manager, not emergency console
