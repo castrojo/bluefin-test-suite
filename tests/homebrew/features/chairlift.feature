@@ -1,9 +1,12 @@
 @homebrew @bluefin
 Feature: Managed Homebrew and ChairLift integration
 
-  Background:
-    * Start application "chairlift" via "command"
-    * Wait until "ChairLift" "frame" appears in "chairlift"
+  # No feature-level Background: the packaging scenarios assert the cask state,
+  # the installed user files, and the bootc PolicyKit contract without ever
+  # launching the app, so a UI launch failure cannot mask a packaging
+  # regression. Only @chairlift_ui scenarios start ChairLift. The AT-SPI
+  # application root is the binary name "chairlift"; "ChairLift" is the frame
+  # title.
 
   @chairlift @chairlift_cask
   Scenario: managed Homebrew state includes ChairLift
@@ -17,8 +20,10 @@ Feature: Managed Homebrew and ChairLift integration
     * The ChairLift desktop entry launches the Homebrew wrapper
     * The ChairLift scalable and symbolic icons exist
 
-  @chairlift @chairlift_config
+  @chairlift @chairlift_config @chairlift_ui
   Scenario: ChairLift uses Bluefin maintainer configuration
+    * Start application "chairlift" via "command"
+    * Wait until "ChairLift" "frame" appears in "chairlift"
     * ChairLift has no configuration error toast
     * ChairLift shows page "Applications"
     * ChairLift shows page "Updates"
@@ -26,8 +31,10 @@ Feature: Managed Homebrew and ChairLift integration
     * ChairLift shows page "System"
     * ChairLift hides page "Features"
 
-  @chairlift @chairlift_config
+  @chairlift @chairlift_config @chairlift_ui
   Scenario: ChairLift exposes Brew and Flatpak management
+    * Start application "chairlift" via "command"
+    * Wait until "ChairLift" "frame" appears in "chairlift"
     * ChairLift shows group "Homebrew"
     * ChairLift shows group "System Flatpak Applications"
 

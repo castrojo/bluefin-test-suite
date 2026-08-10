@@ -252,22 +252,23 @@ never matches and passes falsely.
 `@flatpak_cli`. Tag CLI-only, image-agnostic software scenarios with `@flatpak_cli`
 so they still run on gnomeos and other non-Bluefin images.
 
-## Verify accessible labels against upstream source, not a plan's placeholders
+## Three silent-green traps: names, preconditions, and Background launches
 
-A brief or design doc that names an AT-SPI accessible label (a page title, a
-group heading) is a guess until confirmed against the app's own source. The
-`homebrew` suite's ChairLift coverage originally assumed group titles `"Brew
-Packages"` / `"Flatpak Applications"`; the real `PreferencesGroup.SetTitle(...)`
-calls in upstream `frostyard/chairlift` are `"Homebrew"` and `"System Flatpak
-Applications"` (`internal/views/applications_page.go`). Using the guessed
-strings would have produced a scenario that never finds a match and always
-fails — indistinguishable from a real regression. When a plan's assumed label
-doesn't match, fetch the upstream source (or, if unavailable locally, the raw
-GitHub source), find the actual widget construction call, and cite the
-file/line in a reference doc instead of forcing the brittle guess through.
-See [references/homebrew-chairlift.md](references/homebrew-chairlift.md) for
-the full evidence trail on this suite's page/group labels, desktop entry, and
-bootc helper paths.
+- **Accessible names are evidence, not guesses.** Confirm them against
+  upstream source: ChairLift's real group titles are `"Homebrew"` / `"System
+  Flatpak Applications"` (not the planned `"Brew Packages"` / `"Flatpak
+  Applications"`), and `a11y_app_name` — like the `in "<root>"` step fragment —
+  resolves to `root.application(g_get_prgname())`, i.e. the binary name
+  `chairlift`, never the frame title `ChairLift`. A wrong name fails exactly
+  like a real regression.
+- **Preconditions must fail, not skip.** `scenario.skip()` is for tag-driven
+  coverage and genuinely optional components (Podman Desktop on `-dx`). A
+  `before_all` funnelling setup errors into `context.failed_setup` reports
+  green while the regression it exists to catch fires; let the hook raise and
+  behave exits nonzero.
+- **Never launch an app in a `Background`** shared with scenarios that only
+  assert files or units. Start it inside the scenarios that need a window (tag
+  them, e.g. `@chairlift_ui`) so packaging assertions stay diagnosable.
 
 ## Feature scaffolding with @future
 

@@ -75,7 +75,7 @@ Which suites run on which image. Any bootc/ostree GNOME image can run via the Gi
 | `vanilla-gnome` | — | — | — | — | — | ✅ | — | Upstream GNOME baseline; `quay.io/gnome_infrastructure/gnome-build-meta:gnomeos-latest` |
 | `bazzite` | — | — | — | — | ✅ | — | — | Bazzite extensions + shell behaviour |
 | `developer` | ✅ | ✅ | — | — | — | — | — | Ptyxis + Podman Desktop; Brew/bctl coverage moved to `homebrew` |
-| `homebrew` | ✅ | ✅ | — | — | — | — | — | Active Brew CLI, bctl, and ChairLift managed-cask/config/UI coverage; same GUI-session footprint as `developer` |
+| `homebrew` | ✅ | ✅ | — | — | — | — | — | Active Brew CLI, bctl, and ChairLift managed-cask/config/UI coverage. **Lab-only lane**: runs through `run-systemd-container-tests` in `projectbluefin/lab`, not the QEMU `e2e.yml` action, which masks `brew-setup.service` (#487). Requires `XDG_RUNTIME_DIR=/run/user/1000` and a running `user@1000.service`; preconditions fail the run instead of skipping |
 | `software` | — | — | — | — | — | ✅ | — | Bazaar launch, search, config YAML validation, Flathub remote, permissions DB, Bazaar CLI presence/info/remote, and Flatpak per-app permission management active; upstream GNOME Software navigation scenarios are `@future` (#176) |
 | `common` | ✅ | ✅ | ✅ | ✅ | — | — | — | Flatpak model/state, XDG portals, container runtime, polkit, shell env/sourcing, system scripts, ujust recipes, GSettings/dconf, immutable OS integrity |
 | `lifecycle` | ✅ | — | ✅ | ✅ `@homed_migration` | — | — | — | bootc upgrade/rollback; SSH-mode; dakota: homed migration only |
@@ -170,7 +170,7 @@ Set `chunked_enabled: true` once `ghcr.io/projectbluefin/bluefin:latest` ships z
 | dx | 18 | 10 | 0 | 8 | distrobox enter/create/install/export, JupyterLab, brew, mise — infra gaps, all `@pending` |
 | flatcar | 13 | 12 | 0 | 1 | boot (7 active) + lifecycle (5 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`) |
 | hardware | 13 | 13 | 0 | 0 | udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps |
-| homebrew | 15 | 15 | 0 | 0 | Active native-systemd lane: 6 Brew CLI scenarios, 4 bctl scenarios, and ChairLift managed-cask/config/UI integration |
+| homebrew | 15 | 15 | 0 | 0 | Active native-systemd lane: 6 Brew CLI scenarios, 4 bctl scenarios, and ChairLift managed-cask/config/UI integration; runs only through the lab's run-systemd-container-tests template (not the QEMU e2e action, which masks brew-setup.service) |
 | installer | 3 | 3 | 0 | 0 | post-boot assertions for installer-driven installs (UEFI, Flatpak exclusion, LUKS cmdline) |
 | kde-smoke | 13 | 13 | 0 | 0 | Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational` |
 | lifecycle | 33 | 29 | 0 | 4 | bootc upgrade / rollback / migration; pin + switch are `@future` (pin races the staged-deployment writer; switch needs a valid alternate image ref) |

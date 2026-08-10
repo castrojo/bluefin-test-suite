@@ -1,6 +1,6 @@
 ---
 name: homebrew-chairlift
-description: "ChairLift managed-cask coverage in the homebrew suite: accessible-label evidence and what upstream already tests."
+description: "ChairLift managed-cask coverage in the homebrew suite: AT-SPI root/label evidence, lane contract, and what upstream already tests."
 metadata:
   type: reference
   audience: agents
@@ -12,6 +12,38 @@ Read alongside the [behave SKILL](../SKILL.md). Covers the `homebrew` suite's
 ChairLift scenarios (`chairlift.feature`, `chairlift_steps.py`) — sourced from
 the `projectbluefin/common` ChairLift rollout (`feat/chairlift-rollout`,
 `docs/skills/brew-lifecycle/SKILL.md`).
+
+## The AT-SPI application root is the binary name, not the display name
+
+ChairLift's accessible application root is **`chairlift`** — GTK derives it
+from `g_get_prgname()`, i.e. the executable the cask links as
+`${HOMEBREW_PREFIX}/bin/chairlift`. `ChairLift` (capital L) is only the
+*frame* title. Both spellings appear in the suite and they are not
+interchangeable:
+
+```gherkin
+* Start application "chairlift" via "command"
+* Wait until "ChairLift" "frame" appears in "chairlift"
+```
+
+qecore's `ROOT` fragment (` | in "{a11y_root_name}"`) resolves straight to
+`dogtail.tree.root.application(<a11y_root_name>)`, and
+`Application.instance` resolves through the same `a11y_app_name`, so
+`environment.py` must register `a11y_app_name="chairlift"`. Registering the
+display name instead makes every UI step raise "application not found" — a
+failure mode indistinguishable from the app not launching. Same rule as
+Ptyxis (`a11y_app_name="ptyxis"`, frame title `Ptyxis`).
+
+## Packaging scenarios must not depend on the UI launching
+
+`chairlift.feature` has **no feature-level `Background`**. Only the two
+`@chairlift_ui` scenarios run `Start application` / `Wait until ... frame`;
+the cask-state, desktop-integration, and bootc-helper scenarios assert files
+and services directly. A `Background` that launched the app would make a UI
+regression (or a missing GNOME session) fail all five scenarios at the same
+step, hiding whether the packaging contract itself still holds. Keep
+non-UI packaging assertions launch-independent whenever the evidence lives on
+disk or in systemd.
 
 ## Real accessible group labels, not the plan's placeholders
 
@@ -77,7 +109,12 @@ elsewhere in this suite:
   `preflight` block rewrites `Exec=` to
   `${HOMEBREW_PREFIX}/bin/chairlift-wrapper` (a thin script that sources
   `brew shellenv` before `exec chairlift "$@"`), so assert the whole line
-  equals that path rather than merely containing `chairlift`.
+  equals that path rather than merely containing `chairlift`. Compare it via
+  `Path(...).resolve()` on **both** sides: bootc images symlink `/home` →
+  `/var/home`, so the cask may spell the prefix `/home/linuxbrew/...` while
+  the suite's constant says `/var/home/linuxbrew/...`. `realpath`-equality
+  keeps the check exact (it still rejects any other binary, and `shlex.split`
+  still rejects injected arguments) without failing on the symlink spelling.
 - Three icons, not one: `~/.local/share/icons/hicolor/scalable/apps/
   org.frostyard.ChairLift.svg`, the `-flower` scalable variant, and
   `~/.local/share/icons/hicolor/symbolic/apps/org.frostyard.ChairLift-symbolic.svg`.
@@ -105,8 +142,55 @@ exactly one `exec` invocation and it matches that argv exactly, since the
 helper's entire security contract is "download-only, no caller arguments
 forwarded."
 
-## What this suite does NOT cover (upstream's job)
+## `brew-preinstall.service` success is four properties, not one
 
+`brew-preinstall.service` (`projectbluefin/common`,
+`system_files/shared/usr/lib/systemd/user/brew-preinstall.service`) is
+`Type=oneshot` with `RemainAfterExit=true`. `Result=success` alone is **not**
+evidence that it ran: a unit that never started also reports
+`Result=success` (the property's default) while sitting at
+`ActiveState=inactive`, and a unit whose file vanished from the image reports
+`LoadState=not-found`. Assert all four in one `systemctl --user show` call
+and compare the parsed `key=value` map:
+
+| Property | Expected | Catches |
+|---|---|---|
+| `LoadState` | `loaded` | unit file missing from the image |
+| `ActiveState` | `active` | never started (`RemainAfterExit` keeps a completed run active) |
+| `SubState` | `exited` | still running, or dead |
+| `Result` | `success` | `ExecStart` failed |
+
+## Lane contract: uid 1000, `/run/user/1000`, and hard-failing preconditions
+
+`brew-preinstall.service` is a **user** unit, so this suite is only meaningful
+when a systemd user manager is actually running for the test user. The lane
+(`projectbluefin/lab`'s `run-systemd-container-tests` template, coordinated
+with `tests/homebrew/README.md`) must provide `brew-setup.service` unmasked
+and started, `loginctl enable-linger bluefin-test`, `systemctl start
+user@1000.service`, and `XDG_RUNTIME_DIR=/run/user/1000`.
+
+`environment.py` pins that contract instead of trusting it: it rejects any
+other `XDG_RUNTIME_DIR`, sets it when unset, and probes the manager with
+`systemctl --user show --property=Version --value` before doing anything
+else. Every failure path raises `HomebrewLaneError` from `before_all`.
+
+**Preconditions here fail the run; they never skip.** behave 1.3.x counts a
+`before_all`/`before_scenario` exception as a hook failure, aborts, and exits
+nonzero (`runner.py`: `hook_failures` feeds the final `failed` result). The
+older `context.failed_setup` → `scenario.skip()` pattern that other suites use
+for genuinely optional components (Podman Desktop on non-dx images) is wrong
+here: a missing cask, missing desktop file, or dead service *is* the
+regression under test, and skipping it reports green. Only tag-driven
+`@quarantine`/`@pending` skips remain, and this suite carries none. Screenshot
+and timing helpers keep their guarded imports because losing an artifact
+degrades evidence without invalidating an assertion.
+
+This suite therefore runs **only** through the lab lane, never through the
+QEMU `e2e.yml` action — that workflow masks `brew-setup.service` (#487), so
+`homebrew` would fail at the first precondition there by design. Do not
+advertise it in `e2e.yml`'s `suites` input.
+
+## What this suite does NOT cover (upstream's job)
 `frostyard/chairlift` unit-tests config parsing/validation (`internal/config`),
 Homebrew search/trust/bundle logic (`internal/homebrew`), PolicyKit action
 shape in the abstract, and bootc progress streaming in its own test suite.

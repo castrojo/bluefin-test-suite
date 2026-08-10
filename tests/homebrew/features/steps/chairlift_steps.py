@@ -16,6 +16,7 @@ lifecycle, the installed desktop/icon files, the rendered UI for Bluefin's
 import json
 import os
 import re
+import shlex
 import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -40,17 +41,48 @@ BOOTC_ACTION_ID = "org.frostyard.ChairLift.bootc.stage"
 EXEC_RE = re.compile(r"^\s*exec\b(.*)$", re.MULTILINE)
 
 
+#: The unit is Type=oneshot with RemainAfterExit=true, so a clean completed run
+#: is loaded/active/exited/success. Asserting only Result=success would also
+#: pass for a unit that never ran (Result defaults to "success" while
+#: ActiveState is "inactive"), which is the regression this lane must catch.
+PREINSTALL_STATE = {
+    "LoadState": "loaded",
+    "ActiveState": "active",
+    "SubState": "exited",
+    "Result": "success",
+}
+
+
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, check=False, capture_output=True, text=True)
+
+
+def _parse_properties(output: str) -> dict[str, str]:
+    """Parse `systemctl show` key=value output into a dict."""
+    properties: dict[str, str] = {}
+    for line in output.splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            properties[key.strip()] = value.strip()
+    return properties
 
 
 @step("The brew-preinstall user service completed successfully")
 def brew_preinstall_completed(context) -> None:
     result = _run(
         "systemctl", "--user", "show", "brew-preinstall.service",
-        "--property=Result", "--value",
+        *(f"--property={name}" for name in PREINSTALL_STATE),
     )
-    assert result.returncode == 0 and result.stdout.strip() == "success", result.stderr
+    assert result.returncode == 0, (
+        f"systemctl --user show brew-preinstall.service failed "
+        f"(rc={result.returncode}): {result.stderr.strip()}"
+    )
+    properties = _parse_properties(result.stdout)
+    actual = {name: properties.get(name) for name in PREINSTALL_STATE}
+    assert actual == PREINSTALL_STATE, (
+        f"brew-preinstall.service did not complete successfully: "
+        f"expected {PREINSTALL_STATE}, got {actual}"
+    )
 
 
 @step('The managed Homebrew state lists cask "{name}"')
@@ -76,8 +108,20 @@ def chairlift_desktop_entry_launches_wrapper(context) -> None:
     content = DESKTOP_FILE.read_text(encoding="utf-8")
     match = re.search(r"^Exec=(.*)$", content, re.MULTILINE)
     assert match, f"No Exec= line found in {DESKTOP_FILE}:\n{content}"
-    assert match.group(1).strip() == CHAIRLIFT_WRAPPER, (
-        f"Expected Exec={CHAIRLIFT_WRAPPER}, got Exec={match.group(1).strip()}"
+    argv = shlex.split(match.group(1).strip())
+    assert len(argv) == 1, (
+        f"Expected Exec={CHAIRLIFT_WRAPPER} with no extra arguments, "
+        f"got Exec={match.group(1).strip()}"
+    )
+    # /home is a symlink to /var/home on bootc images, so the cask's spelling
+    # of the wrapper path may differ from ours character-for-character while
+    # naming the same file. realpath both sides to keep the comparison exact
+    # without being fooled by the symlink spelling.
+    actual = Path(argv[0]).resolve()
+    expected = Path(CHAIRLIFT_WRAPPER).resolve()
+    assert actual == expected, (
+        f"Expected Exec to resolve to {expected}, got {argv[0]} "
+        f"(resolves to {actual})"
     )
 
 
