@@ -92,6 +92,9 @@ PREINSTALL_ACTIVE_STATE = {
 # and only ConditionResult=no explains why. Kept in sync with
 # chairlift_steps.PREINSTALL_DIAGNOSTICS.
 PREINSTALL_DIAGNOSTICS = ("ConditionResult", "ExecMainStatus")
+# Shipped by projectbluefin/common, not by the cask. Kept in sync with
+# chairlift_steps.DESKTOP_FILE (asserted in tests/unit/test_chairlift_steps.py).
+CHAIRLIFT_DESKTOP_FILE = "/usr/share/applications/org.frostyard.ChairLift.desktop"
 LANE_DOC = "tests/homebrew/README.md"
 
 
@@ -217,12 +220,16 @@ def before_all(context) -> None:
 
     # AT-SPI exposes the application root under the binary name ("chairlift");
     # "ChairLift" is only the frame title asserted by the UI scenarios.
+    #
+    # The system-wide entry, not the cask's ~/.local/share copy: qecore reads
+    # Exec= from this file to start the app, and the cask only writes the user
+    # copy for whoever ran `brew bundle`. Pointing at the user path would make
+    # the UI scenarios unlaunchable for any other test user, which is the same
+    # first-user-wins gap the desktop scenario now covers.
     context.chairlift = context.sandbox.get_application(
         name="chairlift",
         a11y_app_name="chairlift",
-        desktop_file_path=str(
-            Path.home() / ".local/share/applications/org.frostyard.ChairLift.desktop"
-        ),
+        desktop_file_path=CHAIRLIFT_DESKTOP_FILE,
     )
     context.chairlift.exit_shortcut = "<Ctrl>Q"
     configure_screenshot_context(context, SUITE_NAME)

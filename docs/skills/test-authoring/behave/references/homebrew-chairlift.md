@@ -121,6 +121,11 @@ multi-user image.
   bootc symlinks `/home` → `/var/home`, so a cask-written entry may spell it
   `/home/linuxbrew/...`. Realpath-equality keeps the check exact (other
   binaries still rejected, `shlex.split` still rejecting injected arguments).
+- `environment.py` must hand qecore the **same** system-wide entry, because
+  `Start application ... via "command"` reads `Exec=` from `desktop_file_path`.
+  A user-home path there makes the `@chairlift_ui` scenarios unlaunchable for
+  any test user who did not provision the prefix; a unit test asserts the two
+  constants agree.
 - `chairlift-updex-helper` is **not** linked by the cask
   (`frostyard/chairlift#54`): it needs PolicyKit policies a user-scope cask
   cannot install, so Bluefin has no updex coverage and disables

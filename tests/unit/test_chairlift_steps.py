@@ -240,10 +240,14 @@ def test_desktop_step_reports_a_missing_system_wide_entry(steps, tmp_path):
             steps.chairlift_desktop_entry_launches_wrapper(None)
 
 
-def test_desktop_and_icon_paths_are_system_wide(steps):
+def test_desktop_and_icon_paths_are_system_wide(steps, environment):
     # Pin the contract itself: these must be /usr paths. A refactor back to
     # Path.home() would silently reduce the suite to "the first user is fine".
     assert str(steps.DESKTOP_FILE) == "/usr/share/applications/org.frostyard.ChairLift.desktop"
+    # qecore reads Exec= from this file to start the app, so environment.py
+    # must name the same entry the desktop scenario asserts. A user-home path
+    # here would make the UI scenarios unlaunchable for any other test user.
+    assert environment.CHAIRLIFT_DESKTOP_FILE == str(steps.DESKTOP_FILE)
     for icon in (steps.SCALABLE_ICON, steps.SCALABLE_FLOWER_ICON, steps.SYMBOLIC_ICON):
         assert str(icon).startswith("/usr/share/icons/hicolor/"), icon
     assert steps.SCALABLE_ICON.name == "org.frostyard.ChairLift.svg"
