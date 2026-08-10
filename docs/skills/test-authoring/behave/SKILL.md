@@ -255,21 +255,20 @@ so they still run on gnomeos and other non-Bluefin images.
 ## Four silent-green traps: names, preconditions, `Background`, diagnostics
 
 - **Accessible names are evidence, not guesses.** ChairLift's groups are
-  `"Homebrew"`/`"System Flatpak Applications"`, not the planned `"Brew
-  Packages"`; `a11y_app_name` (like `in "<root>"`) resolves to
+  `"Homebrew"`/`"System Flatpak Applications"`, not the planned `"Brew Packages"`;
+  `a11y_app_name` (like `in "<root>"`) resolves to
   `root.application(g_get_prgname())` — binary `chairlift`, never `ChairLift`.
 - **Preconditions must fail, not skip — and must not be "fixed" by the suite.**
-  A `before_all` funnelling errors into `context.failed_setup` reports green
-  while the regression fires; let the hook raise. Verify what you need (probe
-  the user manager, stat the binary); don't rewrite the environment to satisfy
-  it — rewriting `XDG_RUNTIME_DIR` probes a different user manager than the lane
-  started. `scenario.skip()` stays for tags and optional components.
+  Let `before_all` raise instead of funnelling into `context.failed_setup`, and
+  verify the environment rather than rewriting it; `scenario.skip()` stays for
+  tags and optional components. Why, and the `XDG_RUNTIME_DIR` trap:
+  [homebrew-lane-contract.md](references/homebrew-lane-contract.md).
 - **Never launch an app in a `Background`** shared with scenarios that only
-  assert files or units. Start it inside the scenarios that need a window (tag
+  assert files or units. Start it inside the scenarios needing a window (tag
   them, e.g. `@chairlift_ui`) so packaging assertions stay diagnosable.
 - **A missing app root must name what *is* on the bus.** qecore's
   `context.app.instance` is `None` before start and after close, not a raising
-  lookup — check for `None`, append `tests.shared.a11y` names; never swallow.
+  lookup — check `None`, append `tests.shared.a11y` names, never swallow.
 
 ## Feature scaffolding with @future
 
@@ -314,7 +313,7 @@ count override.
 tests/
   smoke/          # GUI smoke — behave + dogtail
   developer/      # developer tools (Ptyxis, Podman Desktop)
-  homebrew/       # active Brew CLI, bctl, and ChairLift managed-cask coverage
+  homebrew/       # Brew CLI, bctl, ChairLift managed-cask coverage
   software/       # software installation
   flatcar/        # Flatcar compatibility
   lifecycle/      # bootc upgrade/rollback
@@ -493,7 +492,8 @@ non-dependent scenarios to a separate feature.
 - [Mocking interactive CLI tools (gum, fzf, gh) in ujust coverage.](references/mocking-interactive-cli.md)
 - [Driving bluefinctl devmode non-interactively, and the assertion traps around it.](references/bctl-devmode.md)
 - [Which ujust recipes can be driven non-interactively, and why the rest stay @pending.](references/ujust-noninteractive.md)
-- [ChairLift managed-cask coverage: real accessible-label evidence vs. plan placeholders, desktop/icon/bootc-helper paths.](references/homebrew-chairlift.md)
+- [ChairLift managed-cask coverage: accessible-label evidence, system-wide desktop/icon and bootc-helper paths.](references/homebrew-chairlift.md)
+- [Homebrew lane contract: preconditions that fail instead of skipping, and why a suite never writes XDG_RUNTIME_DIR.](references/homebrew-lane-contract.md)
 
 ## Sources
 

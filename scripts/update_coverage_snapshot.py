@@ -41,10 +41,12 @@ SUITE_NOTES: dict[str, str] = {
     "developer": "Podman Desktop (6 active) + Ptyxis launch/window accessibility (1 active); 6 Ptyxis scenarios stay `@pending` on the AT-SPI restart issue (#368). Brew and bctl moved to the `homebrew` suite (#487 CI-mask blocker no longer applies there)",
     "homebrew": (
         "Active native-systemd lane: 6 Brew CLI scenarios, 4 bctl scenarios, "
-        "and ChairLift managed-cask/config/UI integration; targets the lab's "
-        "run-systemd-container-tests template, which does not accept "
-        "suite=homebrew or provision Homebrew yet (the QEMU e2e action keeps "
-        "brew-setup.service masked) — see tests/homebrew/README.md"
+        "and ChairLift managed-cask/desktop/config/UI integration; targets "
+        "the lab's run-systemd-container-tests template, which accepts "
+        "suite=homebrew and provisions Homebrew, but has not been executed "
+        "against the cluster yet. Not runnable from the QEMU e2e action, "
+        "which keeps brew-setup.service masked (#487) — see "
+        "tests/homebrew/README.md"
     ),
     "software": "Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; Flatpak per-app permission management active on all images; upstream GNOME Software scenarios are `@future` (#176)",
     "common": "Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; devmode via bctl (non-interactive contract + idempotent state-check gated `@requires_bctl`, group mutation `@pending` on CI polkit); GSettings/dconf defaults; immutable OS integrity; desktop entries; signing assertions; Dakota `ujust --choose` regression guard active (`@dakota_only`); `ujust report` is `@pending` on #706 until a Dakota lab run validates the mocked submit flow",

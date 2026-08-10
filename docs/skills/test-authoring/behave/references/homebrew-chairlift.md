@@ -51,6 +51,10 @@ cask-state, desktop-integration, and bootc-helper scenarios assert files and
 services directly, so a UI regression or missing GNOME session cannot fail all
 five at the same step and hide the packaging contract.
 
+One more false-green guard lives in the lane: behave exits 0 when `--tags`
+matches nothing, so `projectbluefin/lab`'s runner fails the workflow with `no
+scenarios ran` on an empty tally. A typo'd `-p behave-tags` is a red lane.
+
 ## Real accessible group labels, not the plan's placeholders
 
 The plan assumed group titles `"Brew Packages"` / `"Flatpak Applications"`;
@@ -91,27 +95,32 @@ check survives a wording tweak to the `%s` detail. Bluefin's
 `tests/check-chairlift-config` (`projectbluefin/common`) already fails closed on
 schema drift, so a match here means a config bug passed that gate.
 
-## Desktop entry, icons, and binary paths (from the Homebrew cask, not the plan)
+## Desktop entry and icons are asserted system-wide, not per-user
 
-The cask (`frostyard/homebrew-tap` `Casks/chairlift.rb`) installs user-scoped:
+The cask's desktop entry and icons are **first-user-wins**, so asserting the
+user copies would test the wrong thing. `Casks/chairlift.rb` writes
+`#{Dir.home}/.local/share/{applications,icons}` — the home of whichever user
+ran `brew bundle`. Homebrew has one shared prefix on Bluefin, so every later
+user's `brew bundle` sees the cask installed, skips it, and that user gets no
+launcher and no icon. `Path.home()` assertions pass on the machine that
+provisioned the prefix and say nothing about anybody else.
 
-- `~/.local/share/applications/org.frostyard.ChairLift.desktop` — the cask's
-  `preflight` block rewrites `Exec=` to
-  `${HOMEBREW_PREFIX}/bin/chairlift-wrapper` (a thin script sourcing `brew
-  shellenv` before `exec chairlift "$@"`), so assert the whole line equals that
-  path rather than merely containing `chairlift`. Compare via
-  `Path(...).resolve()` on **both** sides: bootc images symlink `/home` →
-  `/var/home`, so the cask may spell the prefix `/home/linuxbrew/...` while ours
-  says `/var/home/...`; `realpath`-equality keeps the check exact (still
-  rejecting other binaries, and `shlex.split` still rejecting injected
-  arguments) without failing on the spelling.
-- Three icons, not one: `~/.local/share/icons/hicolor/scalable/apps/
-  org.frostyard.ChairLift.svg`, the `-flower` scalable variant, and
-  `~/.local/share/icons/hicolor/symbolic/apps/org.frostyard.ChairLift-symbolic.svg`.
-- `${HOMEBREW_PREFIX}/bin/chairlift` is the real binary (linked by `binary
-  "chairlift"`); `chairlift-wrapper` is a separate linked script, not an alias —
-  the desktop entry launches it so the app inherits the Homebrew-managed
-  `PATH`/`brew shellenv` even when the session's lacks brew.
+`projectbluefin/common` ships the same upstream v0.10.1 artifacts image-side,
+and those are what the steps assert: `/usr/share/applications/
+org.frostyard.ChairLift.desktop`, plus `org.frostyard.ChairLift.svg` (resolves
+`Icon=`) and `org.frostyard.ChairLift-flower.svg` under
+`/usr/share/icons/hicolor/scalable/apps/`, and
+`org.frostyard.ChairLift-symbolic.svg` under `.../symbolic/apps/`. The per-user
+copies are deliberately **not** asserted — requiring them would fail a correct
+multi-user image.
+
+- `Exec=` is `/var/home/linuxbrew/.linuxbrew/bin/chairlift-wrapper`, a thin
+  script (`brew shellenv`, then `exec chairlift "$@"`) that gives the app the
+  Homebrew-managed `PATH` a GDM session lacks. Assert the whole line, not
+  "contains `chairlift`", and compare `Path(...).resolve()` on **both** sides:
+  bootc symlinks `/home` → `/var/home`, so a cask-written entry may spell it
+  `/home/linuxbrew/...`. Realpath-equality keeps the check exact (other
+  binaries still rejected, `shlex.split` still rejecting injected arguments).
 - `chairlift-updex-helper` is **not** linked by the cask
   (`frostyard/chairlift#54`): it needs PolicyKit policies a user-scope cask
   cannot install, so Bluefin has no updex coverage and disables
@@ -123,10 +132,28 @@ The cask (`frostyard/homebrew-tap` `Casks/chairlift.rb`) installs user-scoped:
 (in `projectbluefin/common`) pins `org.freedesktop.policykit.exec.path` to
 `/usr/libexec/bootc-update-stage` with `<defaults>` `allow_any=auth_admin`,
 `allow_inactive=auth_admin`, `allow_active=auth_admin_keep` — parse the XML
-(`xml.etree.ElementTree`) rather than string-matching. `bootc-update-stage` is a
-bash script whose only `exec` line is `exec /usr/bin/bootc upgrade
---download-only`; assert exactly one `exec` matching that argv, since the
-helper's whole security contract is "download-only, no arguments forwarded."
+(`xml.etree.ElementTree`) rather than string-matching.
+
+`bootc-update-stage`'s only `exec` line is `exec /usr/bin/bootc upgrade` —
+**plain, no flags.** Assert exactly one `exec` matching that argv: pkexec runs
+it as root, so "contains `bootc upgrade`" would also accept
+`exec /some/other/tool "bootc upgrade"`.
+
+`--download-only` is the trap, and asserting it was this suite's own earlier
+bug. `bootc-upgrade(8)`: the image is retained "for the lifetime of this system
+boot, but it will not be applied on reboot" — the user authenticates, pays a
+full image pull, and reboots into the old deployment, while ChairLift's UI
+(which re-reads `bootc status` for a staged deployment) shows nothing. It also
+regresses `uupd`: on an already-staged deployment bootc calls
+`change_finalization()`, so "check for updates now" would *cancel* an update
+`uupd` had staged for shutdown. Plain `bootc upgrade` queues a staged
+deployment for `ostree-finalize-staged` and unlocks one left download-only.
+
+The contract is "stage only, forward no arguments, never these flags":
+`--apply`/`--soft-reboot` (reboot), `--download-only` (never applies, re-locks
+uupd's), `--from-downloaded` (only unlocks, never checks the registry). Compare
+whole tokens and the `--flag=value` spelling, never substrings, and name the
+offending flag — an exact-argv diff does not say why it is banned.
 
 ## `brew-preinstall.service` success is four properties, not one
 
@@ -147,54 +174,18 @@ compare the parsed `key=value` map, and report the last two on failure:
 | `ConditionResult` | *diagnostic only* | `no` = systemd **skipped** the unit (`ConditionUser=!@system`, `ConditionPathExists=<brew binary>`): `start` exits 0 and the state is otherwise byte-identical to "never asked to run" |
 | `ExecMainStatus` | *diagnostic only* | separates that skip from an `ExecStart` that ran and failed |
 
-## Lane contract: verify preconditions, don't relocate the session
+## Lane contract and fail-closed preconditions
 
-`brew-preinstall.service` is a **user** unit, so this suite is only meaningful
-when a systemd user manager is actually running for the test user. The lane
-(`projectbluefin/lab`'s `run-systemd-container-tests` template, coordinated with
-`tests/homebrew/README.md`) must unmask and start `brew-setup.service` and run a
-systemd user manager reachable at the `XDG_RUNTIME_DIR` the behave process sees.
-Neither is true of the template today — that README's "What the lab lane must
-add" section carries the live values and line numbers.
-
-`environment.py` verifies that contract instead of trusting it, raising
-`HomebrewLaneError` from `before_all` in this order: probe the user manager
-(`systemctl --user show --property=Version`); require the brew binary to exist
-and be executable, naming `brew-setup.service`, so "Homebrew was never
-provisioned" gets its own message instead of an opaque unit failure; then start
-`brew-preinstall.service` and `show` its state, because a `start` returning 0
-without a completed run means the managed casks were never installed.
-
-**Do not pin or rewrite `XDG_RUNTIME_DIR` from a test suite.** An earlier
-revision required `/run/user/1000` and set it when unset — wrong layer, and the
-reason first given for reverting it was also wrong. Rewriting the variable does
-**not** move the a11y or session bus here: the lane pins both with absolute
-`DBUS_SESSION_BUS_ADDRESS`/`AT_SPI_BUS_ADDRESS` values that do not follow it.
-What it does move is `systemctl --user`, which reaches the manager through
-`$XDG_RUNTIME_DIR/systemd/private` and ignores those bus variables — verified on
-systemd 260.2: a bogus `DBUS_SESSION_BUS_ADDRESS` still works, a bogus
-`XDG_RUNTIME_DIR` fails with `Failed to connect to user scope bus via local
-transport`. So a suite that rewrites it probes a *different* manager than the
-lane started, and hard-coding uid 1000 fails any lane with another test user.
-Both lookups must agree; only the lane can make them agree. Read, never write.
-
-**Preconditions here fail the run; they never skip.** behave 1.3.x counts a
-`before_all`/`before_scenario` exception as a hook failure, aborts, and exits
-nonzero (`runner.py`: `hook_failures` feeds the final `failed` result). The
-`context.failed_setup` → `scenario.skip()` pattern other suites use for
-genuinely optional components (Podman Desktop on non-dx images) is wrong here: a
-missing cask, desktop file, or dead service *is* the regression under test, and
-skipping reports green. Only tag-driven skips remain, and this suite carries
-none. Screenshot and timing helpers keep guarded imports because losing an
-artifact degrades evidence without invalidating anything. This suite targets the
-lab lane, not the QEMU `e2e.yml` action, which masks `brew-setup.service` (#487)
-— `homebrew` fails there at the brew-binary precondition by design, so keep it
-out of `e2e.yml`'s `suites`.
+The `homebrew` suite only means anything when the lane really provisioned
+Homebrew and a systemd user manager, and `environment.py` verifies that rather
+than trusting it. Why each precondition fails instead of skipping, and why a
+suite must read `XDG_RUNTIME_DIR` and never write it:
+[homebrew-lane-contract.md](homebrew-lane-contract.md).
 
 ## What this suite does NOT cover (upstream's job)
 
 `frostyard/chairlift` unit-tests config parsing (`internal/config`), Homebrew
 search/trust/bundle logic (`internal/homebrew`), PolicyKit action shape, and
 bootc progress streaming. This suite covers only Bluefin-specific packaging: the
-managed-cask lifecycle, installed desktop/icon files, the UI rendered for
+managed-cask lifecycle, the system-wide desktop/icon files, the UI rendered for
 Bluefin's `config.yml`, and the fixed paths the bootc action depends on.

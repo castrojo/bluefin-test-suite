@@ -2,8 +2,8 @@
 Feature: Managed Homebrew and ChairLift integration
 
   # No feature-level Background: the packaging scenarios assert the cask state,
-  # the installed user files, and the bootc PolicyKit contract without ever
-  # launching the app, so a UI launch failure cannot mask a packaging
+  # the system-wide desktop files, and the bootc PolicyKit contract without
+  # ever launching the app, so a UI launch failure cannot mask a packaging
   # regression. Only @chairlift_ui scenarios start ChairLift. The AT-SPI
   # application root is the binary name "chairlift"; "ChairLift" is the frame
   # title.
@@ -15,7 +15,7 @@ Feature: Managed Homebrew and ChairLift integration
     * Homebrew reports cask "chairlift" installed
 
   @chairlift @chairlift_desktop
-  Scenario: ChairLift desktop integration is installed for the user
+  Scenario: ChairLift desktop integration is installed for every user
     * The ChairLift command is available
     * The ChairLift desktop entry launches the Homebrew wrapper
     * The ChairLift scalable and symbolic icons exist
@@ -39,6 +39,6 @@ Feature: Managed Homebrew and ChairLift integration
     * ChairLift shows group "System Flatpak Applications"
 
   @chairlift @chairlift_bootc
-  Scenario: bootc staging remains authenticated and download-only
+  Scenario: bootc staging remains authenticated and never applies on its own
     * The ChairLift bootc PolicyKit action requires administrator authentication
-    * The ChairLift bootc helper executes only download-only staging
+    * The ChairLift bootc helper stages the update without applying it

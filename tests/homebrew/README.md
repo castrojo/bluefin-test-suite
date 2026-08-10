@@ -23,9 +23,12 @@ of pending.
 - **bctl (bluefinctl)** (`@bctl`, 4 scenarios) — `bctl status`, `update
   --check`, `devmode status`, and `--help`, driven the same way.
 - **ChairLift** (`@chairlift`, 5 scenarios) — the managed Homebrew cask state,
-  the user-scoped desktop/icon integration the cask installs, the UI ChairLift
-  renders for Bluefin's maintainer `config.yml`, and the authenticated,
-  download-only bootc staging contract. Only the two `@chairlift_ui` scenarios
+  the system-wide desktop/icon integration `projectbluefin/common` ships (the
+  cask's own `~/.local/share` artifacts are first-user-wins, so they are not
+  asserted), the UI ChairLift renders for Bluefin's maintainer `config.yml`,
+  and the authenticated, stage-only bootc contract: the privileged helper runs
+  plain `bootc upgrade` and must never pass `--apply`, `--soft-reboot`,
+  `--download-only`, or `--from-downloaded`. Only the two `@chairlift_ui` scenarios
   launch the app; the cask, desktop-file, and bootc-helper scenarios assert
   files and services directly so a launch failure cannot mask a packaging
   regression. When a UI step cannot find ChairLift's AT-SPI root, the failure

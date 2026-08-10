@@ -6,6 +6,7 @@ and the `before_all` preconditions that must FAIL the run rather than skip it.
 """
 
 import os
+import re
 import sys
 import types
 from pathlib import Path
@@ -226,8 +227,57 @@ def test_desktop_exec_rejects_extra_arguments(steps, tmp_path, symlinked_prefix)
             steps.chairlift_desktop_entry_launches_wrapper(None)
 
 
+def test_desktop_step_reports_a_missing_system_wide_entry(steps, tmp_path):
+    # The cask writes ~/.local/share/applications for the installing user
+    # only, so an image that stopped shipping /usr/share/applications would
+    # still "work" for whoever provisioned the Homebrew prefix and leave every
+    # other user without a launcher. The step must name that, not raise
+    # FileNotFoundError from read_text().
+    missing = tmp_path / "absent" / "org.frostyard.ChairLift.desktop"
+
+    with patch.object(steps, "DESKTOP_FILE", missing):
+        with pytest.raises(AssertionError, match="Missing system-wide desktop entry"):
+            steps.chairlift_desktop_entry_launches_wrapper(None)
+
+
+def test_desktop_and_icon_paths_are_system_wide(steps):
+    # Pin the contract itself: these must be /usr paths. A refactor back to
+    # Path.home() would silently reduce the suite to "the first user is fine".
+    assert str(steps.DESKTOP_FILE) == "/usr/share/applications/org.frostyard.ChairLift.desktop"
+    for icon in (steps.SCALABLE_ICON, steps.SCALABLE_FLOWER_ICON, steps.SYMBOLIC_ICON):
+        assert str(icon).startswith("/usr/share/icons/hicolor/"), icon
+    assert steps.SCALABLE_ICON.name == "org.frostyard.ChairLift.svg"
+    assert steps.SCALABLE_FLOWER_ICON.name == "org.frostyard.ChairLift-flower.svg"
+    assert steps.SYMBOLIC_ICON.name == "org.frostyard.ChairLift-symbolic.svg"
+
+
+def test_icon_step_reports_a_missing_system_wide_icon(steps, tmp_path):
+    present = tmp_path / "org.frostyard.ChairLift.svg"
+    present.write_text("<svg/>", encoding="utf-8")
+    absent = tmp_path / "org.frostyard.ChairLift-symbolic.svg"
+
+    with patch.object(steps, "SCALABLE_ICON", present), patch.object(
+        steps, "SCALABLE_FLOWER_ICON", present
+    ), patch.object(steps, "SYMBOLIC_ICON", absent):
+        with pytest.raises(AssertionError, match="Missing or empty system-wide icon"):
+            steps.chairlift_icons_exist(None)
+
+
+def test_icon_step_rejects_an_empty_icon(steps, tmp_path):
+    # A zero-byte SVG is what a broken COPY or a truncated fetch leaves
+    # behind, and `is_file()` alone would pass it.
+    empty = tmp_path / "org.frostyard.ChairLift.svg"
+    empty.write_text("", encoding="utf-8")
+
+    with patch.object(steps, "SCALABLE_ICON", empty), patch.object(
+        steps, "SCALABLE_FLOWER_ICON", empty
+    ), patch.object(steps, "SYMBOLIC_ICON", empty):
+        with pytest.raises(AssertionError, match="Missing or empty system-wide icon"):
+            steps.chairlift_icons_exist(None)
+
+
 # ---------------------------------------------------------------------------
-# bootc staging: PolicyKit defaults + single download-only exec
+# bootc staging: PolicyKit defaults + a single, flagless `bootc upgrade`
 # ---------------------------------------------------------------------------
 
 
@@ -271,29 +321,87 @@ def test_policykit_action_rejects_other_exec_path(steps, tmp_path):
             steps.chairlift_bootc_policykit_requires_admin(None)
 
 
-@pytest.mark.parametrize(
-    ("body", "raises"),
-    [
-        ("#!/usr/bin/bash\nset -euo pipefail\nexec /usr/bin/bootc upgrade --download-only\n", False),
-        ("#!/usr/bin/bash\nexec /usr/bin/bootc upgrade\n", True),
-        ('#!/usr/bin/bash\nexec /usr/bin/bootc upgrade --download-only "$@"\n', True),
-        (
-            "#!/usr/bin/bash\nexec /usr/bin/bootc upgrade --download-only\n"
-            "exec /usr/bin/bootc upgrade --apply\n",
-            True,
-        ),
-    ],
-)
-def test_bootc_helper_download_only(steps, tmp_path, body, raises):
+def _run_helper_step(steps, tmp_path, body):
     helper = tmp_path / "bootc-update-stage"
     helper.write_text(body, encoding="utf-8")
-
     with patch.object(steps, "BOOTC_HELPER", helper):
-        if raises:
-            with pytest.raises(AssertionError):
-                steps.chairlift_bootc_helper_download_only(None)
-        else:
-            steps.chairlift_bootc_helper_download_only(None)
+        steps.chairlift_bootc_helper_stages_only(None)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "#!/usr/bin/bash\nset -euo pipefail\nexec /usr/bin/bootc upgrade\n",
+        # Comments naming the banned flags must not trip a substring check.
+        "#!/usr/bin/bash\n# never --apply, never --download-only\n"
+        "exec /usr/bin/bootc upgrade\n",
+    ],
+)
+def test_bootc_helper_accepts_plain_upgrade(steps, tmp_path, body):
+    _run_helper_step(steps, tmp_path, body)
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        # --apply and --soft-reboot reboot the machine.
+        "--apply",
+        "--soft-reboot auto",
+        "--soft-reboot=auto",
+        # bootc-upgrade(8) on --download-only: "it will not be applied on
+        # reboot". It also re-locks a deployment uupd already staged, so
+        # pressing ChairLift's button would cancel a pending update.
+        "--download-only",
+        # --from-downloaded only unlocks a prior download; it never checks
+        # the registry, so "check for updates now" would check nothing.
+        "--from-downloaded",
+    ],
+)
+def test_bootc_helper_rejects_each_dangerous_flag(steps, tmp_path, flag):
+    with pytest.raises(AssertionError, match="stages the update|passes --"):
+        _run_helper_step(
+            steps, tmp_path, f"#!/usr/bin/bash\nexec /usr/bin/bootc upgrade {flag}\n"
+        )
+
+
+@pytest.mark.parametrize(
+    "flag", ["--apply", "--download-only", "--from-downloaded", "--soft-reboot=auto"]
+)
+def test_bootc_helper_names_the_offending_flag(steps, tmp_path, flag):
+    # The exact-argv assertion alone would report a list diff. Naming the flag
+    # is what tells the next reader why it is banned.
+    name = flag.split("=")[0]
+    with pytest.raises(AssertionError, match=f"passes {re.escape(name)}"):
+        _run_helper_step(
+            steps, tmp_path, f"#!/usr/bin/bash\nexec /usr/bin/bootc upgrade {flag}\n"
+        )
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        # pkexec forwards caller argv; the helper must never relay it.
+        '#!/usr/bin/bash\nexec /usr/bin/bootc upgrade "$@"\n',
+        # More than one exec is more than one privileged command.
+        "#!/usr/bin/bash\nexec /usr/bin/bootc upgrade\nexec /usr/bin/bootc upgrade --apply\n",
+        # A different binary that merely mentions the words.
+        '#!/usr/bin/bash\nexec /usr/local/bin/wrapper "bootc upgrade"\n',
+        # An extra subcommand is an extra privileged capability.
+        "#!/usr/bin/bash\nexec /usr/bin/bootc switch ghcr.io/evil/image\n",
+    ],
+)
+def test_bootc_helper_rejects_any_other_privileged_shape(steps, tmp_path, body):
+    with pytest.raises(AssertionError):
+        _run_helper_step(steps, tmp_path, body)
+
+
+def test_bootc_helper_forbidden_flags_are_whole_tokens(steps, tmp_path):
+    # `--apply` must not be found inside another word; the check compares
+    # tokens (and the --flag=value spelling), never substrings.
+    assert "--apply" in steps.FORBIDDEN_BOOTC_FLAGS
+    _run_helper_step(
+        steps, tmp_path, "#!/usr/bin/bash\n# --apply is banned\nexec /usr/bin/bootc upgrade\n"
+    )
 
 
 # ---------------------------------------------------------------------------

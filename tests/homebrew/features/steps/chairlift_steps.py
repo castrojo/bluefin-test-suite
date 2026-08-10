@@ -1,10 +1,9 @@
 """ChairLift step definitions for the homebrew suite.
 
 Covers Bluefin's packaging of the ChairLift managed cask: the brew-preinstall
-service and managed-state contract, the user-scoped desktop/icon
-integration installed by the Homebrew cask, the maintainer `config.yml`
-surfaced through ChairLift's own UI, and the authenticated, download-only
-bootc staging helper.
+service and managed-state contract, the system-wide desktop/icon integration
+the image ships, the maintainer `config.yml` surfaced through ChairLift's own
+UI, and the authenticated, stage-only bootc helper.
 
 Upstream ChairLift already unit-tests config parsing, Homebrew search/trust/
 bundle behaviour, PolicyKit action shape, and bootc progress streaming (see
@@ -32,8 +31,16 @@ BREW = f"{HOMEBREW_PREFIX}/bin/brew"
 CHAIRLIFT_BIN = Path(f"{HOMEBREW_PREFIX}/bin/chairlift")
 CHAIRLIFT_WRAPPER = f"{HOMEBREW_PREFIX}/bin/chairlift-wrapper"
 STATE = Path.home() / ".local/share/ublue-os/brew-preinstall-state.json"
-DESKTOP_FILE = Path.home() / ".local/share/applications/org.frostyard.ChairLift.desktop"
-ICON_DIR = Path.home() / ".local/share/icons/hicolor"
+
+#: Desktop integration is asserted system-wide, not per-user. Homebrew has one
+#: shared prefix, so the cask's ~/.local/share artifacts only ever reach the
+#: FIRST user to run `brew bundle`; every later user sees the cask as already
+#: installed and gets no launcher. projectbluefin/common therefore ships the
+#: same upstream files under /usr, which is what these steps check. The
+#: per-user copies may or may not exist depending on who provisioned the
+#: prefix, so nothing here asserts them.
+DESKTOP_FILE = Path("/usr/share/applications/org.frostyard.ChairLift.desktop")
+ICON_DIR = Path("/usr/share/icons/hicolor")
 SCALABLE_ICON = ICON_DIR / "scalable/apps/org.frostyard.ChairLift.svg"
 SCALABLE_FLOWER_ICON = ICON_DIR / "scalable/apps/org.frostyard.ChairLift-flower.svg"
 SYMBOLIC_ICON = ICON_DIR / "symbolic/apps/org.frostyard.ChairLift-symbolic.svg"
@@ -41,6 +48,27 @@ POLICY_FILE = Path("/usr/share/polkit-1/actions/org.frostyard.ChairLift.bootc.po
 BOOTC_HELPER = Path("/usr/libexec/bootc-update-stage")
 BOOTC_ACTION_ID = "org.frostyard.ChairLift.bootc.stage"
 EXEC_RE = re.compile(r"^\s*exec\b(.*)$", re.MULTILINE)
+
+#: The one command the privileged helper may run. Plain `bootc upgrade` queues
+#: a staged deployment that ostree-finalize-staged applies at the user's next
+#: ordinary shutdown, which is what ChairLift's UI reports back.
+BOOTC_STAGE_ARGV = ["/usr/bin/bootc", "upgrade"]
+
+#: Flags that must never appear, checked as whole tokens (and the `--flag=value`
+#: spelling), never as substrings:
+#:   --apply / --soft-reboot  reboot the machine; that is the user's decision.
+#:   --download-only          bootc-upgrade(8): "it will not be applied on
+#:                            reboot" -- and it re-locks a deployment uupd had
+#:                            already staged for shutdown.
+#:   --from-downloaded        only unlocks a prior download; never checks the
+#:                            registry.
+FORBIDDEN_BOOTC_FLAGS = (
+    "--apply",
+    "--from-downloaded",
+    "--download-only",
+    "--soft-reboot",
+    "--reboot",
+)
 
 #: AT-SPI application root — the binary name from g_get_prgname(), registered
 #: in environment.py. "ChairLift" is only the frame title.
@@ -170,6 +198,11 @@ def chairlift_command_available(context) -> None:
 
 @step("The ChairLift desktop entry launches the Homebrew wrapper")
 def chairlift_desktop_entry_launches_wrapper(context) -> None:
+    assert DESKTOP_FILE.is_file(), (
+        f"Missing system-wide desktop entry {DESKTOP_FILE}. The Homebrew cask "
+        f"only writes ~/.local/share/applications for the user that ran brew "
+        f"bundle, so without this file every other user has no launcher."
+    )
     content = DESKTOP_FILE.read_text(encoding="utf-8")
     match = re.search(r"^Exec=(.*)$", content, re.MULTILINE)
     assert match, f"No Exec= line found in {DESKTOP_FILE}:\n{content}"
@@ -193,7 +226,11 @@ def chairlift_desktop_entry_launches_wrapper(context) -> None:
 @step("The ChairLift scalable and symbolic icons exist")
 def chairlift_icons_exist(context) -> None:
     for icon in (SCALABLE_ICON, SCALABLE_FLOWER_ICON, SYMBOLIC_ICON):
-        assert icon.is_file() and icon.stat().st_size > 0, f"Missing or empty icon: {icon}"
+        assert icon.is_file() and icon.stat().st_size > 0, (
+            f"Missing or empty system-wide icon: {icon}. Icon= in the desktop "
+            f"entry only resolves from a system theme path for users the "
+            f"cask's ~/.local/share artifacts never reach."
+        )
 
 
 @step("ChairLift has no configuration error toast")
@@ -243,11 +280,28 @@ def chairlift_bootc_policykit_requires_admin(context) -> None:
     )
 
 
-@step("The ChairLift bootc helper executes only download-only staging")
-def chairlift_bootc_helper_download_only(context) -> None:
+@step("The ChairLift bootc helper stages the update without applying it")
+def chairlift_bootc_helper_stages_only(context) -> None:
     content = BOOTC_HELPER.read_text(encoding="utf-8")
     exec_lines = [line.strip() for line in EXEC_RE.findall(content)]
-    assert len(exec_lines) == 1, f"Expected exactly one exec invocation in {BOOTC_HELPER}: {exec_lines}"
-    assert exec_lines[0] == "/usr/bin/bootc upgrade --download-only", (
-        f"Unexpected bootc helper exec argv: {exec_lines[0]}"
+    assert len(exec_lines) == 1, (
+        f"Expected exactly one exec invocation in {BOOTC_HELPER}: {exec_lines}"
+    )
+    argv = shlex.split(exec_lines[0])
+
+    # Name the forbidden flag first: the argv comparison below would also
+    # catch it, but only as a diff of two lists.
+    for flag in FORBIDDEN_BOOTC_FLAGS:
+        offenders = [
+            token for token in argv if token == flag or token.startswith(f"{flag}=")
+        ]
+        assert not offenders, (
+            f"{BOOTC_HELPER} passes {flag} ({offenders}); pkexec runs this as "
+            f"root and it must only stage -- never reboot, never lock "
+            f"finalization, never skip the registry check"
+        )
+
+    assert argv == BOOTC_STAGE_ARGV, (
+        f"Unexpected bootc helper exec argv: {argv} (expected "
+        f"{BOOTC_STAGE_ARGV})"
     )
