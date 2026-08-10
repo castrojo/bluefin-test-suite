@@ -58,6 +58,13 @@ PREINSTALL_STATE = {
     "Result": "success",
 }
 
+#: Reported on failure, never asserted. brew-preinstall.service carries
+#: ConditionUser=!@system and ConditionPathExists=<brew binary>, so an unmet
+#: condition makes systemd *skip* the unit: `start` exits 0, ActiveState stays
+#: inactive, Result stays success, and only ConditionResult=no says why.
+#: ExecMainStatus separates that skip from an ExecStart that ran and failed.
+PREINSTALL_DIAGNOSTICS = ("ConditionResult", "ExecMainStatus")
+
 
 def _run(*args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(args, check=False, capture_output=True, text=True)
@@ -73,25 +80,47 @@ def _parse_properties(output: str) -> dict[str, str]:
     return properties
 
 
+def _no_root_message(state: str) -> str:
+    return (
+        f"ChairLift is not on the AT-SPI bus under application root "
+        f"{A11Y_ROOT_NAME!r}: {state}. "
+        f"Registered AT-SPI applications: {accessible_application_names()}. "
+        f"The root is the binary name (g_get_prgname()), not the frame "
+        f"title 'ChairLift'; an empty or unavailable list means the app "
+        f"never launched or accessibility is off, not a UI regression."
+    )
+
+
 def _chairlift_root(context):
     """ChairLift's AT-SPI root, or an AssertionError naming what *is* registered.
 
-    A missing root means the app never launched, exited immediately, or the
-    a11y bus is unreachable — all of which otherwise surface as the same
-    opaque dogtail SearchError. The failure is re-raised, never downgraded:
-    the diagnostics only say which application names the bus does expose.
+    qecore's `Application.instance` is a plain attribute: `None` from
+    construction until a start step assigns `get_root()`, and back to `None`
+    once the app is closed (`qecore/application.py:95,338,412`). So the real
+    "app absent" state is a `None` instance, not a raising lookup — reading it
+    only raises when `before_all` never registered the application at all.
+    Both are re-raised, never downgraded: the diagnostics add which application
+    names the bus does expose, they never turn a missing root into a pass.
     """
     try:
-        return context.chairlift.instance
+        instance = context.chairlift.instance
     except Exception as error:  # noqa: BLE001 - re-raised as an assertion below
         raise AssertionError(
-            f"ChairLift is not on the AT-SPI bus under application root "
-            f"{A11Y_ROOT_NAME!r} ({type(error).__name__}: {error}). "
-            f"Registered AT-SPI applications: {accessible_application_names()}. "
-            f"The root is the binary name (g_get_prgname()), not the frame "
-            f"title 'ChairLift'; an empty or unavailable list means the app "
-            f"never launched or accessibility is off, not a UI regression."
+            _no_root_message(
+                f"reading context.chairlift.instance raised "
+                f"{type(error).__name__}: {error} — environment.before_all "
+                f"never registered the application"
+            )
         ) from error
+    if instance is None:
+        raise AssertionError(
+            _no_root_message(
+                "context.chairlift.instance is None — qecore assigns it from "
+                "get_root() only after the app starts and resets it to None on "
+                "close, so the app never launched, exited, or was closed"
+            )
+        )
+    return instance
 
 
 def _showing_named(context, name: str) -> list:
@@ -105,7 +134,7 @@ def _showing_named(context, name: str) -> list:
 def brew_preinstall_completed(context) -> None:
     result = _run(
         "systemctl", "--user", "show", "brew-preinstall.service",
-        *(f"--property={name}" for name in PREINSTALL_STATE),
+        *(f"--property={name}" for name in (*PREINSTALL_STATE, *PREINSTALL_DIAGNOSTICS)),
     )
     assert result.returncode == 0, (
         f"systemctl --user show brew-preinstall.service failed "
@@ -113,9 +142,11 @@ def brew_preinstall_completed(context) -> None:
     )
     properties = _parse_properties(result.stdout)
     actual = {name: properties.get(name) for name in PREINSTALL_STATE}
+    diagnostics = {name: properties.get(name) for name in PREINSTALL_DIAGNOSTICS}
     assert actual == PREINSTALL_STATE, (
         f"brew-preinstall.service did not complete successfully: "
-        f"expected {PREINSTALL_STATE}, got {actual}"
+        f"expected {PREINSTALL_STATE}, got {actual} ({diagnostics}; "
+        f"ConditionResult=no means systemd skipped the unit)"
     )
 
 

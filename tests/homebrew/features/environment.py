@@ -12,8 +12,9 @@ Lane contract (see tests/homebrew/README.md and the lab's
 `run-systemd-container-tests` template): this suite runs against a
 systemd-booted target with Homebrew provisioned, as a test user whose
 systemd user manager is reachable (`brew-preinstall.service` is a *user*
-unit). The session's own `XDG_RUNTIME_DIR` is used as-is — relocating it
-here would move the a11y and session bus out from under qecore.
+unit). The session's own `XDG_RUNTIME_DIR` is used as-is: it is how
+`systemctl --user` reaches the manager (local transport), and which manager
+the lane starts there is the lane's decision, not this suite's.
 
 Preconditions here FAIL the run; they are never downgraded to a skip. A
 missing Homebrew provisioning step, an unreachable user manager, or a
@@ -85,6 +86,12 @@ PREINSTALL_ACTIVE_STATE = {
     "SubState": "exited",
     "Result": "success",
 }
+# Reported on failure, never asserted. The unit carries ConditionUser=!@system
+# and ConditionPathExists=<brew binary>, so an unmet condition makes systemd
+# skip it: `start` exits 0, ActiveState stays inactive, Result stays success,
+# and only ConditionResult=no explains why. Kept in sync with
+# chairlift_steps.PREINSTALL_DIAGNOSTICS.
+PREINSTALL_DIAGNOSTICS = ("ConditionResult", "ExecMainStatus")
 LANE_DOC = "tests/homebrew/README.md"
 
 
@@ -108,8 +115,10 @@ def _detail(result: subprocess.CompletedProcess) -> str:
 def _require_user_manager() -> None:
     """Fail explicitly when the test user's systemd user manager is unreachable.
 
-    XDG_RUNTIME_DIR is reported, never rewritten: the running session's value
-    is what qecore's a11y and session bus connections already use.
+    XDG_RUNTIME_DIR is reported, never rewritten. `systemctl --user` resolves
+    the manager through it (local transport, `$XDG_RUNTIME_DIR/systemd/private`),
+    so rewriting it here would silently probe a different manager than the one
+    the lane started — the lane owns that value; see LANE_DOC.
     """
     probe = _systemctl_user("show", "--property=Version", "--value")
     if probe.returncode != 0:
@@ -155,7 +164,7 @@ def _start_brew_preinstall() -> None:
 
     shown = _systemctl_user(
         "show", BREW_PREINSTALL_UNIT,
-        *(f"--property={name}" for name in PREINSTALL_ACTIVE_STATE),
+        *(f"--property={name}" for name in (*PREINSTALL_ACTIVE_STATE, *PREINSTALL_DIAGNOSTICS)),
     )
     if shown.returncode != 0:
         raise HomebrewLaneError(
@@ -165,11 +174,14 @@ def _start_brew_preinstall() -> None:
     properties = _parse_properties(shown.stdout)
     actual = {name: properties.get(name) for name in PREINSTALL_ACTIVE_STATE}
     if actual != PREINSTALL_ACTIVE_STATE:
+        diagnostics = {name: properties.get(name) for name in PREINSTALL_DIAGNOSTICS}
         raise HomebrewLaneError(
             f"{BREW_PREINSTALL_UNIT} did not complete: expected "
-            f"{PREINSTALL_ACTIVE_STATE}, got {actual}. A `start` that returns 0 "
-            f"without a completed run means the managed casks were never "
-            f"installed; see {LANE_DOC}."
+            f"{PREINSTALL_ACTIVE_STATE}, got {actual} ({diagnostics}). A `start` "
+            f"that returns 0 without a completed run means the managed casks "
+            f"were never installed; ConditionResult=no means systemd skipped "
+            f"the unit (ConditionUser/ConditionPathExists unmet) rather than "
+            f"running it; see {LANE_DOC}."
         )
 
 

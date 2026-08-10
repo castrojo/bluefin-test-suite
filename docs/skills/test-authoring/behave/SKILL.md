@@ -262,14 +262,14 @@ so they still run on gnomeos and other non-Bluefin images.
   A `before_all` funnelling errors into `context.failed_setup` reports green
   while the regression fires; let the hook raise. Verify what you need (probe
   the user manager, stat the binary); don't rewrite the environment to satisfy
-  it — pinning `XDG_RUNTIME_DIR` moves the a11y/session bus out from under
-  qecore. `scenario.skip()` stays for tags and optional components.
+  it — rewriting `XDG_RUNTIME_DIR` probes a different user manager than the lane
+  started. `scenario.skip()` stays for tags and optional components.
 - **Never launch an app in a `Background`** shared with scenarios that only
   assert files or units. Start it inside the scenarios that need a window (tag
   them, e.g. `@chairlift_ui`) so packaging assertions stay diagnosable.
-- **A missing app root must name what *is* on the bus.** `context.app.instance`
-  raises the same `SearchError` whether the app crashed, was never installed, or
-  a11y is off — wrap it, appending `tests.shared.a11y` names; never swallow.
+- **A missing app root must name what *is* on the bus.** qecore's
+  `context.app.instance` is `None` before start and after close, not a raising
+  lookup — check for `None`, append `tests.shared.a11y` names; never swallow.
 
 ## Feature scaffolding with @future
 

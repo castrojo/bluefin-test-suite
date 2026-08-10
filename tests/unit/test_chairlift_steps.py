@@ -75,6 +75,8 @@ def _show_output(**overrides: str) -> str:
         "ActiveState": "active",
         "SubState": "exited",
         "Result": "success",
+        "ConditionResult": "yes",
+        "ExecMainStatus": "0",
     }
     values.update(overrides)
     return "".join(f"{key}={value}\n" for key, value in values.items())
@@ -133,6 +135,39 @@ def test_brew_preinstall_completed_fails_when_systemctl_fails(steps):
     ):
         with pytest.raises(AssertionError, match="Failed to connect to bus"):
             steps.brew_preinstall_completed(None)
+
+
+def test_brew_preinstall_failure_reports_condition_result(steps):
+    """A skipped unit (unmet Condition*) looks identical without ConditionResult."""
+    skipped = _show_output(
+        ActiveState="inactive", SubState="dead", ConditionResult="no", ExecMainStatus=""
+    )
+    with patch.object(steps, "_run", return_value=CompletedProcess([], 0, skipped, "")):
+        with pytest.raises(AssertionError) as error:
+            steps.brew_preinstall_completed(None)
+
+    message = str(error.value)
+    assert "'ConditionResult': 'no'" in message
+    assert "systemd skipped the unit" in message
+
+
+def test_brew_preinstall_diagnostics_are_requested_but_never_asserted(steps):
+    """ConditionResult/ExecMainStatus enrich the failure; they are not the contract."""
+    assert steps.PREINSTALL_DIAGNOSTICS == ("ConditionResult", "ExecMainStatus")
+    assert not set(steps.PREINSTALL_DIAGNOSTICS) & set(steps.PREINSTALL_STATE)
+
+    captured: list[tuple[str, ...]] = []
+
+    def _capture(*args: str):
+        captured.append(args)
+        return CompletedProcess([], 0, _show_output(), "")
+
+    with patch.object(steps, "_run", _capture):
+        steps.brew_preinstall_completed(None)
+
+    requested = captured[0]
+    for name in (*steps.PREINSTALL_STATE, *steps.PREINSTALL_DIAGNOSTICS):
+        assert f"--property={name}" in requested
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +423,33 @@ def test_start_brew_preinstall_rejects_zero_exit_without_completed_run(environme
             environment._start_brew_preinstall()
 
 
+def test_start_brew_preinstall_reports_condition_result(environment):
+    """ConditionUser/ConditionPathExists unmet: systemd skips the unit silently."""
+    skipped = (
+        "ActiveState=inactive\nSubState=dead\nResult=success\n"
+        "ConditionResult=no\nExecMainStatus=\n"
+    )
+    with patch.object(
+        environment, "_systemctl_user", side_effect=_start_then_show(
+            CompletedProcess([], 0, skipped, "")
+        )
+    ):
+        with pytest.raises(environment.HomebrewLaneError) as error:
+            environment._start_brew_preinstall()
+
+    message = str(error.value)
+    assert "'ConditionResult': 'no'" in message
+    assert "systemd skipped the unit" in message
+
+
+def test_environment_diagnostics_match_the_step_module(environment, steps):
+    """Both callers request the same non-asserted diagnostics."""
+    assert environment.PREINSTALL_DIAGNOSTICS == steps.PREINSTALL_DIAGNOSTICS
+    assert not set(environment.PREINSTALL_DIAGNOSTICS) & set(
+        environment.PREINSTALL_ACTIVE_STATE
+    )
+
+
 def test_start_brew_preinstall_raises_when_state_unreadable(environment):
     with patch.object(
         environment, "_systemctl_user", side_effect=_start_then_show(
@@ -451,13 +513,15 @@ class _Root:
 
 
 def _context_with_root(root):
-    return types.SimpleNamespace(chairlift=types.SimpleNamespace(instance=root))
+    return types.SimpleNamespace(chairlift=_QecoreApplication(root))
 
 
-class _RaisingInstance:
-    @property
-    def instance(self):
-        raise LookupError("child not found: chairlift")
+class _QecoreApplication:
+    """qecore's Application shape: `instance` is a plain attribute, None until
+    a start step assigns get_root() and None again after close."""
+
+    def __init__(self, instance=None):
+        self.instance = instance
 
 
 def test_chairlift_root_returns_instance_when_present(steps):
@@ -467,7 +531,8 @@ def test_chairlift_root_returns_instance_when_present(steps):
 
 
 def test_chairlift_root_failure_lists_registered_applications(steps):
-    context = types.SimpleNamespace(chairlift=_RaisingInstance())
+    """The real absent-app state is instance=None, not a raising lookup."""
+    context = types.SimpleNamespace(chairlift=_QecoreApplication())
 
     with patch.object(
         steps, "accessible_application_names", return_value=["gnome-shell", "ptyxis"]
@@ -478,12 +543,24 @@ def test_chairlift_root_failure_lists_registered_applications(steps):
     message = str(error.value)
     assert "gnome-shell" in message and "ptyxis" in message
     assert "chairlift" in message
-    assert "LookupError" in message
+    assert "instance is None" in message
+
+
+def test_chairlift_root_failure_after_the_app_is_closed(steps):
+    """qecore resets instance to None on close; that must fail, not return None."""
+    application = _QecoreApplication(_Root([]))
+    context = types.SimpleNamespace(chairlift=application)
+    assert steps._chairlift_root(context) is application.instance
+
+    application.instance = None
+    with patch.object(steps, "accessible_application_names", return_value=[]):
+        with pytest.raises(AssertionError, match="not on the AT-SPI bus"):
+            steps._chairlift_root(context)
 
 
 def test_chairlift_root_failure_survives_unavailable_a11y_bus(steps):
     """Diagnostics that cannot run must not replace the launch failure."""
-    context = types.SimpleNamespace(chairlift=_RaisingInstance())
+    context = types.SimpleNamespace(chairlift=_QecoreApplication())
 
     with patch.object(
         steps, "accessible_application_names", return_value=["<AT-SPI unavailable: no bus>"]
@@ -493,6 +570,7 @@ def test_chairlift_root_failure_survives_unavailable_a11y_bus(steps):
 
 
 def test_chairlift_root_failure_when_app_was_never_registered(steps):
+    """before_all aborted, so context.chairlift itself is missing."""
     context = types.SimpleNamespace()
 
     with patch.object(steps, "accessible_application_names", return_value=[]):
@@ -502,7 +580,7 @@ def test_chairlift_root_failure_when_app_was_never_registered(steps):
 
 def test_ui_steps_fail_rather_than_pass_without_a_root(steps):
     """A missing root must fail every UI step, including the negative one."""
-    context = types.SimpleNamespace(chairlift=_RaisingInstance())
+    context = types.SimpleNamespace(chairlift=_QecoreApplication())
 
     with patch.object(steps, "accessible_application_names", return_value=[]):
         for ui_step in (
