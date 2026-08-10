@@ -28,7 +28,10 @@ of pending.
   download-only bootc staging contract. Only the two `@chairlift_ui` scenarios
   launch the app; the cask, desktop-file, and bootc-helper scenarios assert
   files and services directly so a launch failure cannot mask a packaging
-  regression. See
+  regression. When a UI step cannot find ChairLift's AT-SPI root, the failure
+  message and the `after_scenario` hook both list the application names that
+  *are* registered on the bus, so "never launched" is distinguishable from a
+  real UI regression. See
   [`docs/skills/test-authoring/behave/references/homebrew-chairlift.md`](../../docs/skills/test-authoring/behave/references/homebrew-chairlift.md)
   for the accessible-label evidence and what upstream ChairLift already
   covers on its own.
@@ -46,17 +49,33 @@ The lane must provide:
 | Requirement | Why |
 |---|---|
 | `brew-setup.service` unmasked and started | provisions `/var/home/linuxbrew/.linuxbrew/bin/brew` |
-| `loginctl enable-linger bluefin-test` + `systemctl start user@1000.service` | `brew-preinstall.service` is a **user** unit |
-| `XDG_RUNTIME_DIR=/run/user/1000` | pinned in `features/environment.py`; the suite fails explicitly on any other value |
+| lingering enabled for the test user and its systemd user manager started | `brew-preinstall.service` is a **user** unit |
 
-`before_all` pins `XDG_RUNTIME_DIR`, probes the uid-1000 systemd user manager,
-and starts `brew-preinstall.service` itself (covering the shipped user unit
-rather than calling `/usr/bin/brew-preinstall` directly). Every one of those
-preconditions **fails the run with a nonzero exit** — a missing cask, desktop
-file, or service is the regression under test, so nothing here degrades into
-a skipped-green scenario.
+`before_all` verifies each of those instead of trusting them: it probes the
+systemd user manager (`systemctl --user show --property=Version`), requires
+`/var/home/linuxbrew/.linuxbrew/bin/brew` to exist and be executable (naming
+`brew-setup.service` when it doesn't), then starts `brew-preinstall.service`
+and asserts it actually completed (`active`/`exited`/`success`) rather than
+just returning 0. It covers the shipped user unit rather than calling
+`/usr/bin/brew-preinstall` directly.
+
+`XDG_RUNTIME_DIR` is read for diagnostics but never rewritten — the suite
+uses whatever the session already set, because relocating it would move the
+accessibility and session bus out from under qecore.
+
+Every one of those preconditions **fails the run with a nonzero exit** — a
+missing cask, desktop file, or service is the regression under test, so
+nothing here degrades into a skipped-green scenario.
 
 ## Run via the lab
+
+> **Not runnable yet.** `run-systemd-container-tests.yaml` in
+> `projectbluefin/lab` guards on `smoke|common|developer|software|system` in
+> both of its suite `case` statements, so `suite=homebrew` exits 2 today, and
+> the template does not unmask `brew-setup.service` or start the test user's
+> systemd user manager. The lab-side change that adds `homebrew` to both
+> allowlists and provisions Homebrew for this lane only must land before the
+> submission below does anything.
 
 ```bash
 : "${COMMON_PR:?export COMMON_PR to the common pull request number}"
@@ -71,8 +90,14 @@ argo submit -n argo \
   -p image-tag="${IMAGE_TAG}" \
   -p suite=homebrew \
   -p variant=bluefin \
-  -p testsuite-branch=test/chairlift-homebrew
+  -p testsuite-branch=main
 ```
+
+`testsuite-branch=main` is the default: the lane runs the merged suite.
+Override it with a feature branch (`-p testsuite-branch=test/<branch>`) only
+to validate suite changes that are not on `main` yet — for example while
+reviewing this suite's own PR. Reach for the override deliberately; a green
+run against an unmerged branch does not tell you `main` is green.
 
 ## Related skills
 

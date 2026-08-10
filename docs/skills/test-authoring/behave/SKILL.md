@@ -252,23 +252,24 @@ never matches and passes falsely.
 `@flatpak_cli`. Tag CLI-only, image-agnostic software scenarios with `@flatpak_cli`
 so they still run on gnomeos and other non-Bluefin images.
 
-## Three silent-green traps: names, preconditions, and Background launches
+## Four silent-green traps: names, preconditions, `Background`, diagnostics
 
-- **Accessible names are evidence, not guesses.** Confirm them against
-  upstream source: ChairLift's real group titles are `"Homebrew"` / `"System
-  Flatpak Applications"` (not the planned `"Brew Packages"` / `"Flatpak
-  Applications"`), and `a11y_app_name` — like the `in "<root>"` step fragment —
-  resolves to `root.application(g_get_prgname())`, i.e. the binary name
-  `chairlift`, never the frame title `ChairLift`. A wrong name fails exactly
-  like a real regression.
-- **Preconditions must fail, not skip.** `scenario.skip()` is for tag-driven
-  coverage and genuinely optional components (Podman Desktop on `-dx`). A
-  `before_all` funnelling setup errors into `context.failed_setup` reports
-  green while the regression it exists to catch fires; let the hook raise and
-  behave exits nonzero.
+- **Accessible names are evidence, not guesses.** ChairLift's groups are
+  `"Homebrew"`/`"System Flatpak Applications"`, not the planned `"Brew
+  Packages"`; `a11y_app_name` (like `in "<root>"`) resolves to
+  `root.application(g_get_prgname())` — binary `chairlift`, never `ChairLift`.
+- **Preconditions must fail, not skip — and must not be "fixed" by the suite.**
+  A `before_all` funnelling errors into `context.failed_setup` reports green
+  while the regression fires; let the hook raise. Verify what you need (probe
+  the user manager, stat the binary); don't rewrite the environment to satisfy
+  it — pinning `XDG_RUNTIME_DIR` moves the a11y/session bus out from under
+  qecore. `scenario.skip()` stays for tags and optional components.
 - **Never launch an app in a `Background`** shared with scenarios that only
   assert files or units. Start it inside the scenarios that need a window (tag
   them, e.g. `@chairlift_ui`) so packaging assertions stay diagnosable.
+- **A missing app root must name what *is* on the bus.** `context.app.instance`
+  raises the same `SearchError` whether the app crashed, was never installed, or
+  a11y is off — wrap it, appending `tests.shared.a11y` names; never swallow.
 
 ## Feature scaffolding with @future
 

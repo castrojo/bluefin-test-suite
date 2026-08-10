@@ -9,10 +9,11 @@ Libadwaita window via AT-SPI and local subprocess assertions (see
 chairlift_steps.py).
 
 Lane contract (see tests/homebrew/README.md and the lab's
-`run-systemd-container-tests` template): this suite runs as `bluefin-test`
-(uid 1000) against a systemd-booted target with Homebrew provisioned, with
-`XDG_RUNTIME_DIR=/run/user/1000` and a reachable `user@1000.service`
-manager.
+`run-systemd-container-tests` template): this suite runs against a
+systemd-booted target with Homebrew provisioned, as a test user whose
+systemd user manager is reachable (`brew-preinstall.service` is a *user*
+unit). The session's own `XDG_RUNTIME_DIR` is used as-is — relocating it
+here would move the a11y and session bus out from under qecore.
 
 Preconditions here FAIL the run; they are never downgraded to a skip. A
 missing Homebrew provisioning step, an unreachable user manager, or a
@@ -63,15 +64,27 @@ try:
 except Exception as exc:  # noqa: BLE001
     print(f"WARNING: screenshot steps unavailable: {exc}", flush=True)
 
+try:
+    from tests.shared.a11y import accessible_application_names
+except Exception:  # noqa: BLE001
+    def accessible_application_names():
+        return ["<AT-SPI diagnostics helper unavailable>"]
+
 
 SUITE_NAME = "homebrew"
 
-# Pinned lane contract: the suite user is bluefin-test (uid 1000) and its
-# systemd user manager lives at /run/user/1000. The lab template starts
-# user@1000.service and enables lingering; qecore, Ptyxis, and
-# brew-preinstall.service all resolve through this runtime directory.
-USER_RUNTIME_DIR = "/run/user/1000"
+BREW_SETUP_UNIT = "brew-setup.service"
 BREW_PREINSTALL_UNIT = "brew-preinstall.service"
+# brew-setup.service provisions this; the cask, the state file, and every
+# ChairLift assertion below are downstream of it existing.
+BREW_BINARY = Path("/var/home/linuxbrew/.linuxbrew/bin/brew")
+# A completed Type=oneshot + RemainAfterExit=true run. Kept in sync with
+# chairlift_steps.PREINSTALL_STATE (asserted in tests/unit/test_chairlift_steps.py).
+PREINSTALL_ACTIVE_STATE = {
+    "ActiveState": "active",
+    "SubState": "exited",
+    "Result": "success",
+}
 LANE_DOC = "tests/homebrew/README.md"
 
 
@@ -79,50 +92,84 @@ class HomebrewLaneError(RuntimeError):
     """A homebrew-lane precondition is unmet; the run must fail, not skip."""
 
 
-def _pin_user_runtime_dir() -> None:
-    """Pin XDG_RUNTIME_DIR to the lane's uid-1000 user manager."""
-    current = os.environ.get("XDG_RUNTIME_DIR")
-    if current and current != USER_RUNTIME_DIR:
-        raise HomebrewLaneError(
-            f"homebrew lane requires XDG_RUNTIME_DIR={USER_RUNTIME_DIR} "
-            f"(bluefin-test, uid 1000) but found {current!r}. "
-            f"Run the suite through the lab's run-systemd-container-tests "
-            f"template; see {LANE_DOC}."
-        )
-    os.environ["XDG_RUNTIME_DIR"] = USER_RUNTIME_DIR
+def _systemctl_user(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["systemctl", "--user", *args],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _detail(result: subprocess.CompletedProcess) -> str:
+    return (result.stderr or result.stdout).strip()
 
 
 def _require_user_manager() -> None:
-    """Fail explicitly when the uid-1000 systemd user manager is unreachable."""
-    probe = subprocess.run(
-        ["systemctl", "--user", "show", "--property=Version", "--value"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    """Fail explicitly when the test user's systemd user manager is unreachable.
+
+    XDG_RUNTIME_DIR is reported, never rewritten: the running session's value
+    is what qecore's a11y and session bus connections already use.
+    """
+    probe = _systemctl_user("show", "--property=Version", "--value")
     if probe.returncode != 0:
-        detail = (probe.stderr or probe.stdout).strip()
         raise HomebrewLaneError(
-            f"systemd user manager unreachable via {USER_RUNTIME_DIR} "
-            f"(uid {os.getuid()}): {detail!r}. The lane must run "
-            f"`loginctl enable-linger bluefin-test` and "
-            f"`systemctl start user@1000.service` before behave; see {LANE_DOC}."
+            f"systemd user manager unreachable for uid {os.getuid()} "
+            f"(XDG_RUNTIME_DIR={os.environ.get('XDG_RUNTIME_DIR')!r}): "
+            f"{_detail(probe)!r}. {BREW_PREINSTALL_UNIT} is a user unit, so the "
+            f"lane must enable lingering for the test user and start its "
+            f"systemd user manager before behave; see {LANE_DOC}."
         )
 
 
-def _start_brew_preinstall() -> None:
-    """Start the shipped user unit; a failure here is the regression."""
-    result = subprocess.run(
-        ["systemctl", "--user", "start", BREW_PREINSTALL_UNIT],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()
+def _require_brew_binary() -> None:
+    """Fail explicitly when Homebrew was never provisioned on the target."""
+    if not (BREW_BINARY.is_file() and os.access(BREW_BINARY, os.X_OK)):
         raise HomebrewLaneError(
-            f"{BREW_PREINSTALL_UNIT} failed to start: {detail!r}. Homebrew must "
-            f"be provisioned on the target before this suite runs; see {LANE_DOC}."
+            f"Homebrew is not provisioned: {BREW_BINARY} is missing or not "
+            f"executable. The lane must unmask and start {BREW_SETUP_UNIT} "
+            f"before behave — {BREW_PREINSTALL_UNIT} installs the managed casks "
+            f"with this binary and cannot run without it; see {LANE_DOC}."
+        )
+
+
+def _parse_properties(output: str) -> dict:
+    """Parse `systemctl show` key=value output into a dict."""
+    properties = {}
+    for line in output.splitlines():
+        key, separator, value = line.partition("=")
+        if separator:
+            properties[key.strip()] = value.strip()
+    return properties
+
+
+def _start_brew_preinstall() -> None:
+    """Start the shipped user unit and assert it completed; failure is the regression."""
+    result = _systemctl_user("start", BREW_PREINSTALL_UNIT)
+    if result.returncode != 0:
+        raise HomebrewLaneError(
+            f"{BREW_PREINSTALL_UNIT} failed to start: {_detail(result)!r}. "
+            f"Homebrew must be provisioned on the target before this suite "
+            f"runs; see {LANE_DOC}."
+        )
+
+    shown = _systemctl_user(
+        "show", BREW_PREINSTALL_UNIT,
+        *(f"--property={name}" for name in PREINSTALL_ACTIVE_STATE),
+    )
+    if shown.returncode != 0:
+        raise HomebrewLaneError(
+            f"cannot read {BREW_PREINSTALL_UNIT} state after starting it: "
+            f"{_detail(shown)!r}; see {LANE_DOC}."
+        )
+    properties = _parse_properties(shown.stdout)
+    actual = {name: properties.get(name) for name in PREINSTALL_ACTIVE_STATE}
+    if actual != PREINSTALL_ACTIVE_STATE:
+        raise HomebrewLaneError(
+            f"{BREW_PREINSTALL_UNIT} did not complete: expected "
+            f"{PREINSTALL_ACTIVE_STATE}, got {actual}. A `start` that returns 0 "
+            f"without a completed run means the managed casks were never "
+            f"installed; see {LANE_DOC}."
         )
 
 
@@ -133,8 +180,11 @@ def before_all(context) -> None:
     context.html_formatter = None
     context.lane_ready = False
 
-    _pin_user_runtime_dir()
     _require_user_manager()
+    # brew-setup.service provisions the Homebrew prefix; without it,
+    # brew-preinstall.service has nothing to run and every ChairLift
+    # assertion below is meaningless.
+    _require_brew_binary()
     # brew-preinstall.service only runs at login; start it explicitly so the
     # managed cask (and its state file) exist before any scenario — including a
     # fresh boot where the login-triggered run hasn't fired yet or a retry
@@ -185,6 +235,15 @@ def after_scenario(context, scenario) -> None:
     if scenario.status.name in ('passed', 'failed'):
         configure_screenshot_context(context, SUITE_NAME, scenario.name)
         take_screenshot(scenario.status.name)
+    # Diagnostics only — printed alongside the real failure, never in place of
+    # it. A UI scenario that fails because ChairLift never registered on the
+    # a11y bus is otherwise indistinguishable from a genuine UI regression.
+    if scenario.status.name == 'failed' and 'chairlift_ui' in scenario.tags:
+        print(
+            f"AT-SPI applications registered after failed {scenario.name!r}: "
+            f"{accessible_application_names()}",
+            flush=True,
+        )
     if hasattr(context, 'sandbox'):
         context.sandbox.after_scenario(context, scenario)
 

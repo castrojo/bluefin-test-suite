@@ -24,6 +24,8 @@ from pathlib import Path
 from behave import step
 from qecore.common_steps import *  # noqa: F401,F403
 
+from tests.shared.a11y import accessible_application_names
+
 
 HOMEBREW_PREFIX = "/var/home/linuxbrew/.linuxbrew"
 BREW = f"{HOMEBREW_PREFIX}/bin/brew"
@@ -39,6 +41,10 @@ POLICY_FILE = Path("/usr/share/polkit-1/actions/org.frostyard.ChairLift.bootc.po
 BOOTC_HELPER = Path("/usr/libexec/bootc-update-stage")
 BOOTC_ACTION_ID = "org.frostyard.ChairLift.bootc.stage"
 EXEC_RE = re.compile(r"^\s*exec\b(.*)$", re.MULTILINE)
+
+#: AT-SPI application root — the binary name from g_get_prgname(), registered
+#: in environment.py. "ChairLift" is only the frame title.
+A11Y_ROOT_NAME = "chairlift"
 
 
 #: The unit is Type=oneshot with RemainAfterExit=true, so a clean completed run
@@ -65,6 +71,34 @@ def _parse_properties(output: str) -> dict[str, str]:
         if separator:
             properties[key.strip()] = value.strip()
     return properties
+
+
+def _chairlift_root(context):
+    """ChairLift's AT-SPI root, or an AssertionError naming what *is* registered.
+
+    A missing root means the app never launched, exited immediately, or the
+    a11y bus is unreachable — all of which otherwise surface as the same
+    opaque dogtail SearchError. The failure is re-raised, never downgraded:
+    the diagnostics only say which application names the bus does expose.
+    """
+    try:
+        return context.chairlift.instance
+    except Exception as error:  # noqa: BLE001 - re-raised as an assertion below
+        raise AssertionError(
+            f"ChairLift is not on the AT-SPI bus under application root "
+            f"{A11Y_ROOT_NAME!r} ({type(error).__name__}: {error}). "
+            f"Registered AT-SPI applications: {accessible_application_names()}. "
+            f"The root is the binary name (g_get_prgname()), not the frame "
+            f"title 'ChairLift'; an empty or unavailable list means the app "
+            f"never launched or accessibility is off, not a UI regression."
+        ) from error
+
+
+def _showing_named(context, name: str) -> list:
+    """Visible AT-SPI nodes in ChairLift whose accessible name equals `name`."""
+    return _chairlift_root(context).findChildren(
+        lambda node: node.name == name and node.showing
+    )
 
 
 @step("The brew-preinstall user service completed successfully")
@@ -133,7 +167,7 @@ def chairlift_icons_exist(context) -> None:
 
 @step("ChairLift has no configuration error toast")
 def chairlift_has_no_configuration_error_toast(context) -> None:
-    matches = context.chairlift.instance.findChildren(
+    matches = _chairlift_root(context).findChildren(
         lambda node: node.showing and "Configuration error" in (node.name or "")
     )
     assert not matches, f"Unexpected configuration error toast: {[m.name for m in matches]}"
@@ -141,26 +175,18 @@ def chairlift_has_no_configuration_error_toast(context) -> None:
 
 @step('ChairLift shows page "{name}"')
 def chairlift_shows_page(context, name: str) -> None:
-    matches = context.chairlift.instance.findChildren(
-        lambda node: node.name == name and node.showing
-    )
-    assert matches, f"ChairLift page not visible: {name}"
+    assert _showing_named(context, name), f"ChairLift page not visible: {name}"
 
 
 @step('ChairLift hides page "{name}"')
 def chairlift_hides_page(context, name: str) -> None:
-    matches = context.chairlift.instance.findChildren(
-        lambda node: node.name == name and node.showing
-    )
+    matches = _showing_named(context, name)
     assert not matches, f"ChairLift page unexpectedly visible: {name}"
 
 
 @step('ChairLift shows group "{name}"')
 def chairlift_shows_group(context, name: str) -> None:
-    matches = context.chairlift.instance.findChildren(
-        lambda node: node.name == name and node.showing
-    )
-    assert matches, f"ChairLift group not visible: {name}"
+    assert _showing_named(context, name), f"ChairLift group not visible: {name}"
 
 
 @step("The ChairLift bootc PolicyKit action requires administrator authentication")

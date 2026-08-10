@@ -5,6 +5,7 @@ the desktop `Exec=` realpath comparison, the bootc PolicyKit/helper contracts,
 and the `before_all` preconditions that must FAIL the run rather than skip it.
 """
 
+import os
 import sys
 import types
 from pathlib import Path
@@ -265,29 +266,22 @@ def test_bootc_helper_download_only(steps, tmp_path, body, raises):
 # ---------------------------------------------------------------------------
 
 
-def test_runtime_dir_is_pinned_to_uid_1000(environment):
-    assert environment.USER_RUNTIME_DIR == "/run/user/1000"
+def test_environment_expected_state_agrees_with_step_assertion(environment, steps):
+    """environment.py's post-start check must not drift from the step's contract."""
+    shared = {
+        key: value
+        for key, value in steps.PREINSTALL_STATE.items()
+        if key in environment.PREINSTALL_ACTIVE_STATE
+    }
 
-
-def test_pin_user_runtime_dir_sets_unset_value(environment):
-    with patch.dict("os.environ", {}, clear=True):
-        environment._pin_user_runtime_dir()
-
-        import os
-
-        assert os.environ["XDG_RUNTIME_DIR"] == "/run/user/1000"
-
-
-def test_pin_user_runtime_dir_rejects_other_value(environment):
-    with patch.dict("os.environ", {"XDG_RUNTIME_DIR": "/run/user/1001"}, clear=True):
-        with pytest.raises(environment.HomebrewLaneError, match="XDG_RUNTIME_DIR=/run/user/1000"):
-            environment._pin_user_runtime_dir()
+    assert environment.PREINSTALL_ACTIVE_STATE == shared
+    assert set(environment.PREINSTALL_ACTIVE_STATE) <= set(steps.PREINSTALL_STATE)
 
 
 def test_require_user_manager_raises_when_socket_unreachable(environment):
     with patch.object(
-        environment.subprocess,
-        "run",
+        environment,
+        "_systemctl_user",
         return_value=CompletedProcess([], 1, "", "Failed to connect to bus: No such file"),
     ):
         with pytest.raises(environment.HomebrewLaneError, match="user manager unreachable"):
@@ -296,25 +290,136 @@ def test_require_user_manager_raises_when_socket_unreachable(environment):
 
 def test_require_user_manager_passes_when_reachable(environment):
     with patch.object(
-        environment.subprocess, "run", return_value=CompletedProcess([], 0, "257\n", "")
+        environment, "_systemctl_user", return_value=CompletedProcess([], 0, "257\n", "")
     ):
         environment._require_user_manager()
 
 
+def test_require_user_manager_never_rewrites_runtime_dir(environment):
+    """The lane needs a reachable manager, not a specific XDG_RUNTIME_DIR."""
+    with patch.dict("os.environ", {"XDG_RUNTIME_DIR": "/run/user/4242"}, clear=True):
+        with patch.object(
+            environment, "_systemctl_user", return_value=CompletedProcess([], 0, "257\n", "")
+        ):
+            environment._require_user_manager()
+
+        import os
+
+        assert os.environ["XDG_RUNTIME_DIR"] == "/run/user/4242"
+
+
+def test_require_user_manager_reports_runtime_dir_and_uid(environment):
+    with patch.dict("os.environ", {"XDG_RUNTIME_DIR": "/run/user/4242"}, clear=True):
+        with patch.object(
+            environment, "_systemctl_user", return_value=CompletedProcess([], 1, "", "no bus")
+        ):
+            with pytest.raises(environment.HomebrewLaneError) as error:
+                environment._require_user_manager()
+
+    assert "/run/user/4242" in str(error.value)
+
+
+def test_require_brew_binary_names_brew_setup_service(environment, tmp_path):
+    with patch.object(environment, "BREW_BINARY", tmp_path / "missing/brew"):
+        with pytest.raises(environment.HomebrewLaneError) as error:
+            environment._require_brew_binary()
+
+    assert "brew-setup.service" in str(error.value)
+
+
+@pytest.mark.skipif(os.geteuid() == 0, reason="root bypasses the X_OK check")
+def test_require_brew_binary_rejects_non_executable(environment, tmp_path):
+    brew = tmp_path / "brew"
+    brew.write_text("#!/bin/sh\n", encoding="utf-8")
+    brew.chmod(0o644)
+
+    with patch.object(environment, "BREW_BINARY", brew):
+        with pytest.raises(environment.HomebrewLaneError, match="not executable"):
+            environment._require_brew_binary()
+
+
+def test_require_brew_binary_passes_when_executable(environment, tmp_path):
+    brew = tmp_path / "brew"
+    brew.write_text("#!/bin/sh\n", encoding="utf-8")
+    brew.chmod(0o755)
+
+    with patch.object(environment, "BREW_BINARY", brew):
+        environment._require_brew_binary()
+
+
 def test_start_brew_preinstall_raises_on_failure(environment):
     with patch.object(
-        environment.subprocess,
-        "run",
+        environment,
+        "_systemctl_user",
         return_value=CompletedProcess([], 1, "", "Unit brew-preinstall.service not found."),
     ):
         with pytest.raises(environment.HomebrewLaneError, match="failed to start"):
             environment._start_brew_preinstall()
 
 
+def _start_then_show(show_result: CompletedProcess):
+    """systemctl --user start succeeds, then `show` returns show_result."""
+
+    def _fake(*args: str) -> CompletedProcess:
+        return CompletedProcess([], 0, "", "") if args[0] == "start" else show_result
+
+    return _fake
+
+
+def test_start_brew_preinstall_asserts_unit_completed(environment):
+    completed = "ActiveState=active\nSubState=exited\nResult=success\n"
+    with patch.object(
+        environment, "_systemctl_user", side_effect=_start_then_show(
+            CompletedProcess([], 0, completed, "")
+        )
+    ):
+        environment._start_brew_preinstall()
+
+
+def test_start_brew_preinstall_rejects_zero_exit_without_completed_run(environment):
+    """A `start` that returns 0 while the unit never ran must still fail."""
+    never_ran = "ActiveState=inactive\nSubState=dead\nResult=success\n"
+    with patch.object(
+        environment, "_systemctl_user", side_effect=_start_then_show(
+            CompletedProcess([], 0, never_ran, "")
+        )
+    ):
+        with pytest.raises(environment.HomebrewLaneError, match="did not complete"):
+            environment._start_brew_preinstall()
+
+
+def test_start_brew_preinstall_raises_when_state_unreadable(environment):
+    with patch.object(
+        environment, "_systemctl_user", side_effect=_start_then_show(
+            CompletedProcess([], 1, "", "Failed to connect to bus")
+        )
+    ):
+        with pytest.raises(environment.HomebrewLaneError, match="cannot read"):
+            environment._start_brew_preinstall()
+
+
+def test_before_all_requires_brew_before_starting_preinstall(environment):
+    """Homebrew provisioning is checked before the unit that consumes it."""
+    calls = []
+    context = types.SimpleNamespace()
+
+    with patch.object(environment, "_require_user_manager", lambda: calls.append("manager")), \
+        patch.object(
+            environment,
+            "_require_brew_binary",
+            side_effect=environment.HomebrewLaneError("no brew"),
+        ), \
+        patch.object(environment, "_start_brew_preinstall", lambda: calls.append("start")):
+        with pytest.raises(environment.HomebrewLaneError, match="no brew"):
+            environment.before_all(context)
+
+    assert calls == ["manager"]
+
+
 def test_before_all_raises_instead_of_recording_failed_setup(environment):
     context = types.SimpleNamespace()
 
-    with patch.object(environment, "_pin_user_runtime_dir"), patch.object(
+    with patch.object(
         environment,
         "_require_user_manager",
         side_effect=environment.HomebrewLaneError("no user manager"),
@@ -324,6 +429,113 @@ def test_before_all_raises_instead_of_recording_failed_setup(environment):
 
     assert not hasattr(context, "failed_setup")
     assert context.lane_ready is False
+
+
+# ---------------------------------------------------------------------------
+# Launch-failure diagnostics: enrich the failure, never swallow it
+# ---------------------------------------------------------------------------
+
+
+class _Node:
+    def __init__(self, name, showing=True):
+        self.name = name
+        self.showing = showing
+
+
+class _Root:
+    def __init__(self, nodes):
+        self._nodes = nodes
+
+    def findChildren(self, predicate):  # noqa: N802 - dogtail's API spelling
+        return [node for node in self._nodes if predicate(node)]
+
+
+def _context_with_root(root):
+    return types.SimpleNamespace(chairlift=types.SimpleNamespace(instance=root))
+
+
+class _RaisingInstance:
+    @property
+    def instance(self):
+        raise LookupError("child not found: chairlift")
+
+
+def test_chairlift_root_returns_instance_when_present(steps):
+    root = _Root([])
+
+    assert steps._chairlift_root(_context_with_root(root)) is root
+
+
+def test_chairlift_root_failure_lists_registered_applications(steps):
+    context = types.SimpleNamespace(chairlift=_RaisingInstance())
+
+    with patch.object(
+        steps, "accessible_application_names", return_value=["gnome-shell", "ptyxis"]
+    ):
+        with pytest.raises(AssertionError) as error:
+            steps._chairlift_root(context)
+
+    message = str(error.value)
+    assert "gnome-shell" in message and "ptyxis" in message
+    assert "chairlift" in message
+    assert "LookupError" in message
+
+
+def test_chairlift_root_failure_survives_unavailable_a11y_bus(steps):
+    """Diagnostics that cannot run must not replace the launch failure."""
+    context = types.SimpleNamespace(chairlift=_RaisingInstance())
+
+    with patch.object(
+        steps, "accessible_application_names", return_value=["<AT-SPI unavailable: no bus>"]
+    ):
+        with pytest.raises(AssertionError, match="AT-SPI unavailable"):
+            steps._chairlift_root(context)
+
+
+def test_chairlift_root_failure_when_app_was_never_registered(steps):
+    context = types.SimpleNamespace()
+
+    with patch.object(steps, "accessible_application_names", return_value=[]):
+        with pytest.raises(AssertionError, match="AttributeError"):
+            steps._chairlift_root(context)
+
+
+def test_ui_steps_fail_rather_than_pass_without_a_root(steps):
+    """A missing root must fail every UI step, including the negative one."""
+    context = types.SimpleNamespace(chairlift=_RaisingInstance())
+
+    with patch.object(steps, "accessible_application_names", return_value=[]):
+        for ui_step in (
+            steps.chairlift_shows_page,
+            steps.chairlift_hides_page,
+            steps.chairlift_shows_group,
+        ):
+            with pytest.raises(AssertionError, match="not on the AT-SPI bus"):
+                ui_step(context, "Applications")
+
+        with pytest.raises(AssertionError, match="not on the AT-SPI bus"):
+            steps.chairlift_has_no_configuration_error_toast(context)
+
+
+def test_shows_and_hides_pages_use_visible_nodes(steps):
+    context = _context_with_root(
+        _Root([_Node("Applications"), _Node("Features", showing=False)])
+    )
+
+    steps.chairlift_shows_page(context, "Applications")
+    steps.chairlift_hides_page(context, "Features")
+
+    with pytest.raises(AssertionError, match="page not visible"):
+        steps.chairlift_shows_page(context, "Updates")
+
+
+def test_accessible_application_names_never_raises():
+    from tests.shared.a11y import accessible_application_names
+
+    with patch.dict(sys.modules, {"dogtail": None, "dogtail.tree": None}):
+        names = accessible_application_names()
+
+    assert len(names) == 1 and names[0].startswith("<AT-SPI unavailable:")
 
 
 # ---------------------------------------------------------------------------
@@ -345,8 +557,18 @@ def test_environment_never_skips_on_setup_failure():
     assert "scenario.skip(" not in source
 
 
-def test_environment_registers_lowercase_a11y_root():
+def test_environment_registers_lowercase_a11y_root(steps):
     source = _environment_source()
 
-    assert 'a11y_app_name="chairlift"' in source
+    assert f'a11y_app_name="{steps.A11Y_ROOT_NAME}"' in source
+    assert steps.A11Y_ROOT_NAME == "chairlift"
     assert 'a11y_app_name="ChairLift"' not in source
+
+
+def test_environment_never_writes_xdg_runtime_dir():
+    """Relocating the runtime dir would move the a11y/session bus under qecore."""
+    source = _environment_source()
+
+    assert 'os.environ["XDG_RUNTIME_DIR"] =' not in source
+    assert "os.environ.setdefault(\"XDG_RUNTIME_DIR\"" not in source
+    assert "XDG_RUNTIME_DIR" in source  # still reported for diagnostics
