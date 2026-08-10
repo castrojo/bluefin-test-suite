@@ -38,7 +38,11 @@ SCENARIO_RE = re.compile(r"^\s*(?:Scenario|Scenario Outline)\s*:")
 # edited by humans, and only when a suite's *purpose* changes (rarely).
 SUITE_NOTES: dict[str, str] = {
     "smoke": "39 `@pending` flatpak-permission audits blocked on CI never seeding system Flatpaks; MIME handler coverage (Firefox/Papers/Loupe/Text Editor/video); GNOME accessibility (AT-SPI daemon, high-contrast toggle, a11y panel); display fractional/integer scaling via Mutter DisplayConfig; Bluefin desktop identity (Wayland, hardware accel, Dash to Dock); GNOME regression guards in gnome_regression.feature; Dakota sudo-rs privilege and PAM checks",
-    "developer": "6 brew + 6 ptyxis + 4 bctl now `@pending`: `brew-setup.service` masked in CI (#487) and the ptyxis AT-SPI restart issue (#368)",
+    "developer": "Podman Desktop (6 active) + Ptyxis launch/window accessibility (1 active); 6 Ptyxis scenarios stay `@pending` on the AT-SPI restart issue (#368). Brew and bctl moved to the `homebrew` suite (#487 CI-mask blocker no longer applies there)",
+    "homebrew": (
+        "Active native-systemd lane: 6 Brew CLI scenarios, 4 bctl scenarios, "
+        "and ChairLift managed-cask/config/UI integration"
+    ),
     "software": "Bazaar launch + search + CLI presence/info/remote + config YAML validation active on bluefin; Bazaar UI tests rewritten for actual Bazaar layout; CLI (Flathub remote + permissions DB) active on all images; Flatpak per-app permission management active on all images; upstream GNOME Software scenarios are `@future` (#176)",
     "common": "Signing assertions `@future` pending the ublue-os→projectbluefin policy migration; flatpak model/state, dconf defaults, immutability and portal socket checks `@pending` on CI infra; Flatpak model + state; XDG portal health + integration; container runtime (podman); polkit rules; shell env + sourcing; system scripts; ujust recipes; devmode via bctl (non-interactive contract + idempotent state-check gated `@requires_bctl`, group mutation `@pending` on CI polkit); GSettings/dconf defaults; immutable OS integrity; desktop entries; signing assertions; Dakota `ujust --choose` regression guard active (`@dakota_only`); `ujust report` is `@pending` on #706 until a Dakota lab run validates the mocked submit flow",
     "vanilla-gnome": "Baseline GNOME Shell parity check; runs on any GNOME image",

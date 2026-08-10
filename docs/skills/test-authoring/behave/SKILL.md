@@ -252,6 +252,23 @@ never matches and passes falsely.
 `@flatpak_cli`. Tag CLI-only, image-agnostic software scenarios with `@flatpak_cli`
 so they still run on gnomeos and other non-Bluefin images.
 
+## Verify accessible labels against upstream source, not a plan's placeholders
+
+A brief or design doc that names an AT-SPI accessible label (a page title, a
+group heading) is a guess until confirmed against the app's own source. The
+`homebrew` suite's ChairLift coverage originally assumed group titles `"Brew
+Packages"` / `"Flatpak Applications"`; the real `PreferencesGroup.SetTitle(...)`
+calls in upstream `frostyard/chairlift` are `"Homebrew"` and `"System Flatpak
+Applications"` (`internal/views/applications_page.go`). Using the guessed
+strings would have produced a scenario that never finds a match and always
+fails — indistinguishable from a real regression. When a plan's assumed label
+doesn't match, fetch the upstream source (or, if unavailable locally, the raw
+GitHub source), find the actual widget construction call, and cite the
+file/line in a reference doc instead of forcing the brittle guess through.
+See [references/homebrew-chairlift.md](references/homebrew-chairlift.md) for
+the full evidence trail on this suite's page/group labels, desktop entry, and
+bootc helper paths.
+
 ## Feature scaffolding with @future
 
 
@@ -294,7 +311,8 @@ count override.
 ```
 tests/
   smoke/          # GUI smoke — behave + dogtail
-  developer/      # developer tools
+  developer/      # developer tools (Ptyxis, Podman Desktop)
+  homebrew/       # active Brew CLI, bctl, and ChairLift managed-cask coverage
   software/       # software installation
   flatcar/        # Flatcar compatibility
   lifecycle/      # bootc upgrade/rollback
@@ -473,6 +491,7 @@ non-dependent scenarios to a separate feature.
 - [Mocking interactive CLI tools (gum, fzf, gh) in ujust coverage.](references/mocking-interactive-cli.md)
 - [Driving bluefinctl devmode non-interactively, and the assertion traps around it.](references/bctl-devmode.md)
 - [Which ujust recipes can be driven non-interactively, and why the rest stay @pending.](references/ujust-noninteractive.md)
+- [ChairLift managed-cask coverage: real accessible-label evidence vs. plan placeholders, desktop/icon/bootc-helper paths.](references/homebrew-chairlift.md)
 
 ## Sources
 

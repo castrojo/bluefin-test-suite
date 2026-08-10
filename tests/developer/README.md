@@ -1,10 +1,13 @@
 # developer test suite
 
-Bluefin developer tooling — Ptyxis terminal, Podman, Homebrew, and bctl (bluefinctl).
+Bluefin developer tooling — Ptyxis terminal and Podman Desktop.
 
-`bctl.feature` scenarios are `@pending`: bctl is installed via Homebrew, and
-`e2e.yml` masks `brew-setup.service` in CI, so bctl is never provisioned there
-today. See `projectbluefin/testsuite#487`.
+Brew and bctl (bluefinctl) coverage moved to the dedicated
+[`homebrew`](../homebrew/README.md) suite, which is active rather than
+`@pending`: it targets a systemd-booted image with Homebrew actually
+provisioned instead of the QEMU CI lane where `e2e.yml` masks
+`brew-setup.service` (#487). The remaining `@pending` count in this suite is
+Ptyxis-only, blocked on the AT-SPI restart issue tracked in #368.
 
 ## Run via GitHub Action
 

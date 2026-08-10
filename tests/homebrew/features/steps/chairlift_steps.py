@@ -1,0 +1,152 @@
+"""ChairLift step definitions for the homebrew suite.
+
+Covers Bluefin's packaging of the ChairLift managed cask: the brew-preinstall
+service and managed-state contract, the user-scoped desktop/icon
+integration installed by the Homebrew cask, the maintainer `config.yml`
+surfaced through ChairLift's own UI, and the authenticated, download-only
+bootc staging helper.
+
+Upstream ChairLift already unit-tests config parsing, Homebrew search/trust/
+bundle behaviour, PolicyKit action shape, and bootc progress streaming (see
+frostyard/chairlift's own test suite). This module intentionally covers only
+what is specific to how Bluefin ships and configures ChairLift: the cask
+lifecycle, the installed desktop/icon files, the rendered UI for Bluefin's
+`config.yml`, and the fixed paths the bootc PolicyKit action depends on.
+"""
+import json
+import os
+import re
+import subprocess
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+from behave import step
+from qecore.common_steps import *  # noqa: F401,F403
+
+
+HOMEBREW_PREFIX = "/var/home/linuxbrew/.linuxbrew"
+BREW = f"{HOMEBREW_PREFIX}/bin/brew"
+CHAIRLIFT_BIN = Path(f"{HOMEBREW_PREFIX}/bin/chairlift")
+CHAIRLIFT_WRAPPER = f"{HOMEBREW_PREFIX}/bin/chairlift-wrapper"
+STATE = Path.home() / ".local/share/ublue-os/brew-preinstall-state.json"
+DESKTOP_FILE = Path.home() / ".local/share/applications/org.frostyard.ChairLift.desktop"
+ICON_DIR = Path.home() / ".local/share/icons/hicolor"
+SCALABLE_ICON = ICON_DIR / "scalable/apps/org.frostyard.ChairLift.svg"
+SCALABLE_FLOWER_ICON = ICON_DIR / "scalable/apps/org.frostyard.ChairLift-flower.svg"
+SYMBOLIC_ICON = ICON_DIR / "symbolic/apps/org.frostyard.ChairLift-symbolic.svg"
+POLICY_FILE = Path("/usr/share/polkit-1/actions/org.frostyard.ChairLift.bootc.policy")
+BOOTC_HELPER = Path("/usr/libexec/bootc-update-stage")
+BOOTC_ACTION_ID = "org.frostyard.ChairLift.bootc.stage"
+EXEC_RE = re.compile(r"^\s*exec\b(.*)$", re.MULTILINE)
+
+
+def _run(*args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(args, check=False, capture_output=True, text=True)
+
+
+@step("The brew-preinstall user service completed successfully")
+def brew_preinstall_completed(context) -> None:
+    result = _run(
+        "systemctl", "--user", "show", "brew-preinstall.service",
+        "--property=Result", "--value",
+    )
+    assert result.returncode == 0 and result.stdout.strip() == "success", result.stderr
+
+
+@step('The managed Homebrew state lists cask "{name}"')
+def managed_state_lists_cask(context, name: str) -> None:
+    data = json.loads(STATE.read_text(encoding="utf-8"))
+    assert name in data["casks"], data
+
+
+@step('Homebrew reports cask "{name}" installed')
+def brew_reports_cask(context, name: str) -> None:
+    result = _run(BREW, "list", "--cask", name)
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@step("The ChairLift command is available")
+def chairlift_command_available(context) -> None:
+    assert CHAIRLIFT_BIN.is_file(), f"Missing ChairLift binary at {CHAIRLIFT_BIN}"
+    assert os.access(CHAIRLIFT_BIN, os.X_OK), f"{CHAIRLIFT_BIN} is not executable"
+
+
+@step("The ChairLift desktop entry launches the Homebrew wrapper")
+def chairlift_desktop_entry_launches_wrapper(context) -> None:
+    content = DESKTOP_FILE.read_text(encoding="utf-8")
+    match = re.search(r"^Exec=(.*)$", content, re.MULTILINE)
+    assert match, f"No Exec= line found in {DESKTOP_FILE}:\n{content}"
+    assert match.group(1).strip() == CHAIRLIFT_WRAPPER, (
+        f"Expected Exec={CHAIRLIFT_WRAPPER}, got Exec={match.group(1).strip()}"
+    )
+
+
+@step("The ChairLift scalable and symbolic icons exist")
+def chairlift_icons_exist(context) -> None:
+    for icon in (SCALABLE_ICON, SCALABLE_FLOWER_ICON, SYMBOLIC_ICON):
+        assert icon.is_file() and icon.stat().st_size > 0, f"Missing or empty icon: {icon}"
+
+
+@step("ChairLift has no configuration error toast")
+def chairlift_has_no_configuration_error_toast(context) -> None:
+    matches = context.chairlift.instance.findChildren(
+        lambda node: node.showing and "Configuration error" in (node.name or "")
+    )
+    assert not matches, f"Unexpected configuration error toast: {[m.name for m in matches]}"
+
+
+@step('ChairLift shows page "{name}"')
+def chairlift_shows_page(context, name: str) -> None:
+    matches = context.chairlift.instance.findChildren(
+        lambda node: node.name == name and node.showing
+    )
+    assert matches, f"ChairLift page not visible: {name}"
+
+
+@step('ChairLift hides page "{name}"')
+def chairlift_hides_page(context, name: str) -> None:
+    matches = context.chairlift.instance.findChildren(
+        lambda node: node.name == name and node.showing
+    )
+    assert not matches, f"ChairLift page unexpectedly visible: {name}"
+
+
+@step('ChairLift shows group "{name}"')
+def chairlift_shows_group(context, name: str) -> None:
+    matches = context.chairlift.instance.findChildren(
+        lambda node: node.name == name and node.showing
+    )
+    assert matches, f"ChairLift group not visible: {name}"
+
+
+@step("The ChairLift bootc PolicyKit action requires administrator authentication")
+def chairlift_bootc_policykit_requires_admin(context) -> None:
+    tree = ET.parse(POLICY_FILE)
+    actions = {action.get("id"): action for action in tree.getroot().findall("action")}
+    assert BOOTC_ACTION_ID in actions, f"Missing action {BOOTC_ACTION_ID} in {POLICY_FILE}"
+    action = actions[BOOTC_ACTION_ID]
+    defaults = action.find("defaults")
+    assert defaults is not None, f"Missing <defaults> for {BOOTC_ACTION_ID}"
+    expected = {
+        "allow_any": "auth_admin",
+        "allow_inactive": "auth_admin",
+        "allow_active": "auth_admin_keep",
+    }
+    actual = {child.tag: (child.text or "").strip() for child in defaults}
+    assert actual == expected, f"Unexpected PolicyKit defaults: {actual}"
+    exec_path = action.find(
+        "annotate[@key='org.freedesktop.policykit.exec.path']"
+    )
+    assert exec_path is not None and (exec_path.text or "").strip() == str(BOOTC_HELPER), (
+        f"Expected exec.path {BOOTC_HELPER}, got {exec_path.text if exec_path is not None else None}"
+    )
+
+
+@step("The ChairLift bootc helper executes only download-only staging")
+def chairlift_bootc_helper_download_only(context) -> None:
+    content = BOOTC_HELPER.read_text(encoding="utf-8")
+    exec_lines = [line.strip() for line in EXEC_RE.findall(content)]
+    assert len(exec_lines) == 1, f"Expected exactly one exec invocation in {BOOTC_HELPER}: {exec_lines}"
+    assert exec_lines[0] == "/usr/bin/bootc upgrade --download-only", (
+        f"Unexpected bootc helper exec argv: {exec_lines[0]}"
+    )

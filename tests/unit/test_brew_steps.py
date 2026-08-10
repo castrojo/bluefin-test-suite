@@ -1,4 +1,4 @@
-"""Unit tests for tests/developer/features/steps/brew_steps.py."""
+"""Unit tests for tests/homebrew/features/steps/brew_steps.py."""
 
 import sys
 import types
@@ -29,9 +29,9 @@ def _import_brew_steps():
     sys.modules["dogtail.rawinput"] = rawinput_stub
     sys.modules["qecore"] = qecore_stub
     sys.modules["qecore.common_steps"] = common_steps_stub
-    sys.modules.pop("tests.developer.features.steps.brew_steps", None)
+    sys.modules.pop("tests.homebrew.features.steps.brew_steps", None)
 
-    import tests.developer.features.steps.brew_steps as module
+    import tests.homebrew.features.steps.brew_steps as module
 
     return module
 

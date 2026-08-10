@@ -1,4 +1,11 @@
-"""Custom Homebrew step definitions for developer suite terminal tests."""
+"""Custom Homebrew step definitions for homebrew suite terminal tests.
+
+"Make sure window is focused for wayland testing" is duplicated here (ported
+from tests/developer/features/steps/steps.py) rather than imported across
+suites: each suite loads only its own steps/*.py files (cross-suite step
+isolation, see docs/skills/test-authoring/behave/SKILL.md), and both
+brew.feature and bctl.feature need it in their Background.
+"""
 import re
 import uuid
 from time import monotonic, sleep
@@ -9,10 +16,47 @@ from qecore.common_steps import *  # noqa: F401,F403
 
 
 COMMAND_TIMEOUT_SECONDS = 120
+UI_TIMEOUT_SECONDS = 15
 
 
 def _terminal_widget(context):
     return context.ptyxis.instance.child(roleName="terminal")
+
+
+def _wait_until(description, predicate, timeout=UI_TIMEOUT_SECONDS):
+    deadline = monotonic() + timeout
+    while monotonic() < deadline:
+        value = predicate()
+        if value:
+            return value
+        sleep(1)
+    raise AssertionError(description)
+
+
+def _showing_nodes(context, role_names):
+    return context.ptyxis.instance.findChildren(
+        lambda n: n.roleName in role_names and n.showing
+    )
+
+
+@step("Make sure window is focused for wayland testing")
+def make_sure_window_is_focused(context) -> None:
+    # Pattern from GNOMETerminalAutomation steps.py — prevents input race on Wayland
+    sleep(2)
+    if context.sandbox.session_type == "wayland":
+        node = _wait_until(
+            "Timed out waiting for a showing Ptyxis widget to focus",
+            lambda: next(
+                iter(
+                    _showing_nodes(
+                        context,
+                        {"terminal", "frame", "window", "panel", "filler"},
+                    )
+                ),
+                None,
+            ),
+        )
+        node.click()
 
 
 def _terminal_delta(previous_text: str, current_text: str) -> str:

@@ -1,8 +1,10 @@
-"""bctl (bluefinctl) step definitions for developer suite terminal tests.
+"""bctl (bluefinctl) step definitions for homebrew suite terminal tests.
 
 Mirrors brew_steps.py's marker-based terminal-capture pattern. Kept as a
 separate module (rather than parameterizing brew_steps.py) to match this
 suite's existing one-tool-per-file convention (see ptyxis, podman, brew).
+"Make sure window is focused for wayland testing" is defined once, in
+brew_steps.py, and shared by both feature files in this suite.
 """
 import re
 import uuid
