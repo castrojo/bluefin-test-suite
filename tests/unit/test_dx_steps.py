@@ -318,3 +318,123 @@ class TestDistroboxExportsBinaryToHost:
             m.dx_distrobox_exports_binary_to_host(ctx, "test-box", "/usr/bin/htop")
         export_cmd = ssh.calls[0][-1]
         assert "distrobox-export --bin /usr/bin/htop --export-path ~/.local/bin" in export_cmd
+
+
+# ---------------------------------------------------------------------------
+# dx_distrobox_can_be_created (#501)
+# ---------------------------------------------------------------------------
+
+
+class TestDistroboxCanBeCreated:
+    """Unit tests for dx_distrobox_can_be_created.
+
+    The step makes three sequential SSH calls:
+      1. ``distrobox rm --force <name>``  — cleanup; rc 0 or 1 (or "No such
+         container" in output) are both acceptable.
+      2. ``distrobox create --name <name> --image <image> --yes``  — create.
+      3. ``distrobox list --no-color``  — verify the name appears in the output.
+    """
+
+    def test_happy_path_creates_and_verifies(self):
+        m = _import_dx_steps()
+        ctx = _ssh_ctx()
+        # 1) rm rc=0  2) create rc=0  3) list rc=0 with name in output
+        with _FakeSSH(m, [
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("test-box  registry.fedoraproject.org/fedora-toolbox:latest", 0),
+        ]):
+            m.dx_distrobox_can_be_created(
+                ctx, "test-box", "registry.fedoraproject.org/fedora-toolbox:latest"
+            )
+
+    def test_cleanup_rc_1_is_acceptable(self):
+        """rc=1 from distrobox rm means the container was not found — not an error."""
+        m = _import_dx_steps()
+        ctx = _ssh_ctx()
+        with _FakeSSH(m, [
+            _make_ssh_proc("", 1),
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("test-box  registry.fedoraproject.org/fedora-toolbox:latest", 0),
+        ]):
+            m.dx_distrobox_can_be_created(
+                ctx, "test-box", "registry.fedoraproject.org/fedora-toolbox:latest"
+            )
+
+    def test_cleanup_no_such_container_text_is_acceptable(self):
+        """Any rc is acceptable when the output contains 'No such container'."""
+        m = _import_dx_steps()
+        ctx = _ssh_ctx()
+        with _FakeSSH(m, [
+            _make_ssh_proc("Error: No such container: test-box", 2),
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("test-box  registry.fedoraproject.org/fedora-toolbox:latest", 0),
+        ]):
+            m.dx_distrobox_can_be_created(
+                ctx, "test-box", "registry.fedoraproject.org/fedora-toolbox:latest"
+            )
+
+    def test_cleanup_unexpected_rc_raises(self):
+        """Unexpected cleanup failure (non-0/1 rc, no 'No such container') raises."""
+        m = _import_dx_steps()
+        import pytest
+        ctx = _ssh_ctx()
+        with _FakeSSH(m, [_make_ssh_proc("Connection refused", 2)]):
+            with pytest.raises(AssertionError, match="Unexpected distrobox cleanup failure"):
+                m.dx_distrobox_can_be_created(
+                    ctx, "test-box", "registry.fedoraproject.org/fedora-toolbox:latest"
+                )
+
+    def test_raises_when_create_fails(self):
+        m = _import_dx_steps()
+        import pytest
+        ctx = _ssh_ctx()
+        with _FakeSSH(m, [_make_ssh_proc("", 0), _make_ssh_proc("Error: image not found", 1)]):
+            with pytest.raises(AssertionError, match="distrobox create failed"):
+                m.dx_distrobox_can_be_created(
+                    ctx, "test-box", "registry.fedoraproject.org/fedora-toolbox:latest"
+                )
+
+    def test_raises_when_list_fails(self):
+        m = _import_dx_steps()
+        import pytest
+        ctx = _ssh_ctx()
+        with _FakeSSH(m, [
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("", 1),
+        ]):
+            with pytest.raises(AssertionError, match="distrobox list failed"):
+                m.dx_distrobox_can_be_created(
+                    ctx, "test-box", "registry.fedoraproject.org/fedora-toolbox:latest"
+                )
+
+    def test_raises_when_name_not_in_list(self):
+        m = _import_dx_steps()
+        import pytest
+        ctx = _ssh_ctx()
+        with _FakeSSH(m, [
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("other-box  registry.fedoraproject.org/fedora-toolbox:latest", 0),
+        ]):
+            with pytest.raises(AssertionError, match="not found after create"):
+                m.dx_distrobox_can_be_created(
+                    ctx, "test-box", "registry.fedoraproject.org/fedora-toolbox:latest"
+                )
+
+    def test_create_command_uses_yes_flag_and_named_image(self):
+        m = _import_dx_steps()
+        ctx = _ssh_ctx()
+        with _FakeSSH(m, [
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("", 0),
+            _make_ssh_proc("test-box  registry.fedoraproject.org/fedora-toolbox:latest", 0),
+        ]) as ssh:
+            m.dx_distrobox_can_be_created(
+                ctx, "test-box", "registry.fedoraproject.org/fedora-toolbox:latest"
+            )
+        create_cmd = ssh.calls[1][-1]
+        assert "--name test-box" in create_cmd
+        assert "--image registry.fedoraproject.org/fedora-toolbox:latest" in create_cmd
+        assert "--yes" in create_cmd
