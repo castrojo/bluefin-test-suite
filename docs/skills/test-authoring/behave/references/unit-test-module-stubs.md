@@ -84,6 +84,73 @@ sys.modules["steps"] = steps_pkg
 sys.modules["steps.steps"] = steps_steps_stub
 ```
 
+
+## Testing steps that make multiple sequential SSH calls
+
+Steps that call `_ssh()` more than once need a helper that serves canned
+`subprocess.run` results **in order**.  The existing `_FakeSSH` context
+manager in `tests/unit/test_dx_steps.py` is the canonical pattern:
+
+```python
+def _make_ssh_proc(stdout="", rc=0):
+    proc = MagicMock()
+    proc.stdout = stdout
+    proc.returncode = rc
+    return proc
+
+
+class _FakeSSH:
+    """Patches subprocess.run and serves canned results per call, in order."""
+
+    def __init__(self, module, results):
+        self.module = module
+        self.results = list(results)
+        self.calls = []       # captures raw args list for each call
+        import unittest.mock as um
+        self._patcher = um.patch("subprocess.run", side_effect=self._run)
+
+    def _run(self, args, **kwargs):
+        self.calls.append(args)
+        if not self.results:
+            raise AssertionError("unexpected extra SSH call")
+        return self.results.pop(0)
+
+    def __enter__(self):
+        self._patcher.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._patcher.stop()
+```
+
+ list):
+
+```python
+def test_happy_path(self):
+    m = _import_dx_steps()
+    ctx = _ssh_ctx()
+    with _FakeSSH(m, [
+        _make_ssh_proc("", 0),                   # call 1 — cleanup
+        _make_ssh_proc("", 0),                   # call 2 — create
+        _make_ssh_proc("test-box  image:latest", 0),  # call 3 — list
+    ]):
+        m.dx_distrobox_can_be_created(ctx, "test-box", "image:latest")
+
+def test_command_flags(self):
+    m = _import_dx_steps()
+    ctx = _ssh_ctx()
+    with _FakeSSH(m, [...]) as ssh:
+        m.dx_distrobox_can_be_created(ctx, "test-box", "image:latest")
+    create_cmd = ssh.calls[1][-1]    # second call, last element is the command string
+    assert "--yes" in create_cmd
+```
+
+Key behaviours to test for any multi-SSH step:
+- **Happy path** — all calls succeed, no exception raised
+- **Each SSH call failing** — verify the right `AssertionError` message
+- **Conditional acceptance** — e.g., cleanup rc=1 or "No such container" text is OK
+- **Command shape** — verify required flags appear in the right call via `ssh.calls[N][-1]`
+
 ## Verification
 
 - [ ] The new test file passes **run on its own**, not only in a full-suite run
