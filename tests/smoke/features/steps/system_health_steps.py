@@ -28,6 +28,8 @@ IGNORED_FAILED_UNITS_IN_VM = {
     "gnome-remote-desktop.service",
     # bootupd cannot update the bootloader inside a QEMU VM (no EFI vars/bootctl)
     "bootloader-update.service",
+    # input-remapper cannot initialize its uinput devices inside a QEMU VM
+    "input-remapper.service",
     # NVIDIA services require physical GPU hardware — always fail in QEMU
     "nvidia-persistenced.service",
     "ublue-nvctk-cdi.service",
