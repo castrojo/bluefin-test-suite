@@ -1,0 +1,12 @@
+# Packages the E2E harness needs inside the VM, previously installed at
+# runtime by the "Install shell tools for common suite" step in e2e.yml.
+# One package per line; blank lines and '#' comments are ignored.
+# Names are Fedora/CentOS RPM names (fd is fd-find; ripgrep provides rg).
+zsh
+fish
+fzf
+bat
+eza
+fd-find
+ripgrep
+starship

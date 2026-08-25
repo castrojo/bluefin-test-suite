@@ -1,0 +1,37 @@
+# E2E overlay — composes test software as a container layer on top of the
+# image under test instead of installing it at runtime inside the VM.
+#
+# Motivation: bluefin-lts deliberately ships rpm-ostreed.conf with
+# LockLayering=true (projectbluefin/bluefin-lts#492, PR #509), so
+# `rpm-ostree install --apply-live` fails inside the booted VM. Composing a
+# derived image at build time works for every bootc image regardless of the
+# runtime layering policy.
+#
+# Built by scripts/compose-e2e-image.sh, which pushes the result to
+# ghcr.io/<owner>/testsuite-e2e:run-<GITHUB_RUN_ID> for the suite jobs to boot.
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+COPY packages.list /tmp/e2e-packages.list
+
+# Install best-effort, one package at a time, so a package missing from a
+# given base's repos (e.g. eza on older releases) degrades to a warning
+# exactly like the old runtime-install path did instead of failing the build.
+RUN set -uo pipefail; \
+    if command -v dnf >/dev/null 2>&1; then PKGMGR="dnf"; \
+    elif command -v microdnf >/dev/null 2>&1; then PKGMGR="microdnf"; \
+    else PKGMGR="rpm-ostree"; fi; \
+    echo "e2e-overlay: using ${PKGMGR}"; \
+    while read -r pkg; do \
+      case "${pkg}" in ''|'#'*) continue ;; esac; \
+      if rpm -q "${pkg}" >/dev/null 2>&1; then \
+        echo "e2e-overlay: ${pkg} already in base image"; \
+      elif ${PKGMGR} install -y "${pkg}"; then \
+        echo "e2e-overlay: installed ${pkg}"; \
+      else \
+        echo "e2e-overlay: WARNING — could not install ${pkg}; dependent scenarios may fail"; \
+      fi; \
+    done < /tmp/e2e-packages.list; \
+    rm -f /tmp/e2e-packages.list; \
+    if command -v dnf >/dev/null 2>&1; then dnf clean all || true; fi; \
+    if command -v ostree >/dev/null 2>&1; then ostree container commit || true; fi

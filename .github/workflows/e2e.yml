@@ -29,6 +29,18 @@ on:
         description: "Comma-separated suites: smoke,developer,dx,software,vanilla-gnome,bazzite,common,lifecycle,installer,kde-smoke"
         type: string
         default: "smoke"
+      compose_image:
+        description: >
+          Compose the suites' test software as a derived container layer
+          (FROM the target image) pushed to
+          ghcr.io/<owner>/testsuite-e2e:run-<run-id>, and boot that composed
+          image instead of the raw one. Avoids runtime rpm-ostree layering,
+          which fails on images shipping rpm-ostreed.conf LockLayering=true
+          (projectbluefin/bluefin-lts#492). Set to false — or set the
+          repository variable E2E_COMPOSE_IMAGE=0 — to use the legacy
+          runtime-install path.
+        type: boolean
+        default: true
       skip_native_apps:
         description: "Skip @native_app scenarios (non-Flatpak app tests: Calculator, Files, Settings, etc.)"
         type: boolean
@@ -89,9 +101,73 @@ jobs:
           echo "suites=${JSON}" >> "$GITHUB_OUTPUT"
           echo "Suites: ${JSON}"
 
+  # Compose the E2E test image: build a derived layer FROM the image under
+  # test that adds the software the suites need (see
+  # container/e2e-overlay/packages.list), push it to GHCR with a run-scoped
+  # tag, and hand the composed ref to the suite jobs. This replaces runtime
+  # `rpm-ostree install --apply-live` inside the VM, which fails on images
+  # that lock runtime layering (rpm-ostreed.conf LockLayering=true —
+  # projectbluefin/bluefin-lts#492, fixed pattern per bluefin-lts pr-e2e.yml).
+  #
+  # Failure here is non-fatal: the suite jobs fall back to the raw image and
+  # the legacy runtime-install path.
+  compose:
+    name: Compose E2E test image
+    if: ${{ inputs.compose_image && vars.E2E_COMPOSE_IMAGE != '0' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write   # push composed image to GHCR
+    outputs:
+      image: ${{ steps.publish.outputs.image }}
+    steps:
+      # Same ownership rule as the e2e job: branch selection is owned by the
+      # caller via inputs.test_ref; no github.ref_name fallback here.
+      - name: Checkout testsuite (compose overlay)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ${{ inputs.test_repository }}
+          ref: ${{ inputs.test_ref }}
+          sparse-checkout: |
+            container/e2e-overlay
+            scripts/compose-e2e-image.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Log in to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | \
+            sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push composed image
+        id: build
+        continue-on-error: true
+        env:
+          BASE_IMAGE: ${{ inputs.image }}
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER,,}"
+          COMPOSED_REF="ghcr.io/${OWNER}/testsuite-e2e:run-${GITHUB_RUN_ID}"
+          chmod +x scripts/compose-e2e-image.sh
+          scripts/compose-e2e-image.sh "${BASE_IMAGE}" "${COMPOSED_REF}"
+          echo "image=${COMPOSED_REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish composed image ref
+        id: publish
+        run: |
+          if [[ "${{ steps.build.outcome }}" == "success" ]]; then
+            echo "image=${{ steps.build.outputs.image }}" >> "$GITHUB_OUTPUT"
+            echo "Composed image: ${{ steps.build.outputs.image }}"
+          else
+            echo "image=" >> "$GITHUB_OUTPUT"
+            echo "::warning::E2E image compose failed — suite jobs will fall back to the raw image and the legacy runtime-install path."
+          fi
+
   e2e:
     name: ${{ startsWith(matrix.suite, 'kde') && 'KDE Plasma' || 'GNOME 50' }} — ${{ matrix.suite }}
-    needs: matrix
+    needs: [matrix, compose]
+    # Run whenever the matrix resolved, even if compose was skipped (toggle
+    # off) or failed (fallback to the raw image + runtime installs).
+    if: ${{ !cancelled() && needs.matrix.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -103,7 +179,13 @@ jobs:
         suite: ${{ fromJson(needs.matrix.outputs.suites) }}
 
     env:
-      IMAGE: ${{ inputs.image }}
+      # Boot the composed image (test software layered at build time) when the
+      # compose job produced one; otherwise the raw input image.
+      IMAGE: ${{ needs.compose.outputs.image || inputs.image }}
+      COMPOSED_IMAGE: ${{ needs.compose.outputs.image }}
+      # Raw input image — used for stable naming (summaries, screenshot tags)
+      # so run-scoped composed tags don't leak into artifact names.
+      BASE_IMAGE: ${{ inputs.image }}
       SUITE: ${{ matrix.suite }}
       SCREENSHOT_IMAGE: ghcr.io/projectbluefin/testsuite/desktop-screenshot
       # KDE suites use a dedicated runner image with KDE/Appium orchestration
@@ -226,6 +308,12 @@ jobs:
       # Pull OCI image in background while apt installs QEMU — saves ~2 min
       - name: Install QEMU and pull OCI image
         run: |
+          # The composed run-scoped image may be a private GHCR package
+          # (fresh packages default to private) — authenticate before pulling.
+          if [[ -n "${COMPOSED_IMAGE}" ]]; then
+            echo "${{ secrets.GITHUB_TOKEN }}" | \
+              sudo podman login ghcr.io -u "${{ github.actor }}" --password-stdin
+          fi
           sudo podman pull "${IMAGE}" &
           PULL_PID=$!
           # Pull runner container in parallel — piped into VM after boot.
@@ -682,7 +770,7 @@ jobs:
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
-          IMAGE_SLUG="${IMAGE##*/}"
+          IMAGE_SLUG="${BASE_IMAGE##*/}"
           IMAGE_SLUG="${IMAGE_SLUG//:/-}"
           BOOT_TIME=$($SSH "systemd-analyze time 2>/dev/null | head -1" 2>/dev/null || echo "unavailable")
           echo "### Boot time: ${IMAGE_SLUG}" >> "$GITHUB_STEP_SUMMARY"
@@ -747,11 +835,36 @@ jobs:
 
           rm -f "${CACHE_TAR}"
 
-      # brew-setup.service is masked in CI to save ~60s boot time. Install the
-      # CLI tools the common suite validates (zsh, fish, eza, fd, rg, bat, fzf,
-      # starship) directly so scenarios don't need quarantine.
-      - name: Install shell tools for common suite
-        if: ${{ steps.shard.outputs.suite_dir == 'common' }}
+      # Composed-image path: the shell tools the common suite validates are
+      # already layered into the image by the compose job (see
+      # container/e2e-overlay/packages.list) — just verify availability.
+      - name: Verify shell tools for common suite (composed image)
+        if: ${{ steps.shard.outputs.suite_dir == 'common' && needs.compose.outputs.image != '' }}
+        run: |
+          SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
+          SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
+          $SSH "
+            echo '=== Shell tool availability (composed image) ==='
+            for tool in zsh fish fzf bat eza fd rg starship; do
+              if command -v \"\$tool\" >/dev/null 2>&1; then
+                echo \"  \$tool: \$(command -v \$tool)\"
+              elif [ -x /home/linuxbrew/.linuxbrew/bin/\$tool ]; then
+                echo \"  \$tool: /home/linuxbrew/.linuxbrew/bin/\$tool (brew)\"
+              else
+                echo \"  \$tool: NOT FOUND — compose overlay may have skipped it\"
+              fi
+            done
+          " || true
+
+      # Legacy fallback (compose disabled or failed): install the CLI tools the
+      # common suite validates (zsh, fish, eza, fd, rg, bat, fzf, starship) at
+      # runtime inside the VM. NOTE: rpm-ostree install fails on images that
+      # ship rpm-ostreed.conf LockLayering=true (e.g. bluefin-lts —
+      # projectbluefin/bluefin-lts#492); the composed-image path above is the
+      # supported route for those images. brew-setup.service is masked in CI to
+      # save ~60s boot time, so brew tools are installed directly.
+      - name: Install shell tools for common suite (legacy runtime fallback)
+        if: ${{ steps.shard.outputs.suite_dir == 'common' && needs.compose.outputs.image == '' }}
         run: |
           SSH_COMMON="-i /tmp/vm_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -o ControlMaster=auto -o ControlPersist=600 -o ControlPath=/tmp/ssh-ctrl-%C -o ConnectTimeout=3"
           SSH="ssh ${SSH_COMMON} -p 2222 bluefin-test@127.0.0.1"
@@ -1501,7 +1614,7 @@ jobs:
 
           # Push image-slug-specific tag so publish-to-pages can pull without metadata artifacts.
           # Slug: strip ghcr.io/<org>/, replace : with - (e.g. bluefin-testing)
-          IMAGE_SLUG=$(echo "${IMAGE}" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
+          IMAGE_SLUG=$(echo "${BASE_IMAGE}" | sed 's|ghcr.io/[^/]*/||' | tr ':' '-')
           # Push both the screenshot AND results.json if it exists
           ORAS_FILES="desktop-screenshot.png:image/png"
           if [[ -f results/results.json ]]; then
@@ -1617,7 +1730,7 @@ jobs:
             ]
 
           # gh-pages stable URL
-          image_env = os.environ.get('IMAGE', '')
+          image_env = os.environ.get('BASE_IMAGE', '')
           if '/' in image_env:
             parts = image_env.replace('ghcr.io/', '').split('/')
             slug = parts[-1] if len(parts) > 1 else parts[0]
@@ -1684,7 +1797,7 @@ jobs:
           import re
           from pathlib import Path
 
-          image = os.environ["IMAGE"]
+          image = os.environ.get("BASE_IMAGE") or os.environ["IMAGE"]
           suite = os.environ["SUITE"]
           artifact_suffix = re.sub(r"[^A-Za-z0-9._-]+", "-", image).strip("-").lower()
           metadata = {
