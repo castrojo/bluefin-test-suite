@@ -46,7 +46,7 @@ SUITE_NOTES: dict[str, str] = {
     "hardware": "udev rules syntax validation (ZSA, Apple SuperDrive, Framework 16, AMD s2idle, Wooting, VIIA); emulated peripherals driven by shared SSH steps",
     "security": "cosign verify: projectbluefin (bluefin, lts, dakota) + ublue-os (latest, LTS, DX, nvidia, GTS, DX-nvidia, negative)",
     "bazzite": "Extension presence + shell behaviour",
-    "dx": "distrobox enter/create/install/export, JupyterLab, brew, mise — infra gaps, all `@pending`",
+    "dx": "distrobox create/install/export are active behind the `@requires_cached_image` runtime gate — they skip until `fedora-toolbox:latest` is pre-pulled on the VM (#501 / projectbluefin/lab#621) and activate without a feature-file edit; distrobox enter, JupyterLab, brew, mise remain `@pending` on infra gaps",
     "nvidia": "`@future` / `@hardware_blocked` until GPU passthrough exists in the lab",
     "flatcar": "boot (7 active) + lifecycle (5 active); 1 `@future` (boot from installed target disk — needs KubeVirt boot-order support in `projectbluefin/lab`)",
     "kde-smoke": "Plasma session, D-Bus services, AT-SPI tree, KWin output, one KCM, Dolphin, Konsole, Kickoff; all `@informational`",

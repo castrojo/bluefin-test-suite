@@ -41,19 +41,24 @@ Feature: Bluefin DX variant smoke tests
   # create a container, install an app inside it, export it to the host.
   # All carry @requires_cached_image: they need a pre-pulled
   # registry.fedoraproject.org/fedora-toolbox:latest on the VM, which no
-  # caching infrastructure provides yet (see projectbluefin/testsuite#501).
-  # They are @pending until projectbluefin/lab provisions that image cache;
-  # tests/shared/quarantine.py skips @pending at runtime.
-  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  # caching infrastructure provides yet (see projectbluefin/testsuite#501,
+  # blocked on projectbluefin/lab#621).
+  #
+  # @requires_cached_image is a runtime capability gate, not a pending marker:
+  # environment.py probes `podman image exists` for the image each scenario
+  # names and skips with an explicit reason while it is absent, exactly as
+  # @requires_bctl does for bluefinctl. Once lab#621 pre-pulls the image these
+  # scenarios activate on their own — no edit to this file.
+  @dx @distrobox @plain_ssh @requires_cached_image
   Scenario: distrobox container can be created from fedora-toolbox
     * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
 
-  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  @dx @distrobox @plain_ssh @requires_cached_image
   Scenario: package can be installed inside a distrobox container
     * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
     * DX distrobox "test-box" installs package "htop"
 
-  @pending @dx @distrobox @plain_ssh @requires_cached_image
+  @dx @distrobox @plain_ssh @requires_cached_image
   Scenario: app inside a distrobox container can be exported to the host
     * DX distrobox "test-box" can be created from "registry.fedoraproject.org/fedora-toolbox:latest"
     * DX distrobox "test-box" installs package "htop"
