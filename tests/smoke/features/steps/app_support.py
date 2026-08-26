@@ -16,6 +16,10 @@ DESKTOP_DIRS = (
     os.path.expanduser("~/.local/share/flatpak/exports/share/applications"),
 )
 
+# Exported Flatpak desktop entries are ordinary-looking files whose launch
+# environment does not cross into the Flatpak sandbox.
+FLATPAK_EXPORT_MARKER = "/flatpak/exports/share/applications/"
+
 
 def _ssh_args() -> list[str]:
     return [
@@ -79,6 +83,15 @@ def _flatpak_env_args(env: dict[str, str] | None) -> list[str]:
     return [f"--env={k}={v}" for k, v in sorted(env.items())]
 
 
+def _flatpak_desktop_app_id(desktop_path: str, desktop_id: str) -> str | None:
+    """Return the Flatpak app ID when ``desktop_path`` is a Flatpak export."""
+    if FLATPAK_EXPORT_MARKER not in desktop_path:
+        return None
+    if desktop_id.endswith(".desktop"):
+        return desktop_id[: -len(".desktop")]
+    return desktop_id
+
+
 def _ssh_launch(cmd: str, env: dict[str, str] | None = None) -> None:
     """Launch an app on the VM via SSH; returns immediately (fire-and-forget)."""
     # Source session.env to get DBUS_SESSION_BUS_ADDRESS + WAYLAND_DISPLAY,
@@ -88,6 +101,24 @@ def _ssh_launch(cmd: str, env: dict[str, str] | None = None) -> None:
         f"{_env_exports(env)}nohup {cmd} </dev/null &>/dev/null & disown"
     )
     subprocess.run(_ssh_args() + [full], capture_output=True, text=True, timeout=15)
+
+
+def _launch_flatpak(
+    app_id: str,
+    env: dict[str, str] | None,
+    local_env: dict[str, str] | None,
+) -> None:
+    """Start a Flatpak while forwarding the application environment."""
+    flatpak_args = ["flatpak", "run", *_flatpak_env_args(env), app_id]
+    if _IN_CONTAINER:
+        _ssh_launch(" ".join(shlex.quote(a) for a in flatpak_args), env)
+    else:
+        subprocess.Popen(
+            flatpak_args,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=local_env,
+        )
 
 
 def launch_target_available(targets: tuple[tuple[str, str], ...]) -> bool:
@@ -136,6 +167,10 @@ def launch_background(
         if kind == "desktop":
             dp = _desktop_path(value)
             if dp:
+                app_id = _flatpak_desktop_app_id(dp, value)
+                if app_id:
+                    _launch_flatpak(app_id, env, local_env)
+                    return f"flatpak:{app_id}"
                 if _IN_CONTAINER:
                     _ssh_launch(f"gio launch {dp}", env)
                 else:
@@ -147,16 +182,7 @@ def launch_background(
                     )
                 return f"desktop:{value}"
         if kind == "flatpak" and _flatpak_available(value):
-            flatpak_args = ["flatpak", "run", *_flatpak_env_args(env), value]
-            if _IN_CONTAINER:
-                _ssh_launch(" ".join(shlex.quote(a) for a in flatpak_args), env)
-            else:
-                subprocess.Popen(
-                    flatpak_args,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                    env=local_env,
-                )
+            _launch_flatpak(value, env, local_env)
             return f"flatpak:{value}"
     raise AssertionError(f"No launch candidate available from {targets!r}")
 

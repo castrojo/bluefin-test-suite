@@ -321,6 +321,14 @@ merged into `os.environ` for local `Popen`, and forwarded across the Flatpak
 sandbox boundary with `--env=`. Environment set outside a Flatpak sandbox is
 **not** visible inside it — always use the `env=` parameter, never a shell prefix.
 
+An **exported Flatpak desktop entry is a trap**: an app ID under
+`/var/lib/flatpak/exports/share/applications/` looks like an ordinary desktop
+target, but `gio launch` / `gtk-launch` starts it inside the sandbox and silently
+drops the launch environment. `launch_background()` detects the export path and
+reroutes it through `flatpak run --env=`. Keep an explicit
+`("flatpak", app_id)` target before the exported desktop entry when both are
+listed, so the intended launch path is clear at the call site.
+
 Symptom when this is missing: the application appears in the AT-SPI tree but its
 window node has **no descendants** — no `entry`, `tool bar`, or `page tab list`.
 Steps then fail late with confusing messages such as "address bar not found".
@@ -376,6 +384,8 @@ The pattern `for _ in range(N): ... sleep(X)` that returns early already IS exit
 - `_<app>_app()` helper does a single-pass lookup with no retry loop — will flake on GNOME 50 QEMU
 - A `_<app>_window()` helper accepts `roleName "filler"` without checking that the node has descendants (false pass)
 - A GUI app that renders its own chrome is launched without `GNOME_ACCESSIBILITY=1`
+- A Flatpak-exported `.desktop` entry is launched with `gio launch`/`gtk-launch`
+  while carrying an `env=` payload (the env never reaches the sandbox)
 - A session-readiness loop caches the D-Bus session address or treats a missing bus socket as fatal (breaks across the qecore-headless GDM restart)
 
 ## Verification
@@ -388,6 +398,7 @@ The pattern `for _ in range(N): ... sleep(X)` that returns early already IS exit
 - [ ] Smoke suite steps use `subprocess.run`, not SSH helpers
 - [ ] `behave --dry-run tests/smoke/features/` passes before pushing
 - [ ] Window-role helpers that accept `filler` also assert the node has a populated subtree
+- [ ] Launch targets for Flatpak-packaged apps resolve to `flatpak run --env=`, not an exported desktop entry
 
 ## Common Rationalizations
 
