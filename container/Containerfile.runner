@@ -82,13 +82,20 @@ RUN microdnf install -y --setopt=install_weak_deps=0 gcc python3-devel \
 
 # Install the pure-Python ponytail module (qecore imports it for input events via
 # gnome-ponytail-daemon). Not on PyPI — downloaded directly from the tagged release.
+# Downloaded bytes are pinned by SHA-256 so a compromised or mutated upstream file
+# fails the build instead of being installed silently (hashes verified against
+# tag 0.0.11; __init__.py is intentionally an empty file).
 ARG PONYTAIL_VERSION=0.0.11
+ARG PONYTAIL_INIT_SHA256=e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+ARG PONYTAIL_PY_SHA256=e86a3ce2ae6eb0662bb26516085b6dbb2c8248ffaa8384d2789c474db67b00ff
 RUN PDIR="$(python3 -c 'import site; print(site.getsitepackages()[0])')/ponytail" && \
     mkdir -p "$PDIR" && \
     curl -sSfL "https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon/-/raw/${PONYTAIL_VERSION}/ponytail/__init__.py" \
          -o "$PDIR/__init__.py" && \
     curl -sSfL "https://gitlab.gnome.org/ofourdan/gnome-ponytail-daemon/-/raw/${PONYTAIL_VERSION}/ponytail/ponytail.py" \
-         -o "$PDIR/ponytail.py"
+         -o "$PDIR/ponytail.py" && \
+    echo "${PONYTAIL_INIT_SHA256}  $PDIR/__init__.py" | sha256sum -c - && \
+    echo "${PONYTAIL_PY_SHA256}  $PDIR/ponytail.py" | sha256sum -c -
 
 # Symlink qecore helpers onto PATH
 RUN for f in /usr/local/bin/qecore_*; do \
