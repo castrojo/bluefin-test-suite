@@ -17,6 +17,7 @@ import uuid
 from typing import Any
 
 from tests.shared import qemu_screendump
+from tests.shared.results_dir import resolve_results_dir as _results_dir
 from tests.shared.ssh_steps import run_ssh
 
 
@@ -103,17 +104,6 @@ for app in desktop:
     print(f"APPLICATION: {name}")
     _dump_node(app)
 '''
-
-
-def _results_dir(context: Any | None = None) -> str:
-    """Resolve output dir: userdata > env var > default /tmp/results."""
-    if context is not None:
-        config = getattr(context, "config", None)
-        if config and hasattr(config, "userdata"):
-            value = config.userdata.get("results_dir")
-            if value:
-                return value
-    return os.environ.get("TESTSUITE_RESULTS_DIR", "/tmp/results")
 
 
 def _safe_fragment(value: str | None, fallback: str) -> str:

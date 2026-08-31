@@ -5,17 +5,7 @@ import os
 import re
 import time
 
-
-def _results_dir(context=None) -> str:
-    """Resolve output dir: userdata > env var > default /tmp/results."""
-    if context is not None:
-        config = getattr(context, "config", None)
-        if config and hasattr(config, "userdata"):
-            value = config.userdata.get("results_dir")
-            if value:
-                return value
-    return os.environ.get("TESTSUITE_RESULTS_DIR", "/tmp/results")
-
+from tests.shared.results_dir import resolve_results_dir as _results_dir
 
 DEFAULT_SLA = {
     "app_launch": 10,
