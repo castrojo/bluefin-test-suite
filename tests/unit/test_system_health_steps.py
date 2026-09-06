@@ -105,6 +105,7 @@ class TestIgnoredFailedUnits:
             "avahi-daemon.service",
             "cups.service",
             "bootloader-update.service",
+            "input-remapper.service",
             "nvidia-persistenced.service",
             "fwupd-refresh.service",
         }
