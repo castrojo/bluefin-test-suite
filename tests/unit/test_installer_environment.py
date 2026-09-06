@@ -64,6 +64,7 @@ def _patch_probe(monkeypatch, env_module, result):
 
     import tests.shared.ssh_steps as ssh_steps
 
+    setattr(ssh_steps, "run_ssh", fake_run_ssh)
     monkeypatch.setattr(ssh_steps, "run_ssh", fake_run_ssh)
     return calls
 
