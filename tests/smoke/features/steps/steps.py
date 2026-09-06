@@ -28,6 +28,7 @@ try:
 except Exception:  # noqa: BLE001
     pass
 from tests.shared.gnome_shell_steps import *  # noqa: F401,F403
+from tests.shared.ssh_config import ssh_argv
 
 # Same container detection as system_health_steps — /proc/1/ns/mnt is a symlink
 # to a kernel namespace object so lexists() is required (isfile() returns False).
@@ -37,21 +38,8 @@ _IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/b
 def _run_host(cmd: str, timeout: int = 30):
     """Run cmd on the host VM via SSH when inside the runner container."""
     if _IN_CONTAINER:
-        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
-        vm_user = os.environ.get("VM_USER", "bluefin-test")
-        ssh_port = os.environ.get("SSH_PORT", "22")
         result = subprocess.run(
-            [
-                "ssh",
-                "-i", ssh_key,
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "ConnectTimeout=10",
-                "-p", ssh_port,
-                f"{vm_user}@{vm_ip}",
-                cmd,
-            ],
+            ssh_argv() + [cmd],
             capture_output=True, text=True, timeout=timeout,
         )
     else:

@@ -5,6 +5,7 @@ import re
 import subprocess
 
 from behave import step
+from tests.shared.ssh_config import ssh_argv
 try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
@@ -66,21 +67,8 @@ def _run_host(cmd: str, timeout: int = 30):
     (which requires host-level CAP_SYS_ADMIN that rootless podman cannot grant).
     """
     if _IN_CONTAINER:
-        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
-        vm_user = os.environ.get("VM_USER", "bluefin-test")
-        ssh_port = os.environ.get("SSH_PORT", "22")
         result = subprocess.run(
-            [
-                "ssh",
-                "-i", ssh_key,
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "ConnectTimeout=10",
-                "-p", ssh_port,
-                f"{vm_user}@{vm_ip}",
-                cmd,
-            ],
+            ssh_argv() + [cmd],
             capture_output=True, text=True, timeout=timeout,
         )
     else:

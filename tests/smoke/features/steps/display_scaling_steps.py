@@ -13,6 +13,8 @@ import shlex
 import subprocess
 from time import sleep
 
+from tests.shared.ssh_config import ssh_argv
+
 from behave import step
 
 try:
@@ -30,15 +32,8 @@ _FRACTIONAL_SCALE_FEATURE = "scale-monitor-framebuffer"
 
 
 def _ssh_args() -> list[str]:
-    return [
-        "ssh",
-        "-i", os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519"),
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "UserKnownHostsFile=/dev/null",
-        "-o", "ConnectTimeout=10",
-        "-p", os.environ.get("SSH_PORT", "22"),
-        f"{os.environ.get('VM_USER', 'bluefin-test')}@{os.environ.get('VM_IP', '127.0.0.1')}",
-    ]
+    """Canonical SSH argv — see tests/shared/ssh_config.py."""
+    return ssh_argv()
 
 
 def _run_host(cmd: str, timeout: int = 30):

@@ -3,6 +3,8 @@ import shlex
 import shutil
 import subprocess
 
+from tests.shared.ssh_config import ssh_argv
+
 
 # When behave runs inside the runner container the host VM filesystem is not
 # visible: /usr/share/applications, flatpak, etc. are absent from the image.
@@ -22,15 +24,8 @@ FLATPAK_EXPORT_MARKER = "/flatpak/exports/share/applications/"
 
 
 def _ssh_args() -> list[str]:
-    return [
-        "ssh",
-        "-i", os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519"),
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "UserKnownHostsFile=/dev/null",
-        "-o", "ConnectTimeout=10",
-        "-p", os.environ.get("SSH_PORT", "22"),
-        f"{os.environ.get('VM_USER', 'bluefin-test')}@{os.environ.get('VM_IP', '127.0.0.1')}",
-    ]
+    """Canonical SSH argv — see tests/shared/ssh_config.py."""
+    return ssh_argv()
 
 
 def _ssh_run(cmd: str, timeout: int = 30) -> subprocess.CompletedProcess:

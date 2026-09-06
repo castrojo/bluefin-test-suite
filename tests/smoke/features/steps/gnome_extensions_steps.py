@@ -7,6 +7,7 @@ import time
 from time import sleep
 
 from behave import step
+from tests.shared.ssh_config import ssh_argv
 try:
     from dogtail import tree
 except Exception:  # noqa: BLE001
@@ -34,21 +35,8 @@ def _run_host(cmd: list[str] | str):
     import shlex
     cmd_str = cmd if isinstance(cmd, str) else " ".join(shlex.quote(a) for a in cmd)
     if _IN_CONTAINER:
-        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
-        vm_user = os.environ.get("VM_USER", "bluefin-test")
-        ssh_port = os.environ.get("SSH_PORT", "22")
         result = subprocess.run(
-            [
-                "ssh",
-                "-i", ssh_key,
-                "-o", "StrictHostKeyChecking=no",
-                "-o", "UserKnownHostsFile=/dev/null",
-                "-o", "ConnectTimeout=10",
-                "-p", ssh_port,
-                f"{vm_user}@{vm_ip}",
-                cmd_str,
-            ],
+            ssh_argv() + [cmd_str],
             capture_output=True, text=True, timeout=30, check=False,
         )
     else:
@@ -231,18 +219,12 @@ def launch_extensions_preferences_via_command(context) -> None:
     if _IN_CONTAINER:
         # Inside the runner container the desktop file is absent from the container
         # filesystem — launch via SSH on the VM where the session is running.
-        ssh_key = os.environ.get("SSH_KEY", "/home/bluefin-test/.ssh/id_ed25519")
-        vm_ip = os.environ.get("VM_IP", "127.0.0.1")
-        vm_user = os.environ.get("VM_USER", "bluefin-test")
-        ssh_port = os.environ.get("SSH_PORT", "22")
         cmd = (
             "source /tmp/session.env 2>/dev/null; "
             f"nohup gio launch {EXTENSIONS_DESKTOP_FILE} </dev/null &>/dev/null & disown"
         )
         result = subprocess.run(
-            ["ssh", "-i", ssh_key, "-o", "StrictHostKeyChecking=no",
-             "-o", "UserKnownHostsFile=/dev/null", "-o", "ConnectTimeout=10",
-             "-p", ssh_port, f"{vm_user}@{vm_ip}", cmd],
+            ssh_argv() + [cmd],
             capture_output=True, text=True, timeout=15,
         )
         if result.returncode != 0:

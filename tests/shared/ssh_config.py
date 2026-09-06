@@ -5,6 +5,10 @@ SSH steps (``tests/shared/ssh_steps.py``), by suite-local helpers that run
 commands on the VM (e.g. ``_flatpak`` in the software suite), and by suite
 ``environment.py`` hooks that probe the VM directly.
 
+``ssh_argv(context)`` builds the canonical ``ssh`` argument vector from those
+details so that no caller has to restate the transport policy (host-key
+handling, connect timeout, port flag) inline.
+
 ``resolve_ssh_details(context)`` reads, in priority order:
 
 1. Behave ``context`` attributes (``ssh_key``, ``vm_ip``, ``ssh_user``,
@@ -32,12 +36,18 @@ def _first_value(*values: str) -> str:
     return ""
 
 
-def resolve_ssh_details(context) -> dict:
+def _userdata(context) -> dict:
+    """Return behave userdata, or an empty dict when there is no context."""
+    userdata = getattr(getattr(context, "config", None), "userdata", None)
+    return userdata if hasattr(userdata, "get") else {}
+
+
+def resolve_ssh_details(context=None) -> dict:
     """Return SSH connection details for the current run.
 
     Keys: ``ssh_key``, ``vm_ip``, ``ssh_user``, ``ssh_port`` (all strings).
     """
-    userdata = context.config.userdata
+    userdata = _userdata(context)
     return {
         "ssh_key": _first_value(
             getattr(context, "ssh_key", ""),
@@ -66,6 +76,25 @@ def resolve_ssh_details(context) -> dict:
             os.environ.get("VM_PORT", ""),
         ) or DEFAULT_SSH_PORT,
     }
+
+
+def ssh_argv(context=None, *, connect_timeout: int = 10) -> list[str]:
+    """Return the canonical ``ssh`` argv prefix for the current run.
+
+    Callers append the remote command:  ``subprocess.run(ssh_argv() + [cmd])``.
+    This is the single place where SSH transport policy (host-key handling,
+    connect timeout, port flag, destination) is expressed.
+    """
+    details = resolve_ssh_details(context)
+    return [
+        "ssh",
+        "-i", details["ssh_key"],
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", f"ConnectTimeout={connect_timeout}",
+        "-p", str(details["ssh_port"]),
+        f"{details['ssh_user']}@{details['vm_ip']}",
+    ]
 
 
 def populate_ssh_context(context) -> None:
