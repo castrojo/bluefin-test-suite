@@ -6,33 +6,11 @@ not None.  These tests verify both the happy path and the assertion
 failure path without requiring a live display or VM.
 """
 
-import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-
-# ---------------------------------------------------------------------------
-# Import helper: stub out behave before importing the module under test
-# ---------------------------------------------------------------------------
-
-def _import_screenshot_steps():
-    """Import screenshot_steps with behave.step replaced by a no-op decorator."""
-    behave_stub = types.ModuleType("behave")
-    behave_stub.step = lambda *_args, **_kwargs: (lambda f: f)
-    sys.modules.setdefault("behave", behave_stub)
-
-    # Clear cached module so the stub is picked up on re-import.
-    for key in list(sys.modules):
-        if "screenshot_steps" in key and "test_" not in key:
-            del sys.modules[key]
-
-    import tests.shared.screenshot_steps as m  # noqa: PLC0415
-    return m
-
-
-_mod = _import_screenshot_steps()
+import tests.shared.screenshot_steps as _mod
 
 
 # ---------------------------------------------------------------------------
