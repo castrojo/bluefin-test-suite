@@ -11,6 +11,8 @@ from time import sleep
 
 from behave import step
 
+from tests.shared.ssh_config import ssh_argv
+
 
 def run_ssh(context, cmd, timeout=60):
     """Run a command over SSH and store stdout/return code on context."""
@@ -18,23 +20,7 @@ def run_ssh(context, cmd, timeout=60):
     final_cmd = cmd
     if prefix:
         final_cmd = f"bash -c {shlex.quote(f'{prefix}; {cmd}')}"
-    ssh_opts = [
-        "ssh",
-        "-i",
-        context.ssh_key,
-        "-o",
-        "StrictHostKeyChecking=no",
-        "-o",
-        "UserKnownHostsFile=/dev/null",
-        "-o",
-        "ConnectTimeout=10",
-        "-o",
-        "LogLevel=ERROR",
-    ]
-    if getattr(context, "ssh_port", None):
-        ssh_opts += ["-p", str(context.ssh_port)]
-    ssh_opts.append(f"{context.ssh_user}@{context.vm_ip}")
-    ssh_opts.append(final_cmd)
+    ssh_opts = ssh_argv(context, quiet=True) + [final_cmd]
     try:
         result = subprocess.run(ssh_opts, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
