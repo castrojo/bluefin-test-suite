@@ -9,21 +9,12 @@ import subprocess
 import time
 from typing import Any
 
+from tests.shared.results_dir import resolve_results_dir as _results_dir
+
 # Detect when behave runs inside the runner container (not on the host VM).
 # Screenshots must be triggered via SSH so GNOME Shell (on the VM) can write
 # to the file — containerized gdbus calls are rejected by Shell's D-Bus policy.
 _IN_CONTAINER = os.path.lexists("/proc/1/ns/mnt") and not os.path.isfile("/usr/bin/bootc")
-
-
-def _results_dir(context: Any | None = None) -> str:
-    """Resolve output dir: userdata > env var > default /tmp/results."""
-    if context is not None:
-        config = getattr(context, "config", None)
-        if config and hasattr(config, "userdata"):
-            value = config.userdata.get("results_dir")
-            if value:
-                return value
-    return os.environ.get("TESTSUITE_RESULTS_DIR", "/tmp/results")
 
 # Seconds to wait after launching an app before screenshotting
 _APP_LAUNCH_WAIT = int(os.environ.get("SCREENSHOT_APP_WAIT", "4"))
