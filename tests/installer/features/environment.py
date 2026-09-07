@@ -7,7 +7,7 @@ No GNOME session interaction needed — pure CLI commands.
 """
 import os
 
-from tests.shared.ssh_steps import *  # noqa: F401,F403
+from tests.shared.ssh_steps import run_ssh
 
 try:
     from tests.shared.timing import record_end, record_start
