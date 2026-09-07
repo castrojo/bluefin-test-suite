@@ -62,8 +62,6 @@ def target_uses_luks(context):
     if cached is not None:
         return cached
 
-    from tests.shared.ssh_steps import run_ssh
-
     try:
         _, returncode = run_ssh(context, "lsblk -rno TYPE | grep -qx crypt", timeout=30)
     except Exception:  # noqa: BLE001 -- an unreachable DUT is not a LUKS target

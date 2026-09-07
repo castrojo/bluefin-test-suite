@@ -62,9 +62,7 @@ def _patch_probe(monkeypatch, env_module, result):
             raise result
         return "", result
 
-    import tests.shared.ssh_steps as ssh_steps
-
-    monkeypatch.setattr(ssh_steps, "run_ssh", fake_run_ssh)
+    monkeypatch.setattr(env_module, "run_ssh", fake_run_ssh, raising=False)
     return calls
 
 
