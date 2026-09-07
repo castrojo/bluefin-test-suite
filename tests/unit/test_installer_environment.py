@@ -64,7 +64,10 @@ def _patch_probe(monkeypatch, env_module, result):
 
     import tests.shared.ssh_steps as ssh_steps
 
-    monkeypatch.setattr(ssh_steps, "run_ssh", fake_run_ssh)
+    # Other unit tests replace this module with minimal stubs while importing
+    # suite step modules. Under xdist, an installer test can inherit such a
+    # stub, so do not require the production attribute to already exist.
+    monkeypatch.setattr(ssh_steps, "run_ssh", fake_run_ssh, raising=False)
     return calls
 
 
