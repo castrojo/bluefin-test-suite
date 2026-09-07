@@ -12,6 +12,8 @@ from __future__ import annotations
 
 import importlib
 import subprocess
+import sys
+import types
 
 import pytest
 
@@ -23,6 +25,9 @@ ENVIRONMENT_MODULE = "tests.installer.features.environment"
 def env_module(monkeypatch):
     """Import the installer environment with LUKS_ENABLED unset by default."""
     monkeypatch.delenv("LUKS_ENABLED", raising=False)
+    ssh_steps = types.ModuleType("tests.shared.ssh_steps")
+    ssh_steps.run_ssh = lambda *args, **kwargs: ("", 1)
+    monkeypatch.setitem(sys.modules, "tests.shared.ssh_steps", ssh_steps)
     module = importlib.import_module(ENVIRONMENT_MODULE)
     return importlib.reload(module)
 
@@ -62,7 +67,7 @@ def _patch_probe(monkeypatch, env_module, result):
             raise result
         return "", result
 
-    monkeypatch.setattr(env_module, "run_ssh", fake_run_ssh, raising=False)
+    monkeypatch.setattr(env_module, "run_ssh", fake_run_ssh)
     return calls
 
 
