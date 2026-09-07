@@ -7,7 +7,7 @@ No GNOME session interaction needed — pure CLI commands.
 """
 import os
 
-from tests.shared.ssh_steps import run_ssh
+from tests.shared.ssh_steps import *  # noqa: F401,F403
 
 try:
     from tests.shared.timing import record_end, record_start
@@ -61,6 +61,8 @@ def target_uses_luks(context):
     cached = getattr(context, "luks_enabled", None)
     if cached is not None:
         return cached
+
+    from tests.shared.ssh_steps import run_ssh
 
     try:
         _, returncode = run_ssh(context, "lsblk -rno TYPE | grep -qx crypt", timeout=30)
