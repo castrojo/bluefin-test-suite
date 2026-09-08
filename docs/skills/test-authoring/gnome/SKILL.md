@@ -109,12 +109,13 @@ session and therefore does not prove the accessibility bus is usable.
 
 ## GNOME 50 Firefox AT-SPI window resolution and chrome discovery
 
-In GNOME 50, Firefox exposes its top-level window as `filler` or `frame` in AT-SPI, while web content and iframes within tabs also expose nested `frame` nodes (often containing child widgets such as `push button`).
+In GNOME 50, Firefox exposes its top-level window as `filler` or `frame` in AT-SPI, while web content and iframes within tabs also expose nested `frame` nodes (often containing child widgets such as `push button`). When tabs crash under containerized or headless environments, Firefox may also spawn `Tab crash reporter — Mozilla Firefox` frame nodes in the AT-SPI tree.
 
-To avoid selecting a nested webview or iframe subframe:
-1. Query top-level application children (`app.children`) first in `_window_candidates()`. Only fall back to deep recursive `app.findChildren()` if no top-level candidate is found.
-2. In `_firefox_window()`, prioritize candidates that expose genuine browser chrome: `entry`, `autocomplete`, or `page tab list`. A frame containing only web buttons is never selected over a top-level window carrying browser chrome.
-3. Accept both `entry` and `autocomplete` roles for the address bar in `_address_bar()`, and match name keywords (`address`, `search`, `url`). Include `autocomplete` in `FIREFOX_CHROME_ROLES` so populated-tree heuristics recognize the GNOME 50 address bar.
+To resolve the genuine browser window reliably:
+1. Query registered application name as `"Firefox"` first in `FIREFOX_APP_NAMES` to avoid a 10s retry timeout against `"firefox"`.
+2. Filter out Mozilla crash reporter windows (`"crash reporter" in name.lower()`) so stale or crashed frames carrying a `page tab list` are not misidentified as browser windows.
+3. Prioritize top-level candidates (`app.children`) before recursive searching, and require genuine browser chrome: `combo box`, `entry`, `autocomplete`, or `page tab list`. In GNOME 50, the Firefox address bar exposes role `combo box` (name `"Search with Google or enter address"`), and buttons use role `button`.
+4. In headless Wayland container environments where `/dev/uinput` evdev keystrokes are not routed to windows by the compositor, provide an AT-SPI fallback via `atspi_click` targeting the `"Open a new tab (Ctrl+T)"` and tab `"Close tab"` buttons.
 
 ## Overview search entry
 
