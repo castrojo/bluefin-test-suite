@@ -64,7 +64,7 @@ def _settings_app(timeout: int = 15):
     import time
     deadline = time.monotonic() + timeout
     last_error = None
-    while time.monotonic() < deadline:
+    while True:
         try:
             for app in getattr(tree.root, "applications", lambda: [])():
                 if app.name in SETTINGS_APP_NAMES or (app.name and "settings" in app.name.lower()):
@@ -76,6 +76,8 @@ def _settings_app(timeout: int = 15):
                 return tree.root.application(name)
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
+        if time.monotonic() >= deadline:
+            break
         sleep(0.5)
     raise AssertionError(f"GNOME Settings application was not found via AT-SPI after {timeout}s: {last_error}")
 

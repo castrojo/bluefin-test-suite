@@ -160,10 +160,11 @@ class TestNautilusApp:
 
     def test_raises_assertion_error_when_all_names_fail(self):
         tree_mock = MagicMock()
+        tree_mock.root.applications.return_value = []
         tree_mock.root.application.side_effect = RuntimeError("not found")
         with patch.object(self.m, "tree", tree_mock):
             with pytest.raises(AssertionError, match="GNOME Files application was not found"):
-                self.m._nautilus_app()
+                self.m._nautilus_app(timeout=0)
 
 
 # ---------------------------------------------------------------------------

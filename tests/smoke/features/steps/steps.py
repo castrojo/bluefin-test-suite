@@ -733,12 +733,20 @@ def no_llvmpipe(context) -> None:
 def dash_to_dock_visible(context) -> None:
     # First distinguish an extension activation failure from a rendering
     # failure through GNOME Shell's public Extensions D-Bus API.
-    output = _gdbus_call(
-        method="GetExtensionInfo",
-        interface="org.gnome.Shell.Extensions",
-        object_path="/org/gnome/Shell/Extensions",
-        args="'dash-to-dock@micxgx.gmail.com'",
-    )
+    # GNOME 50 exposes Extensions interface on /org/gnome/Shell (fallback to /org/gnome/Shell/Extensions)
+    output = None
+    for obj_path in ("/org/gnome/Shell", "/org/gnome/Shell/Extensions"):
+        try:
+            output = _gdbus_call(
+                method="GetExtensionInfo",
+                interface="org.gnome.Shell.Extensions",
+                object_path=obj_path,
+                args="'dash-to-dock@micxgx.gmail.com'",
+            )
+            break
+        except AssertionError:
+            continue
+    assert output is not None, "Failed to query Dash to Dock extension info via D-Bus"
     import re
 
     match = re.search(r"'state':\s*<uint32\s+(\d+)>", output)

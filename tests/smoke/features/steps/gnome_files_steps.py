@@ -48,7 +48,7 @@ def _nautilus_app(timeout: int = 15):
     """Find the Files app in the AT-SPI tree, retrying for up to ``timeout`` seconds."""
     deadline = time.monotonic() + timeout
     last_error = None
-    while time.monotonic() < deadline:
+    while True:
         try:
             for app in getattr(tree.root, "applications", lambda: [])():
                 if app.name in FILES_APP_NAMES or (app.name and "nautilus" in app.name.lower()):
@@ -60,6 +60,8 @@ def _nautilus_app(timeout: int = 15):
                 return tree.root.application(name)
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
+        if time.monotonic() >= deadline:
+            break
         sleep(0.5)
     raise AssertionError(f"GNOME Files application was not found via AT-SPI after {timeout}s: {last_error}")
 
