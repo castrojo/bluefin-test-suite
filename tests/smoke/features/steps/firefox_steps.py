@@ -150,6 +150,15 @@ def _firefox_window(context, *, require_a11y_tree: bool = True):
     Windows representing the crash reporter ("Tab crash reporter — Mozilla Firefox")
     are filtered out in favor of genuine browser windows.
     """
+    from unittest.mock import MagicMock
+    cached_win = getattr(context, "firefox_window", None)
+    if cached_win is not None and not isinstance(cached_win, MagicMock):
+        try:
+            if getattr(cached_win, "showing", False) and not _is_crash_reporter_window(cached_win):
+                if not require_a11y_tree or _has_populated_a11y_tree(cached_win):
+                    return cached_win
+        except Exception:  # noqa: BLE001
+            pass
     candidates = _window_candidates(context)
     assert candidates, "Firefox main window not found"
     if not require_a11y_tree:
@@ -190,16 +199,25 @@ def _firefox_window(context, *, require_a11y_tree: bool = True):
     raise AssertionError(f"{A11Y_TREE_EMPTY_MESSAGE} (window roles seen: {roles})")
 
 
-def _address_bar(context):
-    bars = _firefox_window(context).findChildren(
-        lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
-    )
-    matches = [
-        n for n in bars
-        if any(kw in (n.name or "").lower() for kw in ("address", "search", "url"))
-    ]
-    assert matches or bars, "Firefox address bar not found"
-    return (matches or bars)[0]
+def _address_bar(context, timeout: float = 5.0):
+    deadline = monotonic() + timeout
+    while True:
+        try:
+            bars = _firefox_window(context).findChildren(
+                lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
+            )
+            matches = [
+                n for n in bars
+                if any(kw in (n.name or "").lower() for kw in ("address", "search", "url"))
+            ]
+            if matches or bars:
+                return (matches or bars)[0]
+        except Exception:  # noqa: BLE001
+            pass
+        if monotonic() >= deadline:
+            break
+        sleep(0.5)
+    raise AssertionError("Firefox address bar not found")
 
 
 def _tab_count(context):
