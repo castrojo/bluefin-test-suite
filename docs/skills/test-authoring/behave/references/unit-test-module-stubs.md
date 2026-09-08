@@ -151,6 +151,20 @@ Key behaviours to test for any multi-SSH step:
 - **Conditional acceptance** — e.g., cleanup rc=1 or "No such container" text is OK
 - **Command shape** — verify required flags appear in the right call via `ssh.calls[N][-1]`
 
+## Monkeypatching shared helpers across pytest-xdist workers
+
+When a test reloads a suite environment module (e.g. `tests.installer.features.environment`)
+and patches helpers such as `run_ssh` on `tests.shared.ssh_steps`:
+If an earlier test on the same xdist worker installed a stub of `tests.shared.ssh_steps`
+that did not define `run_ssh`, `monkeypatch.setattr(ssh_steps, "run_ssh", fake_run_ssh)`
+raises `AttributeError`.
+
+To isolate environment tests:
+1. Clear any non-package `tests.shared` stub before reloading the module.
+2. Use `raising=False` when monkeypatching attributes on shared helper modules
+   (`monkeypatch.setattr(ssh_steps, "run_ssh", fake_run_ssh, raising=False)`) so
+   that incomplete stubs left by other tests do not break the seam.
+
 ## Verification
 
 - [ ] The new test file passes **run on its own**, not only in a full-suite run
@@ -158,3 +172,4 @@ Key behaviours to test for any multi-SSH step:
 - [ ] Any package stub that needs submodules sets `__path__`
 - [ ] Stubs are installed before the module under test is imported, and stale
       entries for that module are deleted from `sys.modules` first
+- [ ] Shared helper monkeypatching in reloaded environment tests uses `raising=False`

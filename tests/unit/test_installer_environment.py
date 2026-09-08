@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import importlib
 import subprocess
+import sys
 
 import pytest
 
@@ -23,6 +24,9 @@ ENVIRONMENT_MODULE = "tests.installer.features.environment"
 def env_module(monkeypatch):
     """Import the installer environment with LUKS_ENABLED unset by default."""
     monkeypatch.delenv("LUKS_ENABLED", raising=False)
+    mod = sys.modules.get("tests.shared")
+    if mod is not None and not hasattr(mod, "__path__"):
+        del sys.modules["tests.shared"]
     module = importlib.import_module(ENVIRONMENT_MODULE)
     return importlib.reload(module)
 
@@ -64,7 +68,7 @@ def _patch_probe(monkeypatch, env_module, result):
 
     import tests.shared.ssh_steps as ssh_steps
 
-    monkeypatch.setattr(ssh_steps, "run_ssh", fake_run_ssh)
+    monkeypatch.setattr(ssh_steps, "run_ssh", fake_run_ssh, raising=False)
     return calls
 
 
@@ -133,6 +137,21 @@ class TestTargetUsesLuks:
 
         assert context.luks_enabled is True
         assert len(calls) == 1, "the probe must not re-run per scenario"
+
+    def test_probe_tolerates_stubbed_ssh_steps_missing_run_ssh(self, monkeypatch, env_module):
+        """Regression for xdist import order where an earlier test stubbed ssh_steps without run_ssh."""
+        import sys
+        import types
+
+        stub = types.ModuleType("tests.shared.ssh_steps")
+        monkeypatch.setitem(sys.modules, "tests.shared.ssh_steps", stub)
+        shared_mod = sys.modules.get("tests.shared")
+        if shared_mod is not None:
+            monkeypatch.setattr(shared_mod, "ssh_steps", stub, raising=False)
+
+        calls = _patch_probe(monkeypatch, env_module, 0)
+        assert env_module.target_uses_luks(_Context()) is True
+        assert calls == ["lsblk -rno TYPE | grep -qx crypt"]
 
 
 # ── before_scenario gating ────────────────────────────────────────────────────
