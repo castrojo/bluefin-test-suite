@@ -113,3 +113,16 @@ class TestSkipIfNoAtspi:
             assert self.mod._skip_if_no_atspi(context) is False
 
         context.scenario.skip.assert_not_called()
+
+
+class TestSettingsApp:
+    def setup_method(self):
+        self.mod = _import_gnome_settings_steps()
+
+    def test_finds_settings_via_applications_list(self):
+        app = MagicMock()
+        app.name = "gnome-control-center"
+        self.mod.tree.root.applications = MagicMock(return_value=[app])
+
+        result = self.mod._settings_app(timeout=1)
+        assert result is app

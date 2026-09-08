@@ -25,7 +25,7 @@ def _skip_if_no_atspi(context) -> bool:
     return False
 
 
-FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
+FILES_APP_NAMES = ("org.gnome.Nautilus", "Files", "nautilus")
 FILES_LAUNCH_TARGETS = (
     ("desktop", "org.gnome.Nautilus.desktop"),
     ("command", "nautilus"),
@@ -49,12 +49,18 @@ def _nautilus_app(timeout: int = 15):
     deadline = time.monotonic() + timeout
     last_error = None
     while time.monotonic() < deadline:
+        try:
+            for app in getattr(tree.root, "applications", lambda: [])():
+                if app.name in FILES_APP_NAMES or (app.name and "nautilus" in app.name.lower()):
+                    return app
+        except Exception:  # noqa: BLE001
+            pass
         for name in FILES_APP_NAMES:
             try:
                 return tree.root.application(name)
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
-        sleep(1)
+        sleep(0.5)
     raise AssertionError(f"GNOME Files application was not found via AT-SPI after {timeout}s: {last_error}")
 
 

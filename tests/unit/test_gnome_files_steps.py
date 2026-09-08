@@ -41,6 +41,7 @@ def _import_files_steps(tree_available: bool = True):
             del sys.modules[key]
 
     import tests.smoke.features.steps.gnome_files_steps as m  # noqa: PLC0415
+    m.sleep = MagicMock()
     return m
 
 
@@ -147,6 +148,15 @@ class TestNautilusApp:
             result = self.m._nautilus_app()
         assert result is mock_app
         assert call_count["n"] == 2
+
+    def test_finds_nautilus_via_applications_list(self):
+        mock_app = MagicMock()
+        mock_app.name = "org.gnome.Nautilus"
+        tree_mock = MagicMock()
+        tree_mock.root.applications.return_value = [mock_app]
+        with patch.object(self.m, "tree", tree_mock):
+            result = self.m._nautilus_app(timeout=1)
+        assert result is mock_app
 
     def test_raises_assertion_error_when_all_names_fail(self):
         tree_mock = MagicMock()

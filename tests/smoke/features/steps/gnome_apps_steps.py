@@ -32,9 +32,10 @@ def _skip_if_no_atspi(context) -> bool:
 
 FRAME_ROLES = {"frame", "filler"}
 PTYXIS_APP_NAMES = ("ptyxis", "Ptyxis")
-# GNOME 50 changed the Ptyxis window title from "Ptyxis" to "Terminal"
-PTYXIS_WINDOW_NAMES: set[str] = {"Ptyxis", "Terminal", ""}
-FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
+# GNOME 50 changed the Ptyxis window title from "Ptyxis" to "Terminal"; bash prompt titles
+# like "user@host:~" are also accepted when window_names is empty or contains shell tokens.
+PTYXIS_WINDOW_NAMES: set[str] = set()
+FILES_APP_NAMES = ("org.gnome.Nautilus", "Files", "nautilus")
 MISSION_CENTER_APP_NAMES = (
     "Mission Center",
     "MissionCenter",
@@ -223,7 +224,7 @@ def _wait_for_window(
         frames = app.findChildren(
             lambda n: n.roleName in FRAME_ROLES
             and n.showing
-            and (not window_names or (n.name or "").strip() in window_names)
+            and (not window_names or (n.name or "").strip() in window_names or "~" in (n.name or "") or "@" in (n.name or ""))
         )
         if frames:
             return frames[0]

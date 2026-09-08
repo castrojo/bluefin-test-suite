@@ -72,7 +72,22 @@ def _run_host(cmd: str, timeout: int = 30):
             capture_output=True, text=True, timeout=timeout,
         )
     else:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        env = dict(os.environ)
+        if not env.get("DBUS_SESSION_BUS_ADDRESS"):
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{os.getuid()}/bus"
+        safe_cmd = cmd.replace(
+            "source /tmp/session.env 2>/dev/null;",
+            "[ -f /tmp/session.env ] && . /tmp/session.env 2>/dev/null || true;",
+        )
+        result = subprocess.run(
+            safe_cmd,
+            shell=True,
+            executable="/bin/bash",
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 

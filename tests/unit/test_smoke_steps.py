@@ -41,9 +41,9 @@ def _import_steps(in_container: bool = False):
     sys.modules["app_support"] = app_support_stub
 
     # Stub shared gnome_shell_steps (star-imported)
+    if "tests.shared" in sys.modules and not hasattr(sys.modules["tests.shared"], "__path__"):
+        del sys.modules["tests.shared"]
     gnome_shell_stub = types.ModuleType("tests.shared.gnome_shell_steps")
-    sys.modules["tests"] = sys.modules.get("tests", types.ModuleType("tests"))
-    sys.modules["tests.shared"] = sys.modules.get("tests.shared", types.ModuleType("tests.shared"))
     sys.modules["tests.shared.gnome_shell_steps"] = gnome_shell_stub
 
     # Evict the module so it reimports fresh
@@ -279,6 +279,16 @@ class TestDoNotDisturbHelpers:
 # ---------------------------------------------------------------------------
 
 class TestRunHost:
+    def test_run_host_creates_session_env_when_missing(self):
+        m = _import_steps(in_container=False)
+        m._IN_CONTAINER = False
+        with patch("subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(stdout="ok", returncode=0, stderr="")
+            stdout, rc, stderr = m._run_host("echo test")
+            assert rc == 0
+            _, kwargs = mock_run.call_args
+            assert kwargs.get("executable") == "/bin/bash"
+
     def test_uses_ssh_when_in_container(self):
         m = _import_steps(in_container=True)
         m._IN_CONTAINER = True

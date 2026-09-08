@@ -49,7 +49,28 @@ def _run_host(cmd: str, timeout: int = 30):
         env = dict(os.environ)
         if not env.get("DBUS_SESSION_BUS_ADDRESS"):
             env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{os.getuid()}/bus"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout, env=env)
+        if not os.path.exists("/tmp/session.env"):
+            try:
+                with open("/tmp/session.env", "w") as f:
+                    for k in ("DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DISPLAY", "XDG_SESSION_TYPE"):
+                        v = env.get(k)
+                        if v:
+                            f.write(f"export {k}={v}\n")
+            except Exception:  # noqa: BLE001
+                pass
+        safe_cmd = cmd.replace(
+            "source /tmp/session.env 2>/dev/null;",
+            "[ -f /tmp/session.env ] && . /tmp/session.env 2>/dev/null || true;",
+        )
+        result = subprocess.run(
+            safe_cmd,
+            shell=True,
+            executable="/bin/bash",
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 

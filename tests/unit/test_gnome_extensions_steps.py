@@ -185,3 +185,35 @@ class TestRunHost:
         # The last element is the shell-quoted command string
         cmd_str = args[-1]
         assert "hello world" in cmd_str
+
+
+class TestExtensionListSteps:
+    def test_at_least_one_gnome_extension_is_installed_fallback_to_dbus(self):
+        m = _import_gnome_extensions_steps()
+        context = MagicMock()
+
+        def fake_run_host(cmd):
+            if isinstance(cmd, list) and "list" in cmd:
+                return ("", 2, "portal timeout")
+            if isinstance(cmd, str) and "ListExtensions" in cmd:
+                return ("({'dash-to-dock@micxgx.gmail.com': {'state': <1.0>}},)", 0, "")
+            return ("", 1, "error")
+
+        with patch.object(m, "_run_host", side_effect=fake_run_host):
+            m.at_least_one_gnome_extension_is_installed(context)
+            assert "dash-to-dock@micxgx.gmail.com" in context.installed_extensions
+
+    def test_at_least_one_gnome_extension_is_enabled_fallback_to_dbus(self):
+        m = _import_gnome_extensions_steps()
+        context = MagicMock()
+
+        def fake_run_host(cmd):
+            if isinstance(cmd, list) and "list" in cmd:
+                return ("", 2, "portal timeout")
+            if isinstance(cmd, str) and "ListExtensions" in cmd:
+                return ("({'dash-to-dock@micxgx.gmail.com': {'state': <1.0>}},)", 0, "")
+            return ("", 1, "error")
+
+        with patch.object(m, "_run_host", side_effect=fake_run_host):
+            m.at_least_one_gnome_extension_is_enabled(context)
+            assert "dash-to-dock@micxgx.gmail.com" in context.enabled_extensions

@@ -320,6 +320,26 @@ def before_all(context) -> None:
     # Give GDM/GNOME Shell time to start the session
     time.sleep(5)
 
+    # Write /tmp/session.env for local and container runs so that steps
+    # executing `source /tmp/session.env 2>/dev/null; ...` have valid session
+    # environment variables and POSIX /bin/sh does not abort on a missing file.
+    _session_vars = {
+        "DBUS_SESSION_BUS_ADDRESS": os.environ.get(
+            "DBUS_SESSION_BUS_ADDRESS", f"unix:path=/run/user/{os.getuid()}/bus"
+        ),
+        "XDG_RUNTIME_DIR": os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"),
+        "WAYLAND_DISPLAY": os.environ.get("WAYLAND_DISPLAY", "wayland-0"),
+        "DISPLAY": os.environ.get("DISPLAY", ":0"),
+        "XDG_SESSION_TYPE": os.environ.get("XDG_SESSION_TYPE", "wayland"),
+        "XDG_CURRENT_DESKTOP": os.environ.get("XDG_CURRENT_DESKTOP", "GNOME"),
+    }
+    try:
+        with open("/tmp/session.env", "w") as f:
+            for k, v in _session_vars.items():
+                f.write(f"export {k}={v}\n")
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARNING: unable to write /tmp/session.env: {exc}", flush=True)
+
     # Verify Shell.Eval is available.  unsafe_mode should already be set by the
     # gnome-shell extension installed in e2e.yml (GNOME 47+ removed SetUnsafeMode).
     # gdbus returns (true, 'true') when unsafe_mode=true, (false, '') when false.

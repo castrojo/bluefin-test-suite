@@ -204,3 +204,24 @@ class TestShellEvalForceClose:
         with patch("subprocess.run", side_effect=capture_run), patch("time.sleep"):
             m._shell_eval_force_close(("ptyxis",))
         assert any("ssh" in str(c) for c in captured)
+
+
+class TestPtyxisLaunch:
+    def test_ptyxis_accepts_shell_prompt_window_title(self):
+        m = _import_gnome_apps()
+        frame = MagicMock()
+        frame.roleName = "frame"
+        frame.showing = True
+        frame.name = "bluefin-test@runner:~"
+        app = MagicMock()
+        app.findChildren = MagicMock(return_value=[frame])
+        app.children = [frame]
+
+        with patch.object(m, "_launch_app"), \
+             patch.object(m, "_app", return_value=app), \
+             patch.object(m, "_shell_eval_force_close"), \
+             patch.object(m, "_wait_for_app_to_close"), \
+             patch.object(m, "_wait_for_app_or_window_to_close"):
+            context = MagicMock()
+            m.ptyxis_terminal_launches_successfully(context)
+            assert context.last_launched_app_window is frame
