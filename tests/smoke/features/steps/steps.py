@@ -749,7 +749,7 @@ def dash_to_dock_visible(context) -> None:
     assert output is not None, "Failed to query Dash to Dock extension info via D-Bus"
     import re
 
-    match = re.search(r"'state':\s*<uint32\s+(\d+)>", output)
+    match = re.search(r"'state':\s*<(?:[a-zA-Z0-9_]+\s+)?(\d+)(?:\.0)?>", output)
     assert match, f"Dash to Dock extension info lacked a state: {output!r}"
     assert match.group(1) == "1", (
         "Dash to Dock is not enabled according to org.gnome.Shell.Extensions: "

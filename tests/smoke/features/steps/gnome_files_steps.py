@@ -27,8 +27,8 @@ def _skip_if_no_atspi(context) -> bool:
 
 FILES_APP_NAMES = ("org.gnome.Nautilus", "Files", "nautilus")
 FILES_LAUNCH_TARGETS = (
-    ("desktop", "org.gnome.Nautilus.desktop"),
     ("command", "nautilus"),
+    ("desktop", "org.gnome.Nautilus.desktop"),
 )
 # Maps sidebar item name → nautilus URI for direct navigation.
 # Used as fallback when AT-SPI action click isn't available on sidebar items.
@@ -47,20 +47,27 @@ FILES_SIDEBAR_URIS = {
 def _nautilus_app(timeout: int = 15):
     """Find the Files app in the AT-SPI tree, retrying for up to ``timeout`` seconds."""
     deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
+    last_error = None
+    while True:
         try:
+            for child in getattr(tree.root, "children", []):
+                name = getattr(child, "name", "") or ""
+                if name in FILES_APP_NAMES or "nautilus" in name.lower():
+                    return child
             for app in getattr(tree.root, "applications", lambda: [])():
-                if app.name in FILES_APP_NAMES or (app.name and "nautilus" in app.name.lower()):
+                name = getattr(app, "name", "") or ""
+                if name in FILES_APP_NAMES or "nautilus" in name.lower():
                     return app
         except Exception:  # noqa: BLE001
             pass
+        for name in FILES_APP_NAMES:
+            try:
+                return tree.root.application(name)
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+        if time.monotonic() >= deadline:
+            break
         sleep(0.5)
-    last_error = None
-    for name in FILES_APP_NAMES:
-        try:
-            return tree.root.application(name)
-        except Exception as exc:  # noqa: BLE001
-            last_error = exc
     raise AssertionError(f"GNOME Files application was not found via AT-SPI after {timeout}s: {last_error}")
 
 
@@ -69,6 +76,7 @@ def launch_files_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
     context.files_launch_target = launch_background(FILES_LAUNCH_TARGETS)
+    sleep(1.0)
 
 
 def _nautilus_window(timeout: int = 10):

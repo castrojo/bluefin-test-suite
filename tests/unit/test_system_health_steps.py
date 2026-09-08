@@ -23,6 +23,10 @@ class TestHasImageReference:
         data = {"image": "ghcr.io/projectbluefin/bluefin:latest"}
         assert system_health_steps._has_image_reference(data) is True
 
+    def test_detects_container_type_key(self):
+        data = {"status": {"type": "container"}}
+        assert system_health_steps._has_image_reference(data) is True
+
     def test_returns_false_for_empty_dict(self):
         assert system_health_steps._has_image_reference({}) is False
 
@@ -108,6 +112,8 @@ class TestIgnoredFailedUnits:
             "input-remapper.service",
             "nvidia-persistenced.service",
             "fwupd-refresh.service",
+            "auditd.service",
+            "systemd-resolved.service",
         }
         for unit in expected:
             assert unit in system_health_steps.IGNORED_FAILED_UNITS_IN_VM, (

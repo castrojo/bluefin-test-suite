@@ -25,13 +25,13 @@ def _skip_if_no_atspi(context) -> bool:
 
 
 SETTINGS_APP_NAMES = ("gnome-control-center", "Settings")
+SETTINGS_A11Y_ENV = {
+    "XDG_CURRENT_DESKTOP": "GNOME",
+    "GNOME_ACCESSIBILITY": "1",
+}
 SETTINGS_LAUNCH_TARGETS = (
-    # Desktop entry first: `gio launch` goes through D-Bus activation which
-    # properly registers the app with AT-SPI. The direct command fallback works
-    # as a last resort but the running daemon may have started before
-    # toolkit-accessibility was set and therefore won't appear in the AT-SPI tree.
-    ("desktop", "org.gnome.Settings.desktop"),
     ("command", "gnome-control-center"),
+    ("desktop", "org.gnome.Settings.desktop"),
 )
 TEXT_ROLES = {"heading", "label", "static", "text", "description", "paragraph"}
 INFO_TOKENS = ("bluefin", "fedora", "linux", "version", "os")
@@ -63,20 +63,27 @@ def _settings_app(timeout: int = 15):
     """Find the Settings app in the AT-SPI tree, retrying for up to ``timeout`` seconds."""
     import time
     deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
+    last_error = None
+    while True:
         try:
+            for child in getattr(tree.root, "children", []):
+                name = getattr(child, "name", "") or ""
+                if name in SETTINGS_APP_NAMES or "settings" in name.lower() or "control-center" in name.lower():
+                    return child
             for app in getattr(tree.root, "applications", lambda: [])():
-                if app.name in SETTINGS_APP_NAMES or (app.name and "settings" in app.name.lower()):
+                name = getattr(app, "name", "") or ""
+                if name in SETTINGS_APP_NAMES or "settings" in name.lower() or "control-center" in name.lower():
                     return app
         except Exception:  # noqa: BLE001
             pass
+        for name in SETTINGS_APP_NAMES:
+            try:
+                return tree.root.application(name)
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+        if time.monotonic() >= deadline:
+            break
         sleep(0.5)
-    last_error = None
-    for name in SETTINGS_APP_NAMES:
-        try:
-            return tree.root.application(name)
-        except Exception as exc:  # noqa: BLE001
-            last_error = exc
     raise AssertionError(f"GNOME Settings application was not found via AT-SPI after {timeout}s: {last_error}")
 
 
@@ -105,11 +112,14 @@ def launch_settings_via_command(context) -> None:
         )
     else:
         subprocess.run(
-            ["pkill", "-f", "gnome-control-center"],
+            ["pkill", "-x", "gnome-control-center"],
             capture_output=True, text=True,
         )
         sleep(0.5)
-    context.settings_launch_target = launch_background(SETTINGS_LAUNCH_TARGETS)
+    context.settings_launch_target = launch_background(
+        SETTINGS_LAUNCH_TARGETS, env=SETTINGS_A11Y_ENV
+    )
+    sleep(1.0)
 
 
 @step("Settings window is accessible")

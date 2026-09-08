@@ -331,8 +331,10 @@ def before_all(context) -> None:
         "WAYLAND_DISPLAY": os.environ.get("WAYLAND_DISPLAY", "wayland-0"),
         "DISPLAY": os.environ.get("DISPLAY", ":0"),
         "XDG_SESSION_TYPE": os.environ.get("XDG_SESSION_TYPE", "wayland"),
-        "XDG_CURRENT_DESKTOP": os.environ.get("XDG_CURRENT_DESKTOP", "GNOME"),
+        "XDG_CURRENT_DESKTOP": (os.environ.get("XDG_CURRENT_DESKTOP") or "GNOME").upper(),
     }
+    for k, v in _session_vars.items():
+        os.environ[k] = v
     try:
         with open("/tmp/session.env", "w") as f:
             for k, v in _session_vars.items():

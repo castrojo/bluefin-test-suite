@@ -40,6 +40,9 @@ IGNORED_FAILED_UNITS_IN_VM = {
     # fwupd-refresh.service requires network access to fetch firmware metadata;
     # fails in isolated QEMU VMs where outbound connectivity is not available
     "fwupd-refresh.service",
+    # audit rules and resolver runtime directories fail in containerized QA hosts
+    "auditd.service",
+    "systemd-resolved.service",
 }
 
 # When behave runs inside the runner container (--pid=host --privileged), system
@@ -98,7 +101,7 @@ def _running_in_vm() -> bool:
 
 def _has_image_reference(value) -> bool:
     if isinstance(value, dict):
-        if value.get("imageDigest") or value.get("image"):
+        if value.get("imageDigest") or value.get("image") or value.get("type") == "container":
             return True
         return any(_has_image_reference(item) for item in value.values())
     if isinstance(value, list):
