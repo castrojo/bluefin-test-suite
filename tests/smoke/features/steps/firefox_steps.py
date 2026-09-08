@@ -9,7 +9,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
-from app_support import atspi_click, launch_background
+from app_support import _IN_CONTAINER, _ssh_launch, atspi_click, launch_background
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -292,26 +292,33 @@ def navigate_firefox_to(context, url) -> None:
     # In headless Wayland container environments where uinput events are not
     # routed to windows, navigate via Firefox CLI remote IPC.
     try:
-        import shlex
-        launch_background([("command", f"firefox {shlex.quote(url)}")])
-        sleep(1.0)
+        import subprocess
+        if _IN_CONTAINER:
+            import shlex
+            _ssh_launch(f"firefox {shlex.quote(url)}")
+        else:
+            subprocess.Popen(
+                ["firefox", url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
     except Exception:  # noqa: BLE001
         pass
 
-    bar_text = (_address_bar(context).text or "").strip()
-    if clean_url in bar_text or url in bar_text:
-        return
-
-    # Check document web / page tab titles
-    win = _firefox_window(context)
-    docs = [
-        (d.name or "").lower()
-        for d in win.findChildren(lambda n: "doc" in n.roleName or n.roleName == "page tab")
-    ]
-    if any(clean_url.lower() in d for d in docs):
-        return
-    if url == "about:blank" and (not bar_text or any("about:blank" in d for d in docs)):
-        return
+    for _ in range(15):
+        sleep(0.5)
+        bar_text = (_address_bar(context).text or "").strip()
+        if clean_url in bar_text or url in bar_text:
+            return
+        win = _firefox_window(context)
+        docs = [
+            (d.name or "").lower()
+            for d in win.findChildren(lambda n: "doc" in n.roleName or n.roleName == "page tab")
+        ]
+        if any(clean_url.lower() in d for d in docs):
+            return
+        if url == "about:blank" and (not bar_text or any("about:blank" in d for d in docs)):
+            return
 
     assert clean_url in bar_text or url in bar_text, f"Firefox did not navigate to {url!r}"
 

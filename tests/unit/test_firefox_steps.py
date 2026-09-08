@@ -28,6 +28,8 @@ def _import_firefox_steps(tree_available: bool = True):
     app_support_stub = types.ModuleType("app_support")
     app_support_stub.launch_background = MagicMock()
     app_support_stub.atspi_click = MagicMock()
+    app_support_stub._IN_CONTAINER = False
+    app_support_stub._ssh_launch = MagicMock()
     sys.modules["app_support"] = app_support_stub
 
     for key in list(sys.modules):
@@ -437,11 +439,15 @@ class TestAddressBar:
         context.firefox.instance = _FakeNode("application", children=[window])
         context.execute_steps = MagicMock(side_effect=TypeError("cannot unpack"))
         m.atspi_click = MagicMock()
-        m.launch_background = MagicMock(side_effect=lambda targets: setattr(bar, "text", "about:blank"))
 
-        m.navigate_firefox_to(context, "about:blank")
-        assert "about:blank" in bar.text
-        assert m.launch_background.called
+        def fake_popen(cmd, **kw):
+            setattr(bar, "text", "about:blank")
+            return MagicMock()
+
+        with patch("subprocess.Popen", side_effect=fake_popen) as mock_popen:
+            m.navigate_firefox_to(context, "about:blank")
+            assert "about:blank" in bar.text
+            assert mock_popen.called
 
 
 class TestTabCount:
