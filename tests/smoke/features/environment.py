@@ -391,17 +391,33 @@ def before_all(context) -> None:
     from dogtail import tree as dtree
 
     # GNOME 50 changed the Nautilus AT-SPI application name from "nautilus"
-    # to "Files".  Patch tree.root.application so that any lookup for
-    # "nautilus" also tries "Files" and "org.gnome.Nautilus" as fallbacks.
-    # This fixes qecore steps such as `Left click "X" "Y" in "nautilus"`.
+    # to "org.gnome.Nautilus" / "Files", and Settings to "gnome-control-center".
+    # Patch tree.root.application so that any lookup checks running apps first
+    # and tries known aliases without triggering dogtail's 10s per-name blocking retry.
     _orig_root_application = dtree.root.application
 
     def _nautilus_aliased_application(name, *args, **kwargs):
         try:
+            for app in getattr(dtree.root, "applications", lambda: [])():
+                if app.name == name:
+                    return app
+                if name.lower() in ("nautilus", "files") and app.name in ("org.gnome.Nautilus", "Files", "nautilus"):
+                    return app
+                if name.lower() in ("settings", "gnome-control-center") and app.name in ("gnome-control-center", "Settings"):
+                    return app
+        except Exception:  # noqa: BLE001
+            pass
+        try:
             return _orig_root_application(name, *args, **kwargs)
         except Exception:  # noqa: BLE001
-            if name.lower() == "nautilus":
-                for alt in ("Files", "org.gnome.Nautilus"):
+            if name.lower() in ("nautilus", "files"):
+                for alt in ("org.gnome.Nautilus", "Files", "nautilus"):
+                    try:
+                        return _orig_root_application(alt, *args, **kwargs)
+                    except Exception:  # noqa: BLE001
+                        pass
+            if name.lower() in ("settings", "gnome-control-center"):
+                for alt in ("gnome-control-center", "Settings"):
                     try:
                         return _orig_root_application(alt, *args, **kwargs)
                     except Exception:  # noqa: BLE001
