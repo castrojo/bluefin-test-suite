@@ -154,14 +154,14 @@ def _firefox_window(context, *, require_a11y_tree: bool = True):
     assert candidates, "Firefox main window not found"
     if not require_a11y_tree:
         non_crash_candidates = [n for n in candidates if not _is_crash_reporter_window(n)]
-        return non_crash_candidates[0] if non_crash_candidates else candidates[0]
+        return non_crash_candidates[-1] if non_crash_candidates else candidates[0]
     # Prefer a real `frame`; fall back to any candidate with a usable subtree.
     populated = [n for n in candidates if _has_populated_a11y_tree(n)]
     # Filter out crash reporter windows if non-crash candidates exist
     non_crash = [n for n in populated if not _is_crash_reporter_window(n)]
     pool = non_crash if non_crash else populated
-    # Prefer a frame with browser chrome (entry, autocomplete, combo box, or tab list)
-    for node in pool:
+    # Prefer the newest frame with browser chrome (entry, autocomplete, combo box, or tab list)
+    for node in reversed(pool):
         try:
             if node.roleName == "frame" and node.findChildren(
                 lambda n: n.roleName in FIREFOX_BROWSER_CHROME_ROLES and n.showing
@@ -170,7 +170,7 @@ def _firefox_window(context, *, require_a11y_tree: bool = True):
         except Exception:  # noqa: BLE001
             pass
     # Fall back to any candidate with browser chrome (e.g. GNOME 50 filler window)
-    for node in pool:
+    for node in reversed(pool):
         try:
             if node.findChildren(
                 lambda n: n.roleName in FIREFOX_BROWSER_CHROME_ROLES and n.showing
@@ -179,13 +179,13 @@ def _firefox_window(context, *, require_a11y_tree: bool = True):
         except Exception:  # noqa: BLE001
             pass
     # Fall back to any populated frame
-    for node in pool:
+    for node in reversed(pool):
         if node.roleName == "frame":
             return node
     if pool:
-        return pool[0]
+        return pool[-1]
     if populated:
-        return populated[0]
+        return populated[-1]
     roles = sorted({n.roleName for n in candidates})
     raise AssertionError(f"{A11Y_TREE_EMPTY_MESSAGE} (window roles seen: {roles})")
 
@@ -307,18 +307,27 @@ def navigate_firefox_to(context, url) -> None:
 
     for _ in range(15):
         sleep(0.5)
-        bar_text = (_address_bar(context).text or "").strip()
-        if clean_url in bar_text or url in bar_text:
-            return
-        win = _firefox_window(context)
-        docs = [
-            (d.name or "").lower()
-            for d in win.findChildren(lambda n: "doc" in n.roleName or n.roleName == "page tab")
-        ]
-        if any(clean_url.lower() in d for d in docs):
-            return
-        if url == "about:blank" and (not bar_text or any("about:blank" in d for d in docs)):
-            return
+        candidates = _window_candidates(context)
+        non_crash = [n for n in candidates if not _is_crash_reporter_window(n)]
+        pool = non_crash if non_crash else candidates
+        for win in reversed(pool):
+            bars = win.findChildren(
+                lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
+            )
+            b_text = "".join((b.text or "") for b in bars).strip()
+            if clean_url in b_text or url in b_text:
+                context.firefox_window = win
+                return
+            docs = [
+                (d.name or "").lower()
+                for d in win.findChildren(lambda n: "doc" in n.roleName or n.roleName == "page tab")
+            ]
+            if any(clean_url.lower() in d for d in docs):
+                context.firefox_window = win
+                return
+            if url == "about:blank" and (not b_text or any("about:blank" in d for d in docs)):
+                context.firefox_window = win
+                return
 
     assert clean_url in bar_text or url in bar_text, f"Firefox did not navigate to {url!r}"
 
