@@ -107,6 +107,15 @@ For AT-SPI health, ask `org.a11y.Bus.GetAddress` through the smoke suite's
 `pgrep`) can inspect the Fedora runner container rather than the VM GNOME
 session and therefore does not prove the accessibility bus is usable.
 
+## GNOME 50 Firefox AT-SPI window resolution and chrome discovery
+
+In GNOME 50, Firefox exposes its top-level window as `filler` or `frame` in AT-SPI, while web content and iframes within tabs also expose nested `frame` nodes (often containing child widgets such as `push button`).
+
+To avoid selecting a nested webview or iframe subframe:
+1. Query top-level application children (`app.children`) first in `_window_candidates()`. Only fall back to deep recursive `app.findChildren()` if no top-level candidate is found.
+2. In `_firefox_window()`, prioritize candidates that expose genuine browser chrome: `entry`, `autocomplete`, or `page tab list`. A frame containing only web buttons is never selected over a top-level window carrying browser chrome.
+3. Accept both `entry` and `autocomplete` roles for the address bar in `_address_bar()`, and match name keywords (`address`, `search`, `url`). Include `autocomplete` in `FIREFOX_CHROME_ROLES` so populated-tree heuristics recognize the GNOME 50 address bar.
+
 ## Overview search entry
 
 

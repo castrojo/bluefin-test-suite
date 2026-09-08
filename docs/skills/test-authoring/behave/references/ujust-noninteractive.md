@@ -29,10 +29,13 @@ Asserting the timer state directly (`systemctl enable/disable uupd.timer`)
 would test systemd, not the recipe, so it does not close the coverage gap.
 
 Coverage lives in `tests/common/features/common_ujust.feature` behind a
-`@requires_toggle_action` tag: the environment probes
-`ujust toggle-updates cancel` (the non-mutating action — the new recipe exits 0
-immediately, the old recipe blocks on gum/bctl and fails or times out without a
-TTY) and skips the scenario on images that have not shipped the contract yet.
+`@requires_toggle_action` tag: the environment probes the recipe definition
+with `ujust --show toggle-updates 2>/dev/null | grep -q 'ACTION_VALUE'`
+rather than running `ujust toggle-updates cancel`. Running without a TTY
+caused older unpatched recipes to fail in `gum choose` and set `SELECTED_OPTION=""`,
+which hit `[[ "${SELECTED_OPTION}" == "Cancel" || "${SELECTED_OPTION}" == "" ]] && exit 0`,
+falsely passing on unpatched images. Probing the recipe body for `ACTION_VALUE`
+reliably skips the scenario on images that have not shipped the contract yet.
 The scenario flips the update timer through the recipe itself (detecting
 `uupd.timer`, falling back to `rpm-ostreed-automatic.timer`, matching the
 recipe's own logic), asserts the state changed and the recipe's confirmation

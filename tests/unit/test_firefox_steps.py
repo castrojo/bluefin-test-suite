@@ -143,10 +143,11 @@ class TestFirefoxApp:
 class _FakeNode:
     """Minimal dogtail node stand-in supporting findChildren over descendants."""
 
-    def __init__(self, role_name, showing=True, children=()):
+    def __init__(self, role_name, showing=True, children=(), name=""):
         self.roleName = role_name
         self.showing = showing
         self.children = list(children)
+        self.name = name
 
     def findChildren(self, predicate):  # noqa: N802 — dogtail API name
         found = []
@@ -225,6 +226,54 @@ class TestFirefoxWindow:
         context.firefox.instance = _FakeNode("application", children=[filler, subframe])
         assert m._firefox_window(context) is filler
 
+    def test_falls_back_to_populated_frame_without_chrome(self):
+        m = _import_firefox_steps()
+        frame = _FakeNode("frame", children=[_FakeNode("tool bar")])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[frame])
+        assert m._firefox_window(context) is frame
+
+    def test_falls_back_to_populated_non_frame_without_chrome(self):
+        m = _import_firefox_steps()
+        filler = _FakeNode("filler", children=[_FakeNode("tool bar")])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[filler])
+        assert m._firefox_window(context) is filler
+
+    def test_handles_exception_during_chrome_search(self):
+        m = _import_firefox_steps()
+        broken = _FakeNode("frame", children=[_FakeNode("entry")])
+        orig_find = broken.findChildren
+        call_count = [0]
+
+        def _find_with_err(pred):
+            call_count[0] += 1
+            if call_count[0] == 2:  # First call is _has_populated_a11y_tree, 2nd is chrome check
+                raise RuntimeError("simulated AT-SPI flake")
+            return orig_find(pred)
+
+        broken.findChildren = _find_with_err
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[broken])
+        assert m._firefox_window(context) is broken
+
+    def test_handles_exception_during_filler_chrome_search(self):
+        m = _import_firefox_steps()
+        broken = _FakeNode("filler", children=[_FakeNode("tool bar")])
+        orig_find = broken.findChildren
+        call_count = [0]
+
+        def _find_with_err(pred):
+            call_count[0] += 1
+            if call_count[0] == 2:
+                raise RuntimeError("simulated AT-SPI flake")
+            return orig_find(pred)
+
+        broken.findChildren = _find_with_err
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[broken])
+        assert m._firefox_window(context) is broken
+
     def test_liveness_check_accepts_empty_window(self):
         m = _import_firefox_steps()
         window = _FakeNode("filler")
@@ -247,6 +296,66 @@ class TestFirefoxWindow:
         context.firefox.instance = _FakeNode("application", children=[hidden])
         with pytest.raises(AssertionError, match="main window not found"):
             m._firefox_window(context)
+
+
+class TestWindowCandidates:
+    def test_top_level_children_preferred(self):
+        m = _import_firefox_steps()
+        top_window = _FakeNode("frame", showing=True)
+        nested_frame = _FakeNode("frame", showing=True)
+        top_window.children = [nested_frame]
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[top_window])
+        candidates = m._window_candidates(context)
+        assert candidates == [top_window]
+
+    def test_falls_back_to_find_children_when_no_top_level(self):
+        m = _import_firefox_steps()
+        nested = _FakeNode("frame", showing=True)
+        intermediate = _FakeNode("panel", showing=True, children=[nested])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[intermediate])
+        candidates = m._window_candidates(context)
+        assert candidates == [nested]
+
+
+class TestAddressBar:
+    def test_finds_entry_role(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("entry", showing=True, name="Search or enter address")
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._address_bar(context) is bar
+
+    def test_finds_autocomplete_role(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("autocomplete", showing=True, name="Search with Google or enter address")
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._address_bar(context) is bar
+
+    def test_matches_url_keyword(self):
+        m = _import_firefox_steps()
+        other_entry = _FakeNode("entry", showing=True, name="Username")
+        url_entry = _FakeNode("entry", showing=True, name="Website URL")
+        window = _FakeNode("frame", showing=True, children=[other_entry, url_entry])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._address_bar(context) is url_entry
+
+
+class TestTabCount:
+    def test_counts_tabs_correctly(self):
+        m = _import_firefox_steps()
+        tab1 = _FakeNode("page tab", showing=True)
+        tab2 = _FakeNode("page tab", showing=True)
+        tab_list = _FakeNode("page tab list", showing=True, children=[tab1, tab2])
+        window = _FakeNode("frame", showing=True, children=[tab_list])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._tab_count(context) == 2
 
 
 class TestLaunchTargetOrdering:

@@ -51,7 +51,7 @@ FIREFOX_WINDOW_ROLES = {"frame", "filler"}
 
 # Chrome widgets a Firefox window always exposes once its a11y tree is built.
 # A window node with none of these is an empty shell, not a usable window.
-FIREFOX_CHROME_ROLES = {"entry", "page tab list", "tool bar", "push button"}
+FIREFOX_CHROME_ROLES = {"entry", "autocomplete", "page tab list", "tool bar", "push button"}
 
 A11Y_TREE_EMPTY_MESSAGE = (
     "Firefox window found but its AT-SPI subtree is empty "
