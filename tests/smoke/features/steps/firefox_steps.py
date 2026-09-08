@@ -296,7 +296,7 @@ def navigate_firefox_to(context, url) -> None:
     try:
         context.execute_steps(f'''* Key combo: "<Ctrl><A>" with uinput
 * Type text: "{url}" with uinput
-* Press key: "Return" with uinput''')
+* Press key: "Enter" with uinput''')
     except Exception:  # noqa: BLE001
         pass
     sleep(0.5)

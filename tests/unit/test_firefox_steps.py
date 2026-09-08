@@ -553,6 +553,11 @@ class TestCharacterInput:
         env._emit_characters_to_device(device, "https://projectbluefin.io")
         assert device.emit_click.called
 
+    def test_key_name_map_maps_return_to_enter(self):
+        import tests.smoke.features.environment as env
+        assert env._KEY_NAME_MAP["return"] == "ENTER"
+        assert env._KEY_NAME_MAP["enter"] == "ENTER"
+
 
 class TestFirefoxNavigationAndClose:
     def test_navigate_firefox_to_matches_prefix_stripped_url(self):

@@ -172,6 +172,39 @@ def _patched_keyboard_character_input(characters_to_write: str) -> None:
         print(f"WARNING: keyboard_character_input failed ({exc})", flush=True)
 
 
+_KEY_NAME_MAP = {
+    "return": "ENTER",
+    "enter": "ENTER",
+    "super": "LEFTMETA",
+    "ctrl": "LEFTCTRL",
+    "control": "LEFTCTRL",
+    "alt": "LEFTALT",
+    "shift": "LEFTSHIFT",
+    "esc": "ESC",
+    "escape": "ESC",
+}
+
+
+def _patched_keyboard_key_input(key_to_press: str) -> None:
+    """Press a key via uinput, mapping aliases like 'Return' to 'ENTER'."""
+    try:
+        import qecore.utility as qu
+        qu.check_uinput_availability()
+        import uinput
+        from time import sleep
+
+        alias = _KEY_NAME_MAP.get(str(key_to_press).lower(), key_to_press)
+        uinput_key = f"KEY_{str(alias).upper()}"
+        if not hasattr(uinput, uinput_key):
+            return
+        key_event = getattr(uinput, uinput_key)
+        device = qu._get_uinput_device()
+        sleep(0.2)
+        device.emit_click(key_event)
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARNING: keyboard_key_input failed ({exc})", flush=True)
+
+
 try:
     import qecore.common_steps as _qecore_cs
 
@@ -185,6 +218,8 @@ try:
 
     if hasattr(_qecore_cs, "keyboard_character_input"):
         _qecore_cs.keyboard_character_input = _patched_keyboard_character_input
+    if hasattr(_qecore_cs, "keyboard_key_input"):
+        _qecore_cs.keyboard_key_input = _patched_keyboard_key_input
 except Exception as _e:  # noqa: BLE001
     print(f"WARNING: could not patch qecore keyboard hooks: {_e}", flush=True)
 
@@ -193,6 +228,8 @@ try:
 
     if hasattr(_qecore_util, "keyboard_character_input"):
         _qecore_util.keyboard_character_input = _patched_keyboard_character_input
+    if hasattr(_qecore_util, "keyboard_key_input"):
+        _qecore_util.keyboard_key_input = _patched_keyboard_key_input
 except Exception as _e:  # noqa: BLE001
     pass
 
