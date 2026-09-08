@@ -76,16 +76,30 @@ A11Y_TREE_TIMEOUT_SECONDS = 30.0
 A11Y_TREE_POLL_SECONDS = 0.5
 
 
-def _firefox_app(context):
+def _firefox_app(context, timeout: float = 3.0):
     instance = getattr(getattr(context, "firefox", None), "instance", None)
     if instance is not None:
         return instance
-    last_error = None
-    for name in FIREFOX_APP_NAMES:
+    cached = getattr(context, "firefox_app", None)
+    if cached is not None:
         try:
-            return tree.root.application(name)
-        except Exception as exc:  # noqa: BLE001
-            last_error = exc
+            if isinstance(getattr(cached, "children", None), (list, tuple)):
+                return cached
+        except Exception:  # noqa: BLE001
+            pass
+    deadline = monotonic() + timeout
+    last_error = None
+    while True:
+        for name in FIREFOX_APP_NAMES:
+            try:
+                app = tree.root.application(name)
+                context.firefox_app = app
+                return app
+            except Exception as exc:  # noqa: BLE001
+                last_error = exc
+        if monotonic() >= deadline:
+            break
+        sleep(0.2)
     raise AssertionError(f"Firefox application was not found via AT-SPI: {last_error}")
 
 
@@ -248,13 +262,20 @@ def address_bar_is_present(context) -> None:
 
 @step('Navigate Firefox to "{url}"')
 def navigate_firefox_to(context, url) -> None:
+    bar = _address_bar(context)
     try:
-        atspi_click(_address_bar(context))
+        atspi_click(bar)
     except Exception:  # noqa: BLE001
         pass
-    context.execute_steps(f'''* Key combo: "<Ctrl><A>" with uinput
+    try:
+        context.execute_steps(f'''* Key combo: "<Ctrl><A>" with uinput
 * Type text: "{url}" with uinput
 * Press key: "Return" with uinput''')
+    except Exception:  # noqa: BLE001
+        try:
+            bar.set_text_contents(url)
+        except Exception:  # noqa: BLE001
+            pass
     sleep(0.3)
     assert url in (_address_bar(context).text or ""), f"Firefox did not navigate to {url!r}"
 

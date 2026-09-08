@@ -132,13 +132,42 @@ class TestFirefoxApp:
         m = _import_firefox_steps()
         assert m.FIREFOX_APP_NAMES[0] == "Firefox"
 
+    def test_reuses_cached_firefox_app(self):
+        m = _import_firefox_steps()
+        cached = MagicMock()
+        cached.children = []
+        context = MagicMock()
+        context.firefox.instance = None
+        context.firefox_app = cached
+        m.tree.root.application = MagicMock()
+        assert m._firefox_app(context) is cached
+        m.tree.root.application.assert_not_called()
+
+    def test_retries_transient_failure(self):
+        m = _import_firefox_steps()
+        context = MagicMock()
+        context.firefox.instance = None
+        context.firefox_app = None
+        found_app = MagicMock()
+        calls = [0]
+
+        def fake_app(name):
+            calls[0] += 1
+            if calls[0] < 2:
+                raise RuntimeError("transient bus disconnect")
+            return found_app
+
+        m.tree.root.application = MagicMock(side_effect=fake_app)
+        assert m._firefox_app(context, timeout=1.0) is found_app
+        assert context.firefox_app is found_app
+
     def test_raises_assertion_when_all_names_fail(self):
         m = _import_firefox_steps()
         context = MagicMock(spec=[])
         m.tree.root.application = MagicMock(side_effect=RuntimeError("not found"))
         import pytest  # noqa: PLC0415
         with pytest.raises(AssertionError, match="not found via AT-SPI"):
-            m._firefox_app(context)
+            m._firefox_app(context, timeout=0.1)
 
 
 # ---------------------------------------------------------------------------
@@ -398,6 +427,21 @@ class TestAddressBar:
         context = MagicMock()
         context.firefox.instance = _FakeNode("application", children=[window])
         assert m._address_bar(context) is url_entry
+
+    def test_navigate_firefox_to_fallback_on_typing_error(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("combo box", showing=True, name="Search with Google or enter address")
+        bar.text = "about:blank"
+        bar.set_text_contents = MagicMock(side_effect=lambda t: setattr(bar, "text", t))
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        context.execute_steps = MagicMock(side_effect=TypeError("cannot unpack"))
+        m.atspi_click = MagicMock()
+
+        m.navigate_firefox_to(context, "about:blank")
+        assert "about:blank" in bar.text
+        bar.set_text_contents.assert_called_once_with("about:blank")
 
 
 class TestTabCount:
