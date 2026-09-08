@@ -1,7 +1,7 @@
 """Unit tests for firefox_steps.py pure helper functions."""
 import sys
 import types
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 
 # ---------------------------------------------------------------------------
@@ -431,17 +431,17 @@ class TestAddressBar:
     def test_navigate_firefox_to_fallback_on_typing_error(self):
         m = _import_firefox_steps()
         bar = _FakeNode("combo box", showing=True, name="Search with Google or enter address")
-        bar.text = "about:blank"
-        bar.set_text_contents = MagicMock(side_effect=lambda t: setattr(bar, "text", t))
+        bar.text = "start.fedoraproject.org"
         window = _FakeNode("frame", showing=True, children=[bar])
         context = MagicMock()
         context.firefox.instance = _FakeNode("application", children=[window])
         context.execute_steps = MagicMock(side_effect=TypeError("cannot unpack"))
         m.atspi_click = MagicMock()
+        m.launch_background = MagicMock(side_effect=lambda targets: setattr(bar, "text", "about:blank"))
 
         m.navigate_firefox_to(context, "about:blank")
         assert "about:blank" in bar.text
-        bar.set_text_contents.assert_called_once_with("about:blank")
+        assert m.launch_background.called
 
 
 class TestTabCount:
@@ -510,3 +510,81 @@ class TestLaunchTargetOrdering:
         assert targets.index(("flatpak", "org.mozilla.firefox")) < targets.index(
             ("desktop", "org.mozilla.firefox.desktop")
         )
+
+
+class TestCharacterInput:
+    def test_char_to_uinput_event_maps_colon(self):
+        import tests.smoke.features.environment as env
+        res = env._char_to_uinput_event(":")
+        assert res is not None
+        key_event, shifted = res
+        assert shifted is True
+
+    def test_char_to_uinput_event_maps_uppercase(self):
+        import tests.smoke.features.environment as env
+        res = env._char_to_uinput_event("B")
+        assert res is not None
+        key_event, shifted = res
+        assert shifted is True
+
+    def test_char_to_uinput_event_maps_hyphen(self):
+        import tests.smoke.features.environment as env
+        res = env._char_to_uinput_event("-")
+        assert res is not None
+        key_event, shifted = res
+        assert shifted is False
+
+    def test_type_text_uinput_handles_about_blank(self):
+        import tests.smoke.features.environment as env
+        device = MagicMock()
+        env._emit_characters_to_device(device, "about:blank")
+        assert device.emit_click.called
+        assert device.emit.called  # Shift for colon
+
+    def test_type_text_uinput_handles_url(self):
+        import tests.smoke.features.environment as env
+        device = MagicMock()
+        env._emit_characters_to_device(device, "https://projectbluefin.io")
+        assert device.emit_click.called
+
+
+class TestFirefoxNavigationAndClose:
+    def test_navigate_firefox_to_matches_prefix_stripped_url(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("combo box", showing=True, name="Search with Google or enter address")
+        bar.text = "projectbluefin.io"
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        context.execute_steps = MagicMock()
+
+        m.navigate_firefox_to(context, "https://projectbluefin.io")
+
+    def test_navigate_firefox_to_matches_about_blank_empty_bar(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("combo box", showing=True, name="Search with Google or enter address")
+        bar.text = ""
+        doc = _FakeNode("document web", showing=True, name="about:blank")
+        window = _FakeNode("frame", showing=True, children=[bar, doc])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        context.execute_steps = MagicMock()
+
+        m.navigate_firefox_to(context, "about:blank")
+
+    def test_firefox_is_no_longer_running_fallback(self):
+        m = _import_firefox_steps()
+        app = _FakeNode("application")
+        frame = _FakeNode("frame", showing=True)
+        app.children = [frame]
+        m.tree.root.application = MagicMock(return_value=app)
+        context = MagicMock()
+
+        # Simulate frame disappearing after fallback killall
+        def fake_run(cmd, **kw):
+            if "killall" in cmd:
+                app.children = []
+
+        with patch("subprocess.run", side_effect=fake_run) as mock_run:
+            m.firefox_is_no_longer_running(context)
+            assert mock_run.called

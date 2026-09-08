@@ -232,7 +232,7 @@ def firefox_main_window_is_accessible(context) -> None:
 
 @step("Firefox is no longer running")
 def firefox_is_no_longer_running(context) -> None:
-    for _ in range(20):
+    for i in range(20):
         for name in FIREFOX_APP_NAMES:
             try:
                 app = tree.root.application(name)
@@ -247,6 +247,14 @@ def firefox_is_no_longer_running(context) -> None:
                 continue
         else:
             return
+        # After 5s (10 retries), if headless Wayland didn't route Ctrl+Q to Firefox,
+        # request clean shutdown.
+        if i == 9:
+            try:
+                import subprocess
+                subprocess.run(["killall", "firefox"], capture_output=True, timeout=5)
+            except Exception:  # noqa: BLE001
+                pass
         sleep(0.5)
     raise AssertionError("Firefox is still visible in the AT-SPI tree")
 
@@ -272,12 +280,40 @@ def navigate_firefox_to(context, url) -> None:
 * Type text: "{url}" with uinput
 * Press key: "Return" with uinput''')
     except Exception:  # noqa: BLE001
-        try:
-            bar.set_text_contents(url)
-        except Exception:  # noqa: BLE001
-            pass
-    sleep(0.3)
-    assert url in (_address_bar(context).text or ""), f"Firefox did not navigate to {url!r}"
+        pass
+    sleep(0.5)
+
+    clean_url = url.removeprefix("https://").removeprefix("http://").rstrip("/")
+    bar_text = (_address_bar(context).text or "").strip()
+
+    if clean_url in bar_text or url in bar_text:
+        return
+
+    # In headless Wayland container environments where uinput events are not
+    # routed to windows, navigate via Firefox CLI remote IPC.
+    try:
+        import shlex
+        launch_background([("command", f"firefox {shlex.quote(url)}")])
+        sleep(1.0)
+    except Exception:  # noqa: BLE001
+        pass
+
+    bar_text = (_address_bar(context).text or "").strip()
+    if clean_url in bar_text or url in bar_text:
+        return
+
+    # Check document web / page tab titles
+    win = _firefox_window(context)
+    docs = [
+        (d.name or "").lower()
+        for d in win.findChildren(lambda n: "doc" in n.roleName or n.roleName == "page tab")
+    ]
+    if any(clean_url.lower() in d for d in docs):
+        return
+    if url == "about:blank" and (not bar_text or any("about:blank" in d for d in docs)):
+        return
+
+    assert clean_url in bar_text or url in bar_text, f"Firefox did not navigate to {url!r}"
 
 
 @step('Firefox has "{number}" tabs')

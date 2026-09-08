@@ -29,7 +29,10 @@ except Exception as _qecore_exc:  # noqa: BLE001
     TestSandbox = None  # type: ignore[assignment,misc]
     _QECORE_AVAILABLE = False
 
-from steps.app_support import launch_target_available
+try:
+    from steps.app_support import launch_target_available
+except ImportError:
+    from tests.smoke.features.steps.app_support import launch_target_available
 
 # ── qecore keyboard key mapping patch ────────────────────────────────────────
 # qecore 4.16 keyboard_key_combo_input builds uinput key names as
@@ -82,6 +85,93 @@ def _normalize_key_combo(combo: str) -> str:
     return result
 
 
+_EV_KEY = 1
+_KEY_LEFTSHIFT = (1, 42)
+
+# Evdev keycodes for ASCII characters: (event_tuple, shifted)
+_CHAR_TO_EVDEV = {
+    # Lowercase
+    "a": ((1, 30), False), "b": ((1, 48), False), "c": ((1, 46), False),
+    "d": ((1, 32), False), "e": ((1, 18), False), "f": ((1, 33), False),
+    "g": ((1, 34), False), "h": ((1, 35), False), "i": ((1, 23), False),
+    "j": ((1, 36), False), "k": ((1, 37), False), "l": ((1, 38), False),
+    "m": ((1, 50), False), "n": ((1, 49), False), "o": ((1, 24), False),
+    "p": ((1, 25), False), "q": ((1, 16), False), "r": ((1, 19), False),
+    "s": ((1, 31), False), "t": ((1, 20), False), "u": ((1, 22), False),
+    "v": ((1, 47), False), "w": ((1, 17), False), "x": ((1, 45), False),
+    "y": ((1, 21), False), "z": ((1, 44), False),
+    # Uppercase
+    "A": ((1, 30), True), "B": ((1, 48), True), "C": ((1, 46), True),
+    "D": ((1, 32), True), "E": ((1, 18), True), "F": ((1, 33), True),
+    "G": ((1, 34), True), "H": ((1, 35), True), "I": ((1, 23), True),
+    "J": ((1, 36), True), "K": ((1, 37), True), "L": ((1, 38), True),
+    "M": ((1, 50), True), "N": ((1, 49), True), "O": ((1, 24), True),
+    "P": ((1, 25), True), "Q": ((1, 16), True), "R": ((1, 19), True),
+    "S": ((1, 31), True), "T": ((1, 20), True), "U": ((1, 22), True),
+    "V": ((1, 47), True), "W": ((1, 17), True), "X": ((1, 45), True),
+    "Y": ((1, 21), True), "Z": ((1, 44), True),
+    # Digits
+    "1": ((1, 2), False), "2": ((1, 3), False), "3": ((1, 4), False),
+    "4": ((1, 5), False), "5": ((1, 6), False), "6": ((1, 7), False),
+    "7": ((1, 8), False), "8": ((1, 9), False), "9": ((1, 10), False),
+    "0": ((1, 11), False),
+    # Whitespace
+    " ": ((1, 57), False), "\t": ((1, 15), False), "\n": ((1, 28), False),
+    # Basic symbols
+    ".": ((1, 52), False), "/": ((1, 53), False), ",": ((1, 51), False),
+    "-": ((1, 12), False), "=": ((1, 13), False), ";": ((1, 39), False),
+    "'": ((1, 40), False), "`": ((1, 41), False), "\\": ((1, 43), False),
+    "[": ((1, 26), False), "]": ((1, 27), False),
+    # Shifted symbols
+    ":": ((1, 39), True), "_": ((1, 12), True), "+": ((1, 13), True),
+    "?": ((1, 53), True), "!": ((1, 2), True), "@": ((1, 3), True),
+    "#": ((1, 4), True), "$": ((1, 5), True), "%": ((1, 6), True),
+    "^": ((1, 7), True), "&": ((1, 8), True), "*": ((1, 9), True),
+    "(": ((1, 10), True), ")": ((1, 11), True), '"': ((1, 40), True),
+    "~": ((1, 41), True), "<": ((1, 51), True), ">": ((1, 52), True),
+    "{": ((1, 26), True), "}": ((1, 27), True), "|": ((1, 43), True),
+}
+
+
+def _char_to_uinput_event(char: str):
+    """Map character to (uinput_event, shifted) tuple.
+
+    python-uinput's built-in _CHAR_MAP only contains unshifted lowercase keys,
+    digits, and a few basic symbols. Characters requiring Shift (like ':', '?',
+    '_', uppercase letters) or unmapped punctuation (like '-') return None in
+    qecore, which unpacks event as (ev_type, ev_code) and crashes with TypeError.
+    """
+    return _CHAR_TO_EVDEV.get(char)
+
+
+def _emit_characters_to_device(device, characters: str) -> None:
+    """Emit character keystrokes to a uinput device with modifier handling."""
+    from time import sleep
+
+    for char in str(characters):
+        res = _char_to_uinput_event(char)
+        if res is None:
+            continue
+        key_event, shifted = res
+        sleep(0.05)
+        if shifted:
+            device.emit(_KEY_LEFTSHIFT, 1)
+        device.emit_click(key_event)
+        if shifted:
+            device.emit(_KEY_LEFTSHIFT, 0)
+
+
+def _patched_keyboard_character_input(characters_to_write: str) -> None:
+    """Type characters via uinput without crashing on shifted or punctuation keys."""
+    try:
+        import qecore.utility as qu
+        qu.check_uinput_availability()
+        device = qu._get_uinput_device()
+        _emit_characters_to_device(device, characters_to_write)
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARNING: keyboard_character_input failed ({exc})", flush=True)
+
+
 try:
     import qecore.common_steps as _qecore_cs
 
@@ -92,8 +182,19 @@ try:
             return _orig_keyboard_key_combo_input(_normalize_key_combo(combo))
 
         _qecore_cs.keyboard_key_combo_input = _patched_keyboard_key_combo_input
+
+    if hasattr(_qecore_cs, "keyboard_character_input"):
+        _qecore_cs.keyboard_character_input = _patched_keyboard_character_input
 except Exception as _e:  # noqa: BLE001
-    print(f"WARNING: could not patch qecore keyboard_key_combo_input: {_e}", flush=True)
+    print(f"WARNING: could not patch qecore keyboard hooks: {_e}", flush=True)
+
+try:
+    import qecore.utility as _qecore_util
+
+    if hasattr(_qecore_util, "keyboard_character_input"):
+        _qecore_util.keyboard_character_input = _patched_keyboard_character_input
+except Exception as _e:  # noqa: BLE001
+    pass
 
 
 def _has_wifi_interface() -> bool:
