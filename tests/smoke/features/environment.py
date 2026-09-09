@@ -355,6 +355,17 @@ def before_all(context) -> None:
     except Exception as exc:  # noqa: BLE001
         print(f"WARNING: unable to enable toolkit-accessibility: {exc}", flush=True)
 
+    # In container sessions without full portal backend, mask xdg-desktop-portal
+    # to avoid 25s GIO portal activation timeouts on application launch.
+    try:
+        _subprocess.run(
+            ["systemctl", "--user", "mask", "--now", "xdg-desktop-portal.service"],
+            capture_output=True,
+            timeout=5,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
     # Verify Shell.Eval is available.  unsafe_mode should already be set by the
     # gnome-shell extension installed in e2e.yml (GNOME 47+ removed SetUnsafeMode).
     # gdbus returns (true, 'true') when unsafe_mode=true, (false, '') when false.
