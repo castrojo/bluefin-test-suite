@@ -46,6 +46,7 @@ IGNORED_FAILED_UNITS_IN_VM = {
     "systemd-resolved.service",
     "systemd-resolved-monitor.socket",
     "systemd-resolved-varlink.socket",
+    "foomaticrip-upgrade.service",
 }
 
 # When behave runs inside the runner container (--pid=host --privileged), system

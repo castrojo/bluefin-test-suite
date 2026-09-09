@@ -436,6 +436,14 @@ def firefox_tab_count_decreases(context) -> None:
                 and "close" in (n.name or "").lower()
                 and n.showing
             )
+            if not close_btn:
+                close_btns = lists[0].findChildren(
+                    lambda n: n.roleName in {"button", "push button"}
+                    and "close" in (n.name or "").lower()
+                    and n.showing
+                )
+                if close_btns:
+                    close_btn = close_btns[-1]
             if close_btn:
                 try:
                     atspi_click(close_btn)

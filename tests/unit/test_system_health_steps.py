@@ -117,6 +117,7 @@ class TestIgnoredFailedUnits:
             "systemd-resolved.service",
             "systemd-resolved-monitor.socket",
             "systemd-resolved-varlink.socket",
+            "foomaticrip-upgrade.service",
         }
         for unit in expected:
             assert unit in system_health_steps.IGNORED_FAILED_UNITS_IN_VM, (
