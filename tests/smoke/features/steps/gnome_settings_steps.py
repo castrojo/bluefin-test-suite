@@ -1,4 +1,5 @@
 """Custom step definitions for GNOME Settings smoke tests."""
+import os
 import subprocess
 from time import sleep
 
@@ -28,7 +29,9 @@ SETTINGS_APP_NAMES = ("gnome-control-center", "Settings")
 SETTINGS_A11Y_ENV = {
     "XDG_CURRENT_DESKTOP": "GNOME",
     "GNOME_ACCESSIBILITY": "1",
-    "GTK_A11Y": "atk-bridge",
+    "AT_SPI_BUS_ADDRESS": os.environ.get(
+        "AT_SPI_BUS_ADDRESS", f"unix:path=/run/user/{os.getuid()}/at-spi/bus"
+    ),
 }
 SETTINGS_LAUNCH_TARGETS = (
     ("command", "gnome-control-center"),
@@ -113,7 +116,7 @@ def launch_settings_via_command(context) -> None:
         )
     else:
         subprocess.run(
-            ["pkill", "-x", "gnome-control-center"],
+            ["pkill", "-9", "gnome-control-c"],
             capture_output=True, text=True,
         )
         sleep(0.5)

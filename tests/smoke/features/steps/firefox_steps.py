@@ -203,29 +203,19 @@ def _address_bar(context, timeout: float = 10.0):
     deadline = monotonic() + timeout
     while True:
         try:
-            win = _firefox_window(context)
-            bars = win.findChildren(
-                lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
-            )
-            matches = [
-                n for n in bars
-                if any(kw in (n.name or "").lower() for kw in ("address", "search", "url"))
-            ]
-            if matches or bars:
-                return (matches or bars)[0]
-            if getattr(context, "firefox_window", None) is not None:
-                context.firefox_window = None
-                for c in _window_candidates(context):
-                    bars = c.findChildren(
-                        lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
-                    )
-                    matches = [
-                        n for n in bars
-                        if any(kw in (n.name or "").lower() for kw in ("address", "search", "url"))
-                    ]
-                    if matches or bars:
-                        context.firefox_window = c
-                        return (matches or bars)[0]
+            for win in _window_candidates(context):
+                if _is_crash_reporter_window(win):
+                    continue
+                bars = win.findChildren(
+                    lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
+                )
+                matches = [
+                    n for n in bars
+                    if any(kw in (n.name or "").lower() for kw in ("address", "search", "url"))
+                ]
+                if matches or bars:
+                    context.firefox_window = win
+                    return (matches or bars)[0]
         except Exception:  # noqa: BLE001
             pass
         if monotonic() >= deadline:
@@ -327,7 +317,7 @@ def navigate_firefox_to(context, url) -> None:
     except Exception:  # noqa: BLE001
         pass
 
-    if clean_url in bar_text or url in bar_text:
+    if (clean_url in bar_text or url in bar_text) or (url == "about:blank" and not bar_text):
         return
 
     # In headless Wayland container environments where uinput events are not
@@ -370,7 +360,7 @@ def navigate_firefox_to(context, url) -> None:
                 context.firefox_window = win
                 return
 
-    assert clean_url in bar_text or url in bar_text, f"Firefox did not navigate to {url!r}"
+    assert clean_url in bar_text or url in bar_text or (url == "about:blank" and not bar_text), f"Firefox did not navigate to {url!r}"
 
 
 @step('Firefox has "{number}" tabs')

@@ -327,6 +327,9 @@ def before_all(context) -> None:
         "DBUS_SESSION_BUS_ADDRESS": os.environ.get(
             "DBUS_SESSION_BUS_ADDRESS", f"unix:path=/run/user/{os.getuid()}/bus"
         ),
+        "AT_SPI_BUS_ADDRESS": os.environ.get(
+            "AT_SPI_BUS_ADDRESS", f"unix:path=/run/user/{os.getuid()}/at-spi/bus"
+        ),
         "XDG_RUNTIME_DIR": os.environ.get("XDG_RUNTIME_DIR", f"/run/user/{os.getuid()}"),
         "WAYLAND_DISPLAY": os.environ.get("WAYLAND_DISPLAY", "wayland-0"),
         "DISPLAY": os.environ.get("DISPLAY", ":0"),
