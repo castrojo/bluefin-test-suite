@@ -107,7 +107,16 @@ def files_window_is_accessible(context) -> None:
 
 @step("Files is no longer running")
 def files_is_no_longer_running(context) -> None:
-    for i in range(40):
+    if _IN_CONTAINER:
+        subprocess.run(
+            _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
+            capture_output=True, text=True, timeout=10,
+        )
+    else:
+        subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
+    sleep(0.5)
+
+    for _ in range(20):
         for name in FILES_APP_NAMES:
             try:
                 app = tree.root.application(name)
@@ -118,18 +127,7 @@ def files_is_no_longer_running(context) -> None:
                 continue
         else:
             return
-        # After 10s (20 retries), force-quit the Nautilus daemon.
-        if i == 19:
-            if _IN_CONTAINER:
-                subprocess.run(
-                    _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
-                    capture_output=True, text=True, timeout=10,
-                )
-            else:
-                subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
-            sleep(1)
-        else:
-            sleep(0.5)
+        sleep(0.5)
     raise AssertionError("GNOME Files is still visible in the AT-SPI tree")
 
 
