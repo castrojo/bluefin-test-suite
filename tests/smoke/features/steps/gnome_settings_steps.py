@@ -247,12 +247,18 @@ def navigate_to_settings_panel(context, name: str) -> None:
             timeout=5,
         )
     else:
-        subprocess.run(["pkill", "-f", "gnome-control-center"], check=False)
+        try:
+            if shutil.which("pkill"):
+                subprocess.run(["pkill", "-9", "gnome-control-c"], capture_output=True, text=True)
+        except Exception:  # noqa: BLE001
+            pass
         sleep(0.5)
+        local_env = {**os.environ, **SETTINGS_A11Y_ENV}
         subprocess.Popen(
             ["gnome-control-center", panel_id],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            env=local_env,
         )
     context.last_settings_panel = name
 

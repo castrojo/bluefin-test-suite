@@ -60,9 +60,20 @@ def _has_brew(context) -> bool:
     cached = getattr(context, "has_brew", None)
     if cached is not None:
         return cached
-    _, returncode = run_ssh(context, "test -x /home/linuxbrew/.linuxbrew/bin/brew")
+    _, returncode = run_ssh(
+        context, "test -x /home/linuxbrew/.linuxbrew/bin/brew && test -x /home/linuxbrew/.linuxbrew/bin/fzf"
+    )
     context.has_brew = returncode == 0
     return context.has_brew
+
+
+def _is_container_target(context) -> bool:
+    cached = getattr(context, "is_container_target", None)
+    if cached is not None:
+        return cached
+    _, rc = run_ssh(context, "test -e /run/systemd/container")
+    context.is_container_target = (rc == 0)
+    return context.is_container_target
 
 
 def _has_bctl(context) -> bool:
@@ -206,6 +217,14 @@ def before_scenario(context, scenario):
     if "requires_toggle_action" in scenario_tags and not _has_toggle_action(context):
         scenario.skip("ujust toggle-updates ACTION support not present on this image")
         return
+    feature_name = getattr(getattr(scenario, "feature", None), "name", "")
+    if _is_container_target(context):
+        if feature_name in ("XDG desktop portal health", "XDG desktop portal integration"):
+            scenario.skip("XDG desktop portals require full VM session")
+            return
+        if "read-only" in getattr(scenario, "name", "").lower():
+            scenario.skip("Read-only /usr mount check requires booted ostree VM")
+            return
     if "bootc unified storage" in getattr(scenario, "name", "").lower():
         out, _ = run_ssh(
             context,
