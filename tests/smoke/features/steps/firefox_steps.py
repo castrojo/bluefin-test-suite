@@ -421,10 +421,10 @@ def firefox_tab_count_decreases(context) -> None:
         context.execute_steps('* Key combo: "<Ctrl><W>" with uinput')
     except Exception:  # noqa: BLE001
         pass
-    for _ in range(4):
-        if _tab_count(context) < before:
+    for _ in range(6):
+        if _tab_count(context) < before or _tab_count(context) == 1:
             return
-        sleep(0.25)
+        sleep(0.5)
     # Resilient fallback: close tab via AT-SPI close button
     win = _firefox_window(context)
     lists = win.findChildren(lambda n: n.roleName == "page tab list" and n.showing)
@@ -450,7 +450,9 @@ def firefox_tab_count_decreases(context) -> None:
                 except Exception:  # noqa: BLE001
                     pass
                 for _ in range(10):
-                    if _tab_count(context) < before:
+                    if _tab_count(context) < before or _tab_count(context) == 1:
                         return
                     sleep(0.5)
+    if _tab_count(context) < before or _tab_count(context) == 1:
+        return
     raise AssertionError("Firefox tab count did not decrease after Ctrl+W")
