@@ -112,8 +112,11 @@ class TestIgnoredFailedUnits:
             "input-remapper.service",
             "nvidia-persistenced.service",
             "fwupd-refresh.service",
+            "audit-rules.service",
             "auditd.service",
             "systemd-resolved.service",
+            "systemd-resolved-monitor.socket",
+            "systemd-resolved-varlink.socket",
         }
         for unit in expected:
             assert unit in system_health_steps.IGNORED_FAILED_UNITS_IN_VM, (

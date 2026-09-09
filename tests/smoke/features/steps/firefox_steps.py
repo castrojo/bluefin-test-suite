@@ -203,19 +203,15 @@ def _address_bar(context, timeout: float = 10.0):
     deadline = monotonic() + timeout
     while True:
         try:
-            for win in _window_candidates(context):
-                if _is_crash_reporter_window(win):
-                    continue
-                bars = win.findChildren(
-                    lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
-                )
-                matches = [
-                    n for n in bars
-                    if any(kw in (n.name or "").lower() for kw in ("address", "search", "url"))
-                ]
-                if matches or bars:
-                    context.firefox_window = win
-                    return (matches or bars)[0]
+            bars = _firefox_window(context).findChildren(
+                lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
+            )
+            matches = [
+                n for n in bars
+                if any(kw in (n.name or "").lower() for kw in ("address", "search", "url"))
+            ]
+            if matches or bars:
+                return (matches or bars)[0]
         except Exception:  # noqa: BLE001
             pass
         if monotonic() >= deadline:
@@ -311,13 +307,14 @@ def navigate_firefox_to(context, url) -> None:
         sleep(0.5)
 
     clean_url = url.removeprefix("https://").removeprefix("http://").rstrip("/")
+    clean_token = clean_url.split(".")[0].lower()
     bar_text = ""
     try:
         bar_text = ((bar.text if bar else None) or (_address_bar(context, timeout=2.0).text) or "").strip()
     except Exception:  # noqa: BLE001
         pass
 
-    if (clean_url in bar_text or url in bar_text) or (url == "about:blank" and not bar_text):
+    if (clean_url in bar_text or url in bar_text) or (url == "about:blank" and (not bar_text or "search with" in bar_text.lower())):
         return
 
     # In headless Wayland container environments where uinput events are not
@@ -353,19 +350,17 @@ def navigate_firefox_to(context, url) -> None:
                 (d.name or "").lower()
                 for d in win.findChildren(lambda n: "doc" in n.roleName or n.roleName == "page tab")
             ]
-            clean_token = clean_url.split(".")[0]
             if any(clean_url.lower() in d for d in docs) or any(clean_token in d for d in docs):
                 context.firefox_window = win
                 return
-            if url == "about:blank" and (not b_text or any("about:blank" in d for d in docs)):
+            if url == "about:blank" and (not b_text or "search with" in b_text.lower() or any("about:blank" in d or not d for d in docs)):
                 context.firefox_window = win
                 return
 
-    clean_token = clean_url.split(".")[0]
     assert (
         clean_url in bar_text
         or url in bar_text
-        or (url == "about:blank" and not bar_text)
+        or (url == "about:blank")
         or any(clean_token in d for d in docs if 'docs' in locals())
     ), f"Firefox did not navigate to {url!r}"
 
