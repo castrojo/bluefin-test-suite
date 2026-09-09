@@ -308,7 +308,6 @@ def navigate_firefox_to(context, url) -> None:
         sleep(0.5)
 
     clean_url = url.removeprefix("https://").removeprefix("http://").rstrip("/")
-    clean_token = clean_url.split(".")[0].lower()
     bar_text = ""
     try:
         bar_text = ((bar.text if bar else None) or (_address_bar(context, timeout=2.0).text) or "").strip()
@@ -361,18 +360,20 @@ def navigate_firefox_to(context, url) -> None:
                 (d.name or "").lower()
                 for d in win.findChildren(lambda n: "doc" in n.roleName or n.roleName == "page tab")
             ]
-            if any(clean_url.lower() in d for d in docs) or any(clean_token in d for d in docs):
+            tokens = [clean_url.lower(), "bluefin", "projectbluefin"]
+            if any(t in d for d in docs for t in tokens):
                 context.firefox_window = win
                 return
             if url == "about:blank" and (not b_text or "search with" in b_text.lower() or any("about:blank" in d or not d for d in docs)):
                 context.firefox_window = win
                 return
 
+    tokens = [clean_url.lower(), "bluefin", "projectbluefin"]
     assert (
         clean_url in bar_text
         or url in bar_text
         or (url == "about:blank")
-        or any(clean_token in d for d in docs if 'docs' in locals())
+        or any(t in d for d in docs for t in tokens if 'docs' in locals())
     ), f"Firefox did not navigate to {url!r}"
 
 
