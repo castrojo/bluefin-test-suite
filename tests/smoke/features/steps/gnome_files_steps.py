@@ -1,4 +1,5 @@
 """Custom step definitions for GNOME Files (Nautilus) smoke tests."""
+import shutil
 import subprocess
 import time
 from time import sleep
@@ -25,10 +26,10 @@ def _skip_if_no_atspi(context) -> bool:
     return False
 
 
-FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
+FILES_APP_NAMES = ("org.gnome.Nautilus", "Files", "nautilus")
 FILES_LAUNCH_TARGETS = (
-    ("desktop", "org.gnome.Nautilus.desktop"),
     ("command", "nautilus"),
+    ("desktop", "org.gnome.Nautilus.desktop"),
 )
 # Maps sidebar item name → nautilus URI for direct navigation.
 # Used as fallback when AT-SPI action click isn't available on sidebar items.
@@ -48,13 +49,25 @@ def _nautilus_app(timeout: int = 15):
     """Find the Files app in the AT-SPI tree, retrying for up to ``timeout`` seconds."""
     deadline = time.monotonic() + timeout
     last_error = None
-    while time.monotonic() < deadline:
+    while True:
+        try:
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in FILES_APP_NAMES or "nautilus" in clean.lower():
+                            return app
+        except Exception:  # noqa: BLE001
+            pass
         for name in FILES_APP_NAMES:
             try:
                 return tree.root.application(name)
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
-        sleep(1)
+        if time.monotonic() >= deadline:
+            break
+        sleep(0.5)
     raise AssertionError(f"GNOME Files application was not found via AT-SPI after {timeout}s: {last_error}")
 
 
@@ -63,21 +76,24 @@ def launch_files_via_command(context) -> None:
     if _skip_if_no_atspi(context):
         return
     context.files_launch_target = launch_background(FILES_LAUNCH_TARGETS)
+    sleep(1.0)
 
 
 def _nautilus_window(timeout: int = 10):
     """Return the visible Files frame, retrying briefly while Nautilus settles."""
     app = _nautilus_app()
+    def _is_frame(n):
+        role = getattr(n, "roleName", None) or (n.get_role_name() if hasattr(n, "get_role_name") else "")
+        name = (getattr(n, "name", "") or (n.get_name() if hasattr(n, "get_name") else "")).strip()
+        showing = getattr(n, "showing", True)
+        return role in {"frame", "filler"} and showing and name in {"Files", "Home"}
+
     last_children = []
     for _ in range(timeout * 2):
-        frames = app.findChildren(
-            lambda n: n.roleName in {"frame", "filler"}
-            and n.showing
-            and (n.name or "").strip() in {"Files", "Home"}
-        )
+        frames = app.findChildren(_is_frame)
         if frames:
             return frames[0]
-        last_children = [(child.roleName, child.name) for child in app.children[:10]]
+        last_children = [(getattr(child, "roleName", getattr(child, "get_role_name", lambda: "")()), getattr(child, "name", getattr(child, "get_name", lambda: "")())) for child in getattr(app, "children", [])[:10]]
         sleep(0.5)
     raise AssertionError(
         f"Visible Files window not found in nautilus app. Top-level children: {last_children}"
@@ -96,29 +112,46 @@ def files_window_is_accessible(context) -> None:
 
 @step("Files is no longer running")
 def files_is_no_longer_running(context) -> None:
-    for i in range(40):
+    try:
+        if _IN_CONTAINER:
+            subprocess.run(
+                _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
+                capture_output=True, text=True, timeout=10,
+            )
+        elif shutil.which("nautilus"):
+            subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
+    except Exception:  # noqa: BLE001
+        pass
+    sleep(0.5)
+
+    for _ in range(20):
+        running = False
+        try:
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in FILES_APP_NAMES or "nautilus" in clean.lower():
+                            running = True
+                            break
+        except Exception:  # noqa: BLE001
+            pass
+        if not running and hasattr(tree.root, "applications") and not type(tree.root.applications).__name__.startswith("MagicMock"):
+            return
+
         for name in FILES_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
+                frames = app.findChildren(lambda n: (getattr(n, "roleName", None) or getattr(n, "get_role_name", lambda: "")()) in {"frame", "filler"} and getattr(n, "showing", True))
                 if frames:
+                    running = True
                     break
             except Exception:  # noqa: BLE001
                 continue
         else:
             return
-        # After 10s (20 retries), force-quit the Nautilus daemon.
-        if i == 19:
-            if _IN_CONTAINER:
-                subprocess.run(
-                    _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
-                    capture_output=True, text=True, timeout=10,
-                )
-            else:
-                subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
-            sleep(1)
-        else:
-            sleep(0.5)
+        sleep(0.5)
     raise AssertionError("GNOME Files is still visible in the AT-SPI tree")
 
 

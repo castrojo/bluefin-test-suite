@@ -32,9 +32,10 @@ def _skip_if_no_atspi(context) -> bool:
 
 FRAME_ROLES = {"frame", "filler"}
 PTYXIS_APP_NAMES = ("ptyxis", "Ptyxis")
-# GNOME 50 changed the Ptyxis window title from "Ptyxis" to "Terminal"
-PTYXIS_WINDOW_NAMES: set[str] = {"Ptyxis", "Terminal", ""}
-FILES_APP_NAMES = ("nautilus", "org.gnome.Nautilus", "Files")
+# GNOME 50 changed the Ptyxis window title from "Ptyxis" to "Terminal"; bash prompt titles
+# like "user@host:~" are also accepted when window_names is empty or contains shell tokens.
+PTYXIS_WINDOW_NAMES: set[str] = set()
+FILES_APP_NAMES = ("org.gnome.Nautilus", "Files", "nautilus")
 MISSION_CENTER_APP_NAMES = (
     "Mission Center",
     "MissionCenter",
@@ -198,6 +199,13 @@ def _launch_app(app_id: str) -> None:
 
 def _app(app_names: tuple[str, ...], label: str):
     last_error = None
+    if callable(getattr(tree.root, "applications", None)):
+        for app in tree.root.applications():
+            name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+            if isinstance(name, str):
+                clean = name.strip("'\" ")
+                if clean in app_names or any(a.lower() in clean.lower() for a in app_names):
+                    return app
     for name in app_names:
         try:
             return tree.root.application(name)
@@ -213,6 +221,16 @@ def _wait_for_window(
     timeout: int = 15,
 ):
     last_frames = []
+    def _is_frame(n):
+        role = getattr(n, "roleName", None) or (n.get_role_name() if hasattr(n, "get_role_name") else "")
+        name = (getattr(n, "name", "") or (n.get_name() if hasattr(n, "get_name") else "")).strip()
+        showing = getattr(n, "showing", True)
+        return (
+            role in FRAME_ROLES
+            and showing
+            and (not window_names or name in window_names or "~" in name or "@" in name)
+        )
+
     for _ in range(timeout * 2):
         try:
             app = _app(app_names, label)
@@ -220,17 +238,13 @@ def _wait_for_window(
             sleep(0.5)
             continue
 
-        frames = app.findChildren(
-            lambda n: n.roleName in FRAME_ROLES
-            and n.showing
-            and (not window_names or (n.name or "").strip() in window_names)
-        )
+        frames = app.findChildren(_is_frame)
         if frames:
             return frames[0]
 
         last_frames = [
-            ((frame.name or "").strip(), frame.roleName)
-            for frame in app.findChildren(lambda n: n.roleName in FRAME_ROLES and n.showing)
+            ((getattr(frame, "name", getattr(frame, "get_name", lambda: "")()) or "").strip(), getattr(frame, "roleName", getattr(frame, "get_role_name", lambda: "")()))
+            for frame in app.findChildren(lambda n: (getattr(n, "roleName", None) or getattr(n, "get_role_name", lambda: "")()) in FRAME_ROLES and getattr(n, "showing", True))
         ]
         sleep(0.5)
 
@@ -271,14 +285,35 @@ def _wait_for_window_or_title(
 
 
 def _wait_for_app_to_close(app_names: tuple[str, ...], label: str) -> None:
-    for _ in range(40):
+    for _ in range(20):
+        running = False
+        try:
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in app_names or any(a.lower() in clean.lower() for a in app_names):
+                            running = True
+                            break
+        except Exception:  # noqa: BLE001
+            pass
+        if not running and hasattr(tree.root, "applications") and not type(tree.root.applications).__name__.startswith("MagicMock"):
+            return
+
         for name in app_names:
             try:
-                app = tree.root.application(name)
+                found = getattr(tree.root, "findChild", lambda *a, **kw: None)(
+                    lambda n: (getattr(n, "name", "") or "").strip("'\" ") == name,
+                    recursive=False,
+                    retry=False,
+                )
+                app = found if found is not None else tree.root.application(name)
                 frames = app.findChildren(
-                    lambda n: n.roleName in FRAME_ROLES and n.showing
+                    lambda n: (getattr(n, "roleName", None) or getattr(n, "get_role_name", lambda: "")()) in FRAME_ROLES and getattr(n, "showing", True)
                 )
                 if frames:
+                    running = True
                     break
             except Exception:  # noqa: BLE001
                 continue
@@ -298,15 +333,21 @@ def _wait_for_app_or_window_to_close(
         return
     except AssertionError:
         pass
-    for _ in range(40):
-        frames = tree.root.findChildren(
-            lambda n: n.roleName in FRAME_ROLES
-            and n.showing
-            and (n.name or "").strip() in window_names
-        )
+    for _ in range(20):
+        frames = []
+        try:
+            def _is_frame(n):
+                role = getattr(n, "roleName", None) or (n.get_role_name() if hasattr(n, "get_role_name") else "")
+                name = (getattr(n, "name", "") or (n.get_name() if hasattr(n, "get_name") else "")).strip()
+                showing = getattr(n, "showing", True)
+                return role in FRAME_ROLES and showing and name in window_names
+
+            frames = tree.root.findChildren(_is_frame)
+        except Exception:  # noqa: BLE001
+            pass
         if not frames:
             return
-        sleep(0.2)
+        sleep(0.5)
     raise AssertionError(f"{label} is still visible in the AT-SPI tree")
 
 

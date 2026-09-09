@@ -49,7 +49,28 @@ def _run_host(cmd: str, timeout: int = 30):
         env = dict(os.environ)
         if not env.get("DBUS_SESSION_BUS_ADDRESS"):
             env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{os.getuid()}/bus"
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout, env=env)
+        if not os.path.exists("/tmp/session.env"):
+            try:
+                with open("/tmp/session.env", "w") as f:
+                    for k in ("DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DISPLAY", "XDG_SESSION_TYPE"):
+                        v = env.get(k)
+                        if v:
+                            f.write(f"export {k}={v}\n")
+            except Exception:  # noqa: BLE001
+                pass
+        safe_cmd = cmd.replace(
+            "source /tmp/session.env 2>/dev/null;",
+            "[ -f /tmp/session.env ] && . /tmp/session.env 2>/dev/null || true;",
+        )
+        result = subprocess.run(
+            safe_cmd,
+            shell=True,
+            executable="/bin/bash",
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
@@ -316,7 +337,12 @@ def _node_text_value(node) -> str:
 
 def _loginctl_session_id() -> str:
     """Return the first graphical session ID from loginctl."""
-    stdout, rc, _ = _run_host("loginctl list-sessions --no-legend 2>/dev/null | head -1")
+    stdout, rc, _ = _run_host(
+        "loginctl list-sessions --no-legend 2>/dev/null | "
+        "awk '$4 ~ /seat/ || $5 == \"user\" {print $1; exit}'"
+    )
+    if not stdout.strip():
+        stdout, rc, _ = _run_host("loginctl list-sessions --no-legend 2>/dev/null | head -1")
     assert rc == 0, f"loginctl list-sessions failed: {stdout}"
     assert stdout.strip(), "No loginctl sessions found"
     return stdout.strip().split()[0]
@@ -712,15 +738,23 @@ def no_llvmpipe(context) -> None:
 def dash_to_dock_visible(context) -> None:
     # First distinguish an extension activation failure from a rendering
     # failure through GNOME Shell's public Extensions D-Bus API.
-    output = _gdbus_call(
-        method="GetExtensionInfo",
-        interface="org.gnome.Shell.Extensions",
-        object_path="/org/gnome/Shell/Extensions",
-        args="'dash-to-dock@micxgx.gmail.com'",
-    )
+    # GNOME 50 exposes Extensions interface on /org/gnome/Shell (fallback to /org/gnome/Shell/Extensions)
+    output = None
+    for obj_path in ("/org/gnome/Shell", "/org/gnome/Shell/Extensions"):
+        try:
+            output = _gdbus_call(
+                method="GetExtensionInfo",
+                interface="org.gnome.Shell.Extensions",
+                object_path=obj_path,
+                args="'dash-to-dock@micxgx.gmail.com'",
+            )
+            break
+        except AssertionError:
+            continue
+    assert output is not None, "Failed to query Dash to Dock extension info via D-Bus"
     import re
 
-    match = re.search(r"'state':\s*<uint32\s+(\d+)>", output)
+    match = re.search(r"'state':\s*<(?:[a-zA-Z0-9_]+\s+)?(\d+)(?:\.0)?>", output)
     assert match, f"Dash to Dock extension info lacked a state: {output!r}"
     assert match.group(1) == "1", (
         "Dash to Dock is not enabled according to org.gnome.Shell.Extensions: "

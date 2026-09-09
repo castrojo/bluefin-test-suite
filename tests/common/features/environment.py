@@ -60,9 +60,20 @@ def _has_brew(context) -> bool:
     cached = getattr(context, "has_brew", None)
     if cached is not None:
         return cached
-    _, returncode = run_ssh(context, "test -x /home/linuxbrew/.linuxbrew/bin/brew")
+    _, returncode = run_ssh(
+        context, "test -x /home/linuxbrew/.linuxbrew/bin/brew && test -x /home/linuxbrew/.linuxbrew/bin/fzf"
+    )
     context.has_brew = returncode == 0
     return context.has_brew
+
+
+def _is_container_target(context) -> bool:
+    cached = getattr(context, "is_container_target", None)
+    if cached is not None:
+        return cached
+    _, rc = run_ssh(context, "test -e /run/systemd/container")
+    context.is_container_target = (rc == 0)
+    return context.is_container_target
 
 
 def _has_bctl(context) -> bool:
@@ -86,9 +97,11 @@ def _has_toggle_action(context) -> bool:
 
     ``ujust toggle-updates`` gained non-interactive ``ACTION=enable|disable|
     cancel`` support in projectbluefin/common (see projectbluefin/testsuite#499).
-    Probe with the non-mutating ``cancel`` action: the new recipe exits 0
-    immediately, while the old recipe ignores ACTION and blocks on the gum
-    prompt (or the bctl panel), which fails or times out without a TTY.
+    Probe the recipe body for ``ACTION_VALUE``: the new recipe interpolates
+    ``ACTION`` into ``ACTION_VALUE``, while the old recipe declares
+    ``ACTION="prompt":`` but ignores it in the body and falls through to gum.
+    Without a TTY, the old gum prompt fails and exits 0 on empty selection,
+    so running ``ujust toggle-updates cancel`` falsely passes on old images.
     Scenarios tagged ``@requires_toggle_action`` skip until the image ships
     the contract, then activate automatically.
     """
@@ -96,7 +109,7 @@ def _has_toggle_action(context) -> bool:
     if cached is not None:
         return cached
     _, returncode = run_ssh(
-        context, "timeout 15 ujust toggle-updates cancel >/dev/null 2>&1"
+        context, "ujust --show toggle-updates 2>/dev/null | grep -q 'ACTION_VALUE'"
     )
     context.has_toggle_action = returncode == 0
     return context.has_toggle_action
@@ -204,6 +217,24 @@ def before_scenario(context, scenario):
     if "requires_toggle_action" in scenario_tags and not _has_toggle_action(context):
         scenario.skip("ujust toggle-updates ACTION support not present on this image")
         return
+    feature_name = getattr(getattr(scenario, "feature", None), "name", "")
+    if _is_container_target(context):
+        if "portal" in feature_name.lower():
+            scenario.skip("XDG desktop portals require full VM session")
+            return
+        if "read-only" in getattr(scenario, "name", "").lower():
+            scenario.skip("Read-only /usr mount check requires booted ostree VM")
+            return
+    if "bootc unified storage" in getattr(scenario, "name", "").lower():
+        out, _ = run_ssh(
+            context,
+            "systemctl show bootc-unified-storage.service --property=Result --value 2>/dev/null",
+        )
+        if out.strip() != "success":
+            run_ssh(
+                context,
+                "sudo systemctl restart bootc-unified-storage.service 2>/dev/null || true",
+            )
     context.command_stdout = ""
     context.last_command_output = ""
     context.last_ssh_result = None

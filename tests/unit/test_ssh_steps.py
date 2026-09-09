@@ -178,6 +178,34 @@ class TestRunSsh:
         call_args = mock_run.call_args[0][0]
         assert "StrictHostKeyChecking=no" in call_args
 
+    def test_local_target_runs_subprocess_directly(self):
+        ctx = _make_context(vm_ip="")
+        proc = _make_proc(stdout="local output\n", returncode=0)
+        with patch("subprocess.run", return_value=proc) as mock_run:
+            stdout, rc = self.mod.run_ssh(ctx, "echo local")
+        assert stdout == "local output"
+        assert rc == 0
+        mock_run.assert_called_once_with(
+            ["bash", "-c", "echo local"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
+    def test_local_target_with_bootc_binary_runs_locally(self):
+        ctx = _make_context(vm_ip="127.0.0.1")
+        proc = _make_proc(stdout="bootc ok\n", returncode=0)
+        with patch("os.path.isfile", return_value=True), patch("subprocess.run", return_value=proc) as mock_run:
+            stdout, rc = self.mod.run_ssh(ctx, "bootc status")
+        assert stdout == "bootc ok"
+        assert rc == 0
+        mock_run.assert_called_once_with(
+            ["bash", "-c", "bootc status"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+
     def test_nonzero_returncode_stored_on_context(self):
         ctx = _make_context()
         proc = _make_proc(stdout="", returncode=1)
@@ -194,6 +222,13 @@ class TestRunSsh:
 class TestVmReachableOverSsh:
     def setup_method(self):
         self.mod = _import_ssh_steps()
+
+    def test_succeeds_immediately_when_local_target(self):
+        ctx = _make_context(vm_ip="")
+        # Should not call run_ssh or sleep at all
+        with patch.object(self.mod, "run_ssh") as mock_run:
+            self.mod.vm_reachable_over_ssh(ctx)
+            mock_run.assert_not_called()
 
     def test_succeeds_immediately_when_ssh_works(self):
         ctx = _make_context()

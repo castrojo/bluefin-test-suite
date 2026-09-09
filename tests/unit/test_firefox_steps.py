@@ -1,7 +1,7 @@
 """Unit tests for firefox_steps.py pure helper functions."""
 import sys
 import types
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 
 # ---------------------------------------------------------------------------
@@ -27,6 +27,9 @@ def _import_firefox_steps(tree_available: bool = True):
 
     app_support_stub = types.ModuleType("app_support")
     app_support_stub.launch_background = MagicMock()
+    app_support_stub.atspi_click = MagicMock()
+    app_support_stub._IN_CONTAINER = False
+    app_support_stub._ssh_launch = MagicMock()
     sys.modules["app_support"] = app_support_stub
 
     for key in list(sys.modules):
@@ -127,13 +130,46 @@ class TestFirefoxApp:
         result = m._firefox_app(context)
         assert result is found_app
 
+    def test_prefers_capitalized_firefox_app_name(self):
+        m = _import_firefox_steps()
+        assert m.FIREFOX_APP_NAMES[0] == "Firefox"
+
+    def test_reuses_cached_firefox_app(self):
+        m = _import_firefox_steps()
+        cached = MagicMock()
+        cached.children = []
+        context = MagicMock()
+        context.firefox.instance = None
+        context.firefox_app = cached
+        m.tree.root.application = MagicMock()
+        assert m._firefox_app(context) is cached
+        m.tree.root.application.assert_not_called()
+
+    def test_retries_transient_failure(self):
+        m = _import_firefox_steps()
+        context = MagicMock()
+        context.firefox.instance = None
+        context.firefox_app = None
+        found_app = MagicMock()
+        calls = [0]
+
+        def fake_app(name):
+            calls[0] += 1
+            if calls[0] < 2:
+                raise RuntimeError("transient bus disconnect")
+            return found_app
+
+        m.tree.root.application = MagicMock(side_effect=fake_app)
+        assert m._firefox_app(context, timeout=1.0) is found_app
+        assert context.firefox_app is found_app
+
     def test_raises_assertion_when_all_names_fail(self):
         m = _import_firefox_steps()
         context = MagicMock(spec=[])
         m.tree.root.application = MagicMock(side_effect=RuntimeError("not found"))
         import pytest  # noqa: PLC0415
         with pytest.raises(AssertionError, match="not found via AT-SPI"):
-            m._firefox_app(context)
+            m._firefox_app(context, timeout=0.1)
 
 
 # ---------------------------------------------------------------------------
@@ -143,10 +179,11 @@ class TestFirefoxApp:
 class _FakeNode:
     """Minimal dogtail node stand-in supporting findChildren over descendants."""
 
-    def __init__(self, role_name, showing=True, children=()):
+    def __init__(self, role_name, showing=True, children=(), name=""):
         self.roleName = role_name
         self.showing = showing
         self.children = list(children)
+        self.name = name
 
     def findChildren(self, predicate):  # noqa: N802 — dogtail API name
         found = []
@@ -155,6 +192,10 @@ class _FakeNode:
                 found.append(child)
             found.extend(child.findChildren(predicate))
         return found
+
+    def findChild(self, predicate):  # noqa: N802 — dogtail API name
+        matches = self.findChildren(predicate)
+        return matches[0] if matches else None
 
 
 class TestFirefoxA11yEnv:
@@ -217,6 +258,99 @@ class TestFirefoxWindow:
         context.firefox.instance = _FakeNode("application", children=[filler, frame])
         assert m._firefox_window(context) is frame
 
+    def test_ignores_crash_reporter_window_and_selects_browser_window(self):
+        m = _import_firefox_steps()
+        crash_reporter = _FakeNode(
+            "frame",
+            showing=True,
+            name="Tab crash reporter — Mozilla Firefox",
+            children=[
+                _FakeNode("entry", showing=True, name="Optional comments"),
+                _FakeNode("page tab list", showing=True, children=[
+                    _FakeNode("page tab", showing=True, name="Tab crash reporter"),
+                ]),
+            ],
+        )
+        browser_window = _FakeNode(
+            "frame",
+            showing=True,
+            name="Mozilla Firefox",
+            children=[
+                _FakeNode("combo box", showing=True, name="Search with Google or enter address"),
+                _FakeNode("page tab list", showing=True, children=[
+                    _FakeNode("page tab", showing=True, name="Start Page"),
+                ]),
+            ],
+        )
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[crash_reporter, browser_window])
+        assert m._firefox_window(context) is browser_window
+
+    def test_recognizes_combo_box_as_browser_chrome(self):
+        m = _import_firefox_steps()
+        frame = _FakeNode("frame", showing=True, children=[
+            _FakeNode("combo box", showing=True, name="Search with Google or enter address")
+        ])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[frame])
+        assert m._firefox_window(context) is frame
+
+    def test_prefers_filler_with_chrome_over_frameless_subframe(self):
+        m = _import_firefox_steps()
+        filler = _FakeNode("filler", children=[_FakeNode("entry")])
+        subframe = _FakeNode("frame", children=[_FakeNode("push button")])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[filler, subframe])
+        assert m._firefox_window(context) is filler
+
+    def test_falls_back_to_populated_frame_without_chrome(self):
+        m = _import_firefox_steps()
+        frame = _FakeNode("frame", children=[_FakeNode("tool bar")])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[frame])
+        assert m._firefox_window(context) is frame
+
+    def test_falls_back_to_populated_non_frame_without_chrome(self):
+        m = _import_firefox_steps()
+        filler = _FakeNode("filler", children=[_FakeNode("tool bar")])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[filler])
+        assert m._firefox_window(context) is filler
+
+    def test_handles_exception_during_chrome_search(self):
+        m = _import_firefox_steps()
+        broken = _FakeNode("frame", children=[_FakeNode("entry")])
+        orig_find = broken.findChildren
+        call_count = [0]
+
+        def _find_with_err(pred):
+            call_count[0] += 1
+            if call_count[0] == 2:  # First call is _has_populated_a11y_tree, 2nd is chrome check
+                raise RuntimeError("simulated AT-SPI flake")
+            return orig_find(pred)
+
+        broken.findChildren = _find_with_err
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[broken])
+        assert m._firefox_window(context) is broken
+
+    def test_handles_exception_during_filler_chrome_search(self):
+        m = _import_firefox_steps()
+        broken = _FakeNode("filler", children=[_FakeNode("tool bar")])
+        orig_find = broken.findChildren
+        call_count = [0]
+
+        def _find_with_err(pred):
+            call_count[0] += 1
+            if call_count[0] == 2:
+                raise RuntimeError("simulated AT-SPI flake")
+            return orig_find(pred)
+
+        broken.findChildren = _find_with_err
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[broken])
+        assert m._firefox_window(context) is broken
+
     def test_liveness_check_accepts_empty_window(self):
         m = _import_firefox_steps()
         window = _FakeNode("filler")
@@ -241,6 +375,140 @@ class TestFirefoxWindow:
             m._firefox_window(context)
 
 
+class TestWindowCandidates:
+    def test_top_level_children_preferred(self):
+        m = _import_firefox_steps()
+        top_window = _FakeNode("frame", showing=True)
+        nested_frame = _FakeNode("frame", showing=True)
+        top_window.children = [nested_frame]
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[top_window])
+        candidates = m._window_candidates(context)
+        assert candidates == [top_window]
+
+    def test_falls_back_to_find_children_when_no_top_level(self):
+        m = _import_firefox_steps()
+        nested = _FakeNode("frame", showing=True)
+        intermediate = _FakeNode("panel", showing=True, children=[nested])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[intermediate])
+        candidates = m._window_candidates(context)
+        assert candidates == [nested]
+
+
+class TestAddressBar:
+    def test_finds_entry_role(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("entry", showing=True, name="Search or enter address")
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._address_bar(context) is bar
+
+    def test_finds_autocomplete_role(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("autocomplete", showing=True, name="Search with Google or enter address")
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._address_bar(context) is bar
+
+    def test_finds_combo_box_role(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("combo box", showing=True, name="Search with Google or enter address")
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._address_bar(context) is bar
+
+    def test_matches_url_keyword(self):
+        m = _import_firefox_steps()
+        other_entry = _FakeNode("entry", showing=True, name="Username")
+        url_entry = _FakeNode("entry", showing=True, name="Website URL")
+        window = _FakeNode("frame", showing=True, children=[other_entry, url_entry])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._address_bar(context) is url_entry
+
+    def test_navigate_firefox_to_fallback_on_typing_error(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("combo box", showing=True, name="Search with Google or enter address")
+        bar.text = "start.fedoraproject.org"
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        context.execute_steps = MagicMock(side_effect=TypeError("cannot unpack"))
+        m.atspi_click = MagicMock()
+
+        def fake_popen(cmd, **kw):
+            setattr(bar, "text", "about:blank")
+            return MagicMock()
+
+        with patch("subprocess.Popen", side_effect=fake_popen) as mock_popen:
+            m.navigate_firefox_to(context, "about:blank")
+            assert "about:blank" in bar.text
+            assert mock_popen.called
+
+
+class TestTabCount:
+    def test_counts_tabs_correctly(self):
+        m = _import_firefox_steps()
+        tab1 = _FakeNode("page tab", showing=True)
+        tab2 = _FakeNode("page tab", showing=True)
+        tab_list = _FakeNode("page tab list", showing=True, children=[tab1, tab2])
+        window = _FakeNode("frame", showing=True, children=[tab_list])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        assert m._tab_count(context) == 2
+
+    def test_firefox_tab_count_increases_fallback_via_button(self):
+        m = _import_firefox_steps()
+        context = MagicMock()
+        tabs = [_FakeNode("page tab", showing=True)]
+        tab_list = _FakeNode("page tab list", showing=True, children=tabs)
+        new_tab_btn = _FakeNode("button", showing=True, name="Open a new tab (Ctrl+T)")
+
+        def fake_click(node):
+            if node is new_tab_btn:
+                new_tab = _FakeNode("page tab", showing=True)
+                tabs.append(new_tab)
+                tab_list.children = list(tabs)
+
+        m.atspi_click = MagicMock(side_effect=fake_click)
+
+        window = _FakeNode("frame", showing=True, children=[tab_list, new_tab_btn])
+        context.firefox.instance = _FakeNode("application", children=[window])
+        context.execute_steps = MagicMock()
+
+        m.firefox_tab_count_increases(context)
+        assert len(tabs) == 2
+        m.atspi_click.assert_called_once_with(new_tab_btn)
+
+    def test_firefox_tab_count_decreases_fallback_via_button(self):
+        m = _import_firefox_steps()
+        context = MagicMock()
+        close_btn = _FakeNode("button", showing=True, name="Close tab")
+        tab1 = _FakeNode("page tab", showing=True)
+        tab2 = _FakeNode("page tab", showing=True, children=[close_btn])
+        tabs = [tab1, tab2]
+        tab_list = _FakeNode("page tab list", showing=True, children=tabs)
+
+        def fake_click(node):
+            if node is close_btn:
+                tabs.pop()
+                tab_list.children = list(tabs)
+
+        m.atspi_click = MagicMock(side_effect=fake_click)
+
+        window = _FakeNode("frame", showing=True, children=[tab_list])
+        context.firefox.instance = _FakeNode("application", children=[window])
+        context.execute_steps = MagicMock()
+
+        m.firefox_tab_count_decreases(context)
+        assert len(tabs) == 1
+        m.atspi_click.assert_called_once_with(close_btn)
+
+
 class TestLaunchTargetOrdering:
     def test_flatpak_precedes_exported_desktop_entry(self):
         m = _import_firefox_steps()
@@ -248,3 +516,86 @@ class TestLaunchTargetOrdering:
         assert targets.index(("flatpak", "org.mozilla.firefox")) < targets.index(
             ("desktop", "org.mozilla.firefox.desktop")
         )
+
+
+class TestCharacterInput:
+    def test_char_to_uinput_event_maps_colon(self):
+        import tests.smoke.features.environment as env
+        res = env._char_to_uinput_event(":")
+        assert res is not None
+        key_event, shifted = res
+        assert shifted is True
+
+    def test_char_to_uinput_event_maps_uppercase(self):
+        import tests.smoke.features.environment as env
+        res = env._char_to_uinput_event("B")
+        assert res is not None
+        key_event, shifted = res
+        assert shifted is True
+
+    def test_char_to_uinput_event_maps_hyphen(self):
+        import tests.smoke.features.environment as env
+        res = env._char_to_uinput_event("-")
+        assert res is not None
+        key_event, shifted = res
+        assert shifted is False
+
+    def test_type_text_uinput_handles_about_blank(self):
+        import tests.smoke.features.environment as env
+        device = MagicMock()
+        env._emit_characters_to_device(device, "about:blank")
+        assert device.emit_click.called
+        assert device.emit.called  # Shift for colon
+
+    def test_type_text_uinput_handles_url(self):
+        import tests.smoke.features.environment as env
+        device = MagicMock()
+        env._emit_characters_to_device(device, "https://projectbluefin.io")
+        assert device.emit_click.called
+
+    def test_key_name_map_maps_return_to_enter(self):
+        import tests.smoke.features.environment as env
+        assert env._KEY_NAME_MAP["return"] == "ENTER"
+        assert env._KEY_NAME_MAP["enter"] == "ENTER"
+
+
+class TestFirefoxNavigationAndClose:
+    def test_navigate_firefox_to_matches_prefix_stripped_url(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("combo box", showing=True, name="Search with Google or enter address")
+        bar.text = "projectbluefin.io"
+        window = _FakeNode("frame", showing=True, children=[bar])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        context.execute_steps = MagicMock()
+
+        m.navigate_firefox_to(context, "https://projectbluefin.io")
+
+    def test_navigate_firefox_to_matches_about_blank_empty_bar(self):
+        m = _import_firefox_steps()
+        bar = _FakeNode("combo box", showing=True, name="Search with Google or enter address")
+        bar.text = ""
+        doc = _FakeNode("document web", showing=True, name="about:blank")
+        window = _FakeNode("frame", showing=True, children=[bar, doc])
+        context = MagicMock()
+        context.firefox.instance = _FakeNode("application", children=[window])
+        context.execute_steps = MagicMock()
+
+        m.navigate_firefox_to(context, "about:blank")
+
+    def test_firefox_is_no_longer_running_fallback(self):
+        m = _import_firefox_steps()
+        app = _FakeNode("application")
+        frame = _FakeNode("frame", showing=True)
+        app.children = [frame]
+        m.tree.root.application = MagicMock(return_value=app)
+        context = MagicMock()
+
+        # Simulate frame disappearing after fallback killall
+        def fake_run(cmd, **kw):
+            if "killall" in cmd:
+                app.children = []
+
+        with patch("subprocess.run", side_effect=fake_run) as mock_run:
+            m.firefox_is_no_longer_running(context)
+            assert mock_run.called

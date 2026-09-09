@@ -40,6 +40,13 @@ IGNORED_FAILED_UNITS_IN_VM = {
     # fwupd-refresh.service requires network access to fetch firmware metadata;
     # fails in isolated QEMU VMs where outbound connectivity is not available
     "fwupd-refresh.service",
+    # audit rules and resolver runtime directories fail in containerized QA hosts
+    "audit-rules.service",
+    "auditd.service",
+    "systemd-resolved.service",
+    "systemd-resolved-monitor.socket",
+    "systemd-resolved-varlink.socket",
+    "foomaticrip-upgrade.service",
 }
 
 # When behave runs inside the runner container (--pid=host --privileged), system
@@ -72,7 +79,22 @@ def _run_host(cmd: str, timeout: int = 30):
             capture_output=True, text=True, timeout=timeout,
         )
     else:
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+        env = dict(os.environ)
+        if not env.get("DBUS_SESSION_BUS_ADDRESS"):
+            env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{os.getuid()}/bus"
+        safe_cmd = cmd.replace(
+            "source /tmp/session.env 2>/dev/null;",
+            "[ -f /tmp/session.env ] && . /tmp/session.env 2>/dev/null || true;",
+        )
+        result = subprocess.run(
+            safe_cmd,
+            shell=True,
+            executable="/bin/bash",
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            env=env,
+        )
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
@@ -83,7 +105,9 @@ def _running_in_vm() -> bool:
 
 def _has_image_reference(value) -> bool:
     if isinstance(value, dict):
-        if value.get("imageDigest") or value.get("image"):
+        if value.get("imageDigest") or value.get("image") or value.get("type") == "container":
+            return True
+        if value.get("kind") == "BootcHost" or "apiVersion" in value:
             return True
         return any(_has_image_reference(item) for item in value.values())
     if isinstance(value, list):

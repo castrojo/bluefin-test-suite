@@ -46,10 +46,23 @@ def _run_host(cmd: list[str] | str):
         _local_env = dict(os.environ)
         if not _local_env.get("DBUS_SESSION_BUS_ADDRESS"):
             _local_env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path=/run/user/{os.getuid()}/bus"
+        if not os.path.exists("/tmp/session.env"):
+            try:
+                with open("/tmp/session.env", "w") as f:
+                    for k in ("DBUS_SESSION_BUS_ADDRESS", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "DISPLAY", "XDG_SESSION_TYPE"):
+                        v = _local_env.get(k)
+                        if v:
+                            f.write(f"export {k}={v}\n")
+            except Exception:  # noqa: BLE001
+                pass
         if isinstance(cmd, list):
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False, env=_local_env)
         else:
-            result = subprocess.run(cmd_str, shell=True, capture_output=True, text=True, timeout=30, check=False, env=_local_env)
+            safe_cmd = cmd_str.replace(
+                "source /tmp/session.env 2>/dev/null;",
+                "[ -f /tmp/session.env ] && . /tmp/session.env 2>/dev/null || true;",
+            )
+            result = subprocess.run(safe_cmd, shell=True, executable="/bin/bash", capture_output=True, text=True, timeout=30, check=False, env=_local_env)
     return result.stdout.strip(), result.returncode, result.stderr.strip()
 
 
@@ -191,8 +204,20 @@ def _extensions_window(allow_process_fallback: bool = False):
 
 @step("At least one GNOME extension is installed")
 def at_least_one_gnome_extension_is_installed(context) -> None:
-    # Use nsenter so gnome-extensions (from the host gnome-shell package) is available.
     output, returncode, stderr = _run_host(["gnome-extensions", "list"])
+    if returncode != 0:
+        # Fallback to in-process GNOME Shell D-Bus when gnome-extensions CLI
+        # blocks on portal activation in container environments.
+        out, rc, _ = _run_host(
+            "source /tmp/session.env 2>/dev/null; "
+            "gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell "
+            "--method org.gnome.Shell.Extensions.ListExtensions"
+        )
+        if rc == 0 and out:
+            extensions = re.findall(r"'([^'@]+@[^']+)':", out)
+            if extensions:
+                context.installed_extensions = extensions
+                return
     assert returncode == 0, f"gnome-extensions list failed: {stderr or output}"
 
     extensions = [line.strip() for line in output.splitlines() if line.strip()]
@@ -202,8 +227,20 @@ def at_least_one_gnome_extension_is_installed(context) -> None:
 
 @step("At least one GNOME extension is enabled")
 def at_least_one_gnome_extension_is_enabled(context) -> None:
-    # Use nsenter so gnome-extensions (from the host gnome-shell package) is available.
     output, returncode, stderr = _run_host(["gnome-extensions", "list", "--enabled"])
+    if returncode != 0:
+        out, rc, _ = _run_host(
+            "source /tmp/session.env 2>/dev/null; "
+            "gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell "
+            "--method org.gnome.Shell.Extensions.ListExtensions"
+        )
+        if rc == 0 and out:
+            enabled = [
+                m.group(1) for m in re.finditer(r"'([^'@]+@[^']+)'\s*:\s*\{[^}]*?'state':\s*<1\.0>", out)
+            ]
+            if enabled:
+                context.enabled_extensions = enabled
+                return
     assert returncode == 0, f"gnome-extensions list --enabled failed: {stderr or output}"
 
     enabled_extensions = [line.strip() for line in output.splitlines() if line.strip()]

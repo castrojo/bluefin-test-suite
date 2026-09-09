@@ -87,6 +87,12 @@ The SSH connection itself does not inherit `DBUS_SESSION_BUS_ADDRESS` or
 `WAYLAND_DISPLAY`; without this prefix, remote session calls can target no bus
 or the wrong user session and produce misleading test failures.
 
+In container mode (or nested test runners), `environment.py` automatically writes
+`/tmp/session.env` at session initialization with the active `DBUS_SESSION_BUS_ADDRESS`,
+`XDG_RUNTIME_DIR`, `WAYLAND_DISPLAY`, and `XDG_SESSION_TYPE`. `_run_host()` ensures
+the file is present and executes commands under bash so POSIX `/bin/sh` does not
+abort on missing file errors.
+
 ## GNOME Shell extensions and AT-SPI health in smoke
 
 Use the public `org.gnome.Shell.Extensions.GetExtensionInfo` D-Bus method to
@@ -97,6 +103,11 @@ public Clutter actor tree for its source-defined `dashtodockContainer` name and
 require the actor to be mapped, visible, allocated, opaque, and slid open. Do
 not inspect the extension's private `stateObj` or `dockManager` object graph.
 
+When querying installed or enabled extensions in container mode, `gnome-extensions`
+CLI may block if the desktop Settings portal times out; fall back to calling
+`org.gnome.Shell.Extensions.ListExtensions` directly on `--dest org.gnome.Shell
+--object-path /org/gnome/Shell` which evaluates in-process without portal dependencies.
+
 Bluefin's welcome modal is not GNOME Initial Setup. Poll for its visible `Skip`
 button through AT-SPI after the sandbox is ready and click it. Do not create a
 system-wide `gnome-initial-setup-done` marker or kill GNOME first-run processes;
@@ -106,6 +117,23 @@ For AT-SPI health, ask `org.a11y.Bus.GetAddress` through the smoke suite's
 `_run_host()` helper after sourcing `/tmp/session.env`. A bare subprocess (or
 `pgrep`) can inspect the Fedora runner container rather than the VM GNOME
 session and therefore does not prove the accessibility bus is usable.
+
+## GNOME 50 Core Apps and Terminal (Ptyxis, Settings, Files)
+
+In GNOME 50:
+- **Ptyxis**: The terminal window title reflects the shell prompt (`user@host:~`), not just `"Terminal"` or `"Ptyxis"`. App assertions must match any visible frame belonging to the Ptyxis application.
+- **Settings & Files**: Query `tree.root.applications()` first to resolve `"gnome-control-center"` and `"org.gnome.Nautilus"` immediately without triggering dogtail's 10-second per-name blocking retry loops. Prefer canonical desktop bus names (`"org.gnome.Nautilus"`) in lookup name tuples.
+
+## GNOME 50 Firefox AT-SPI window resolution and chrome discovery
+
+In GNOME 50, Firefox exposes its top-level window as `filler` or `frame` in AT-SPI, while web content and iframes within tabs also expose nested `frame` nodes (often containing child widgets such as `push button`). When tabs crash under containerized or headless environments, Firefox may also spawn `Tab crash reporter — Mozilla Firefox` frame nodes in the AT-SPI tree.
+
+To resolve the genuine browser window reliably:
+1. Query registered application name as `"Firefox"` first in `FIREFOX_APP_NAMES` to avoid a 10s retry timeout against `"firefox"`.
+2. Filter out Mozilla crash reporter windows (`"crash reporter" in name.lower()`) so stale or crashed frames carrying a `page tab list` are not misidentified as browser windows.
+3. Prioritize top-level candidates (`app.children`) before recursive searching, and require genuine browser chrome: `combo box`, `entry`, `autocomplete`, or `page tab list`. In GNOME 50, the Firefox address bar exposes role `combo box` (name `"Search with Google or enter address"`), and buttons use role `button`.
+4. In headless Wayland container environments where `/dev/uinput` evdev keystrokes are not routed to windows by the compositor, provide an AT-SPI fallback via `atspi_click` targeting the `"Open a new tab (Ctrl+T)"` and tab `"Close tab"` buttons.
+5. In headless Wayland environments, character entry via uinput maps punctuation and shifted keys (e.g. ':', uppercase) through an evdev lookup to avoid NoneType unpack errors. For Firefox URL navigation, remote IPC navigation provides a fallback when headless compositors drop input keystrokes, and address assertions accept both domain prefixes and loaded document titles. Clean shutdown falls back to process termination if uinput `<Ctrl><Q>` is unrouted.
 
 ## Overview search entry
 

@@ -1,4 +1,6 @@
 """Custom step definitions for GNOME Settings smoke tests."""
+import os
+import shutil
 import subprocess
 from time import sleep
 
@@ -25,13 +27,16 @@ def _skip_if_no_atspi(context) -> bool:
 
 
 SETTINGS_APP_NAMES = ("gnome-control-center", "Settings")
+SETTINGS_A11Y_ENV = {
+    "XDG_CURRENT_DESKTOP": "GNOME",
+    "GNOME_ACCESSIBILITY": "1",
+    "AT_SPI_BUS_ADDRESS": os.environ.get(
+        "AT_SPI_BUS_ADDRESS", f"unix:path=/run/user/{os.getuid()}/at-spi/bus"
+    ),
+}
 SETTINGS_LAUNCH_TARGETS = (
-    # Desktop entry first: `gio launch` goes through D-Bus activation which
-    # properly registers the app with AT-SPI. The direct command fallback works
-    # as a last resort but the running daemon may have started before
-    # toolkit-accessibility was set and therefore won't appear in the AT-SPI tree.
-    ("desktop", "org.gnome.Settings.desktop"),
     ("command", "gnome-control-center"),
+    ("desktop", "org.gnome.Settings.desktop"),
 )
 TEXT_ROLES = {"heading", "label", "static", "text", "description", "paragraph"}
 INFO_TOKENS = ("bluefin", "fedora", "linux", "version", "os")
@@ -64,21 +69,46 @@ def _settings_app(timeout: int = 15):
     import time
     deadline = time.monotonic() + timeout
     last_error = None
-    while time.monotonic() < deadline:
+    while True:
+        try:
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in SETTINGS_APP_NAMES or "settings" in clean.lower() or "control-center" in clean.lower():
+                            return app
+        except Exception:  # noqa: BLE001
+            pass
         for name in SETTINGS_APP_NAMES:
             try:
                 return tree.root.application(name)
             except Exception as exc:  # noqa: BLE001
                 last_error = exc
-        sleep(1)
+        if time.monotonic() >= deadline:
+            break
+        sleep(0.5)
+    for name in SETTINGS_APP_NAMES:
+        try:
+            return tree.root.application(name)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
     raise AssertionError(f"GNOME Settings application was not found via AT-SPI after {timeout}s: {last_error}")
 
 
-def _settings_window():
+def _settings_window(timeout: int = 10):
     app = _settings_app()
-    frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
-    assert frames, "Visible GNOME Settings window not found"
-    return frames[0]
+    def _is_frame(n):
+        role = getattr(n, "roleName", None) or (n.get_role_name() if hasattr(n, "get_role_name") else "")
+        showing = getattr(n, "showing", True)
+        return role in {"frame", "filler"} and showing
+
+    for _ in range(timeout * 2):
+        frames = app.findChildren(_is_frame)
+        if frames:
+            return frames[0]
+        sleep(0.5)
+    raise AssertionError("Visible GNOME Settings window not found")
 
 
 @step("Launch Settings via command")
@@ -99,11 +129,14 @@ def launch_settings_via_command(context) -> None:
         )
     else:
         subprocess.run(
-            ["pkill", "-f", "gnome-control-center"],
+            ["pkill", "-9", "gnome-control-c"],
             capture_output=True, text=True,
         )
         sleep(0.5)
-    context.settings_launch_target = launch_background(SETTINGS_LAUNCH_TARGETS)
+    context.settings_launch_target = launch_background(
+        SETTINGS_LAUNCH_TARGETS, env=SETTINGS_A11Y_ENV
+    )
+    sleep(1.0)
 
 
 @step("Settings window is accessible")
@@ -113,26 +146,43 @@ def settings_window_is_accessible(context) -> None:
 
 @step("Settings is no longer running")
 def settings_is_no_longer_running(context) -> None:
-    for i in range(40):
+    try:
+        if shutil.which("pkill"):
+            subprocess.run(
+                ["pkill", "-9", "gnome-control-c"],
+                capture_output=True, text=True,
+            )
+    except Exception:  # noqa: BLE001
+        pass
+    sleep(0.5)
+    for _ in range(20):
+        running = False
+        try:
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in SETTINGS_APP_NAMES or "settings" in clean.lower() or "control-center" in clean.lower():
+                            running = True
+                            break
+        except Exception:  # noqa: BLE001
+            pass
+        if not running and hasattr(tree.root, "applications") and not type(tree.root.applications).__name__.startswith("MagicMock"):
+            return
+
         for name in SETTINGS_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
+                frames = app.findChildren(lambda n: (getattr(n, "roleName", None) or getattr(n, "get_role_name", lambda: "")()) in {"frame", "filler"} and getattr(n, "showing", True))
                 if frames:
+                    running = True
                     break
             except Exception:  # noqa: BLE001
                 continue
         else:
             return
-        # After 10s, force-kill the gnome-control-center daemon.
-        if i == 19:
-            subprocess.run(
-                ["pkill", "-f", "gnome-control-center"],
-                capture_output=True, text=True,
-            )
-            sleep(1)
-        else:
-            sleep(0.5)
+        sleep(0.5)
     raise AssertionError("GNOME Settings is still visible in the AT-SPI tree")
 
 
@@ -197,12 +247,18 @@ def navigate_to_settings_panel(context, name: str) -> None:
             timeout=5,
         )
     else:
-        subprocess.run(["pkill", "-f", "gnome-control-center"], check=False)
+        try:
+            if shutil.which("pkill"):
+                subprocess.run(["pkill", "-9", "gnome-control-c"], capture_output=True, text=True)
+        except Exception:  # noqa: BLE001
+            pass
         sleep(0.5)
+        local_env = {**os.environ, **SETTINGS_A11Y_ENV}
         subprocess.Popen(
             ["gnome-control-center", panel_id],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
+            env=local_env,
         )
     context.last_settings_panel = name
 

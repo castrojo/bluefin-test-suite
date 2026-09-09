@@ -5,11 +5,22 @@ Import with: from tests.shared.ssh_steps import *
 Or register with behave via environment.py importing this module.
 """
 
+import os
 import shlex
 import subprocess
 from time import sleep
 
 from behave import step
+
+
+def _is_local_target(context) -> bool:
+    """Return True if tests are executing directly on the target host/container."""
+    vm_ip = getattr(context, "vm_ip", "")
+    if not vm_ip:
+        return True
+    if vm_ip in ("127.0.0.1", "localhost") and os.path.isfile("/usr/bin/bootc"):
+        return True
+    return False
 
 
 def run_ssh(context, cmd, timeout=60):
@@ -18,6 +29,26 @@ def run_ssh(context, cmd, timeout=60):
     final_cmd = cmd
     if prefix:
         final_cmd = f"bash -c {shlex.quote(f'{prefix}; {cmd}')}"
+
+    if _is_local_target(context):
+        try:
+            result = subprocess.run(
+                ["bash", "-c", final_cmd],
+                capture_output=True, text=True, timeout=timeout,
+            )
+        except subprocess.TimeoutExpired:
+            context.command_stdout = ""
+            context.last_command_output = ""
+            context.ssh_rc = -1
+            context.last_ssh_result = None
+            raise
+        stdout = result.stdout.strip()
+        context.command_stdout = stdout
+        context.last_command_output = stdout
+        context.ssh_rc = result.returncode
+        context.last_ssh_result = result
+        return stdout, result.returncode
+
     ssh_opts = [
         "ssh",
         "-i",
@@ -54,6 +85,8 @@ def run_ssh(context, cmd, timeout=60):
 @step("Bluefin VM is booted and reachable over SSH")
 def vm_reachable_over_ssh(context):
     """Verify SSH connectivity to the test VM with retries (5 attempts, 10s apart)."""
+    if _is_local_target(context):
+        return
     last_error = ""
     for attempt in range(1, 6):
         try:

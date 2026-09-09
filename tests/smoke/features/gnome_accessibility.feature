@@ -35,5 +35,5 @@ Feature: GNOME accessibility
 
   @accessibility @regression
   Scenario: No accessibility-related journal errors after session start
-    * Run and save command output: "journalctl -b --no-pager -p err -g 'at-spi|orca|accessibility' | grep -v '^$' | wc -l"
+    * Run and save command output: "journalctl -b --no-pager -p err -g 'at-spi|orca|accessibility' -q | grep -v '^--' | grep -v '^$' | wc -l"
     * Last command output "contains" "0"
