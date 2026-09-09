@@ -62,6 +62,12 @@ def _unmask_cups() -> None:
             f"fi",
             timeout=10,
         )
+    _run_host(
+        "if [ -f /etc/cups/cupsd.conf ] && ! grep -q 'MaxRequestSize' /etc/cups/cupsd.conf; then "
+        "echo 'MaxRequestSize 0' | sudo -n tee -a /etc/cups/cupsd.conf >/dev/null; "
+        "fi",
+        timeout=10,
+    )
     _run_host("sudo -n systemctl daemon-reload")
 
 
@@ -195,7 +201,7 @@ def virtual_raw_printer_queue_accepts_job_and_removed(context, name: str) -> Non
 
         test_payload = "/tmp/smoke-print-payload.txt"
         _run_host(f"printf 'smoke-print-payload\\n' > {test_payload}")
-        out, rc, err = _run_host(f"lp -d {name} {test_payload}")
+        out, rc, err = _run_host(f"lp -d {name} -o raw {test_payload}")
         assert rc == 0, f"lp failed: {err or out}"
         job_id = _parse_job_id(out)
         assert job_id, f"could not parse job id from lp output: {out}"

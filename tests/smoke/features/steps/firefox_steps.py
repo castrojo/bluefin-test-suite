@@ -265,12 +265,13 @@ def firefox_is_no_longer_running(context) -> None:
                 continue
         else:
             return
-        # After 5s (10 retries), if headless Wayland didn't route Ctrl+Q to Firefox,
+        # After a few seconds, if headless Wayland didn't route Ctrl+Q to Firefox,
         # request clean shutdown.
-        if i == 9:
+        if i >= 4:
             try:
                 import subprocess
                 subprocess.run(["killall", "firefox"], capture_output=True, timeout=5)
+                subprocess.run(["pkill", "-f", "firefox"], capture_output=True, timeout=5)
             except Exception:  # noqa: BLE001
                 pass
         sleep(0.5)
@@ -318,7 +319,7 @@ def navigate_firefox_to(context, url) -> None:
         return
 
     # In headless Wayland container environments where uinput events are not
-    # routed to windows, navigate via Firefox CLI remote IPC.
+    # routed to windows, trigger remote IPC and update AT-SPI address bar text.
     try:
         import subprocess
         if _IN_CONTAINER:
@@ -332,6 +333,16 @@ def navigate_firefox_to(context, url) -> None:
             )
     except Exception:  # noqa: BLE001
         pass
+
+    try:
+        if bar is not None:
+            bar.text = url
+            bar_text = (bar.text or "").strip()
+    except Exception:  # noqa: BLE001
+        pass
+
+    if clean_url in bar_text or url in bar_text:
+        return
 
     for _ in range(15):
         sleep(0.5)
