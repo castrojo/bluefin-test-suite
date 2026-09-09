@@ -152,8 +152,11 @@ def launch_background(
                     _ssh_launch(value, env)
                     return f"command:{value}"
             elif shutil.which(value):
+                cmd = [value]
+                if shutil.which("systemd-run") and os.environ.get("DBUS_SESSION_BUS_ADDRESS"):
+                    cmd = ["systemd-run", "--user", "--quiet", value]
                 subprocess.Popen(
-                    [value],
+                    cmd,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                     env=local_env,

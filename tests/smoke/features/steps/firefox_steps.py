@@ -199,11 +199,12 @@ def _firefox_window(context, *, require_a11y_tree: bool = True):
     raise AssertionError(f"{A11Y_TREE_EMPTY_MESSAGE} (window roles seen: {roles})")
 
 
-def _address_bar(context, timeout: float = 5.0):
+def _address_bar(context, timeout: float = 10.0):
     deadline = monotonic() + timeout
     while True:
         try:
-            bars = _firefox_window(context).findChildren(
+            win = _firefox_window(context)
+            bars = win.findChildren(
                 lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
             )
             matches = [
@@ -212,6 +213,19 @@ def _address_bar(context, timeout: float = 5.0):
             ]
             if matches or bars:
                 return (matches or bars)[0]
+            if getattr(context, "firefox_window", None) is not None:
+                context.firefox_window = None
+                for c in _window_candidates(context):
+                    bars = c.findChildren(
+                        lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
+                    )
+                    matches = [
+                        n for n in bars
+                        if any(kw in (n.name or "").lower() for kw in ("address", "search", "url"))
+                    ]
+                    if matches or bars:
+                        context.firefox_window = c
+                        return (matches or bars)[0]
         except Exception:  # noqa: BLE001
             pass
         if monotonic() >= deadline:
