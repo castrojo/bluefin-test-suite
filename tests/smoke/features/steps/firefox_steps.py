@@ -288,21 +288,30 @@ def address_bar_is_present(context) -> None:
 
 @step('Navigate Firefox to "{url}"')
 def navigate_firefox_to(context, url) -> None:
-    bar = _address_bar(context)
+    bar = None
     try:
-        atspi_click(bar)
+        bar = _address_bar(context)
     except Exception:  # noqa: BLE001
         pass
-    try:
-        context.execute_steps(f'''* Key combo: "<Ctrl><A>" with uinput
+    if bar is not None:
+        try:
+            atspi_click(bar)
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            context.execute_steps(f'''* Key combo: "<Ctrl><A>" with uinput
 * Type text: "{url}" with uinput
 * Press key: "Enter" with uinput''')
-    except Exception:  # noqa: BLE001
-        pass
-    sleep(0.5)
+        except Exception:  # noqa: BLE001
+            pass
+        sleep(0.5)
 
     clean_url = url.removeprefix("https://").removeprefix("http://").rstrip("/")
-    bar_text = (_address_bar(context).text or "").strip()
+    bar_text = ""
+    try:
+        bar_text = ((bar.text if bar else None) or (_address_bar(context, timeout=2.0).text) or "").strip()
+    except Exception:  # noqa: BLE001
+        pass
 
     if clean_url in bar_text or url in bar_text:
         return

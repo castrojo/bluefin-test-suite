@@ -66,14 +66,11 @@ def _settings_app(timeout: int = 15):
     last_error = None
     while True:
         try:
-            for child in getattr(tree.root, "children", []):
-                name = getattr(child, "name", "") or ""
-                if name in SETTINGS_APP_NAMES or "settings" in name.lower() or "control-center" in name.lower():
-                    return child
-            for app in getattr(tree.root, "applications", lambda: [])():
-                name = getattr(app, "name", "") or ""
-                if name in SETTINGS_APP_NAMES or "settings" in name.lower() or "control-center" in name.lower():
-                    return app
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None)
+                    if isinstance(name, str) and (name.strip("'\" ") in SETTINGS_APP_NAMES or "settings" in name.lower() or "control-center" in name.lower()):
+                        return app
         except Exception:  # noqa: BLE001
             pass
         for name in SETTINGS_APP_NAMES:
@@ -87,11 +84,14 @@ def _settings_app(timeout: int = 15):
     raise AssertionError(f"GNOME Settings application was not found via AT-SPI after {timeout}s: {last_error}")
 
 
-def _settings_window():
+def _settings_window(timeout: int = 10):
     app = _settings_app()
-    frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
-    assert frames, "Visible GNOME Settings window not found"
-    return frames[0]
+    for _ in range(timeout * 2):
+        frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
+        if frames:
+            return frames[0]
+        sleep(0.5)
+    raise AssertionError("Visible GNOME Settings window not found")
 
 
 @step("Launch Settings via command")

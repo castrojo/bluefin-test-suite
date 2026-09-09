@@ -50,14 +50,11 @@ def _nautilus_app(timeout: int = 15):
     last_error = None
     while True:
         try:
-            for child in getattr(tree.root, "children", []):
-                name = getattr(child, "name", "") or ""
-                if name in FILES_APP_NAMES or "nautilus" in name.lower():
-                    return child
-            for app in getattr(tree.root, "applications", lambda: [])():
-                name = getattr(app, "name", "") or ""
-                if name in FILES_APP_NAMES or "nautilus" in name.lower():
-                    return app
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None)
+                    if isinstance(name, str) and (name.strip("'\" ") in FILES_APP_NAMES or "nautilus" in name.lower()):
+                        return app
         except Exception:  # noqa: BLE001
             pass
         for name in FILES_APP_NAMES:
