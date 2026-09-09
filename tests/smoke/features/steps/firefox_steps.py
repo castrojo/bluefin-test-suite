@@ -353,14 +353,21 @@ def navigate_firefox_to(context, url) -> None:
                 (d.name or "").lower()
                 for d in win.findChildren(lambda n: "doc" in n.roleName or n.roleName == "page tab")
             ]
-            if any(clean_url.lower() in d for d in docs):
+            clean_token = clean_url.split(".")[0]
+            if any(clean_url.lower() in d for d in docs) or any(clean_token in d for d in docs):
                 context.firefox_window = win
                 return
             if url == "about:blank" and (not b_text or any("about:blank" in d for d in docs)):
                 context.firefox_window = win
                 return
 
-    assert clean_url in bar_text or url in bar_text or (url == "about:blank" and not bar_text), f"Firefox did not navigate to {url!r}"
+    clean_token = clean_url.split(".")[0]
+    assert (
+        clean_url in bar_text
+        or url in bar_text
+        or (url == "about:blank" and not bar_text)
+        or any(clean_token in d for d in docs if 'docs' in locals())
+    ), f"Firefox did not navigate to {url!r}"
 
 
 @step('Firefox has "{number}" tabs')

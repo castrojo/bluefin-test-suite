@@ -52,9 +52,11 @@ def _nautilus_app(timeout: int = 15):
         try:
             if callable(getattr(tree.root, "applications", None)):
                 for app in tree.root.applications():
-                    name = getattr(app, "name", None)
-                    if isinstance(name, str) and (name.strip("'\" ") in FILES_APP_NAMES or "nautilus" in name.lower()):
-                        return app
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in FILES_APP_NAMES or "nautilus" in clean.lower():
+                            return app
         except Exception:  # noqa: BLE001
             pass
         for name in FILES_APP_NAMES:
@@ -79,16 +81,18 @@ def launch_files_via_command(context) -> None:
 def _nautilus_window(timeout: int = 10):
     """Return the visible Files frame, retrying briefly while Nautilus settles."""
     app = _nautilus_app()
+    def _is_frame(n):
+        role = getattr(n, "roleName", None) or (n.get_role_name() if hasattr(n, "get_role_name") else "")
+        name = (getattr(n, "name", "") or (n.get_name() if hasattr(n, "get_name") else "")).strip()
+        showing = getattr(n, "showing", True)
+        return role in {"frame", "filler"} and showing and name in {"Files", "Home"}
+
     last_children = []
     for _ in range(timeout * 2):
-        frames = app.findChildren(
-            lambda n: n.roleName in {"frame", "filler"}
-            and n.showing
-            and (n.name or "").strip() in {"Files", "Home"}
-        )
+        frames = app.findChildren(_is_frame)
         if frames:
             return frames[0]
-        last_children = [(child.roleName, child.name) for child in app.children[:10]]
+        last_children = [(getattr(child, "roleName", getattr(child, "get_role_name", lambda: "")()), getattr(child, "name", getattr(child, "get_name", lambda: "")())) for child in getattr(app, "children", [])[:10]]
         sleep(0.5)
     raise AssertionError(
         f"Visible Files window not found in nautilus app. Top-level children: {last_children}"

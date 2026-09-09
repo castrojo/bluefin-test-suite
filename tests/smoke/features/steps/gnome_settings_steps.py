@@ -72,9 +72,11 @@ def _settings_app(timeout: int = 15):
         try:
             if callable(getattr(tree.root, "applications", None)):
                 for app in tree.root.applications():
-                    name = getattr(app, "name", None)
-                    if isinstance(name, str) and (name.strip("'\" ") in SETTINGS_APP_NAMES or "settings" in name.lower() or "control-center" in name.lower()):
-                        return app
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in SETTINGS_APP_NAMES or "settings" in clean.lower() or "control-center" in clean.lower():
+                            return app
         except Exception:  # noqa: BLE001
             pass
         for name in SETTINGS_APP_NAMES:
@@ -85,13 +87,23 @@ def _settings_app(timeout: int = 15):
         if time.monotonic() >= deadline:
             break
         sleep(0.5)
+    for name in SETTINGS_APP_NAMES:
+        try:
+            return tree.root.application(name)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
     raise AssertionError(f"GNOME Settings application was not found via AT-SPI after {timeout}s: {last_error}")
 
 
 def _settings_window(timeout: int = 10):
     app = _settings_app()
+    def _is_frame(n):
+        role = getattr(n, "roleName", None) or (n.get_role_name() if hasattr(n, "get_role_name") else "")
+        showing = getattr(n, "showing", True)
+        return role in {"frame", "filler"} and showing
+
     for _ in range(timeout * 2):
-        frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
+        frames = app.findChildren(_is_frame)
         if frames:
             return frames[0]
         sleep(0.5)
