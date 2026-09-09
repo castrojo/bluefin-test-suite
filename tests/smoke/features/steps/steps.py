@@ -337,7 +337,12 @@ def _node_text_value(node) -> str:
 
 def _loginctl_session_id() -> str:
     """Return the first graphical session ID from loginctl."""
-    stdout, rc, _ = _run_host("loginctl list-sessions --no-legend 2>/dev/null | head -1")
+    stdout, rc, _ = _run_host(
+        "loginctl list-sessions --no-legend 2>/dev/null | "
+        "awk '$4 ~ /seat/ || $5 == \"user\" {print $1; exit}'"
+    )
+    if not stdout.strip():
+        stdout, rc, _ = _run_host("loginctl list-sessions --no-legend 2>/dev/null | head -1")
     assert rc == 0, f"loginctl list-sessions failed: {stdout}"
     assert stdout.strip(), "No loginctl sessions found"
     return stdout.strip().split()[0]
