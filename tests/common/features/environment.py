@@ -219,7 +219,7 @@ def before_scenario(context, scenario):
         return
     feature_name = getattr(getattr(scenario, "feature", None), "name", "")
     if _is_container_target(context):
-        if feature_name in ("XDG desktop portal health", "XDG desktop portal integration"):
+        if "portal" in feature_name.lower():
             scenario.skip("XDG desktop portals require full VM session")
             return
         if "read-only" in getattr(scenario, "name", "").lower():
