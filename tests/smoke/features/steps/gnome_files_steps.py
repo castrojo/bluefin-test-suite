@@ -1,4 +1,5 @@
 """Custom step definitions for GNOME Files (Nautilus) smoke tests."""
+import shutil
 import subprocess
 import time
 from time import sleep
@@ -111,13 +112,16 @@ def files_window_is_accessible(context) -> None:
 
 @step("Files is no longer running")
 def files_is_no_longer_running(context) -> None:
-    if _IN_CONTAINER:
-        subprocess.run(
-            _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
-            capture_output=True, text=True, timeout=10,
-        )
-    else:
-        subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
+    try:
+        if _IN_CONTAINER:
+            subprocess.run(
+                _ssh_args() + ["source /tmp/session.env 2>/dev/null; nautilus --quit 2>/dev/null || true"],
+                capture_output=True, text=True, timeout=10,
+            )
+        elif shutil.which("nautilus"):
+            subprocess.run(["nautilus", "--quit"], capture_output=True, text=True, timeout=5)
+    except Exception:  # noqa: BLE001
+        pass
     sleep(0.5)
 
     for _ in range(20):

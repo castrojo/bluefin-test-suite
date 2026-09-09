@@ -1,5 +1,6 @@
 """Custom step definitions for GNOME Settings smoke tests."""
 import os
+import shutil
 import subprocess
 from time import sleep
 
@@ -145,10 +146,14 @@ def settings_window_is_accessible(context) -> None:
 
 @step("Settings is no longer running")
 def settings_is_no_longer_running(context) -> None:
-    subprocess.run(
-        ["pkill", "-9", "gnome-control-c"],
-        capture_output=True, text=True,
-    )
+    try:
+        if shutil.which("pkill"):
+            subprocess.run(
+                ["pkill", "-9", "gnome-control-c"],
+                capture_output=True, text=True,
+            )
+    except Exception:  # noqa: BLE001
+        pass
     sleep(0.5)
     for _ in range(20):
         for name in SETTINGS_APP_NAMES:
