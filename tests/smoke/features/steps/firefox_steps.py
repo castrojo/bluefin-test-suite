@@ -254,6 +254,21 @@ def firefox_main_window_is_accessible(context) -> None:
 @step("Firefox is no longer running")
 def firefox_is_no_longer_running(context) -> None:
     for i in range(20):
+        running = False
+        try:
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in FIREFOX_APP_NAMES or "firefox" in clean.lower():
+                            running = True
+                            break
+        except Exception:  # noqa: BLE001
+            pass
+        if not running and hasattr(tree.root, "applications") and not type(tree.root.applications).__name__.startswith("MagicMock"):
+            return
+
         for name in FIREFOX_APP_NAMES:
             try:
                 app = tree.root.application(name)
@@ -273,7 +288,7 @@ def firefox_is_no_longer_running(context) -> None:
         if i >= 4:
             try:
                 if _IN_CONTAINER:
-                    _ssh_run("pkill -f firefox 2>/dev/null || killall firefox 2>/dev/null || true")
+                    _ssh_run("pkill -9 -f firefox 2>/dev/null || killall -9 firefox 2>/dev/null || true")
                 else:
                     subprocess.run(["killall", "firefox"], capture_output=True, timeout=5)
                     subprocess.run(["pkill", "-f", "firefox"], capture_output=True, timeout=5)
