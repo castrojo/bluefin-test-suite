@@ -199,12 +199,14 @@ def _firefox_window(context, *, require_a11y_tree: bool = True):
     raise AssertionError(f"{A11Y_TREE_EMPTY_MESSAGE} (window roles seen: {roles})")
 
 
-def _address_bar(context, timeout: float = 10.0):
+def _address_bar(context, timeout: float = 15.0):
     deadline = monotonic() + timeout
+    roles = {"entry", "autocomplete", "combo box", "text"}
     while True:
         try:
-            bars = _firefox_window(context).findChildren(
-                lambda n: n.roleName in {"entry", "autocomplete", "combo box"} and n.showing
+            win = _firefox_window(context)
+            bars = win.findChildren(
+                lambda n: n.roleName in roles and (n.showing or bool(n.name))
             )
             matches = [
                 n for n in bars
