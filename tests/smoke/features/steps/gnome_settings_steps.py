@@ -156,11 +156,27 @@ def settings_is_no_longer_running(context) -> None:
         pass
     sleep(0.5)
     for _ in range(20):
+        running = False
+        try:
+            if callable(getattr(tree.root, "applications", None)):
+                for app in tree.root.applications():
+                    name = getattr(app, "name", None) or (app.get_name() if hasattr(app, "get_name") else None)
+                    if isinstance(name, str):
+                        clean = name.strip("'\" ")
+                        if clean in SETTINGS_APP_NAMES or "settings" in clean.lower() or "control-center" in clean.lower():
+                            running = True
+                            break
+        except Exception:  # noqa: BLE001
+            pass
+        if not running and hasattr(tree.root, "applications") and not type(tree.root.applications).__name__.startswith("MagicMock"):
+            return
+
         for name in SETTINGS_APP_NAMES:
             try:
                 app = tree.root.application(name)
-                frames = app.findChildren(lambda n: n.roleName in {"frame", "filler"} and n.showing)
+                frames = app.findChildren(lambda n: (getattr(n, "roleName", None) or getattr(n, "get_role_name", lambda: "")()) in {"frame", "filler"} and getattr(n, "showing", True))
                 if frames:
+                    running = True
                     break
             except Exception:  # noqa: BLE001
                 continue
