@@ -342,6 +342,16 @@ def before_all(context) -> None:
     except Exception as exc:  # noqa: BLE001
         print(f"WARNING: unable to write /tmp/session.env: {exc}", flush=True)
 
+    # Ensure GTK applications initialize their AT-SPI accessibility bridge
+    try:
+        _subprocess.run(
+            ["gsettings", "set", "org.gnome.desktop.interface", "toolkit-accessibility", "true"],
+            check=False,
+            timeout=5,
+        )
+    except Exception as exc:  # noqa: BLE001
+        print(f"WARNING: unable to enable toolkit-accessibility: {exc}", flush=True)
+
     # Verify Shell.Eval is available.  unsafe_mode should already be set by the
     # gnome-shell extension installed in e2e.yml (GNOME 47+ removed SetUnsafeMode).
     # gdbus returns (true, 'true') when unsafe_mode=true, (false, '') when false.

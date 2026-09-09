@@ -28,6 +28,7 @@ SETTINGS_APP_NAMES = ("gnome-control-center", "Settings")
 SETTINGS_A11Y_ENV = {
     "XDG_CURRENT_DESKTOP": "GNOME",
     "GNOME_ACCESSIBILITY": "1",
+    "GTK_A11Y": "atk-bridge",
 }
 SETTINGS_LAUNCH_TARGETS = (
     ("command", "gnome-control-center"),
