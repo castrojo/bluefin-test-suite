@@ -1,3 +1,4 @@
+import subprocess
 from time import monotonic, sleep
 
 from behave import step
@@ -9,7 +10,7 @@ try:
     from qecore.common_steps import *  # noqa: F401,F403
 except Exception:  # noqa: BLE001
     pass
-from app_support import _IN_CONTAINER, _ssh_launch, atspi_click, launch_background
+from app_support import _IN_CONTAINER, _ssh_launch, _ssh_run, atspi_click, launch_background
 
 
 def _skip_if_no_atspi(context) -> bool:
@@ -271,9 +272,11 @@ def firefox_is_no_longer_running(context) -> None:
         # request clean shutdown.
         if i >= 4:
             try:
-                import subprocess
-                subprocess.run(["killall", "firefox"], capture_output=True, timeout=5)
-                subprocess.run(["pkill", "-f", "firefox"], capture_output=True, timeout=5)
+                if _IN_CONTAINER:
+                    _ssh_run("pkill -f firefox 2>/dev/null || killall firefox 2>/dev/null || true")
+                else:
+                    subprocess.run(["killall", "firefox"], capture_output=True, timeout=5)
+                    subprocess.run(["pkill", "-f", "firefox"], capture_output=True, timeout=5)
             except Exception:  # noqa: BLE001
                 pass
         sleep(0.5)

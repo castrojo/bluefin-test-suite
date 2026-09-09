@@ -30,6 +30,7 @@ def _import_firefox_steps(tree_available: bool = True):
     app_support_stub.atspi_click = MagicMock()
     app_support_stub._IN_CONTAINER = False
     app_support_stub._ssh_launch = MagicMock()
+    app_support_stub._ssh_run = MagicMock()
     sys.modules["app_support"] = app_support_stub
 
     for key in list(sys.modules):
