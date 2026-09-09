@@ -166,7 +166,7 @@ def bluefin_image_identity_is_present_in_os_release(context) -> None:
 def bootc_status_shows_a_valid_image_reference(context) -> None:
     # Try privileged first (sudo); fall back to unprivileged for read-only status.
     output, returncode, stderr = _run_host("sudo bootc status --format=json 2>&1 || bootc status --format=json 2>&1")
-    combined_err = (stderr or output or "").lower()
+    combined_err = f"{stderr} {output}".lower()
     # In CI QEMU VMs, bootc may fail to open /boot (no bootupd, bare kernel boot).
     # Treat this as a known VM limitation — skip the assertion rather than fail.
     if returncode != 0 and "opendir(boot)" in combined_err:

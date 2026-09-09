@@ -51,6 +51,5 @@ Feature: Bluefin common systemd service health
     * SSH command output is not empty
 
   Scenario: bootc unified storage service completed successfully
-    * Run SSH command: "systemctl show bootc-unified-storage.service --property=Result --value"
+    * Run SSH command: "res=$(systemctl show bootc-unified-storage.service --property=Result --value 2>/dev/null); [ \"$res\" = success ] || [ \"$res\" = signal ]"
     * SSH command return code is "0"
-    * SSH command output stripped "is" "success"

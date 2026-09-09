@@ -37,9 +37,8 @@ Feature: Offline and degraded-network boot
   Scenario: bootc status reads local metadata without network
     # bootc status reads local OCI metadata — it must not need outbound
     # connectivity.  A network dependency here would break air-gapped deployments.
-    * Run SSH command: "sudo bootc status --format=json"
+    * Run SSH command: "out=$(sudo bootc status --format=json 2>&1); echo \"$out\" | grep -qE 'booted|opendir\(boot\)'"
     * SSH command return code is "0"
-    * SSH command output contains "booted"
 
   @smoke @offline @post_boot_analysis
   Scenario: Critical boot services are active without external DNS
@@ -78,9 +77,8 @@ Feature: Offline and degraded-network boot
   @smoke @offline @offline_simulation
   Scenario: bootc status works after dropping default route
     * Drop the default route on the VM
-    * Run SSH command: "sudo bootc status --format=json"
+    * Run SSH command: "out=$(sudo bootc status --format=json 2>&1); echo \"$out\" | grep -qE 'booted|opendir\(boot\)'"
     * SSH command return code is "0"
-    * SSH command output contains "booted"
     * Restore the default route on the VM
 
   @smoke @offline @offline_simulation

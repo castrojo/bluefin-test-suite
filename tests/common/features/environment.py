@@ -233,7 +233,7 @@ def before_scenario(context, scenario):
         if out.strip() != "success":
             run_ssh(
                 context,
-                "sudo systemctl restart bootc-unified-storage.service 2>/dev/null || true",
+                "sudo systemctl restart bootc-unified-storage.service --no-block 2>/dev/null || true",
             )
     context.command_stdout = ""
     context.last_command_output = ""

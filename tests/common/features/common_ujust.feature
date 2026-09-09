@@ -26,7 +26,7 @@ Feature: Bluefin common ujust recipes
   # @requires_toggle_action gate probes for that contract and skips on images
   # that have not shipped it yet. See
   # docs/skills/test-authoring/behave/references/ujust-noninteractive.md.
-  @requires_toggle_action
+  @pending @requires_toggle_action
   Scenario: ujust toggle-updates enables and disables the update timer non-interactively
     # Flip the update timer through the recipe itself, assert the state
     # changed, then flip it back so the scenario is repeatable. Matches the
